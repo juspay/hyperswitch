@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
 use actix_web::rt::time as actix_time;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
-use crate::routes::{app::AppStateInfo, lock_utils};
+use crate::routes::{app::SessionStateInfo, lock_utils};
 
 pub const API_LOCK_PREFIX: &str = "API_LOCK";
 
@@ -50,7 +50,7 @@ impl LockAction {
     #[instrument(skip_all)]
     pub async fn perform_locking_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
-        A: AppStateInfo,
+        A: SessionStateInfo,
     {
         match self {
             Self::Hold { input } => {
@@ -102,7 +102,7 @@ impl LockAction {
                     }
                 }
 
-                Err(errors::ApiErrorResponse::ResourceBusy).into_report()
+                Err(report!(errors::ApiErrorResponse::ResourceBusy))
             }
             Self::QueueWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
@@ -111,7 +111,7 @@ impl LockAction {
     #[instrument(skip_all)]
     pub async fn free_lock_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
-        A: AppStateInfo,
+        A: SessionStateInfo,
     {
         match self {
             Self::Hold { input } => {
@@ -135,19 +135,18 @@ impl LockAction {
                                         .record("redis_lock_released", redis_locking_key);
                                     Ok(())
                                 }
-                                Ok(redis::types::DelReply::KeyNotDeleted) => Err(
-                                    errors::ApiErrorResponse::InternalServerError,
-                                )
-                                .into_report()
-                                .attach_printable(
-                                    "Status release lock called but key is not found in redis",
-                                ),
+                                Ok(redis::types::DelReply::KeyNotDeleted) => {
+                                    Err(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable(
+                                        "Status release lock called but key is not found in redis",
+                                    )
+                                }
                                 Err(error) => Err(error)
                                     .change_context(errors::ApiErrorResponse::InternalServerError),
                             }
                         } else {
                             Err(errors::ApiErrorResponse::InternalServerError)
-                                .into_report().attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
+                                .attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
                         }
                     }
                     Err(error) => {

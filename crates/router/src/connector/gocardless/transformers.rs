@@ -1,20 +1,23 @@
 use api_models::{
-    enums::{BankType, CountryAlpha2, UsStatesAbbreviation},
-    payments::{AddressDetails, BankDebitData},
+    enums::{CountryAlpha2, UsStatesAbbreviation},
+    payments::AddressDetails,
 };
-use common_utils::pii::{self, IpAddress};
+use common_utils::{
+    id_type,
+    pii::{self, IpAddress},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
-        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        RouterData,
+        self, AddressDetailsData, BrowserInformationData, ConnectorCustomerData,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData,
     },
     core::errors,
     types::{
-        self, api, storage::enums, transformers::ForeignTryFrom, MandateReference, ResponseId,
+        self, api, domain, storage::enums, transformers::ForeignTryFrom, MandateReference,
+        ResponseId,
     },
 };
 
@@ -23,22 +26,10 @@ pub struct GocardlessRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for GocardlessRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -71,71 +62,26 @@ pub struct GocardlessCustomer {
 
 #[derive(Default, Debug, Serialize)]
 pub struct CustomerMetaData {
-    crm_id: Option<Secret<String>>,
+    crm_id: Option<Secret<id_type::CustomerId>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let billing_details = match &item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                match bank_debit_data.clone() {
-                    BankDebitData::AchBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    BankDebitData::SepaBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    BankDebitData::BecsBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    BankDebitData::BacsBankDebit { .. } => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                        ))
-                    }
-                }
-            }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                ))
-            }
-        }?;
+        let billing_details_name = item.get_billing_full_name()?.expose();
 
-        let billing_details_name = billing_details.name.expose();
-
-        if billing_details_name.is_empty() {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_details.name",
-            })?
-        }
         let (given_name, family_name) = billing_details_name
             .trim()
             .rsplit_once(' ')
             .unwrap_or((&billing_details_name, &billing_details_name));
 
-        let billing_address = billing_details
-            .address
-            .ok_or_else(utils::missing_field_err("billing_details.address"))?;
+        let billing_address = item.get_billing_address()?;
 
         let metadata = CustomerMetaData {
             crm_id: item.customer_id.clone().map(Secret::new),
         };
-        let region = get_region(&billing_address)?;
+        let region = get_region(billing_address)?;
         Ok(Self {
             customers: GocardlessCustomer {
                 email,
@@ -152,7 +98,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 postal_code: billing_address.zip.to_owned(),
                 // Should be populated based on the billing country
                 swedish_identity_number: None,
-                city: billing_address.city.map(Secret::new),
+                city: billing_address.city.clone().map(Secret::new),
             },
         })
     }
@@ -172,12 +118,12 @@ fn get_region(
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessCustomerResponse {
     customers: Customers,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Customers {
     id: Secret<String>,
 }
@@ -284,49 +230,47 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                Self::try_from(bank_debit_data)
+            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
+                Self::try_from((bank_debit_data, item))
             }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Gocardless"),
-            )
-            .into()),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                )
+                .into())
+            }
         }
     }
 }
 
-impl TryFrom<&BankDebitData> for CustomerBankAccount {
+impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for CustomerBankAccount {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &BankDebitData) -> Result<Self, Self::Error> {
-        match item {
-            BankDebitData::AchBankDebit {
-                billing_details,
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::TokenizationRouterData),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            domain::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
                 bank_type,
-                bank_account_holder_name,
                 ..
             } => {
                 let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                let country_code = billing_details.get_billing_country()?;
-                let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
-                    ))?;
+                let country_code = item.get_billing_country()?;
+                let account_holder_name = item.get_billing_full_name()?;
                 let us_bank_account = USBankAccount {
                     country_code,
                     account_number: account_number.clone(),
@@ -336,19 +280,12 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                 };
                 Ok(Self::USBankAccount(us_bank_account))
             }
-            BankDebitData::BecsBankDebit {
-                billing_details,
+            domain::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
-                bank_account_holder_name,
             } => {
-                let country_code = billing_details.get_billing_country()?;
-                let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.becs_bank_debit.bank_account_holder_name",
-                    ))?;
+                let country_code = item.get_billing_country()?;
+                let account_holder_name = item.get_billing_full_name()?;
                 let au_bank_account = AUBankAccount {
                     country_code,
                     account_number: account_number.clone(),
@@ -357,46 +294,39 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                 };
                 Ok(Self::AUBankAccount(au_bank_account))
             }
-            BankDebitData::SepaBankDebit {
-                iban,
-                bank_account_holder_name,
-                ..
-            } => {
-                let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.sepa_bank_debit.bank_account_holder_name",
-                    ))?;
+            domain::BankDebitData::SepaBankDebit { iban, .. } => {
+                let account_holder_name = item.get_billing_full_name()?;
                 let international_bank_account = InternationalBankAccount {
                     iban: iban.clone(),
                     account_holder_name,
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Gocardless"),
-            )
-            .into()),
+            domain::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                )
+                .into())
+            }
         }
     }
 }
 
-impl From<BankType> for AccountType {
-    fn from(item: BankType) -> Self {
+impl From<common_enums::BankType> for AccountType {
+    fn from(item: common_enums::BankType) -> Self {
         match item {
-            BankType::Checking => Self::Checking,
-            BankType::Savings => Self::Savings,
+            common_enums::BankType::Checking => Self::Checking,
+            common_enums::BankType::Savings => Self::Savings,
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessBankAccountResponse {
     customer_bank_accounts: CustomerBankAccountResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomerBankAccountResponse {
     pub id: Secret<String>,
 }
@@ -465,28 +395,31 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let (scheme, payer_ip_address) = match &item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
                 let payer_ip_address = get_ip_if_required(bank_debit_data, item)?;
                 Ok((
                     GocardlessScheme::try_from(bank_debit_data)?,
                     payer_ip_address,
                 ))
             }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-            )),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+                ))
+            }
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
@@ -505,7 +438,7 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
                 },
                 payer_ip_address,
                 links: MandateLink {
-                    customer_bank_account: Secret::new(customer_bank_account),
+                    customer_bank_account,
                 },
             },
         })
@@ -513,41 +446,43 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
 }
 
 fn get_ip_if_required(
-    bank_debit_data: &BankDebitData,
+    bank_debit_data: &domain::BankDebitData,
     item: &types::SetupMandateRouterData,
 ) -> Result<Option<Secret<String, IpAddress>>, error_stack::Report<errors::ConnectorError>> {
     let ip_address = item.request.get_browser_info()?.get_ip_address()?;
     match bank_debit_data {
-        BankDebitData::AchBankDebit { .. } => Ok(Some(ip_address)),
-        BankDebitData::SepaBankDebit { .. }
-        | BankDebitData::BecsBankDebit { .. }
-        | BankDebitData::BacsBankDebit { .. } => Ok(None),
+        domain::BankDebitData::AchBankDebit { .. } => Ok(Some(ip_address)),
+        domain::BankDebitData::SepaBankDebit { .. }
+        | domain::BankDebitData::BecsBankDebit { .. }
+        | domain::BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
 }
 
-impl TryFrom<&BankDebitData> for GocardlessScheme {
+impl TryFrom<&domain::BankDebitData> for GocardlessScheme {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(item: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match item {
-            BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
-            BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
-            BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-            )
-            .into()),
+            domain::BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
+            domain::BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
+            domain::BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
+            domain::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+                )
+                .into())
+            }
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessMandateResponse {
     mandates: MandateResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MandateResponse {
-    id: String,
+    id: Secret<String>,
 }
 
 impl<F>
@@ -570,7 +505,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let mandate_reference = Some(MandateReference {
-            connector_mandate_id: Some(item.response.mandates.id.clone()),
+            connector_mandate_id: Some(item.response.mandates.id.clone().expose()),
             payment_method_id: None,
         });
         Ok(Self {
@@ -582,6 +517,7 @@ impl<F>
                 redirection_data: None,
                 mandate_reference,
                 network_txn_id: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -727,13 +663,14 @@ impl<F>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
                 mandate_reference: Some(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -762,13 +699,14 @@ impl<F>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -817,7 +755,7 @@ impl<F> TryFrom<&GocardlessRouterData<&types::RefundsRouterData<F>>> for Gocardl
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -839,12 +777,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessErrorResponse {
     pub error: GocardlessError,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessError {
     pub message: String,
     pub code: u16,
@@ -853,7 +791,7 @@ pub struct GocardlessError {
     pub error_type: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Error {
     pub field: Option<String>,
     pub message: String,

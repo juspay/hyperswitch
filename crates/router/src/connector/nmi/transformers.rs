@@ -1,8 +1,14 @@
 use api_models::webhooks;
 use cards::CardNumber;
-use common_utils::{errors::CustomResult, ext_traits::XmlExt};
-use error_stack::{IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, Secret};
+use common_enums::CountryAlpha2;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::XmlExt,
+    pii::{self, Email},
+    types::FloatMajorUnit,
+};
+use error_stack::{report, Report, ResultExt};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,7 +18,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
 };
 
 type Error = Report<errors::ConnectorError>;
@@ -37,11 +43,11 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: None,
             }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: Some(key1.to_owned()),
             }),
@@ -52,32 +58,16 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct NmiRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for NmiRouterData<T>
-{
-    type Error = Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+impl<T> From<(FloatMajorUnit, T)> for NmiRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -89,6 +79,12 @@ pub struct NmiVaultRequest {
     cvv: Secret<String>,
     first_name: Secret<String>,
     last_name: Secret<String>,
+    address1: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country: Option<CountryAlpha2>,
     customer_vault: CustomerAction,
 }
 
@@ -105,24 +101,34 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let (ccnumber, ccexp, cvv) = get_card_details(item.request.payment_method_data.clone())?;
         let billing_details = item.get_billing_address()?;
+        let first_name = billing_details.get_first_name()?;
 
         Ok(Self {
             security_key: auth_type.api_key,
             ccnumber,
             ccexp,
             cvv,
-            first_name: billing_details.get_first_name()?.to_owned(),
-            last_name: billing_details.get_last_name()?.to_owned(),
+            first_name: first_name.clone(),
+            last_name: billing_details
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
+            address1: billing_details.line1.clone(),
+            address2: billing_details.line2.clone(),
+            city: billing_details.city.clone(),
+            state: billing_details.state.clone(),
+            country: billing_details.country,
+            zip: billing_details.zip.clone(),
             customer_vault: CustomerAction::AddCustomer,
         })
     }
 }
 
 fn get_card_details(
-    payment_method_data: Option<api::PaymentMethodData>,
+    payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<(CardNumber, Secret<String>, Secret<String>), errors::ConnectorError> {
     match payment_method_data {
-        Some(api::PaymentMethodData::Card(ref card_details)) => Ok((
+        Some(domain::PaymentMethodData::Card(ref card_details)) => Ok((
             card_details.card_number.clone(),
             utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
                 card_details,
@@ -132,16 +138,16 @@ fn get_card_details(
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Nmi"),
-        ))
-        .into_report(),
+        )
+        .into()),
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiVaultResponse {
     pub response: Response,
     pub responsetext: String,
-    pub customer_vault_id: Option<String>,
+    pub customer_vault_id: Option<Secret<String>>,
     pub response_code: String,
     pub transactionid: String,
 }
@@ -191,11 +197,14 @@ impl
                         )?
                         .to_string(),
                         currency: currency_data,
-                        customer_vault_id: item.response.customer_vault_id.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
+                        customer_vault_id: item
+                            .response
+                            .customer_vault_id
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "customer_vault_id",
-                            },
-                        )?,
+                            })?
+                            .peek()
+                            .to_string(),
                         public_key: auth_type.public_key.ok_or(
                             errors::ConnectorError::InvalidConnectorConfig {
                                 config: "public_key",
@@ -208,6 +217,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -233,44 +243,48 @@ impl
 
 #[derive(Debug, Serialize)]
 pub struct NmiCompleteRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
-    orderid: String,
-    ccnumber: CardNumber,
-    ccexp: Secret<String>,
-    cardholder_auth: CardHolderAuthType,
-    cavv: String,
-    xid: String,
-    three_ds_version: Option<ThreeDsVersion>,
+    orderid: Option<String>,
+    customer_vault_id: Secret<String>,
+    email: Option<Email>,
+    cardholder_auth: Option<String>,
+    cavv: Option<String>,
+    xid: Option<String>,
+    eci: Option<String>,
+    cvv: Secret<String>,
+    three_ds_version: Option<String>,
+    directory_server_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CardHolderAuthType {
-    Verified,
-    Attempted,
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum NmiRedirectResponse {
+    NmiRedirectResponseData(NmiRedirectResponseData),
+    NmiErrorResponseData(NmiErrorResponseData),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ThreeDsVersion {
-    #[serde(rename = "2.0.0")]
-    VersionTwo,
-    #[serde(rename = "2.1.0")]
-    VersionTwoPointOne,
-    #[serde(rename = "2.2.0")]
-    VersionTwoPointTwo,
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NmiErrorResponseData {
+    pub code: String,
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NmiRedirectResponseData {
-    cavv: String,
-    xid: String,
-    card_holder_auth: CardHolderAuthType,
-    three_ds_version: Option<ThreeDsVersion>,
-    order_id: String,
+    cavv: Option<String>,
+    xid: Option<String>,
+    eci: Option<String>,
+    card_holder_auth: Option<String>,
+    three_ds_version: Option<String>,
+    order_id: Option<String>,
+    directory_server_id: Option<Secret<String>>,
+    customer_vault_id: Secret<String>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
@@ -290,30 +304,31 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
             .expose();
 
         let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
-            .into_report()
             .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "three_ds_data",
             })?;
 
-        let (ccnumber, ccexp, ..) =
-            get_card_details(item.router_data.request.payment_method_data.clone())?;
+        let (_, _, cvv) = get_card_details(item.router_data.request.payment_method_data.clone())?;
 
         Ok(Self {
             amount: item.amount,
             transaction_type,
             security_key: auth_type.api_key,
             orderid: three_ds_data.order_id,
-            ccnumber,
-            ccexp,
+            customer_vault_id: three_ds_data.customer_vault_id,
+            email: item.router_data.request.email.clone(),
+            cvv,
             cardholder_auth: three_ds_data.card_holder_auth,
             cavv: three_ds_data.cavv,
             xid: three_ds_data.xid,
+            eci: three_ds_data.eci,
             three_ds_version: three_ds_data.three_ds_version,
+            directory_server_id: three_ds_data.directory_server_id,
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiCompleteResponse {
     pub response: Response,
     pub responsetext: String,
@@ -356,6 +371,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -398,18 +414,45 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     security_key: Secret<String>,
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
+    #[serde(flatten)]
+    merchant_defined_field: Option<NmiMerchantDefinedField>,
     orderid: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NmiMerchantDefinedField {
+    #[serde(flatten)]
+    inner: std::collections::BTreeMap<String, Secret<String>>,
+}
+
+impl NmiMerchantDefinedField {
+    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
+        let metadata_as_string = metadata.peek().to_string();
+        let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
+        let inner = hash_map
+            .into_iter()
+            .enumerate()
+            .map(|(index, (hs_key, hs_value))| {
+                let nmi_key = format!("merchant_defined_field_{}", index + 1);
+                let nmi_value = format!("{hs_key}={hs_value}");
+                (nmi_key, Secret::new(nmi_value))
+            })
+            .collect();
+        Self { inner }
+    }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentMethod {
-    Card(Box<CardData>),
+    CardNonThreeDs(Box<CardData>),
+    CardThreeDs(Box<CardThreeDsData>),
     GPay(Box<GooglePayData>),
     ApplePay(Box<ApplePayData>),
 }
@@ -419,6 +462,19 @@ pub struct CardData {
     ccnumber: CardNumber,
     ccexp: Secret<String>,
     cvv: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CardThreeDsData {
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    email: Option<Email>,
+    cardholder_auth: Option<String>,
+    cavv: Option<String>,
+    eci: Option<String>,
+    cvv: Secret<String>,
+    three_ds_version: Option<String>,
+    directory_server_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -442,8 +498,10 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
         };
         let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         let amount = item.amount;
-        let payment_method =
-            PaymentMethod::try_from(&item.router_data.request.payment_method_data)?;
+        let payment_method = PaymentMethod::try_from((
+            &item.router_data.request.payment_method_data,
+            Some(item.router_data),
+        ))?;
 
         Ok(Self {
             transaction_type,
@@ -451,79 +509,127 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
             amount,
             currency: item.router_data.request.currency,
             payment_method,
+            merchant_defined_field: item
+                .router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(NmiMerchantDefinedField::new),
             orderid: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
 
-impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
+impl
+    TryFrom<(
+        &domain::PaymentMethodData,
+        Option<&types::PaymentsAuthorizeRouterData>,
+    )> for PaymentMethod
+{
     type Error = Error;
     fn try_from(
-        payment_method_data: &api_models::payments::PaymentMethodData,
+        item: (
+            &domain::PaymentMethodData,
+            Option<&types::PaymentsAuthorizeRouterData>,
+        ),
     ) -> Result<Self, Self::Error> {
-        match &payment_method_data {
-            api::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
-            api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                api_models::payments::WalletData::GooglePay(ref googlepay_data) => {
-                    Ok(Self::from(googlepay_data))
-                }
-                api_models::payments::WalletData::ApplePay(ref applepay_data) => {
-                    Ok(Self::from(applepay_data))
-                }
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "nmi",
-                    })
-                    .into_report()
+        let (payment_method_data, router_data) = item;
+        match payment_method_data {
+            domain::PaymentMethodData::Card(ref card) => match router_data {
+                Some(data) => match data.auth_type {
+                    common_enums::AuthenticationType::NoThreeDs => Ok(Self::try_from(card)?),
+                    common_enums::AuthenticationType::ThreeDs => {
+                        Ok(Self::try_from((card, &data.request))?)
+                    }
+                },
+                None => Ok(Self::try_from(card)?),
+            },
+            domain::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
+                domain::WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
+                domain::WalletData::ApplePay(ref applepay_data) => Ok(Self::from(applepay_data)),
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => {
+                    Err(report!(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nmi"),
+                    )))
                 }
             },
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "nmi",
-            })
-            .into_report(),
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nmi"),
+                )
+                .into())
+            }
         }
     }
 }
 
-impl TryFrom<&api_models::payments::Card> for PaymentMethod {
+impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for PaymentMethod {
     type Error = Error;
-    fn try_from(card: &api_models::payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        val: (&domain::payments::Card, &types::PaymentsAuthorizeData),
+    ) -> Result<Self, Self::Error> {
+        let (card_data, item) = val;
+        let auth_data = &item.get_authentication_data()?;
+        let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
+            card_data,
+            "".to_string(),
+        )?;
+
+        let card_3ds_details = CardThreeDsData {
+            ccnumber: card_data.card_number.clone(),
+            ccexp,
+            cvv: card_data.card_cvc.clone(),
+            email: item.email.clone(),
+            cavv: Some(auth_data.cavv.clone()),
+            eci: auth_data.eci.clone(),
+            cardholder_auth: None,
+            three_ds_version: Some(auth_data.message_version.to_string()),
+            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
+        };
+
+        Ok(Self::CardThreeDs(Box::new(card_3ds_details)))
+    }
+}
+
+impl TryFrom<&domain::payments::Card> for PaymentMethod {
+    type Error = Error;
+    fn try_from(card: &domain::payments::Card) -> Result<Self, Self::Error> {
         let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
             card,
             "".to_string(),
@@ -533,12 +639,12 @@ impl TryFrom<&api_models::payments::Card> for PaymentMethod {
             ccexp,
             cvv: card.card_cvc.clone(),
         };
-        Ok(Self::Card(Box::new(card)))
+        Ok(Self::CardNonThreeDs(Box::new(card)))
     }
 }
 
-impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &api_models::payments::GooglePayWalletData) -> Self {
+impl From<&domain::GooglePayWalletData> for PaymentMethod {
+    fn from(wallet_data: &domain::GooglePayWalletData) -> Self {
         let gpay_data = GooglePayData {
             googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
         };
@@ -546,8 +652,8 @@ impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
     }
 }
 
-impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &api_models::payments::ApplePayWalletData) -> Self {
+impl From<&domain::ApplePayWalletData> for PaymentMethod {
+    fn from(wallet_data: &domain::ApplePayWalletData) -> Self {
         let apple_pay_data = ApplePayData {
             applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
         };
@@ -559,13 +665,14 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
+        let payment_method = PaymentMethod::try_from((&item.request.payment_method_data, None))?;
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth_type.api_key,
-            amount: 0.0,
+            amount: FloatMajorUnit::zero(),
             currency: item.request.currency,
             payment_method,
+            merchant_defined_field: None,
             orderid: item.connector_request_reference_id.clone(),
         })
     }
@@ -594,7 +701,7 @@ pub struct NmiCaptureRequest {
     pub transaction_type: TransactionType,
     pub security_key: Secret<String>,
     pub transactionid: String,
-    pub amount: Option<f64>,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCaptureRouterData>> for NmiCaptureRequest {
@@ -643,6 +750,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -684,7 +792,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Response {
     #[serde(alias = "1")]
     Approved,
@@ -694,7 +802,7 @@ pub enum Response {
     Error,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StandardResponse {
     pub response: Response,
     pub responsetext: String,
@@ -729,7 +837,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -737,6 +845,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -785,7 +894,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -793,6 +902,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -835,7 +945,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -843,6 +953,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -875,29 +986,30 @@ pub enum NmiStatus {
     Unknown,
 }
 
-impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
-    for types::PaymentsSyncRouterData
+impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::PaymentsSyncResponseRouterData<types::Response>,
+        item: types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response = SyncResponse::try_from(item.response.response.to_vec())?;
-        Ok(Self {
-            status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    response.transaction.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
+        match item.response.transaction {
+            Some(trn) => Ok(Self {
+                status: enums::AttemptStatus::from(NmiStatus::from(trn.condition)),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(trn.transaction_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            None => Ok(Self { ..item.data }), //when there is empty connector response i.e. response we get in psync when payment status is in authentication_pending
+        }
     }
 }
 
@@ -905,11 +1017,9 @@ impl TryFrom<Vec<u8>> for SyncResponse {
     type Error = Error;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         query_response
             .parse_xml::<Self>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 }
@@ -918,11 +1028,9 @@ impl TryFrom<Vec<u8>> for NmiRefundSyncResponse {
     type Error = Error;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         query_response
             .parse_xml::<Self>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 }
@@ -948,7 +1056,7 @@ pub struct NmiRefundRequest {
     security_key: Secret<String>,
     transactionid: String,
     orderid: String,
-    amount: f64,
+    amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&NmiRouterData<&types::RefundsRouterData<F>>> for NmiRefundRequest {
@@ -1026,19 +1134,18 @@ impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, types::Response>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = Error;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, types::Response>,
+        item: types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = NmiRefundSyncResponse::try_from(item.response.response.to_vec())?;
         let refund_status =
-            enums::RefundStatus::from(NmiStatus::from(response.transaction.condition));
+            enums::RefundStatus::from(NmiStatus::from(item.response.transaction.condition));
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: response.transaction.order_id,
+                connector_refund_id: item.response.transaction.order_id,
                 refund_status,
             }),
             ..item.data
@@ -1083,17 +1190,17 @@ pub struct SyncTransactionResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SyncResponse {
-    pub transaction: SyncTransactionResponse,
+    pub transaction: Option<SyncTransactionResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncBody {
     order_id: String,
     condition: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct NmiRefundSyncResponse {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiRefundSyncResponse {
     transaction: RefundSyncBody,
 }
 
@@ -1166,21 +1273,19 @@ pub enum NmiWebhookEventType {
 impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
     fn foreign_from(status: NmiWebhookEventType) -> Self {
         match status {
-            NmiWebhookEventType::SaleSuccess | NmiWebhookEventType::CaptureSuccess => {
-                Self::PaymentIntentSuccess
-            }
-            NmiWebhookEventType::SaleFailure | NmiWebhookEventType::CaptureFailure => {
-                Self::PaymentIntentFailure
-            }
+            NmiWebhookEventType::SaleSuccess => Self::PaymentIntentSuccess,
+            NmiWebhookEventType::SaleFailure => Self::PaymentIntentFailure,
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
             NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
+            NmiWebhookEventType::AuthSuccess => Self::PaymentIntentAuthorizationSuccess,
+            NmiWebhookEventType::CaptureSuccess => Self::PaymentIntentCaptureSuccess,
+            NmiWebhookEventType::AuthFailure => Self::PaymentIntentAuthorizationFailure,
+            NmiWebhookEventType::CaptureFailure => Self::PaymentIntentCaptureFailure,
+            NmiWebhookEventType::VoidFailure => Self::PaymentIntentCancelFailure,
             NmiWebhookEventType::SaleUnknown
             | NmiWebhookEventType::RefundUnknown
-            | NmiWebhookEventType::AuthSuccess
-            | NmiWebhookEventType::AuthFailure
             | NmiWebhookEventType::AuthUnknown
-            | NmiWebhookEventType::VoidFailure
             | NmiWebhookEventType::VoidUnknown
             | NmiWebhookEventType::CaptureUnknown => Self::EventNotSupported,
         }
@@ -1203,10 +1308,10 @@ pub struct NmiWebhookObject {
 impl TryFrom<&NmiWebhookBody> for SyncResponse {
     type Error = Error;
     fn try_from(item: &NmiWebhookBody) -> Result<Self, Self::Error> {
-        let transaction = SyncTransactionResponse {
+        let transaction = Some(SyncTransactionResponse {
             transaction_id: item.event_body.transaction_id.to_owned(),
             condition: item.event_body.condition.to_owned(),
-        };
+        });
 
         Ok(Self { transaction })
     }

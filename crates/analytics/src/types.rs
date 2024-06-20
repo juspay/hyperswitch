@@ -15,8 +15,10 @@ use crate::errors::AnalyticsError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
+    AuthEvents,
     SdkEvents,
     ApiEvents,
+    Dispute,
 }
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
@@ -26,6 +28,10 @@ pub enum AnalyticsCollection {
     SdkEvents,
     ApiEvents,
     PaymentIntent,
+    ConnectorEvents,
+    OutgoingWebhookEvent,
+    Dispute,
+    ApiEventsAnalytics,
 }
 
 #[allow(dead_code)]
@@ -58,11 +64,6 @@ where
             .attach_printable_lazy(|| format!("raw_value: {s}"))
     }
 }
-
-// Analytics Framework
-
-pub trait RefundAnalytics {}
-pub trait SdkEventAnalytics {}
 
 #[async_trait::async_trait]
 pub trait AnalyticsDataSource

@@ -9,7 +9,7 @@ use crate::{
     },
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -18,20 +18,13 @@ pub struct FiservRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for FiservRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for FiservRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -62,8 +55,8 @@ pub enum Source {
     },
     #[allow(dead_code)]
     GooglePay {
-        data: String,
-        signature: String,
+        data: Secret<String>,
+        signature: Secret<String>,
         version: String,
     },
 }
@@ -80,8 +73,8 @@ pub struct CardData {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayToken {
-    signature: String,
-    signed_message: String,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
     protocol_version: String,
 }
 
@@ -104,7 +97,7 @@ pub struct TransactionDetails {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
-    terminal_id: Option<String>,
+    terminal_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -173,7 +166,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
         };
         let source = match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
@@ -182,9 +175,24 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                 };
                 Source::PaymentCard { card }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Methods".to_string(),
-            ))?,
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                ))
+            }?,
         };
         Ok(Self {
             amount,
@@ -257,14 +265,14 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
     pub error: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     #[serde(rename = "type")]
@@ -306,7 +314,7 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
             | FiservPaymentStatus::Authorized
             | FiservPaymentStatus::Captured => Self::Success,
             FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
+            FiservPaymentStatus::Voided | FiservPaymentStatus::Processing => Self::Pending,
         }
     }
 }
@@ -363,6 +371,7 @@ impl<F, T>
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -405,6 +414,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
                         .clone(),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -428,7 +438,7 @@ pub struct ReferenceTransactionDetails {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FiservSessionObject {
-    pub terminal_id: String,
+    pub terminal_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {

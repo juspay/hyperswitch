@@ -54,6 +54,11 @@
       "type": "string"
     },
     {
+      "key": "connector_key1",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "publishable_key",
       "value": "",
       "type": "string"

@@ -3,7 +3,8 @@ use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -16,6 +17,7 @@ pub struct OutgoingWebhookEvent {
     is_error: bool,
     error: Option<Value>,
     created_at_timestamp: i128,
+    initial_attempt_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -23,6 +25,10 @@ pub struct OutgoingWebhookEvent {
 pub enum OutgoingWebhookEventContent {
     Payment {
         payment_id: Option<String>,
+        content: Value,
+    },
+    Payout {
+        payout_id: String,
         content: Value,
     },
     Refund {
@@ -43,10 +49,10 @@ pub enum OutgoingWebhookEventContent {
     },
 }
 pub trait OutgoingWebhookEventMetric {
-    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent>;
+    fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
 }
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
-    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
+    fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: payment_payload.payment_id.clone(),
@@ -72,6 +78,12 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: masking::masked_serialize(&mandate_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
+            #[cfg(feature = "payouts")]
+            Self::PayoutDetails(payout_payload) => Some(OutgoingWebhookEventContent::Payout {
+                payout_id: payout_payload.payout_id.clone(),
+                content: masking::masked_serialize(&payout_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
         }
     }
 }
@@ -82,29 +94,28 @@ impl OutgoingWebhookEvent {
         event_id: String,
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
-        is_error: bool,
         error: Option<Value>,
+        initial_attempt_id: Option<String>,
     ) -> Self {
         Self {
             merchant_id,
             event_id,
             event_type,
             content,
-            is_error,
+            is_error: error.is_some(),
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            initial_attempt_id,
         }
     }
 }
 
-impl TryFrom<OutgoingWebhookEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for OutgoingWebhookEvent {
+    fn event_type(&self) -> EventType {
+        EventType::OutgoingWebhookLogs
+    }
 
-    fn try_from(value: OutgoingWebhookEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::OutgoingWebhookLogs,
-            key: value.merchant_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.event_id.clone()
     }
 }

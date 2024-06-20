@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
-    routes::AppState,
+    routes::SessionState,
     types::{
         api::{self, DisputeEvidence},
         domain,
@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub async fn get_evidence_request_data(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
@@ -203,7 +203,7 @@ pub fn update_dispute_evidence(
 }
 
 pub async fn get_dispute_evidence_block(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     evidence_type: EvidenceType,
     file_id: String,
@@ -222,8 +222,56 @@ pub async fn get_dispute_evidence_block(
     })
 }
 
+pub fn delete_evidence_file(
+    dispute_evidence: DisputeEvidence,
+    evidence_type: EvidenceType,
+) -> DisputeEvidence {
+    match evidence_type {
+        EvidenceType::CancellationPolicy => DisputeEvidence {
+            cancellation_policy: None,
+            ..dispute_evidence
+        },
+        EvidenceType::CustomerCommunication => DisputeEvidence {
+            customer_communication: None,
+            ..dispute_evidence
+        },
+        EvidenceType::CustomerSignature => DisputeEvidence {
+            customer_signature: None,
+            ..dispute_evidence
+        },
+        EvidenceType::Receipt => DisputeEvidence {
+            receipt: None,
+            ..dispute_evidence
+        },
+        EvidenceType::RefundPolicy => DisputeEvidence {
+            refund_policy: None,
+            ..dispute_evidence
+        },
+        EvidenceType::ServiceDocumentation => DisputeEvidence {
+            service_documentation: None,
+            ..dispute_evidence
+        },
+        EvidenceType::ShippingDocumentation => DisputeEvidence {
+            shipping_documentation: None,
+            ..dispute_evidence
+        },
+        EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
+            invoice_showing_distinct_transactions: None,
+            ..dispute_evidence
+        },
+        EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
+            recurring_transaction_agreement: None,
+            ..dispute_evidence
+        },
+        EvidenceType::UncategorizedFile => DisputeEvidence {
+            uncategorized_file: None,
+            ..dispute_evidence
+        },
+    }
+}
+
 pub async fn get_dispute_evidence_vec(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {

@@ -1,3 +1,7 @@
+pub mod bg_metrics_collector;
+pub mod request;
+pub mod utils;
+
 use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
 metrics_context!(CONTEXT);
@@ -5,10 +9,6 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
-#[cfg(feature = "kms")]
-counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
-#[cfg(feature = "kms")]
-counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
@@ -56,7 +56,6 @@ counter_metric!(MCA_CREATE, GLOBAL_METER);
 
 // Flow Specific Metrics
 
-counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
 histogram_metric!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
 counter_metric!(SESSION_TOKEN_CREATED, GLOBAL_METER);
 
@@ -77,7 +76,6 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
-counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Connector http status code metrics
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
@@ -93,10 +91,6 @@ histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 
-// Encryption and Decryption metrics
-histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
-
 // Apple Pay Flow Metrics
 counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
 counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW, GLOBAL_METER);
@@ -105,7 +99,8 @@ counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT, GLOBAL_METER);
 counter_metric!(APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 
-// Metrics for Auto Retries
+// Metrics for Payment Auto Retries
+counter_metric!(AUTO_RETRY_CONNECTION_CLOSED, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_ELIGIBLE_REQUEST_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_MISS_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);
@@ -113,5 +108,26 @@ counter_metric!(AUTO_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_PAYMENT_COUNT, GLOBAL_METER);
 
-pub mod request;
-pub mod utils;
+// Metrics for Payout Auto Retries
+counter_metric!(AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_PAYOUT_RETRY_GSM_MISS_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_PAYOUT_COUNT, GLOBAL_METER);
+
+// Scheduler / Process Tracker related metrics
+counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
+counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
+counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
+
+// Access token metrics
+//
+// A counter to indicate the number of new access tokens created
+counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
+
+// A counter to indicate the access token cache hits
+counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
+
+// A counter to indicate the access token cache miss
+counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);

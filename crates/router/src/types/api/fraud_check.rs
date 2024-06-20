@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use api_models::enums;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
+    Checkout, Fulfillment, RecordReturn, Sale, Transaction,
+};
 
 use super::{BoxedConnector, ConnectorData, SessionConnectorData};
 use crate::{
@@ -15,47 +18,32 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
-pub struct Sale;
-
 pub trait FraudCheckSale:
     api::ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct Checkout;
 
 pub trait FraudCheckCheckout:
     api::ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
 {
 }
 
-#[derive(Debug, Clone)]
-pub struct Transaction;
-
 pub trait FraudCheckTransaction:
     api::ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct Fulfillment;
 
 pub trait FraudCheckFulfillment:
     api::ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
 {
 }
 
-#[derive(Debug, Clone)]
-pub struct RecordReturn;
-
 pub trait FraudCheckRecordReturn:
     api::ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FraudCheckConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: enums::FrmConnectors,
@@ -69,7 +57,6 @@ pub enum ConnectorCallType {
 impl FraudCheckConnectorData {
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector_name = enums::FrmConnectors::from_str(name)
-            .into_report()
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| {
                 format!("unable to parse connector: {:?}", name.to_string())

@@ -34,11 +34,18 @@ ROOT_DIR := $(realpath $(ROOT_DIR_WITH_SLASH))
 	release
 
 
+# Check a local package and all of its dependencies for errors
+# 
+# Usage :
+#	make check
+check:
+	cargo check
+
+
 # Compile application for running on local machine
 #
 # Usage :
 #	make build
-
 build :
 	cargo build
 
@@ -58,10 +65,10 @@ endif
 # Format Rust sources with rustfmt.
 #
 # Usage :
-#	make fmt [writing=(no|yes)]
+#	make fmt [dry_run=(no|yes)]
 
 fmt :
-	cargo +nightly fmt --all $(if $(call eq,$(writing),yes),,-- --check)
+	cargo +nightly fmt --all $(if $(call eq,$(dry_run),yes),-- --check,)
 
 # Lint Rust sources with Clippy.
 #

@@ -16,6 +16,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
+use serde_json::ser::{CompactFormatter, PrettyFormatter};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -69,7 +70,10 @@ pub fn setup(
         );
         println!("Using file logging filter: {file_filter}");
 
-        Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
+        Some(
+            FormattingLayer::new(service_name, file_writer, CompactFormatter)
+                .with_filter(file_filter),
+        )
     } else {
         None
     };
@@ -104,7 +108,15 @@ pub fn setup(
             config::LogFormat::Json => {
                 error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
                 let logging_layer =
-                    FormattingLayer::new(service_name, console_writer).with_filter(console_filter);
+                    FormattingLayer::new(service_name, console_writer, CompactFormatter)
+                        .with_filter(console_filter);
+                subscriber.with(logging_layer).init();
+            }
+            config::LogFormat::PrettyJson => {
+                error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
+                let logging_layer =
+                    FormattingLayer::new(service_name, console_writer, PrettyFormatter::new())
+                        .with_filter(console_filter);
                 subscriber.with(logging_layer).init();
             }
         }
@@ -253,7 +265,7 @@ fn setup_tracing_pipeline(
         .with_exporter(get_opentelemetry_exporter(config))
         .with_batch_config(batch_config)
         .with_trace_config(trace_config)
-        .install_batch(opentelemetry::runtime::TokioCurrentThread)
+        .install_batch(runtime::TokioCurrentThread)
         .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
     if config.ignore_errors {

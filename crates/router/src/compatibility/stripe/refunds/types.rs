@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::api::{admin, refunds};
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct StripeCreateRefundRequest {
     pub refund_id: Option<String>,
     pub amount: Option<i64>,
@@ -46,7 +46,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
     fn from(req: StripeCreateRefundRequest) -> Self {
         Self {
             refund_id: req.refund_id,
-            amount: req.amount,
+            amount: req.amount.map(common_utils::types::MinorUnit::new),
             payment_id: req.payment_intent,
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
@@ -82,7 +82,7 @@ impl From<refunds::RefundResponse> for StripeRefundResponse {
     fn from(res: refunds::RefundResponse) -> Self {
         Self {
             id: res.refund_id,
-            amount: res.amount,
+            amount: res.amount.get_amount_as_i64(),
             currency: res.currency.to_ascii_lowercase(),
             payment_intent: res.payment_id,
             status: res.status.into(),

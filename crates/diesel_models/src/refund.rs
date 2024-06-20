@@ -1,4 +1,7 @@
-use common_utils::pii;
+use common_utils::{
+    pii,
+    types::{ChargeRefunds, MinorUnit},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -20,9 +23,9 @@ pub struct Refund {
     pub connector_refund_id: Option<String>,
     pub external_reference_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
@@ -39,6 +42,7 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(
@@ -64,9 +68,9 @@ pub struct RefundNew {
     pub connector: String,
     pub connector_refund_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -81,6 +85,7 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -242,5 +247,44 @@ impl common_utils::events::ApiEventMetric for Refund {
             payment_id: Some(self.payment_id.clone()),
             refund_id: self.refund_id.clone(),
         })
+    }
+}
+
+mod tests {
+    #[test]
+    fn test_backwards_compatibility() {
+        let serialized_refund = r#"{
+    "id": 1,
+    "internal_reference_id": "internal_ref_123",
+    "refund_id": "refund_456",
+    "payment_id": "payment_789",
+    "merchant_id": "merchant_123",
+    "connector_transaction_id": "connector_txn_789",
+    "connector": "stripe",
+    "connector_refund_id": null,
+    "external_reference_id": null,
+    "refund_type": "instant_refund",
+    "total_amount": 10000,
+    "currency": "USD",
+    "refund_amount": 9500,
+    "refund_status": "Success",
+    "sent_to_gateway": true,
+    "refund_error_message": null,
+    "metadata": null,
+    "refund_arn": null,
+    "created_at": "2024-02-26T12:00:00Z",
+    "updated_at": "2024-02-26T12:00:00Z",
+    "description": null,
+    "attempt_id": "attempt_123",
+    "refund_reason": null,
+    "refund_error_code": null,
+    "profile_id": null,
+    "updated_by": "admin",
+    "merchant_connector_id": null,
+    "charges": null
+}"#;
+        let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
+
+        assert!(deserialized.is_ok());
     }
 }

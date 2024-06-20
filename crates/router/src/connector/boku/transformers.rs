@@ -6,10 +6,10 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{AddressDetailsData, RouterData},
+    connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,21 +78,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
-                Self::try_from((item, &wallet_data))
+            domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, &wallet_data)),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("boku"),
+                ))?
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_type),
-                connector: "Boku",
-            })?,
         }
     }
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPaymentsRequest {
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, &domain::WalletData)> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::PaymentsAuthorizeRouterData, &api::WalletData),
+        value: (&types::PaymentsAuthorizeRouterData, &domain::WalletData),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let address = item.get_billing_address()?;
@@ -119,25 +131,36 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPa
     }
 }
 
-fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::ConnectorError> {
+fn get_wallet_type(wallet_data: &domain::WalletData) -> Result<String, errors::ConnectorError> {
     match wallet_data {
-        api_models::payments::WalletData::DanaRedirect { .. } => {
-            Ok(BokuPaymentType::Dana.to_string())
-        }
-        api_models::payments::WalletData::MomoRedirect { .. } => {
-            Ok(BokuPaymentType::Momo.to_string())
-        }
-        api_models::payments::WalletData::GcashRedirect { .. } => {
-            Ok(BokuPaymentType::Gcash.to_string())
-        }
-        api_models::payments::WalletData::GoPayRedirect { .. } => {
-            Ok(BokuPaymentType::GoPay.to_string())
-        }
-        api_models::payments::WalletData::KakaoPayRedirect { .. } => {
-            Ok(BokuPaymentType::Kakaopay.to_string())
-        }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment method".to_string(),
+        domain::WalletData::DanaRedirect { .. } => Ok(BokuPaymentType::Dana.to_string()),
+        domain::WalletData::MomoRedirect { .. } => Ok(BokuPaymentType::Momo.to_string()),
+        domain::WalletData::GcashRedirect { .. } => Ok(BokuPaymentType::Gcash.to_string()),
+        domain::WalletData::GoPayRedirect { .. } => Ok(BokuPaymentType::GoPay.to_string()),
+        domain::WalletData::KakaoPayRedirect { .. } => Ok(BokuPaymentType::Kakaopay.to_string()),
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::ApplePay(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::GooglePay(_)
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("boku"),
         )),
     }
 }
@@ -190,14 +213,14 @@ pub struct BokuMetaData {
     pub(super) country: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuResponse {
     BeginSingleChargeResponse(BokuPaymentsResponse),
     QueryChargeResponse(BokuPsyncResponse),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
     charge_status: String, // xml parse only string to fields
@@ -205,26 +228,26 @@ pub struct BokuPaymentsResponse {
     hosted: Option<HostedUrlResponse>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct HostedUrlResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPsyncResponse {
     charges: ChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ChargeResponseData {
     charge: SingleChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
     charge_status: String,
@@ -253,6 +276,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -274,7 +298,7 @@ fn get_authorize_response(
     let redirection_data = match response.hosted {
         Some(hosted_value) => Ok(hosted_value
             .redirect_url
-            .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
+            .map(|url| RedirectForm::from((url, services::Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "redirect_url",
         }),
@@ -333,7 +357,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
     charge_id: String,
@@ -389,20 +413,20 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-refund-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuRsyncResponse {
     refunds: RefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RefundResponseData {
     refund: SingleRefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleRefundResponseData {
     refund_status: String, // quick-xml only parse string as a field

@@ -47,11 +47,16 @@ macro_rules! newtype {
     };
 }
 
+/// Use this to ensure that the corresponding
+/// openapi route has been implemented in the openapi crate
 #[macro_export]
-macro_rules! async_spawn {
-    ($t:block) => {
-        tokio::spawn(async move { $t });
-    };
+macro_rules! openapi_route {
+    ($route_name: ident) => {{
+        #[cfg(feature = "openapi")]
+        use openapi::routes::$route_name as _;
+
+        $route_name
+    }};
 }
 
 #[macro_export]

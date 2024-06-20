@@ -1,23 +1,18 @@
 pub mod helpers;
-#[cfg(feature = "s3")]
-pub mod s3_utils;
-
-#[cfg(not(feature = "s3"))]
-pub mod fs_utils;
 
 use api_models::files;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::errors::{self, RouterResponse};
 use crate::{
     consts,
-    routes::AppState,
-    services::{self, ApplicationResponse},
+    routes::SessionState,
+    services::ApplicationResponse,
     types::{api, domain},
 };
 
 pub async fn files_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     create_file_request: api::CreateFileRequest,
@@ -29,10 +24,7 @@ pub async fn files_create_core(
     )
     .await?;
     let file_id = common_utils::generate_id(consts::ID_LENGTH, "file");
-    #[cfg(feature = "s3")]
     let file_key = format!("{}/{}", merchant_account.merchant_id, file_id);
-    #[cfg(not(feature = "s3"))]
-    let file_key = format!("{}_{}", merchant_account.merchant_id, file_id);
     let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_account.merchant_id.clone(),
@@ -80,13 +72,13 @@ pub async fn files_create_core(
         .attach_printable_lazy(|| {
             format!("Unable to update file_metadata with file_id: {}", file_id)
         })?;
-    Ok(services::api::ApplicationResponse::Json(
-        files::CreateFileResponse { file_id },
-    ))
+    Ok(ApplicationResponse::Json(files::CreateFileResponse {
+        file_id,
+    }))
 }
 
 pub async fn files_delete_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
@@ -102,7 +94,7 @@ pub async fn files_delete_core(
 }
 
 pub async fn files_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api::FileId,
@@ -126,13 +118,11 @@ pub async fn files_retrieve_core(
     let content_type = file_metadata_object
         .file_type
         .parse::<mime::Mime>()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
         received_data
             .ok_or(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File data not found")?,
         content_type,
     )))

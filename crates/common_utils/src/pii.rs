@@ -10,7 +10,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -38,7 +38,7 @@ pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
 
 impl<T> Strategy<T> for PhoneNumberStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -85,7 +85,7 @@ impl ops::DerefMut for PhoneNumber {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for PhoneNumber
+impl<DB> Queryable<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -147,14 +147,18 @@ where
 
 /// Strategy for Encryption
 #[derive(Debug)]
-pub enum EncryptionStratergy {}
+pub enum EncryptionStrategy {}
 
-impl<T> Strategy<T> for EncryptionStratergy
+impl<T> Strategy<T> for EncryptionStrategy
 where
     T: AsRef<[u8]>,
 {
     fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
+        write!(
+            fmt,
+            "*** Encrypted data of length {} bytes ***",
+            value.as_ref().len()
+        )
     }
 }
 
@@ -206,7 +210,7 @@ pub enum EmailStrategy {}
 
 impl<T> Strategy<T> for EmailStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -220,7 +224,7 @@ where
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::Text)]
 #[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
 
@@ -244,12 +248,6 @@ impl TryFrom<String> for Email {
     }
 }
 
-impl From<Secret<String, EmailStrategy>> for Email {
-    fn from(value: Secret<String, EmailStrategy>) -> Self {
-        Self(value)
-    }
-}
-
 impl ops::Deref for Email {
     type Target = Secret<String, EmailStrategy>;
 
@@ -264,7 +262,7 @@ impl ops::DerefMut for Email {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+impl<DB> Queryable<sql_types::Text, DB> for Email
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -310,8 +308,8 @@ impl FromStr for Email {
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
-            })
-            .into_report(),
+            }
+            .into()),
         }
     }
 }
@@ -355,7 +353,7 @@ pub enum UpiVpaMaskingStrategy {}
 
 impl<T> Strategy<T> for UpiVpaMaskingStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let vpa_str: &str = val.as_ref();

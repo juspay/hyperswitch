@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::env;
 
 use super::VerifyConnector;
@@ -19,7 +19,7 @@ impl VerifyConnector for connector::Stripe {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         match (env::which(), error.code.as_str()) {
             // In situations where an attempt is made to process a payment using a
@@ -29,8 +29,8 @@ impl VerifyConnector for connector::Stripe {
             (env::Env::Production, "card_declined") => Ok(services::ApplicationResponse::StatusOk),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: error.reason.unwrap_or(error.message),
-            })
-            .into_report(),
+            }
+            .into()),
         }
     }
 }

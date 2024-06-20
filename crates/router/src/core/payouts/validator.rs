@@ -1,4 +1,7 @@
+#[cfg(feature = "olap")]
+use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::errors::StorageError;
 use router_env::{instrument, tracing};
 
 use super::helpers;
@@ -8,40 +11,32 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,
 };
 
-#[cfg(feature = "payouts")]
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
     merchant_id: &str,
+    storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
-    let payout = db
-        .find_payout_by_merchant_id_payout_id(merchant_id, payout_id)
+    let maybe_payouts = db
+        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
         .await;
-    match payout {
+    match maybe_payouts {
         Err(err) => {
-            if err.current_context().is_db_not_found() {
-                // Empty vec should be returned by query in case of no results, this check exists just
-                // to be on the safer side. Fixed this, now vector is not returned but should check the flow in detail later.
-                Ok(None)
-            } else {
-                Err(err
+            let storage_err = err.current_context();
+            match storage_err {
+                StorageError::ValueNotFound(_) => Ok(None),
+                _ => Err(err
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while finding payout_attempt, database error"))
+                    .attach_printable("Failed while finding payout_attempt, database error")),
             }
         }
-        Ok(payout) => {
-            if payout.payout_id == payout_id {
-                Ok(Some(payout))
-            } else {
-                Ok(None)
-            }
-        }
+        Ok(payout) => Ok(payout),
     }
 }
 
@@ -49,9 +44,8 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
-#[cfg(feature = "payouts")]
 pub async fn validate_create_request(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -71,18 +65,20 @@ pub async fn validate_create_request(
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
     let payout_id = core_utils::get_or_generate_uuid("payout_id", req.payout_id.as_ref())?;
-    match validate_uniqueness_of_payout_id_against_merchant_id(db, &payout_id, merchant_id)
-        .await
-        .change_context(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id: payout_id.to_owned(),
-        })
-        .attach_printable_lazy(|| {
-            format!(
-                "Unique violation while checking payout_id: {} against merchant_id: {}",
-                payout_id.to_owned(),
-                merchant_id
-            )
-        })? {
+    match validate_uniqueness_of_payout_id_against_merchant_id(
+        db,
+        &payout_id,
+        merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .attach_printable_lazy(|| {
+        format!(
+            "Unique violation while checking payout_id: {} against merchant_id: {}",
+            payout_id.to_owned(),
+            merchant_id
+        )
+    })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
             payout_id: payout_id.to_owned()
         })),
@@ -92,16 +88,20 @@ pub async fn validate_create_request(
     // Payout token
     let payout_method_data = match req.payout_token.to_owned() {
         Some(payout_token) => {
-            let customer_id = req.customer_id.to_owned().map_or("".to_string(), |c| c);
+            let customer_id = req
+                .customer_id
+                .to_owned()
+                .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
                 &customer_id,
                 &merchant_account.merchant_id,
-                payout_id.as_ref(),
-                req.payout_type.as_ref(),
+                req.payout_type,
                 merchant_key_store,
+                None,
+                merchant_account.storage_scheme,
             )
             .await?
         }
@@ -120,4 +120,41 @@ pub async fn validate_create_request(
     .await?;
 
     Ok((payout_id, payout_method_data, profile_id))
+}
+
+#[cfg(feature = "olap")]
+pub(super) fn validate_payout_list_request(
+    req: &payouts::PayoutListConstraints,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_GET;
+
+    utils::when(
+        req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYOUTS_LIST_MAX_LIMIT_GET
+                ),
+            })
+        },
+    )?;
+    Ok(())
+}
+
+#[cfg(feature = "olap")]
+pub(super) fn validate_payout_list_request_for_joins(
+    limit: u32,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
+
+    utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYOUTS_LIST_MAX_LIMIT_POST
+            ),
+        })
+    })?;
+    Ok(())
 }

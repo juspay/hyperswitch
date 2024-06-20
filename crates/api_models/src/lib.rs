@@ -2,7 +2,8 @@
 pub mod admin;
 pub mod analytics;
 pub mod api_keys;
-pub mod bank_accounts;
+pub mod apple_pay_certificates_migration;
+pub mod blocklist;
 pub mod cards_info;
 pub mod conditional_configs;
 pub mod connector_onboarding;
@@ -25,6 +26,9 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
+pub mod poll;
+#[cfg(feature = "recon")]
+pub mod recon;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_configs;
@@ -32,4 +36,5 @@ pub mod user;
 pub mod user_role;
 pub mod verifications;
 pub mod verify_connector;
+pub mod webhook_events;
 pub mod webhooks;

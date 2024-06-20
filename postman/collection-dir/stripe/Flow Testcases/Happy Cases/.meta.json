@@ -9,7 +9,7 @@
     "Scenario4a-Create payment with manual_multiple capture",
     "Scenario5-Void the payment",
     "Scenario6-Create 3DS payment",
-    "Scenario7-Create 3DS payment with confrm false",
+    "Scenario7-Create 3DS payment with confirm false",
     "Scenario8-Create a failure card payment with confirm true",
     "Scenario9-Refund full payment",
     "Scenario9a-Partial refund",
@@ -30,6 +30,11 @@
     "Scenario24-Add card flow",
     "Scenario25-Don't Pass CVV for save card flow and verifysuccess payment",
     "Scenario26-Save card payment with manual capture",
-    "Scenario27-Create payment without customer_id and with billing address and shipping address"
+    "Scenario27-Create payment without customer_id and with billing address and shipping address",
+    "Scenario28-Confirm a payment with requires_customer_action status",
+    "Scenario29-Create payment with payment method billing",
+    "Scenario30-Update payment with payment method billing",
+    "Scenario31-Pass payment method billing in Confirm",
+    "Scenario32-Ensure API Contract for Payment Method Data"
   ]
 }

@@ -1,34 +1,42 @@
 use api_models::{connector_onboarding as api, enums};
-use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
+    routes::app::ReqState,
     services::{authentication as auth, ApplicationResponse},
-    types::{self as oss_types},
+    types as oss_types,
     utils::connector_onboarding as utils,
-    AppState,
+    SessionState,
 };
 
 pub mod paypal;
 
 #[async_trait::async_trait]
 pub trait AccessToken {
-    async fn access_token(state: &AppState) -> RouterResult<oss_types::AccessToken>;
+    async fn access_token(state: &SessionState) -> RouterResult<oss_types::AccessToken>;
 }
 
 pub async fn get_action_url(
-    state: AppState,
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::ActionUrlResponse> {
-    let connector_onboarding_conf = state.conf.connector_onboarding.clone();
-    let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+
+    let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
+    let is_enabled = utils::is_enabled(request.connector, connector_onboarding_conf);
+    let tracking_id =
+        utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
+            .await?;
 
     match (is_enabled, request.connector) {
         (Some(true), enums::Connector::Paypal) => {
             let action_url = Box::pin(paypal::get_action_url_from_paypal(
                 state,
-                request.connector_id,
+                tracking_id,
                 request.return_url,
             ))
             .await?;
@@ -45,44 +53,47 @@ pub async fn get_action_url(
 }
 
 pub async fn sync_onboarding_status(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::OnboardingStatus> {
-    let merchant_account = user_from_token
-        .get_merchant_account(state.clone())
-        .await
-        .change_context(ApiErrorResponse::MerchantAccountNotFound)?;
-    let connector_onboarding_conf = state.conf.connector_onboarding.clone();
-    let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+
+    let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
+    let is_enabled = utils::is_enabled(request.connector, connector_onboarding_conf);
+    let tracking_id =
+        utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
+            .await?;
 
     match (is_enabled, request.connector) {
         (Some(true), enums::Connector::Paypal) => {
             let status = Box::pin(paypal::sync_merchant_onboarding_status(
                 state.clone(),
-                request.connector_id.clone(),
+                tracking_id,
             ))
             .await?;
             if let api::OnboardingStatus::PayPal(api::PayPalOnboardingStatus::Success(
-                ref inner_data,
+                ref paypal_onboarding_data,
             )) = status
             {
-                let connector_onboarding_conf = state.conf.connector_onboarding.clone();
+                let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
                 let auth_details = oss_types::ConnectorAuthType::SignatureKey {
-                    api_key: connector_onboarding_conf.paypal.client_secret,
-                    key1: connector_onboarding_conf.paypal.client_id,
-                    api_secret: Secret::new(inner_data.payer_id.clone()),
+                    api_key: connector_onboarding_conf.paypal.client_secret.clone(),
+                    key1: connector_onboarding_conf.paypal.client_id.clone(),
+                    api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
                 };
-                let some_data = paypal::update_mca(
+                let update_mca_data = paypal::update_mca(
                     &state,
-                    &merchant_account,
+                    user_from_token.merchant_id,
                     request.connector_id.to_owned(),
                     auth_details,
                 )
                 .await?;
 
                 return Ok(ApplicationResponse::Json(api::OnboardingStatus::PayPal(
-                    api::PayPalOnboardingStatus::ConnectorIntegrated(some_data),
+                    api::PayPalOnboardingStatus::ConnectorIntegrated(update_mca_data),
                 )));
             }
             Ok(ApplicationResponse::Json(status))
@@ -93,4 +104,17 @@ pub async fn sync_onboarding_status(
         }
         .into()),
     }
+}
+
+pub async fn reset_tracking_id(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    request: api::ResetTrackingIdRequest,
+    _req_state: ReqState,
+) -> RouterResponse<()> {
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+    utils::set_tracking_id_in_configs(&state, &request.connector_id, request.connector).await?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

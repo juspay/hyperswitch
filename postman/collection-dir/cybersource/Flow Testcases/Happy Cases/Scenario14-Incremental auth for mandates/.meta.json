@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Incremental Authorization",
+    "Payments - Retrieve",
+    "Payments - Capture"
+  ]
+}

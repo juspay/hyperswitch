@@ -4,7 +4,7 @@ use router_env::Flow;
 use crate::{
     core::{api_locking, currency},
     routes::AppState,
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{api, authentication as auth},
 };
 
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
@@ -14,10 +14,10 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state,
         &req,
         (),
-        |state, _auth: auth::AuthenticationData, _| currency::retrieve_forex(state),
+        |state, _auth: auth::AuthenticationData, _, _| currency::retrieve_forex(state),
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::ForexRead),
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -31,7 +31,7 @@ pub async fn convert_forex(
     params: web::Query<api_models::currency::CurrencyConversionParams>,
 ) -> HttpResponse {
     let flow = Flow::RetrieveForexFlow;
-    let amount = &params.amount;
+    let amount = params.amount;
     let to_currency = &params.to_currency;
     let from_currency = &params.from_currency;
     Box::pin(api::server_wrap(
@@ -39,17 +39,17 @@ pub async fn convert_forex(
         state.clone(),
         &req,
         (),
-        |state, _, _| {
+        |state, _, _, _| {
             currency::convert_forex(
                 state,
-                *amount,
+                amount.get_amount_as_i64(),
                 to_currency.to_string(),
                 from_currency.to_string(),
             )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::ForexRead),
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

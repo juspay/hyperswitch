@@ -1,69 +1,14 @@
-use common_utils::request::Method;
-use router_env::tracing_actix_web::RequestId;
-use serde::Serialize;
-use time::OffsetDateTime;
+pub use hyperswitch_interfaces::events::connector_api_logs::ConnectorEvent;
 
-use super::{EventType, RawEvent};
+use super::EventType;
+use crate::services::kafka::KafkaMessage;
 
-#[derive(Debug, Serialize)]
-pub struct ConnectorEvent {
-    connector_name: String,
-    flow: String,
-    request: String,
-    response: Option<String>,
-    url: String,
-    method: String,
-    payment_id: String,
-    merchant_id: String,
-    created_at: i128,
-    request_id: String,
-    latency: u128,
-}
-
-impl ConnectorEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        connector_name: String,
-        flow: &str,
-        request: serde_json::Value,
-        response: Option<String>,
-        url: String,
-        method: Method,
-        payment_id: String,
-        merchant_id: String,
-        request_id: Option<&RequestId>,
-        latency: u128,
-    ) -> Self {
-        Self {
-            connector_name,
-            flow: flow
-                .rsplit_once("::")
-                .map(|(_, s)| s)
-                .unwrap_or(flow)
-                .to_string(),
-            request: request.to_string(),
-            response,
-            url,
-            method: method.to_string(),
-            payment_id,
-            merchant_id,
-            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
-            request_id: request_id
-                .map(|i| i.as_hyphenated().to_string())
-                .unwrap_or("NO_REQUEST_ID".to_string()),
-            latency,
-        }
+impl KafkaMessage for ConnectorEvent {
+    fn event_type(&self) -> EventType {
+        EventType::ConnectorApiLogs
     }
-}
 
-impl TryFrom<ConnectorEvent> for RawEvent {
-    type Error = serde_json::Error;
-
-    fn try_from(value: ConnectorEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::ConnectorApiLogs,
-            key: value.request_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.request_id.clone()
     }
 }

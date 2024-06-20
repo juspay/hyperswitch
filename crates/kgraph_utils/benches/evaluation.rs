@@ -1,6 +1,6 @@
 #![allow(unused, clippy::expect_used)]
 
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
@@ -8,13 +8,17 @@ use api_models::{
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,
-    dssa::graph::{self, Memoization},
+    dssa::graph::{self, CgraphExt},
     frontend::dir,
     types::{NumValue, NumValueRefinement},
 };
-use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+use hyperswitch_constraint_graph::{CycleCheck, Memoization};
+use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
-fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::KnowledgeGraph<'a> {
+fn build_test_data<'a>(
+    total_enabled: usize,
+    total_pm_types: usize,
+) -> hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue> {
     use api_models::{admin::*, payment_methods::*};
 
     let mut pms_enabled: Vec<PaymentMethodsEnabled> = Vec::new();
@@ -67,8 +71,12 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
     };
-
-    kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
+    let config = CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: None,
+    };
+    kgraph_utils::mca::make_mca_graph(vec![stripe_account], &config)
+        .expect("Failed graph construction")
 }
 
 fn evaluation(c: &mut Criterion) {
@@ -88,6 +96,8 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
+                None,
             );
         });
     });
@@ -105,6 +115,8 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
+                None,
             );
         });
     });

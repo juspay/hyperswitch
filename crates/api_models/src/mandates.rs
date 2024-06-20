@@ -36,6 +36,8 @@ pub struct MandateResponse {
     pub payment_method_id: String,
     /// The payment method
     pub payment_method: String,
+    /// The payment method type
+    pub payment_method_type: Option<String>,
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
@@ -66,6 +68,18 @@ pub struct MandateCardDetails {
     #[schema(value_type = Option<String>)]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
+    /// The first 6 digits of card
+    pub card_isin: Option<String>,
+    /// The bank that issued the card
+    pub card_issuer: Option<String>,
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// The type of the payment card
+    pub card_type: Option<String>,
+    /// The nick_name of the card holder
+    #[schema(value_type = Option<String>)]
+    pub nick_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -73,6 +87,8 @@ pub struct MandateCardDetails {
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
+    /// offset on the number of objects to return
+    pub offset: Option<i64>,
     /// status of the mandate
     pub mandate_status: Option<api_enums::MandateStatus>,
     /// connector linked to mandate
@@ -96,4 +112,11 @@ pub struct MandateListConstraints {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.gte")]
     pub created_time_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum RecurringDetails {
+    MandateId(String),
+    PaymentMethodId(String),
 }

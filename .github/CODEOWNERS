@@ -18,10 +18,22 @@ crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
-openapi/ @juspay/hyperswitch-framework
+api-reference/ @juspay/hyperswitch-framework
 postman/ @juspay/hyperswitch-framework
+cypress-tests/ @juspay/hyperswitch-framework @juspay/hyperswitch-qa
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
+
+crates/api_models/src/events/ @juspay/hyperswitch-analytics
+crates/api_models/src/events.rs @juspay/hyperswitch-analytics
+crates/api_models/src/analytics/ @juspay/hyperswitch-analytics
+crates/api_models/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/events/ @juspay/hyperswitch-analytics
+crates/router/src/events.rs @juspay/hyperswitch-analytics
+crates/common_utils/src/events/ @juspay/hyperswitch-analytics
+crates/common_utils/src/events.rs @juspay/hyperswitch-analytics
+crates/analytics/ @juspay/hyperswitch-analytics
 
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
@@ -34,6 +46,7 @@ crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 crates/router/src/core/ @juspay/hyperswitch-core
 
 crates/api_models/src/routing.rs @juspay/hyperswitch-routing
+crates/hyperswitch_constraint_graph @juspay/hyperswitch-routing
 crates/euclid @juspay/hyperswitch-routing
 crates/euclid_macros @juspay/hyperswitch-routing
 crates/euclid_wasm @juspay/hyperswitch-routing
@@ -47,7 +60,9 @@ crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user @juspay/hyperswitch-dashboard
 crates/api_models/src/user.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/events/user.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user_role.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/events/user_role.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/verify_connector.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/diesel_models/src/query/dashboard_metadata.rs @juspay/hyperswitch-dashboard

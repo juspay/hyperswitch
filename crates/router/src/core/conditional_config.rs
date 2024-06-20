@@ -1,25 +1,26 @@
 use api_models::{
     conditional_configs::{DecisionManager, DecisionManagerRecord, DecisionManagerResponse},
-    routing::{self},
+    routing,
 };
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::ext_traits::{Encode, StringExt, ValueExt};
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::frontend::ast;
+use storage_impl::redis::cache;
 
 use super::routing::helpers::{
     get_payment_config_routing_id, update_merchant_active_algorithm_ref,
 };
 use crate::{
     core::errors::{self, RouterResponse},
-    routes::AppState,
+    routes::SessionState,
     services::api as service_api,
     types::domain,
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub async fn upsert_conditional_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     request: DecisionManager,
@@ -65,7 +66,6 @@ pub async fn upsert_conditional_config(
     let read_config_key = db.find_config_by_key(&key).await;
 
     ast::lowering::lower_program(prog.clone())
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -86,10 +86,10 @@ pub async fn upsert_conditional_config(
                 created_at: previous_record.created_at,
             };
 
-            let serialize_updated_str =
-                utils::Encode::<DecisionManagerRecord>::encode_to_string_of_json(&new_algo)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to serialize config to string")?;
+            let serialize_updated_str = new_algo
+                .encode_to_string_of_json()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to serialize config to string")?;
 
             let updated_config = configs::ConfigUpdate::Update {
                 config: Some(serialize_updated_str),
@@ -100,8 +100,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -121,10 +122,10 @@ pub async fn upsert_conditional_config(
                 created_at: timestamp,
             };
 
-            let serialized_str =
-                utils::Encode::<DecisionManagerRecord>::encode_to_string_of_json(&new_rec)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error serializing the config")?;
+            let serialized_str = new_rec
+                .encode_to_string_of_json()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error serializing the config")?;
             let new_config = configs::ConfigNew {
                 key: key.clone(),
                 config: serialized_str,
@@ -135,8 +136,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error fetching the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -150,7 +152,7 @@ pub async fn upsert_conditional_config(
 }
 
 pub async fn delete_conditional_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
@@ -165,7 +167,8 @@ pub async fn delete_conditional_config(
         .attach_printable("Could not decode the conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.config_algo_id = None;
-    update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+    let config_key = cache::CacheKind::DecisionManager(key.clone().into());
+    update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update deleted algorithm ref")?;
@@ -178,7 +181,7 @@ pub async fn delete_conditional_config(
 }
 
 pub async fn retrieve_conditional_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<DecisionManagerResponse> {
     let db = state.store.as_ref();

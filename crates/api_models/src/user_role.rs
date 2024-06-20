@@ -1,17 +1,7 @@
-#[derive(Debug, serde::Serialize)]
-pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
+use common_enums::PermissionGroup;
+use common_utils::pii;
 
-#[derive(Debug, serde::Serialize)]
-pub struct RoleInfoResponse {
-    pub role_id: &'static str,
-    pub permissions: Vec<Permission>,
-    pub role_name: &'static str,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetRoleRequest {
-    pub role_id: String,
-}
+pub mod role;
 
 #[derive(Debug, serde::Serialize)]
 pub enum Permission {
@@ -25,7 +15,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -34,8 +23,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -43,6 +30,11 @@ pub enum Permission {
     SurchargeDecisionManagerRead,
     UsersRead,
     UsersWrite,
+    MerchantAccountCreate,
+    WebhookEventRead,
+    PayoutWrite,
+    PayoutRead,
+    WebhookEventWrite,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -50,24 +42,38 @@ pub enum PermissionModule {
     Payments,
     Refunds,
     MerchantAccount,
-    Forex,
     Connectors,
     Routing,
     Analytics,
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
+    AccountCreate,
+    Payouts,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct AuthorizationInfoResponse(pub Vec<ModuleInfo>);
+pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum AuthorizationInfo {
+    Module(ModuleInfo),
+    Group(GroupInfo),
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct ModuleInfo {
     pub module: PermissionModule,
+    pub description: &'static str,
+    pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GroupInfo {
+    pub group: PermissionGroup,
     pub description: &'static str,
     pub permissions: Vec<PermissionInfo>,
 }
@@ -80,7 +86,7 @@ pub struct PermissionInfo {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserRoleRequest {
-    pub user_id: String,
+    pub email: pii::Email,
     pub role_id: String,
 }
 
@@ -88,4 +94,25 @@ pub struct UpdateUserRoleRequest {
 pub enum UserStatus {
     Active,
     InvitationSent,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct MerchantSelectRequest {
+    pub merchant_ids: Vec<String>,
+    // TODO: Remove this once the token only api is being used
+    pub need_dashboard_entry_response: Option<bool>,
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AcceptInvitationRequest {
+    pub merchant_ids: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TransferOrgOwnershipRequest {
+    pub email: pii::Email,
 }

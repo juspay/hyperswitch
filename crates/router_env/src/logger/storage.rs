@@ -28,6 +28,14 @@ impl<'a> Storage<'a> {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn record_value(&mut self, key: &'a str, value: serde_json::Value) {
+        if super::formatter::IMPLICIT_KEYS.contains(key) {
+            tracing::warn!(value =? value, "{} is a reserved entry. Skipping it.", key);
+        } else {
+            self.values.insert(key, value);
+        }
+    }
 }
 
 /// Default constructor.
@@ -43,32 +51,27 @@ impl Default for Storage<'_> {
 impl Visit for Storage<'_> {
     /// A i64.
     fn record_i64(&mut self, field: &Field, value: i64) {
-        self.values
-            .insert(field.name(), serde_json::Value::from(value));
+        self.record_value(field.name(), serde_json::Value::from(value));
     }
 
     /// A u64.
     fn record_u64(&mut self, field: &Field, value: u64) {
-        self.values
-            .insert(field.name(), serde_json::Value::from(value));
+        self.record_value(field.name(), serde_json::Value::from(value));
     }
 
     /// A 64-bit floating point.
     fn record_f64(&mut self, field: &Field, value: f64) {
-        self.values
-            .insert(field.name(), serde_json::Value::from(value));
+        self.record_value(field.name(), serde_json::Value::from(value));
     }
 
     /// A boolean.
     fn record_bool(&mut self, field: &Field, value: bool) {
-        self.values
-            .insert(field.name(), serde_json::Value::from(value));
+        self.record_value(field.name(), serde_json::Value::from(value));
     }
 
     /// A string.
     fn record_str(&mut self, field: &Field, value: &str) {
-        self.values
-            .insert(field.name(), serde_json::Value::from(value));
+        self.record_value(field.name(), serde_json::Value::from(value));
     }
 
     /// Otherwise.
@@ -77,7 +80,7 @@ impl Visit for Storage<'_> {
             // Skip fields which are already handled
             name if name.starts_with("log.") => (),
             name if name.starts_with("r#") => {
-                self.values.insert(
+                self.record_value(
                     #[allow(clippy::expect_used)]
                     name.get(2..)
                         .expect("field name must have a minimum of two characters"),
@@ -85,12 +88,20 @@ impl Visit for Storage<'_> {
                 );
             }
             name => {
-                self.values
-                    .insert(name, serde_json::Value::from(format!("{value:?}")));
+                self.record_value(name, serde_json::Value::from(format!("{value:?}")));
             }
         };
     }
 }
+
+const PERSISTENT_KEYS: [&str; 6] = [
+    "payment_id",
+    "connector_name",
+    "merchant_id",
+    "flow",
+    "payment_method",
+    "status_code",
+];
 
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for StorageSubscription
@@ -99,6 +110,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
     fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
         #[allow(clippy::expect_used)]
         let span = ctx.span(id).expect("No span");
+        let mut extensions = span.extensions_mut();
 
         let mut visitor = if let Some(parent_span) = span.parent() {
             let mut extensions = parent_span.extensions_mut();
@@ -110,7 +122,6 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
             Storage::default()
         };
 
-        let mut extensions = span.extensions_mut();
         attrs.record(&mut visitor);
         extensions.insert(visitor);
     }
@@ -150,6 +161,18 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
                 .unwrap_or(0)
         };
 
+        if let Some(s) = span.extensions().get::<Storage<'_>>() {
+            s.values.iter().for_each(|(k, v)| {
+                if PERSISTENT_KEYS.contains(k) {
+                    span.parent().and_then(|p| {
+                        p.extensions_mut()
+                            .get_mut::<Storage<'_>>()
+                            .map(|s| s.record_value(k, v.to_owned()))
+                    });
+                }
+            })
+        };
+
         let mut extensions_mut = span.extensions_mut();
         #[allow(clippy::expect_used)]
         let visitor = extensions_mut
@@ -157,7 +180,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
             .expect("No visitor in extensions");
 
         if let Ok(elapsed) = serde_json::to_value(elapsed_milliseconds) {
-            visitor.values.insert("elapsed_milliseconds", elapsed);
+            visitor.record_value("elapsed_milliseconds", elapsed);
         }
     }
 }

@@ -6,7 +6,7 @@
     "Scenario4-Create payment with Manual capture",
     "Scenario5-Void the payment",
     "Scenario6-Create 3DS payment",
-    "Scenario7-Create 3DS payment with confrm false",
+    "Scenario7-Create 3DS payment with confirm false",
     "Scenario9-Refund full payment",
     "Scenario10-Partial refund",
     "Scenario15-Bank Redirect-Ideal",

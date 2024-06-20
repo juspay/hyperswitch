@@ -1,10 +1,14 @@
-use error_stack::{report, IntoReport};
+use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    types::storage::{self, enums},
+    types::{
+        self,
+        api::enums as api_enums,
+        storage::{self, enums},
+    },
     utils::{self, OptionExt},
 };
 
@@ -50,7 +54,7 @@ pub fn validate_refund_amount(
             if refund.refund_status != enums::RefundStatus::Failure
                 && refund.refund_status != enums::RefundStatus::TransactionFailure
             {
-                Some(refund.refund_amount)
+                Some(refund.refund_amount.get_amount_as_i64())
             } else {
                 None
             }
@@ -107,7 +111,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 }
 
 pub fn validate_for_valid_refunds(
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -128,19 +132,41 @@ pub fn validate_for_valid_refunds(
                     (
                         api_models::enums::Connector::Braintree,
                         diesel_models::enums::PaymentMethodType::Paypal,
-                    ) | (
-                        api_models::enums::Connector::Klarna,
-                        diesel_models::enums::PaymentMethodType::Klarna
                     )
                 ),
                 || {
                     Err(errors::ApiErrorResponse::RefundNotPossible {
                         connector: connector.to_string(),
-                    })
+                    }
+                    .into())
                 },
             )
-            .into_report()
         }
         _ => Ok(()),
+    }
+}
+
+pub fn validate_charge_refund(
+    charges: &common_utils::types::ChargeRefunds,
+    charge_type: &api_enums::PaymentChargeType,
+) -> RouterResult<types::ChargeRefundsOptions> {
+    match charge_type {
+        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => Ok(
+            types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                revert_platform_fee: charges
+                    .revert_platform_fee
+                    .get_required_value("revert_platform_fee")?,
+            }),
+        ),
+        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => Ok(
+            types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
+                revert_platform_fee: charges
+                    .revert_platform_fee
+                    .get_required_value("revert_platform_fee")?,
+                revert_transfer: charges
+                    .revert_transfer
+                    .get_required_value("revert_transfer")?,
+            }),
+        ),
     }
 }

@@ -3,15 +3,15 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
     },
-    routes::AppState,
+    routes::SessionState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -24,7 +24,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -51,13 +51,11 @@ impl
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -65,49 +63,33 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
             &self,
-            call_connector_action,
+            call_connector_action.clone(),
             connector_request,
         )
         .await
         .to_setup_mandate_failed_response()?;
-
-        let pm_id = Box::pin(tokenization::save_payment_method(
-            state,
-            connector,
-            resp.to_owned(),
-            maybe_customer,
-            merchant_account,
-            self.request.payment_method_type,
-            key_store,
-        ))
-        .await?;
-
-        mandate::mandate_procedure(
-            state,
-            resp,
-            maybe_customer,
-            pm_id,
-            connector.merchant_connector_id.clone(),
-        )
-        .await
+        Ok(resp)
     }
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
@@ -124,7 +106,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn create_connector_customer<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
@@ -138,7 +120,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -163,76 +145,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     }
 }
 
-impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: data.email,
-            payment_method_data: data.payment_method_data,
-            description: None,
-            phone: None,
-            name: None,
-            preprocessing_id: None,
-        })
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-impl types::SetupMandateRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a AppState,
-        connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        confirm: Option<bool>,
-        call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<Self> {
-        match confirm {
-            Some(true) => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
-                    api::SetupMandate,
-                    types::SetupMandateRequestData,
-                    types::PaymentsResponseData,
-                > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
-                    state,
-                    connector_integration,
-                    self,
-                    call_connector_action,
-                    None,
-                )
-                .await
-                .to_setup_mandate_failed_response()?;
-
-                let payment_method_type = self.request.payment_method_type;
-                let pm_id = Box::pin(tokenization::save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                    payment_method_type,
-                    key_store,
-                ))
-                .await?;
-
-                Ok(mandate::mandate_procedure(
-                    state,
-                    resp,
-                    maybe_customer,
-                    pm_id,
-                    connector.merchant_connector_id.clone(),
-                )
-                .await?)
-            }
-            _ => Ok(self.clone()),
-        }
-    }
-}
-
 impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     fn get_amount(&self) -> i64 {
         0
@@ -250,24 +162,16 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
-}
-
-impl TryFrom<types::SetupMandateRequestData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data.payment_method_data,
-            browser_info: None,
-            currency: data.currency,
-            amount: data.amount,
-        })
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }

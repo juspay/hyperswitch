@@ -505,7 +505,10 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// }
 /// ```
 
-#[proc_macro_derive(PolymorphicSchema, attributes(mandatory_in, generate_schemas))]
+#[proc_macro_derive(
+    PolymorphicSchema,
+    attributes(mandatory_in, generate_schemas, remove_in)
+)]
 pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 

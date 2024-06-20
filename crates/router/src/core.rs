@@ -1,6 +1,9 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod apple_pay_certificates_migration;
+pub mod authentication;
+pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod conditional_config;
@@ -16,6 +19,7 @@ pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod gsm;
+pub mod health_check;
 pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
@@ -25,6 +29,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
+pub mod poll;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;
@@ -33,7 +38,7 @@ pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
 pub mod utils;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(feature = "olap")]
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;

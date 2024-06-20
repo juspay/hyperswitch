@@ -8,22 +8,25 @@ use serde::Serialize;
 use crate::{
     core::{api_locking, errors},
     events::api_logs::ApiEventMetric,
-    routes::{app::AppStateInfo, metrics},
+    routes::{
+        app::{AppStateInfo, ReqState},
+        metrics, AppState, SessionState,
+    },
     services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
-pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
+pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
-    state: Arc<A>,
+    state: Arc<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
@@ -32,7 +35,6 @@ where
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -41,11 +43,14 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+    let req_state = state.get_req_state();
 
-    let res = match metrics::request::record_request_time_metric(
+    let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
+            request.headers(),
+            req_state,
             request,
             payload,
             func,
@@ -58,7 +63,9 @@ where
     .map(|response| {
         logger::info!(api_response =? response);
         response
-    }) {
+    });
+
+    let res = match server_wrap_util_res {
         Ok(api::ApplicationResponse::Json(response)) => {
             let response = S::try_from(response);
             match response {
@@ -133,19 +140,34 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match api::build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => api::http_response_html_data(rendered_html),
-                Err(_) => api::http_response_err(
-                    r#"{
-                        "error": {
-                            "message": "Error while rendering payment link html page"
-                        }
-                    }"#,
-                ),
+        Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match api::build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match api::get_payment_link_status(payment_link_data) {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
-
         Err(error) => api::log_and_return_error_response(error),
     };
 
