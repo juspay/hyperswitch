@@ -281,7 +281,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   );
 
   context(
-    "[card] [three_ds] Create + Confirm Manual CIT and MIT payment flow",
+    "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow",
     () => {
       it("Confirm 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
