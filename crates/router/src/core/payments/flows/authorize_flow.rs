@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_utils::types::ConnectorIntegrity;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -74,7 +75,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -82,6 +83,25 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 connector_request,
             )
             .await.to_payment_failed_response()?;
+            // Initiating Integrity checks
+            let connector_transaction_id = match resp.response.clone() {
+                Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
+                _ => None,
+            };
+            
+            let integrity_result = match resp.request.integrity_object.clone() {
+                Some(res_integrity_object) => {
+                    let integrity_check = common_utils::types::AuthoriseIntegrity;
+                    let req_integrity_object = common_utils::types::AuthoriseIntegrityObject{
+                        amount: resp.request.minor_amount,
+                        currency: resp.request.currency
+                    };
+                    integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+                }
+                None => Ok(())
+            };
+            // Assigning integrity check result
+            resp.integrity_check = integrity_result;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
             Ok(resp)

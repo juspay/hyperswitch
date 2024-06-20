@@ -54,10 +54,7 @@ impl VerifyConnectorData {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
-            integrity_object: AuthoriseIntegrityObject {
-                amount: common_utils::types::MinorUnit::new(1000),
-                currency: (storage_enums::Currency::USD).to_string(),
-            },
+            integrity_object: None
         }
     }
 

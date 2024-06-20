@@ -1298,10 +1298,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
-            integrity_object: AuthoriseIntegrityObject {
-                amount,
-                currency: payment_data.currency.to_string(),
-            },
+            integrity_object: None,
         })
     }
 }
@@ -1312,6 +1309,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         Ok(Self {
+            amount: payment_data.payment_intent.amount ,
+            integrity_object:None,
             mandate_id: payment_data.mandate_id.clone(),
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {

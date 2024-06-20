@@ -732,15 +732,21 @@ where
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthoriseIntegrityObject {
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyncIntegrityObject {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<enums::Currency>,
+}
 /// ConnectorIntegrity trait for connector
 pub trait ConnectorIntegrity: Send {
     /// Output type for the connector
     type IntegrityObject;
     /// helps in connector integrity check
-    fn check_integrity(
+    fn compare(
         &self,
         req_integrity_object: Self::IntegrityObject,
         res_integrity_object: Self::IntegrityObject,
@@ -754,7 +760,7 @@ pub struct AuthoriseIntegrity;
 
 impl ConnectorIntegrity for AuthoriseIntegrity {
     type IntegrityObject = AuthoriseIntegrityObject;
-    fn check_integrity(
+    fn compare(
         &self,
         req_integrity_object: AuthoriseIntegrityObject,
         res_integrity_object: AuthoriseIntegrityObject,
@@ -766,7 +772,53 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
             mismatched_fields.push("amount".to_string());
         }
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        // if req_integrity_object.currency != res_integrity_object.currency {
+        //     mismatched_fields.push("currency".to_string());
+        // }
+
+        if enums::Currency::AED != res_integrity_object.currency {
+            mismatched_fields.push("currency".to_string());
+        }
+
+        if mismatched_fields.is_empty() {
+            println!("integrity check passed");
+            Ok(())
+        } else {
+            let field_names = mismatched_fields.join(", ");
+
+            Err(
+                IntegrityCheckError { field_names, connector_transaction_id },
+            )
+        }
+    }
+}
+
+
+/// Connector required amount type
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct SyncIntegrity;
+
+impl ConnectorIntegrity for SyncIntegrity {
+    type IntegrityObject = SyncIntegrityObject;
+    fn compare(
+        &self,
+        req_integrity_object: SyncIntegrityObject,
+        res_integrity_object: SyncIntegrityObject,
+        connector_transaction_id: Option<String>
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push("amount".to_string());
+        }
+
+        // if req_integrity_object.currency != res_integrity_object.currency {
+        //     mismatched_fields.push("currency".to_string());
+        // }
+
+        if Some(enums::Currency::AED) != res_integrity_object.currency {
             mismatched_fields.push("currency".to_string());
         }
 

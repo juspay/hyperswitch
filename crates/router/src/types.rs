@@ -785,10 +785,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
-            integrity_object: AuthoriseIntegrityObject {
-                amount: MinorUnit::new(0),
-                currency: data.request.currency.to_string(),
-            },
+            integrity_object:None,
         }
     }
 }

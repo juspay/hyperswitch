@@ -70,7 +70,7 @@ pub struct RouterData<Flow, Request, Response> {
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
 
-    pub integrity_check: Result<(), IntegrityCheckError>
+    pub integrity_check: Result<(), IntegrityCheckError>,
 }
 
 // Different patterns of authentication.

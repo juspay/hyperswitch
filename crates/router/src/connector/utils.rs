@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -13,7 +13,7 @@ use common_utils::{
     ext_traits::StringExt,
     id_type,
     pii::{self, Email, IpAddress},
-    types::{AmountConvertor, MinorUnit},
+    types::{AmountConvertor, AuthoriseIntegrityObject, MinorUnit},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -2639,33 +2639,36 @@ pub fn convert_amount<T>(
 pub fn convert_back_amount_to_minor_units<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
-    currency: enums::Currency,
+    currency: String,
 ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
     amount_convertor
-        .convert_back(amount, currency)
+        .convert_back(amount, currency_enum)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
-// pub fn check_integrity<T>(
-//     integrity_check: &dyn common_utils::types::ConnectorIntegrity<IntegrityObject = T>,
-//     req_integrity_object: T,
-//     res_integrity_object: T,
-//     status_code: u16,
+// pub fn check_authorise_integrity<'a, T>(
+//     amount_convertor: &'a dyn AmountConvertor<Output = T>,
+//     integrity_check: &'a dyn common_utils::types::ConnectorIntegrity<IntegrityObject = AuthoriseIntegrityObject>,
+//     data: &'a types::PaymentsAuthorizeRouterData,
+//     amount: T,
+//     currency: String,
 //     connector_transaction_id: Option<String>
-// ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-//     integrity_check
-//         .check_integrity(req_integrity_object, res_integrity_object)
-//         .map_err(|report_err| {
-//             let err = report_err.current_context();
-//             match err {
-//                 common_utils::errors::IntegrityCheckError::IntegrityCheckFailed { field_names } => {
-//                     error_stack::Report::new(errors::ConnectorError::IntegrityCheckFailed {
-//                         status_code,
-//                         reason: "Integrity check failed!".to_string(),
-//                         field_names: field_names.clone(),
-//                         connector_transaction_id, 
-//                     })
-//                 }
-//             }
-//         })
+// ) -> Result<(), common_utils::errors::IntegrityCheckError> {
+//     let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
+//     let amount = convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+//     let response_integrity_object = AuthoriseIntegrityObject { amount, currency };
+
+//     integrity_check.compare(
+//         data.request.integrity_object.clone(),
+//         response_integrity_object,
+//         connector_transaction_id,
+//     )
+//     // data.integrity_check = integrity_check; 
+//     // Ok(data)
 // }
+
+// pub fn get_authorise_integrity_object<T>(
+//     amount_convertor: &'a dyn AmountConvertor<Output = T>,
+// )

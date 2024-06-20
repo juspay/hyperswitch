@@ -5,7 +5,7 @@ use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii, types as common_types,
-    types::{AuthoriseIntegrityObject, MinorUnit},
+    types::{AuthoriseIntegrityObject, MinorUnit, SyncIntegrityObject},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -65,7 +65,7 @@ pub struct PaymentsAuthorizeData {
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
-    pub integrity_object: AuthoriseIntegrityObject,
+    pub integrity_object: Option<AuthoriseIntegrityObject>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -343,6 +343,9 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+
+    pub amount: MinorUnit,
+    pub integrity_object: Option<SyncIntegrityObject>,
 }
 
 #[derive(Debug, Default, Clone)]

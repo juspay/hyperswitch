@@ -298,10 +298,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_core = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back(
+            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
-                data.request.currency,
+                data.request.currency.to_string(),
             )?),
             None => None,
         };
@@ -394,10 +394,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_core = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back(
+            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
-                data.request.currency,
+                data.request.currency.to_string(),
             )?),
             None => None,
         };

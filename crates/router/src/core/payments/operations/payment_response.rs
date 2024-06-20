@@ -814,7 +814,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             // match on connector integrity check 
             match router_data.integrity_check.clone() {
                 Err(err) => {
+                    println!("integrity flow check ");
                     let field_name = err.field_names;
+                    let connector_transaction_id=  err.connector_transaction_id;
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -829,7 +831,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             updated_by: storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
-                            connector_transaction_id: None,
+                            connector_transaction_id,
                             payment_method_data: None,
                         }),
                     )
