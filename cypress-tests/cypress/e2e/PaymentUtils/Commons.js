@@ -865,4 +865,41 @@ export const connectorDetails = {
       },
     }),
   },
+  upi_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    UpiCollect: getCustomExchange({
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
+        payment_method_data: {
+          upi: {
+            upi_collect: {
+              vpa_id: "successtest@ita",
+            },
+          },
+        },
+      },
+    }),
+    UpiIntent: getCustomExchange({
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_intent",
+        payment_method_data: {
+          upi: {
+            upi_intent: {},
+          },
+        },
+      },
+    }),
+  },
 };
