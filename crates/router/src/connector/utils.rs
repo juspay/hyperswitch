@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -2648,17 +2651,15 @@ pub fn convert_back_amount_to_minor_units<T>(
 
 pub fn get_authorise_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount:T,
-    currency:String
+    amount: T,
+    currency: String,
 ) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-    let amount_in_minor_unit = convert_back_amount_to_minor_units(
-        amount_convertor,
-        amount,
-        currency_enum
-    )?;
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
 
-    Ok(AuthoriseIntegrityObject{
+    Ok(AuthoriseIntegrityObject {
         amount: amount_in_minor_unit,
         currency: currency_enum,
     })
@@ -2666,17 +2667,15 @@ pub fn get_authorise_integrity_object<T>(
 
 pub fn get_sync_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount:T,
-    currency:String
+    amount: T,
+    currency: String,
 ) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-    let amount_in_minor_unit = convert_back_amount_to_minor_units(
-        amount_convertor,
-        amount,
-        currency_enum
-    )?;
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
 
-    Ok(SyncIntegrityObject{
+    Ok(SyncIntegrityObject {
         amount: Some(amount_in_minor_unit),
         currency: Some(currency_enum),
     })

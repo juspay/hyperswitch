@@ -129,7 +129,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             refund_id: None,
             dispute_id: None,
             connector_response: None,
-            integrity_check: Ok(())
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)

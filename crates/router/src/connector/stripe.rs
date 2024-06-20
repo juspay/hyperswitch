@@ -4,10 +4,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use common_utils::{
     request::RequestContent,
-    types::{
-        AmountConvertor, AuthoriseIntegrity, AuthoriseIntegrityObject, ConnectorIntegrity,
-        MinorUnit, MinorUnitForConnector,SyncIntegrityObject
-    },
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -832,10 +829,9 @@ impl
 
                 let response_integrity_object = connector_utils::get_sync_integrity_object(
                     self.amount_converter,
-                    response.amount.clone(),
+                    response.amount,
                     response.currency.clone(),
                 )?;
-
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
@@ -849,7 +845,6 @@ impl
                     router_data.request.integrity_object = Some(response_integrity_object);
                     router_data
                 })
-
             }
             Err(err) => {
                 Err(err).change_context(errors::ConnectorError::MissingConnectorTransactionID)
@@ -1025,12 +1020,13 @@ impl
                         .response
                         .parse_struct("ChargesResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    
-                    let response_integrity_object = connector_utils::get_authorise_integrity_object(
-                        self.amount_converter,
-                        response.amount.clone(),
-                        response.currency.clone(),
-                    )?;
+
+                    let response_integrity_object =
+                        connector_utils::get_authorise_integrity_object(
+                            self.amount_converter,
+                            response.amount,
+                            response.currency.clone(),
+                        )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
@@ -1041,29 +1037,26 @@ impl
                         http_code: res.status_code,
                     });
 
-                    new_router_data.map(|mut router_data|{
+                    new_router_data.map(|mut router_data| {
                         router_data.request.integrity_object = Some(response_integrity_object);
                         router_data
                     })
-
-
                 }
                 _ => {
                     let response: stripe::PaymentIntentResponse = res
                         .response
                         .parse_struct("PaymentIntentResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    
-                    let response_integrity_object = connector_utils::get_authorise_integrity_object(
-                        self.amount_converter,
-                        response.amount.clone(),
-                        response.currency.clone(),
-                    )?;
 
+                    let response_integrity_object =
+                        connector_utils::get_authorise_integrity_object(
+                            self.amount_converter,
+                            response.amount,
+                            response.currency.clone(),
+                        )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
-
 
                     let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
                         response,
@@ -1071,12 +1064,12 @@ impl
                         http_code: res.status_code,
                     });
 
-                    new_router_data.map(|mut router_data|{
+                    new_router_data.map(|mut router_data| {
                         router_data.request.integrity_object = Some(response_integrity_object);
                         router_data
                     })
+                }
             },
-        }
             _ => {
                 let response: stripe::PaymentIntentResponse = res
                     .response
@@ -1085,10 +1078,9 @@ impl
 
                 let response_integrity_object = connector_utils::get_authorise_integrity_object(
                     self.amount_converter,
-                    response.amount.clone(),
+                    response.amount,
                     response.currency.clone(),
                 )?;
-
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
@@ -1100,7 +1092,7 @@ impl
                 })
                 .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
-                new_router_data.map(|mut router_data|{
+                new_router_data.map(|mut router_data| {
                     router_data.request.integrity_object = Some(response_integrity_object);
                     router_data
                 })

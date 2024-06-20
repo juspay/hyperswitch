@@ -1,6 +1,5 @@
 pub mod paypal;
 pub mod stripe;
-use common_utils::types::AuthoriseIntegrityObject;
 use error_stack::ResultExt;
 
 use crate::{
@@ -54,7 +53,7 @@ impl VerifyConnectorData {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
-            integrity_object: None
+            integrity_object: None,
         }
     }
 
@@ -109,7 +108,7 @@ impl VerifyConnectorData {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
-            integrity_check: Ok(())
+            integrity_check: Ok(()),
         }
     }
 }

@@ -272,11 +272,11 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
-    IntegrityCheckFailed { 
+    IntegrityCheckFailed {
         // status_code: u16,
         reason: String,
         field_names: String,
-        connector_transaction_id: Option<String>
+        connector_transaction_id: Option<String>,
     },
 }
 

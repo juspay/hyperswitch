@@ -82,25 +82,32 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action,
                 connector_request,
             )
-            .await.to_payment_failed_response()?;
-            
-            let flow = self.flow;
-            // Initiating Integrity checks
+            .await
+            .to_payment_failed_response()?;
+
+            // Initiating Integrity check
             let connector_transaction_id = match resp.response.clone() {
-                Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_response_reference_id,
+                    ..
+                }) => connector_response_reference_id.clone(),
                 _ => None,
             };
-            
+
             let integrity_result = match resp.request.integrity_object.clone() {
                 Some(res_integrity_object) => {
                     let integrity_check = common_utils::types::AuthoriseIntegrity;
-                    let req_integrity_object = common_utils::types::AuthoriseIntegrityObject{
+                    let req_integrity_object = common_utils::types::AuthoriseIntegrityObject {
                         amount: resp.request.minor_amount,
-                        currency: resp.request.currency
+                        currency: resp.request.currency,
                     };
-                    integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+                    integrity_check.compare(
+                        req_integrity_object,
+                        res_integrity_object,
+                        connector_transaction_id,
+                    )
                 }
-                None => Ok(())
+                None => Ok(()),
             };
             // Assigning integrity check result
             resp.integrity_check = integrity_result;

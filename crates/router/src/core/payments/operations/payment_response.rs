@@ -811,12 +811,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
 
         Ok(payments_response) => {
-            // match on connector integrity check 
+            // match on connector integrity check
             match router_data.integrity_check.clone() {
                 Err(err) => {
                     println!("integrity flow check ");
                     let field_name = err.field_names;
-                    let connector_transaction_id=  err.connector_transaction_id;
+                    let connector_transaction_id = err.connector_transaction_id;
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -1275,7 +1275,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         Ok(()) => Ok(payment_data),
         Err(err) => Err(error_stack::Report::new(
             errors::ApiErrorResponse::IntegrityCheckFailed {
-                reason: payment_data.payment_attempt.error_message.unwrap(),
+                reason: payment_data
+                    .payment_attempt
+                    .error_message
+                    .unwrap_or_default(),
                 field_names: err.field_names,
                 connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             },

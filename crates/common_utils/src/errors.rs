@@ -74,7 +74,7 @@ pub enum ValidationError {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct IntegrityCheckError {
     pub field_names: String,
-    pub connector_transaction_id: Option<String>
+    pub connector_transaction_id: Option<String>,
 }
 
 /// Cryptographic algorithm errors

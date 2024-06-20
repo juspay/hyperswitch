@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use common_utils::types::ConnectorIntegrity;
+
 use async_trait::async_trait;
+use common_utils::types::ConnectorIntegrity;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -97,20 +98,27 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                 // Initiating Integrity checks
                 let connector_transaction_id = match resp.response.clone() {
-                    Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_response_reference_id,
+                        ..
+                    }) => connector_response_reference_id.clone(),
                     _ => None,
                 };
-                
+
                 let integrity_result = match resp.request.integrity_object.clone() {
                     Some(res_integrity_object) => {
                         let integrity_check = common_utils::types::SyncIntegrity;
-                        let req_integrity_object = common_utils::types::SyncIntegrityObject{
+                        let req_integrity_object = common_utils::types::SyncIntegrityObject {
                             amount: Some(resp.request.amount),
-                            currency: Some(resp.request.currency)
+                            currency: Some(resp.request.currency),
                         };
-                        integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+                        integrity_check.compare(
+                            req_integrity_object,
+                            res_integrity_object,
+                            connector_transaction_id,
+                        )
                     }
-                    None => Ok(())
+                    None => Ok(()),
                 };
                 // Assigning integrity check result
                 resp.integrity_check = integrity_result;

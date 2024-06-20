@@ -1,5 +1,5 @@
 use std::{borrow::Cow, str::FromStr};
-use common_utils::types::ConnectorIntegrity;
+
 use api_models::{
     mandates::RecurringDetails,
     payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
@@ -16,8 +16,7 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent}, router_response_types::PaymentsResponseData,
-    
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -3373,7 +3372,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
-        integrity_check: Ok(())
+        integrity_check: Ok(()),
     }
 }
 
@@ -4681,7 +4680,6 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
 
-
 // pub fn check_connector_integrity_based_on_flow<Flow, Request, Response>(
 //     flow:Flow,
 //     resp: RouterData<Flow, Request, Response>
@@ -4692,7 +4690,7 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
 //                 Ok(PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
 //                 _ => None,
 //             };
-            
+
 //             let integrity_result = match resp.request.integrity_object.clone() {
 //                 Some(res_integrity_object) => {
 //                     let integrity_check = common_utils::types::AuthoriseIntegrity;

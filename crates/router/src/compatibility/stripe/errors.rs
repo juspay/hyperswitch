@@ -269,7 +269,7 @@ pub enum StripeErrorCode {
         // status_code: u16,
         reason: String,
         field_names: String,
-        connector_transaction_id: Option<String>
+        connector_transaction_id: Option<String>,
     },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
@@ -657,12 +657,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 // status_code,
                 reason,
                 field_names,
-                connector_transaction_id
+                connector_transaction_id,
             } => Self::IntegrityCheckFailed {
                 // status_code,
                 reason,
                 field_names,
-                connector_transaction_id
+                connector_transaction_id,
             },
         }
     }
@@ -747,8 +747,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
-            },
-            Self::IntegrityCheckFailed { .. }=> StatusCode::INTERNAL_SERVER_ERROR,
+            }
+            Self::IntegrityCheckFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::PaymentBlockedError { code, .. } => {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }

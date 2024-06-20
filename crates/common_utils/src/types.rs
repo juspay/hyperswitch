@@ -24,9 +24,10 @@ use rust_decimal::{
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
+
 use crate::{
     consts,
-    errors::{CustomResult, ParsingError, PercentageError, IntegrityCheckError},
+    errors::{CustomResult, IntegrityCheckError, ParsingError, PercentageError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -730,14 +731,18 @@ where
 /// Authorise flow integrity object
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthoriseIntegrityObject {
+    /// Authorise amount
     pub amount: MinorUnit,
+    /// Authorise currency
     pub currency: enums::Currency,
 }
 
-
+/// Sync flow integrity object
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyncIntegrityObject {
+    /// Sync amount
     pub amount: Option<MinorUnit>,
+    /// Sync currency
     pub currency: Option<enums::Currency>,
 }
 /// ConnectorIntegrity trait for connector
@@ -749,7 +754,7 @@ pub trait ConnectorIntegrity: Send {
         &self,
         req_integrity_object: Self::IntegrityObject,
         res_integrity_object: Self::IntegrityObject,
-        connector_transaction_id: Option<String>
+        connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError>;
 }
 
@@ -763,7 +768,7 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
         &self,
         req_integrity_object: AuthoriseIntegrityObject,
         res_integrity_object: AuthoriseIntegrityObject,
-        connector_transaction_id: Option<String>
+        connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -785,13 +790,13 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
         } else {
             let field_names = mismatched_fields.join(", ");
 
-            Err(
-                IntegrityCheckError { field_names, connector_transaction_id },
-            )
+            Err(IntegrityCheckError {
+                field_names,
+                connector_transaction_id,
+            })
         }
     }
 }
-
 
 /// Connector required amount type
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -803,63 +808,27 @@ impl ConnectorIntegrity for SyncIntegrity {
         &self,
         req_integrity_object: SyncIntegrityObject,
         res_integrity_object: SyncIntegrityObject,
-        connector_transaction_id: Option<String>
+        connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
-
-
 
         if req_integrity_object.amount != res_integrity_object.amount {
             mismatched_fields.push("amount".to_string());
         }
 
-        // if req_integrity_object.currency != res_integrity_object.currency {
-        //     mismatched_fields.push("currency".to_string());
-        // }
-
-        if Some(enums::Currency::AED) != res_integrity_object.currency {
+        if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push("currency".to_string());
         }
 
         if mismatched_fields.is_empty() {
-            println!("integrity check passed");
             Ok(())
         } else {
             let field_names = mismatched_fields.join(", ");
 
-            Err(
-                IntegrityCheckError { field_names, connector_transaction_id },
-            )
+            Err(IntegrityCheckError {
+                field_names,
+                connector_transaction_id,
+            })
         }
     }
 }
-
-
-// pub fn check_connector_integrity_based_on_flow<Flow, Request, Response>(
-//     flow:Flow,
-//     resp: RouterData<Flow, Request, Response>
-// ) -> Result<(), IntegrityCheckError> {
-//     match flow {
-//         api::Authorize => {
-//             let connector_transaction_id = match resp.response.clone() {
-//                 Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
-//                 _ => None,
-//             };
-
-//             let integrity_result = match resp.request.integrity_object.clone() {
-//                 Some(res_integrity_object) => {
-//                     let integrity_check = AuthoriseIntegrity;
-//                     let req_integrity_object = AuthoriseIntegrityObject {
-//                         amount: resp.request.minor_amount,
-//                         currency: resp.request.currency,
-//                     };
-//                     integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
-//                 }
-//                 None => Ok(()),
-//             };
-//             integrity_result
-
-//         }
-//         _ => Ok(())
-//     }
-// }

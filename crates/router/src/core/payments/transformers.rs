@@ -7,11 +7,7 @@ use api_models::payments::{
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{
-    consts::X_HS_LATENCY,
-    fp_utils,
-    types::{AuthoriseIntegrityObject, MinorUnit},
-};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
@@ -194,7 +190,7 @@ where
         refund_id: None,
         dispute_id: None,
         connector_response: None,
-        integrity_check: Ok(())
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -1309,8 +1305,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         Ok(Self {
-            amount: payment_data.payment_intent.amount ,
-            integrity_object:None,
+            amount: payment_data.payment_intent.amount,
+            integrity_object: None,
             mandate_id: payment_data.mandate_id.clone(),
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
