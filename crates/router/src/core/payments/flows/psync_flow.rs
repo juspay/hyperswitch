@@ -183,7 +183,7 @@ impl RouterDataPSync
             // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,
-                connector_integration.clone_box(),
+                connector_integration,
                 self,
                 call_connector_action.clone(),
                 None,
