@@ -103,7 +103,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 analytics = { version = "0.1.0", path = "../analytics", optional = true }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

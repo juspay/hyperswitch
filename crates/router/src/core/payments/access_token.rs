@@ -58,6 +58,7 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
+    creds_identifier: Option<&String>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -75,6 +76,7 @@ pub async fn add_access_token<
         let merchant_connector_id_or_connector_name = connector
             .merchant_connector_id
             .clone()
+            .or(creds_identifier.cloned())
             .unwrap_or(connector.connector_name.to_string());
 
         let old_access_token = store

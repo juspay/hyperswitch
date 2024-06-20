@@ -57,6 +57,7 @@ pub async fn refund_create_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -181,13 +182,19 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         charges,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_router_data=?router_data);
 
@@ -357,6 +364,7 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_payment_id_merchant_id(
             payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -458,13 +466,19 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         None,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
@@ -1115,6 +1129,7 @@ pub async fn trigger_refund_execute_workflow(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
+                    &key_store,
                     merchant_account.storage_scheme,
                 )
                 .await

@@ -11,7 +11,6 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u16>
         &cache::ACCOUNTS_CACHE,
         &cache::ROUTING_CACHE,
         &cache::CGRAPH_CACHE,
-        &cache::PM_FILTERS_CGRAPH_CACHE,
         &cache::DECISION_MANAGER_CACHE,
         &cache::SURCHARGE_CACHE,
     ];
