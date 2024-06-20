@@ -6,7 +6,7 @@
   "return_url": "https://hyperswitch.io",
   "recurring_details": {
     "type": "payment_method_id",
-    "data": "payment_method_id"
+    "data": "{{payment_method_id}}"
   },
   "off_session": true,
   "billing": {
