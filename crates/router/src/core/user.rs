@@ -2130,11 +2130,6 @@ pub async fn list_user_authentication_methods(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to decrypt auth config")?;
 
-            // println!(
-            //     "decrypted: {:#?}",
-            //     decrypted_config_data.clone().unwrap().into_inner().expose(),
-            // );
-
             let decrypted_config: Option<user_api::AuthConfig> = decrypted_config_data
                 .map(|decrypted_data| decrypted_data.into_inner().expose())
                 .map(|decrypted_value| decrypted_value.parse_value("AuthConfig"))
