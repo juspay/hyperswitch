@@ -6,6 +6,9 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
+
+#[cfg(feature = "v2")]
+pub use api_models::admin::{MerchantAccountCreateV2, MerchantAccountResponseV2};
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -34,7 +37,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
-            publishable_key: item.publishable_key,
+            publishable_key: Some(item.publishable_key),
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
@@ -45,6 +48,23 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             organization_id: item.organization_id,
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
+            recon_status: item.recon_status,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl TryFrom<domain::MerchantAccount> for MerchantAccountResponseV2 {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_id: item.merchant_id,
+            merchant_name: item.merchant_name,
+            merchant_details: item.merchant_details,
+            publishable_key: item.publishable_key,
+            metadata: item.metadata,
+            organization_id: item.organization_id,
+            is_recon_enabled: item.is_recon_enabled,
             recon_status: item.recon_status,
         })
     }

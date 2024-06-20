@@ -30,7 +30,7 @@ pub struct MerchantAccount {
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
-    pub publishable_key: Option<String>,
+    pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -168,7 +168,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             webhook_details: self.webhook_details,
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
-            publishable_key: self.publishable_key,
+            publishable_key: Some(self.publishable_key),
             storage_scheme: self.storage_scheme,
             locker_id: self.locker_id,
             metadata: self.metadata,
@@ -194,6 +194,12 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
+        let publishable_key =
+            item.publishable_key
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "publishable_key".to_string(),
+                })?;
+
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -213,7 +219,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
-                publishable_key: item.publishable_key,
+                publishable_key,
                 storage_scheme: item.storage_scheme,
                 locker_id: item.locker_id,
                 metadata: item.metadata,
@@ -250,7 +256,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             enable_payment_response_hash: Some(self.enable_payment_response_hash),
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: Some(self.redirect_to_merchant_with_http_post),
-            publishable_key: self.publishable_key,
+            publishable_key: Some(self.publishable_key),
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,

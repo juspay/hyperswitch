@@ -50,18 +50,34 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
+pub async fn insert_merchant_configs(
+    db: &dyn StorageInterface,
+    merchant_id: &String,
+) -> RouterResult<()> {
+    db.insert_config(configs::ConfigNew {
+        key: format!("{}_requires_cvv", merchant_id),
+        config: "true".to_string(),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while setting requires_cvv config")?;
+
+    db.insert_config(configs::ConfigNew {
+        key: utils::get_merchant_fingerprint_secret_key(merchant_id),
+        config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while inserting merchant fingerprint secret")?;
+
+    Ok(())
+}
+
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let db = state.store.as_ref();
-    let master_key = db.get_master_key();
-
-    let key = services::generate_aes256_key()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate aes 256 key")?;
-
-    let publishable_key = Some(create_merchant_publishable_key());
+    let publishable_key = create_merchant_publishable_key();
 
     let primary_business_details = req
         .primary_business_details
@@ -107,33 +123,6 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let key_store = domain::MerchantKeyStore {
-        merchant_id: req.merchant_id.clone(),
-        key: domain_types::encrypt(key.to_vec().into(), master_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to decrypt data from key store")?,
-        created_at: date_time::now(),
-    };
-
-    let enable_payment_response_hash = req.enable_payment_response_hash.unwrap_or(true);
-
-    let payment_response_hash_key = req
-        .payment_response_hash_key
-        .or(Some(generate_cryptographically_secure_random_string(64)));
-
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
-
-    let parent_merchant_id = get_parent_merchant(
-        db,
-        req.sub_merchants_enabled,
-        req.parent_merchant_id,
-        &key_store,
-    )
-    .await?;
-
     let metadata = req
         .metadata
         .as_ref()
@@ -146,16 +135,39 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
-    if let Some(fingerprint) = fingerprint {
-        db.insert_config(configs::ConfigNew {
-            key: format!("fingerprint_secret_{}", req.merchant_id),
-            config: fingerprint,
-        })
-        .await
+    let enable_payment_response_hash = req.enable_payment_response_hash.unwrap_or(true);
+
+    let payment_response_hash_key = req
+        .payment_response_hash_key
+        .or(Some(generate_cryptographically_secure_random_string(64)));
+
+    let db = state.store.as_ref();
+    let master_key = db.get_master_key();
+
+    let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Mot able to generate Merchant fingerprint")?;
+        .attach_printable("Unable to generate aes 256 key")?;
+
+    let key_store = domain::MerchantKeyStore {
+        merchant_id: req.merchant_id.clone(),
+        key: domain_types::encrypt(key.to_vec().into(), master_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decrypt data from key store")?,
+        created_at: date_time::now(),
     };
+
+    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    let parent_merchant_id = get_parent_merchant(
+        db,
+        req.sub_merchants_enabled,
+        req.parent_merchant_id,
+        &key_store,
+    )
+    .await?;
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
@@ -269,15 +281,122 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    db.insert_config(configs::ConfigNew {
-        key: format!("{}_requires_cvv", merchant_account.merchant_id),
-        config: "true".to_string(),
-    })
+    insert_merchant_configs(db, &merchant_account.merchant_id).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api::MerchantAccountResponse::try_from(merchant_account)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while generating response")?,
+    ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_merchant_account_v2(
+    state: SessionState,
+    req: api::MerchantAccountCreateV2,
+) -> RouterResponse<api::MerchantAccountResponse> {
+    let publishable_key = create_merchant_publishable_key();
+
+    let merchant_details: OptionalSecretValue = req
+        .merchant_details
+        .as_ref()
+        .map(|merchant_details| {
+            merchant_details.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_details",
+                },
+            )
+        })
+        .transpose()?
+        .map(Into::into);
+
+    let metadata = req
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            meta.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+
+    let db = state.store.as_ref();
+    let master_key = db.get_master_key();
+
+    let key = services::generate_aes256_key()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate aes 256 key")?;
+
+    let key_store = domain::MerchantKeyStore {
+        merchant_id: req.id.clone(),
+        key: domain_types::encrypt(key.to_vec().into(), master_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decrypt data from key store")?,
+        created_at: date_time::now(),
+    };
+
+    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    let primary_business_details = Vec::<api_models::admin::PrimaryBusinessDetails>::new()
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_account = async {
+        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
+            merchant_id: req.id,
+            merchant_name: req
+                .merchant_name
+                .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+                .await?,
+            merchant_details: merchant_details
+                .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+                .await?,
+            return_url: None,
+            webhook_details: None,
+            routing_algorithm: Some(serde_json::json!({
+                "algorithm_id": null,
+                "timestamp": 0
+            })),
+            sub_merchants_enabled: None,
+            parent_merchant_id: None,
+            enable_payment_response_hash: true,
+            payment_response_hash_key: None,
+            redirect_to_merchant_with_http_post: true,
+            publishable_key,
+            locker_id: None,
+            metadata,
+            storage_scheme: MerchantStorageScheme::PostgresOnly,
+            primary_business_details,
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
+            intent_fulfillment_time: None,
+            frm_routing_algorithm: None,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: None,
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
+            id: None,
+            organization_id: req.organization_id,
+            is_recon_enabled: false,
+            default_profile: None,
+            recon_status: diesel_models::enums::ReconStatus::NotRequested,
+            payment_link_config: None,
+        })
+    }
     .await
-    .map_err(|err| {
-        crate::logger::error!("Error while setting requires_cvv config: {err:?}");
-    })
-    .ok();
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_account = db
+        .insert_merchant(merchant_account, &key_store)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    insert_merchant_configs(db, &merchant_account.merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::try_from(merchant_account)

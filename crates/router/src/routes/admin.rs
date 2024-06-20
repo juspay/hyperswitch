@@ -41,6 +41,42 @@ pub async fn merchant_account_create(
     ))
     .await
 }
+
+#[cfg(feature = "v2")]
+/// Merchant Account - Create
+///
+/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
+#[utoipa::path(
+    post,
+    path = "/accounts",
+    request_body= MerchantAccountCreate,
+    responses(
+        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Create a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+pub async fn merchant_account_create_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::MerchantAccountCreateV2>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| create_merchant_account_v2(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.

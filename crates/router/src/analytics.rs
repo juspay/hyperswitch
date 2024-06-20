@@ -233,7 +233,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
-                    auth.merchant_account.publishable_key.as_ref(),
+                    &auth.merchant_account.publishable_key,
                     req,
                 )
                 .await
@@ -270,7 +270,7 @@ pub mod routes {
                 analytics::auth_events::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
-                    auth.merchant_account.publishable_key.as_ref(),
+                    &auth.merchant_account.publishable_key,
                     req,
                 )
                 .await
@@ -349,7 +349,7 @@ pub mod routes {
                 analytics::sdk_events::get_filters(
                     &state.pool,
                     req,
-                    auth.merchant_account.publishable_key.as_ref(),
+                    &auth.merchant_account.publishable_key,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -418,13 +418,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                sdk_events_core(
-                    &state.pool,
-                    req,
-                    auth.merchant_account.publishable_key.unwrap_or_default(),
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                sdk_events_core(&state.pool, req, &auth.merchant_account.publishable_key)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
