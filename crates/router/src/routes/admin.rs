@@ -48,23 +48,23 @@ pub async fn merchant_account_create(
 /// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
 #[utoipa::path(
     post,
-    path = "/accounts",
-    request_body= MerchantAccountCreate,
+    path = "/v2/accounts",
+    request_body= MerchantAccountCreateV2,
     responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponseV2),
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",
     operation_id = "Create a Merchant Account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountCreateV2))]
 pub async fn merchant_account_create_v2(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::MerchantAccountCreateV2>,
 ) -> HttpResponse {
-    let flow = Flow::MerchantsAccountCreate;
+    let flow = Flow::MerchantAccountCreateV2;
     Box::pin(api::server_wrap(
         flow,
         state,

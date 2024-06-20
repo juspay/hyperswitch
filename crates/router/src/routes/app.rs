@@ -985,7 +985,7 @@ pub struct MerchantAccountV2;
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccountV2 {
     pub fn server(state: AppState) -> Scope {
-        web::scope("v2/accounts")
+        web::scope("/v2/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create_v2)))
     }
