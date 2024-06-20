@@ -85,7 +85,7 @@ pub struct KlarnaPaymentsRequest {
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
-    authorized_payment_method: AuthorizedPaymentMethod,
+    authorized_payment_method: Option<AuthorizedPaymentMethod>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -255,9 +255,14 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
-            types::AdditionalPaymentMethodConnectorResponse::from(
-                item.response.authorized_payment_method,
-            ),
+            match item.response.authorized_payment_method {
+                Some(authorized_payment_method) => {
+                    types::AdditionalPaymentMethodConnectorResponse::from(authorized_payment_method)
+                }
+                None => {
+                    types::AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk: None }
+                }
+            },
         );
 
         Ok(Self {

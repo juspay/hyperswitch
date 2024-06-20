@@ -2795,7 +2795,7 @@ pub enum PaymentMethodDataResponse {
     Card(Box<CardResponse>),
     BankTransfer {},
     Wallet {},
-    PayLater(PaylaterResponse),
+    PayLater(Box<PaylaterResponse>),
     Paypal {},
     BankRedirect {},
     Crypto {},
@@ -3934,8 +3934,8 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
-                Some(sdk) => Self::PayLater(PaylaterResponse::from(sdk)),
-                None => Self::PayLater(PaylaterResponse { klarna_sdk: None }),
+                Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+                None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
