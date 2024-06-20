@@ -57,7 +57,9 @@ fn get_default_router_data<F, Req, Resp>(
             "connector_request_reference_id",
             flow_name,
         ),
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: None,
         connector_http_status_code: None,
