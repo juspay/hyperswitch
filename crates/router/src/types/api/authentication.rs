@@ -5,6 +5,10 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
+pub use super::authentication_v2::{
+    ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
+    ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+};
 use super::BoxedConnector;
 use crate::core::errors;
 

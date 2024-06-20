@@ -26,12 +26,24 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+pub mod authentication_v2;
+pub mod disputes_v2;
+pub mod files_v2;
+#[cfg(feature = "frm")]
+pub mod fraud_check_v2;
+pub mod payments_v2;
+#[cfg(feature = "payouts")]
+pub mod payouts_v2;
+pub mod refunds_v2;
+
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
 };
+pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -41,20 +53,31 @@ pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
 };
-use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
-    connector, consts,
+    connector,
     core::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    events::connector_api_logs::ConnectorEvent,
-    services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
+    services::{
+        ConnectorIntegration, ConnectorIntegrationV2, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     types::{self, api::enums as api_enums},
 };
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+{
+}
+
+pub trait ConnectorAccessTokenV2:
+    ConnectorIntegrationV2<
+    AccessTokenAuth,
+    AccessTokenFlowData,
+    types::AccessTokenRequestData,
+    types::AccessToken,
+>
 {
 }
 
@@ -73,6 +96,15 @@ pub trait ConnectorVerifyWebhookSource:
 >
 {
 }
+pub trait ConnectorVerifyWebhookSourceV2:
+    ConnectorIntegrationV2<
+    VerifyWebhookSource,
+    types::WebhookSourceVerifyData,
+    types::VerifyWebhookSourceRequestData,
+    types::VerifyWebhookSourceResponseData,
+>
+{
+}
 
 #[derive(Clone, Debug)]
 pub struct MandateRevoke;
@@ -80,6 +112,16 @@ pub struct MandateRevoke;
 pub trait ConnectorMandateRevoke:
     ConnectorIntegration<
     MandateRevoke,
+    types::MandateRevokeRequestData,
+    types::MandateRevokeResponseData,
+>
+{
+}
+
+pub trait ConnectorMandateRevokeV2:
+    ConnectorIntegrationV2<
+    MandateRevoke,
+    types::MandateRevokeFlowData,
     types::MandateRevokeRequestData,
     types::MandateRevokeResponseData,
 >
@@ -95,88 +137,33 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
-pub enum CurrencyUnit {
-    Base,
-    Minor,
-}
-
-pub trait ConnectorCommon {
-    /// Name of the connector (in lowercase).
-    fn id(&self) -> &'static str;
-
-    /// Connector accepted currency unit as either "Base" or "Minor"
-    fn get_currency_unit(&self) -> CurrencyUnit {
-        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
-    }
-
-    /// HTTP header used for authorization.
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(Vec::new())
-    }
-
-    /// HTTP `Content-Type` to be used for POST requests.
-    /// Defaults to `application/json`.
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-
-    // FIXME write doc - think about this
-    // fn headers(&self) -> Vec<(&str, &str)>;
-
-    /// The base URL for interacting with the connector's API.
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
-
-    /// common error response for a connector if it is same in all case
-    fn build_error_response(
-        &self,
-        res: types::Response,
-        _event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: consts::NO_ERROR_MESSAGE.to_string(),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-}
-
-/// Extended trait for connector common to allow functions with generic type
-pub trait ConnectorCommonExt<Flow, Req, Resp>:
-    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
-{
-    /// common header builder when every request for the connector have same headers
-    fn build_headers(
-        &self,
-        _req: &types::RouterData<Flow, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(Vec::new())
-    }
-}
-
 pub trait Router {}
 
 pub trait Connector:
     Send
     + Refund
+    + RefundV2
     + Payment
+    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAccessTokenV2
     + Dispute
+    + DisputeV2
     + FileUpload
+    + FileUploadV2
     + ConnectorTransactionId
     + Payouts
+    + PayoutsV2
     + ConnectorVerifyWebhookSource
+    + ConnectorVerifyWebhookSourceV2
     + FraudCheck
+    + FraudCheckV2
     + ConnectorMandateRevoke
+    + ConnectorMandateRevokeV2
     + ExternalAuthentication
+    + ExternalAuthenticationV2
 {
 }
 
@@ -186,19 +173,29 @@ pub struct Pe;
 
 impl<
         T: Refund
+            + RefundV2
             + Payment
+            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAccessTokenV2
             + Dispute
+            + DisputeV2
             + FileUpload
+            + FileUploadV2
             + ConnectorTransactionId
             + Payouts
+            + PayoutsV2
             + ConnectorVerifyWebhookSource
+            + ConnectorVerifyWebhookSourceV2
             + FraudCheck
+            + FraudCheckV2
             + ConnectorMandateRevoke
-            + ExternalAuthentication,
+            + ConnectorMandateRevokeV2
+            + ExternalAuthentication
+            + ExternalAuthenticationV2,
     > Connector for T
 {
 }
@@ -417,6 +414,9 @@ pub trait FraudCheck:
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheck {}
 
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheckV2 {}
+
 #[cfg(feature = "payouts")]
 pub trait Payouts:
     ConnectorCommon
@@ -431,6 +431,9 @@ pub trait Payouts:
 }
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsV2 {}
 
 #[cfg(test)]
 mod test {

@@ -25,8 +25,13 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
-pub use hyperswitch_interfaces::api::{
-    BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
 };
 use masking::{Maskable, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
