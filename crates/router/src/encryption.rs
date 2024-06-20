@@ -1,12 +1,10 @@
-use once_cell::sync::OnceCell;
-
-#[cfg(feature = "keymanager_mtls")]
-use masking::PeekInterface;
-
-use http::{HeaderMap, HeaderName, HeaderValue};
 use std::str::FromStr;
 
 use error_stack::ResultExt;
+use http::{HeaderMap, HeaderName, HeaderValue};
+#[cfg(feature = "keymanager_mtls")]
+use masking::PeekInterface;
+use once_cell::sync::OnceCell;
 
 use crate::{errors, headers, types::domain::EncryptionCreateRequest, SessionState};
 
