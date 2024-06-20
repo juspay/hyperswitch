@@ -1,4 +1,5 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
@@ -10,6 +11,7 @@ import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
+  authorizedotnet: authorizedotnetConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   commons: CommonConnectorDetails,
