@@ -10769,7 +10769,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -10873,7 +10873,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The id of the organization to which the merchant belongs to",
+            "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
             "nullable": true
           }
         },
@@ -10915,7 +10915,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
