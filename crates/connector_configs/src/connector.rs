@@ -92,6 +92,7 @@ pub struct ConfigMetadata {
     pub google_pay: Option<Vec<MetaDataInupt>>,
     pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
+    pub apple_pay_v2: Option<Vec<MetaDataInupt>>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
     pub mcc: Option<String>,

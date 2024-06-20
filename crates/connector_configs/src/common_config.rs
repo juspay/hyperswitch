@@ -200,7 +200,7 @@ pub struct DashboardMetaData {
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub google_pay: Option<GooglePayData>,
+    pub google_pay: Option<GoogleApiModelData>,
     pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,

@@ -208,7 +208,7 @@ impl DashboardRequestPayload {
             Some(data) => data,
             None => default_metadata,
         };
-        let google_pay = Self::get_google_pay_details(meta_data.clone(), request.connector);
+        let google_pay = meta_data.google_pay;
         let account_name = meta_data.account_name.clone();
         let merchant_account_id = meta_data.merchant_account_id.clone();
         let merchant_id = meta_data.merchant_id.clone();
@@ -256,78 +256,5 @@ impl DashboardRequestPayload {
             source_balance_account,
             brand_id,
         })
-    }
-
-    fn get_custom_gateway_name(connector: Connector) -> String {
-        match connector {
-            Connector::Checkout => String::from("checkoutltd"),
-            Connector::Nuvei => String::from("nuveidigital"),
-            Connector::Authorizedotnet => String::from("authorizenet"),
-            Connector::Globalpay => String::from("globalpayments"),
-            Connector::Bankofamerica | Connector::Cybersource => String::from("cybersource"),
-            _ => connector.to_string(),
-        }
-    }
-    fn get_google_pay_details(
-        meta_data: DashboardMetaData,
-        connector: Connector,
-    ) -> Option<GoogleApiModelData> {
-        match meta_data.google_pay {
-            Some(gpay_data) => {
-                let google_pay_data = match gpay_data {
-                    GooglePayData::Standard(data) => {
-                        let token_parameter = payments::GpayTokenParameters {
-                            gateway: Self::get_custom_gateway_name(connector),
-                            gateway_merchant_id: data.gateway_merchant_id,
-                            stripe_version: match connector {
-                                Connector::Stripe => Some(String::from("2018-10-31")),
-                                _ => None,
-                            },
-                            stripe_publishable_key: match connector {
-                                Connector::Stripe => data.stripe_publishable_key,
-                                _ => None,
-                            },
-                        };
-                        let merchant_info = payments::GpayMerchantInfo {
-                            merchant_name: data.merchant_name,
-                            merchant_id: data.merchant_id,
-                        };
-                        let token_specification = payments::GpayTokenizationSpecification {
-                            token_specification_type: String::from("PAYMENT_GATEWAY"),
-                            parameters: token_parameter,
-                        };
-                        let allowed_payment_methods_parameters =
-                            payments::GpayAllowedMethodsParameters {
-                                allowed_auth_methods: vec![
-                                    "PAN_ONLY".to_string(),
-                                    "CRYPTOGRAM_3DS".to_string(),
-                                ],
-                                allowed_card_networks: vec![
-                                    "AMEX".to_string(),
-                                    "DISCOVER".to_string(),
-                                    "INTERAC".to_string(),
-                                    "JCB".to_string(),
-                                    "MASTERCARD".to_string(),
-                                    "VISA".to_string(),
-                                ],
-                                billing_address_required: None,
-                                billing_address_parameters: None,
-                            };
-                        let allowed_payment_methods = payments::GpayAllowedPaymentMethods {
-                            payment_method_type: String::from("CARD"),
-                            parameters: allowed_payment_methods_parameters,
-                            tokenization_specification: token_specification,
-                        };
-                        GoogleApiModelData::Standard(payments::GpayMetaData {
-                            merchant_info,
-                            allowed_payment_methods: vec![allowed_payment_methods],
-                        })
-                    }
-                    GooglePayData::Zen(data) => GoogleApiModelData::Zen(data),
-                };
-                Some(google_pay_data)
-            }
-            _ => None,
-        }
     }
 }
