@@ -87,6 +87,8 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                 .transpose()?,
             collect_shipping_details_from_wallet_connector: item
                 .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: item
+                .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
         })
     }
@@ -192,6 +194,8 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: request
                 .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: request
+                .collect_billing_details_from_wallet_connector,
         })
     }
 }
