@@ -52,7 +52,6 @@ impl utils::Connector for WiseTest {
 impl WiseTest {
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::GBP),
             address: Some(PaymentAddress::new(
                 None,

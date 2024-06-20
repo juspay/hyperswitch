@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -55,10 +56,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         metrics::PAYMENT_CANCEL_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &add_attributes([("connector", connector.connector_name.to_string())]),
         );
 
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -85,8 +83,10 @@ impl Feature<api::Void, types::PaymentsCancelData>
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn build_flow_specific_connector_request(

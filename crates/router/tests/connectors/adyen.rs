@@ -83,7 +83,6 @@ impl AdyenTest {
         use common_utils::pii::Email;
 
         Some(PaymentInfo {
-            country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
             address: Some(PaymentAddress::new(
                 None,

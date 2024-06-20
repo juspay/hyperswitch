@@ -15,7 +15,7 @@ impl utils::Connector for NoonTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Noon;
         utils::construct_connector_data_old(
-            Box::new(&Noon),
+            Box::new(Noon::new()),
             types::Connector::Noon,
             types::api::GetToken::Connector,
             None,

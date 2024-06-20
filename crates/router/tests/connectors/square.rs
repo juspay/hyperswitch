@@ -48,7 +48,6 @@ fn get_default_payment_info(payment_method_token: Option<String>) -> Option<util
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
-        country: None,
     })
 }
 

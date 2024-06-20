@@ -1,8 +1,4 @@
-pub use api_models::refunds::{
-    RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
-    RefundsRetrieveRequest,
-};
-pub use hyperswitch_domain_models::{
+use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::RefundFlowData,
     router_flow_types::refunds::{Execute, RSync},
 };

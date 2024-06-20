@@ -2,7 +2,12 @@ pub mod flow_common_types;
 
 use std::{marker::PhantomData, ops::Deref};
 
-pub use flow_common_types::*;
+#[cfg(feature = "payouts")]
+pub use flow_common_types::PayoutFlowData;
+pub use flow_common_types::{
+    AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+    FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
+};
 
 use crate::router_data::{ConnectorAuthType, ErrorResponse};
 

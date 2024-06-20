@@ -1,5 +1,6 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 
 use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
 use crate::{
@@ -8,8 +9,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::app::StorageInterface,
     services::{
-        api as services_api, connector_integration_v2::ConnectorIntegrationV2,
-        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        api as services_api, BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
         ConnectorRedirectResponse, PaymentAction,
     },
     settings::Connectors,
