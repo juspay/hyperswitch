@@ -2139,7 +2139,7 @@ pub async fn list_user_authentication_methods(
                 (
                     common_enums::AuthMethod::OpenIdConnect,
                     Some(user_api::AuthConfig::OpenIdConnect(config)),
-                ) => Ok(Some(config.name.clone())),
+                ) => Ok(Some(config.name)),
                 (common_enums::AuthMethod::OpenIdConnect, None) => {
                     Err(UserErrors::InternalServerError)
                 }
@@ -2149,8 +2149,6 @@ pub async fn list_user_authentication_methods(
             Ok(user_api::UserAuthenticationMethodResponse {
                 id: auth_method.id,
                 auth_id: auth_method.auth_id,
-                owner_id: auth_method.owner_id,
-                owner_type: auth_method.owner_type,
                 auth_method: user_api::AuthMethodDetails {
                     name: auth_name,
                     auth_type: auth_method.auth_method,

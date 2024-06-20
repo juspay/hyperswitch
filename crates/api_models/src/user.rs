@@ -288,8 +288,14 @@ pub enum AuthConfig {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenIdProvider {
+    Okta,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct OpenIdConnect {
-    pub name: String,
+    pub name: OpenIdProvider,
     pub base_url: String,
     pub client_id: String,
     pub client_secret: Secret<String>,
@@ -301,13 +307,14 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub owner_id: String,
     pub owner_type: common_enums::Owner,
     pub auth_method: common_enums::AuthMethod,
-    pub config: AuthConfig,
+    pub config: Option<AuthConfig>,
     pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAuthenticationMethodRequest {
     pub id: String,
+    // TODO: When adding more fields make config and new fields option
     pub config: AuthConfig,
 }
 
@@ -325,8 +332,6 @@ pub struct ListUserAuthenticationMethods {
 pub struct UserAuthenticationMethodResponse {
     pub id: String,
     pub auth_id: String,
-    pub owner_id: String,
-    pub owner_type: common_enums::Owner,
     pub auth_method: AuthMethodDetails,
     pub allow_signup: bool,
 }
@@ -335,5 +340,5 @@ pub struct UserAuthenticationMethodResponse {
 pub struct AuthMethodDetails {
     #[serde(rename = "type")]
     pub auth_type: common_enums::AuthMethod,
-    pub name: Option<String>,
+    pub name: Option<OpenIdProvider>,
 }
