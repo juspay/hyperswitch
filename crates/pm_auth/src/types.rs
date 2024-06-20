@@ -78,6 +78,7 @@ pub struct BankAccountDetails {
     pub payment_method: PaymentMethod,
     pub account_id: Secret<String>,
     pub account_type: Option<String>,
+    pub balance: Option<i32>,
 }
 
 #[derive(Debug, Clone)]

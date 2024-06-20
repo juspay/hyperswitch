@@ -716,6 +716,17 @@ pub async fn retrieve_payment_method_from_auth_service(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("Bank account details not found")?;
 
+    if let Some(balance) = bank_account.balance {
+        if i64::from(balance) < payment_intent.amount.get_amount_as_i64() {
+            return Err((ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Payment amount is less than the available amount in selected bank account"
+                        .to_string(),
+            })
+            .into());
+        }
+    }
+
     let mut bank_type = None;
     if let Some(account_type) = bank_account.account_type.clone() {
         bank_type = common_enums::BankType::from_str(account_type.as_str())

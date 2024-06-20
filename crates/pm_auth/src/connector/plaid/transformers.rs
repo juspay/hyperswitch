@@ -141,6 +141,7 @@ pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,
     pub subtype: Option<String>,
+    pub balances: Option<PlaidBankAccountCredentialsBalances>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -242,16 +243,31 @@ impl<F, T>
         let mut id_to_subtype = HashMap::new();
 
         accounts_info.into_iter().for_each(|acc| {
-            id_to_subtype.insert(acc.account_id, (acc.subtype, acc.name));
+            id_to_subtype.insert(
+                acc.account_id,
+                (
+                    acc.subtype,
+                    acc.name,
+                    acc.balances.and_then(|balance| balance.available),
+                ),
+            );
         });
 
         account_numbers.ach.into_iter().for_each(|ach| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&ach.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
-                } else {
-                    (None, None)
-                };
+            let (acc_type, acc_name, available_balance) = if let Some((
+                _type,
+                name,
+                available_balance,
+            )) = id_to_subtype.get(&ach.account_id)
+            {
+                (
+                    _type.to_owned(),
+                    Some(name.clone()),
+                    available_balance.clone(),
+                )
+            } else {
+                (None, None, None)
+            };
 
             let account_details =
                 types::PaymentMethodTypeDetails::Ach(types::BankAccountDetailsAch {
@@ -266,17 +282,23 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: ach.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
         });
 
         account_numbers.bacs.into_iter().for_each(|bacs| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&bacs.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&bacs.account_id)
+                {
+                    (
+                        _type.to_owned(),
+                        Some(name.clone()),
+                        available_balance.clone(),
+                    )
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
 
             let account_details =
@@ -292,17 +314,23 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: bacs.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
         });
 
         account_numbers.international.into_iter().for_each(|sepa| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&sepa.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&sepa.account_id)
+                {
+                    (
+                        _type.to_owned(),
+                        Some(name.clone()),
+                        available_balance.clone(),
+                    )
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
 
             let account_details =
@@ -318,6 +346,7 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: sepa.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
