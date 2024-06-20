@@ -6,7 +6,6 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-
 #[cfg(feature = "v2")]
 pub use api_models::admin::{MerchantAccountCreateV2, MerchantAccountResponseV2};
 use common_utils::ext_traits::{Encode, ValueExt};
