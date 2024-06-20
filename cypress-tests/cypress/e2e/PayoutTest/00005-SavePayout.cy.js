@@ -32,7 +32,7 @@ describe("[Payout] Saved Card", () => {
 
   context("[Payout] [Card] Onboard customer prior to transaction", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
-    
+
     // This is needed to get customer payment methods
     beforeEach("seed global state", () => {
       createPayoutBody = Cypress._.cloneDeep(initialCreatePayoutBody);
