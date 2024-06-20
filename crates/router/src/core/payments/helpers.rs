@@ -4679,32 +4679,3 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
-
-// pub fn check_connector_integrity_based_on_flow<Flow, Request, Response>(
-//     flow:Flow,
-//     resp: RouterData<Flow, Request, Response>
-// ) -> Result<(), common_utils::errors::IntegrityCheckError> {
-//     match flow {
-//         api::Authorize => {
-//             let connector_transaction_id = match resp.response {
-//                 Ok(PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
-//                 _ => None,
-//             };
-
-//             let integrity_result = match resp.request.integrity_object.clone() {
-//                 Some(res_integrity_object) => {
-//                     let integrity_check = common_utils::types::AuthoriseIntegrity;
-//                     let req_integrity_object = common_utils::types::AuthoriseIntegrityObject {
-//                         amount: resp.request.minor_amount,
-//                         currency: resp.request.currency,
-//                     };
-//                     integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
-//                 }
-//                 None => Ok(()),
-//             };
-//             integrity_result
-
-//         }
-//         _ => Ok(())
-//     }
-// }

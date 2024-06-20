@@ -273,7 +273,6 @@ pub enum ApiErrorResponse {
     ExtendedCardInfoNotFound,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
     IntegrityCheckFailed {
-        // status_code: u16,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,

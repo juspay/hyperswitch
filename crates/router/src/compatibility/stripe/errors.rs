@@ -266,7 +266,6 @@ pub enum StripeErrorCode {
     ExtendedCardInfoNotFound,
     #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
-        // status_code: u16,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -654,12 +653,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
             errors::ApiErrorResponse::IntegrityCheckFailed {
-                // status_code,
                 reason,
                 field_names,
                 connector_transaction_id,
             } => Self::IntegrityCheckFailed {
-                // status_code,
                 reason,
                 field_names,
                 connector_transaction_id,

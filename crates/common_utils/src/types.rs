@@ -776,11 +776,7 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
             mismatched_fields.push("amount".to_string());
         }
 
-        // if req_integrity_object.currency != res_integrity_object.currency {
-        //     mismatched_fields.push("currency".to_string());
-        // }
-
-        if enums::Currency::AED != res_integrity_object.currency {
+        if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push("currency".to_string());
         }
 
