@@ -1394,6 +1394,7 @@ pub async fn post_3ds_payments_authorize(
     .await
 }
 
+#[cfg(feature = "olap")]
 pub async fn payments_manual_update(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

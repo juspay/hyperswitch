@@ -4130,7 +4130,7 @@ pub async fn get_extended_card_info(
     ))
 }
 
-#[instrument(skip_all)]
+#[cfg(feature = "olap")]
 pub async fn payments_manual_update(
     state: SessionState,
     req: api_models::payments::PaymentsManualUpdateRequest,
