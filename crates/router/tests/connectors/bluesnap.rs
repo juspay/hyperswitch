@@ -18,7 +18,7 @@ impl utils::Connector for BluesnapTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bluesnap;
         types::api::ConnectorData {
-            connector: Box::new(&Bluesnap),
+            connector: Box::new(Bluesnap::new()),
             connector_name: types::Connector::Bluesnap,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

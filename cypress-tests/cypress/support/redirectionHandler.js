@@ -4,7 +4,7 @@ export function handleRedirection(
   redirection_type,
   urls,
   connectorId,
-  payment_method_type,
+  payment_method_type
 ) {
   switch (redirection_type) {
     case "three_ds":
@@ -15,7 +15,7 @@ export function handleRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type,
+        payment_method_type
       );
       break;
     case "bank_transfer":
@@ -23,7 +23,7 @@ export function handleRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type,
+        payment_method_type
       );
       break;
     default:
@@ -35,7 +35,7 @@ function bankTransferRedirection(
   redirection_url,
   expected_url,
   connectorId,
-  payment_method_type,
+  payment_method_type
 ) {
   cy.request(redirection_url.href).then((response) => {
     switch (connectorId) {
@@ -119,7 +119,7 @@ function bankRedirectRedirection(
   redirection_url,
   expected_url,
   connectorId,
-  payment_method_type,
+  payment_method_type
 ) {
   let verifyUrl = false;
   cy.visit(redirection_url.href);
@@ -136,7 +136,7 @@ function bankRedirectRedirection(
         case "ideal":
           cy.get(":nth-child(4) > td > p").should(
             "contain.text",
-            "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)",
+            "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
           );
           cy.get(".btnLink").click();
           cy.url().should("include", "status=succeeded");
@@ -144,12 +144,12 @@ function bankRedirectRedirection(
           break;
         case "giropay":
           cy.get(
-            ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button",
+            ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
           ).click();
           cy.wait(5000);
           cy.get(".normal-3").should(
             "contain.text",
-            "Bank suchen ‑ mit giropay zahlen.",
+            "Bank suchen ‑ mit giropay zahlen."
           );
           cy.get("#bankSearch").type("giropay TestBank{enter}");
           cy.get(".normal-2 > div").click();
@@ -186,7 +186,7 @@ function bankRedirectRedirection(
                   .should("contain", "Continue")
                   .click();
               }
-            },
+            }
           );
           break;
         case "trustly":
@@ -227,16 +227,16 @@ function bankRedirectRedirection(
         case "eps":
           cy.get("._transactionId__header__iXVd_").should(
             "contain.text",
-            "Bank suchen ‑ mit eps zahlen.",
+            "Bank suchen ‑ mit eps zahlen."
           );
           cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}",
+            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
           );
           cy.get(".BankSearch_searchResultItem__lbcKm").click();
           cy.get("._transactionId__primaryButton__nCa0r").click();
           cy.get("#loginTitle").should(
             "contain.text",
-            "eps Online-Überweisung Login",
+            "eps Online-Überweisung Login"
           );
           cy.get("#user")
             .should("be.visible")
@@ -248,7 +248,7 @@ function bankRedirectRedirection(
         case "ideal":
           cy.get("p").should(
             "contain.text",
-            "Choose your iDeal Issuer Bank please",
+            "Choose your iDeal Issuer Bank please"
           );
           cy.get("#issuerSearchInput").click();
           cy.get("#issuerSearchInput").type("ING{enter}");
@@ -257,10 +257,10 @@ function bankRedirectRedirection(
         case "giropay":
           cy.get("._transactionId__header__iXVd_").should(
             "contain.text",
-            "Bank suchen ‑ mit giropay zahlen.",
+            "Bank suchen ‑ mit giropay zahlen."
           );
           cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Volksbank Hildesheim{enter}",
+            "Volksbank Hildesheim{enter}"
           );
           cy.get(".BankSearch_searchIcon__EcVO7").click();
           cy.get(".BankSearch_bankWrapper__R5fUK").click();
@@ -273,7 +273,7 @@ function bankRedirectRedirection(
           break;
         default:
           throw new Error(
-            `Unsupported payment method type: ${payment_method_type}`,
+            `Unsupported payment method type: ${payment_method_type}`
           );
       }
       verifyUrl = false;
@@ -297,7 +297,7 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
         { args: { expected_url: expected_url.origin } },
         ({ expected_url }) => {
           cy.window().its("location.origin").should("eq", expected_url);
-        },
+        }
       );
     }
   }
@@ -327,7 +327,7 @@ async function fetchAndParseQRCode(url) {
         const qrCodeData = jsQR(
           imageData.data,
           imageData.width,
-          imageData.height,
+          imageData.height
         );
 
         if (qrCodeData) {

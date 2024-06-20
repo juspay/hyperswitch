@@ -219,6 +219,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
+        _key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
         payment_data: &mut payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,

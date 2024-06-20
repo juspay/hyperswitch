@@ -52,6 +52,7 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
+pub use hyperswitch_interfaces::types::Response;
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
@@ -682,13 +683,6 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Response {
-    pub headers: Option<http::HeaderMap>,
-    pub response: bytes::Bytes,
-    pub status_code: u16,
 }
 
 impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {

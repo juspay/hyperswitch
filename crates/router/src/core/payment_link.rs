@@ -49,6 +49,7 @@ pub async fn retrieve_payment_link(
 pub async fn initiate_payment_link_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     merchant_id: String,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -57,6 +58,7 @@ pub async fn initiate_payment_link_flow(
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
             &merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -503,6 +505,7 @@ fn check_payment_link_invalid_conditions(
 pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     merchant_id: String,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -511,6 +514,7 @@ pub async fn get_payment_link_status(
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
             &merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await

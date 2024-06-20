@@ -11,7 +11,7 @@ use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
@@ -844,12 +844,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)
@@ -995,7 +995,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
@@ -1482,6 +1482,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
+            minor_amount: Some(amount),
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector

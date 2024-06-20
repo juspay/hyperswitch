@@ -1,4 +1,4 @@
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     core::{
@@ -54,10 +54,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            connector.connector_name.to_string(),
-        )],
+        &add_attributes([("connector", connector.connector_name.to_string())]),
     );
 
     let connector_customer_id = match resp.response {
