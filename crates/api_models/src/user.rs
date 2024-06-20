@@ -327,6 +327,13 @@ pub struct UserAuthenticationMethodResponse {
     pub auth_id: String,
     pub owner_id: String,
     pub owner_type: common_enums::Owner,
-    pub auth_method: common_enums::AuthMethod,
+    pub auth_method: AuthMethodDetails,
     pub allow_signup: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthMethodDetails {
+    #[serde(rename = "type")]
+    pub auth_type: common_enums::AuthMethod,
+    pub name: Option<String>,
 }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -2090,25 +2091,78 @@ pub async fn list_user_authentication_methods(
     state: SessionState,
     req: user_api::GetUserAuthenticationMethodsRequest,
 ) -> UserResponse<user_api::ListUserAuthenticationMethods> {
-    let user_authentication_methods: Vec<_> = state
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let user_authentication_methods = state
         .store
         .list_user_authentication_methods_for_auth_id(&req.auth_id)
         .await
-        .change_context(UserErrors::InternalServerError)?
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_auth_method_with_decrypted_configs = futures::future::try_join_all(
+        user_authentication_methods.into_iter().map(|method| async {
+            let decrypted_config_data =
+                domain::types::decrypt::<serde_json::Value, masking::WithType>(
+                    method.config.clone(),
+                    &user_auth_encryption_key,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to decrypt auth config")?;
+
+            let decrypted_config: Option<user_api::AuthConfig> = decrypted_config_data
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .map(|decrypted_value| decrypted_value.parse_value("AuthConfig"))
+                .transpose()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("unable to parse generic data value")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((method, decrypted_config))
+        }),
+    )
+    .await?;
+
+    let some = user_auth_method_with_decrypted_configs
         .into_iter()
-        .map(|method| user_api::UserAuthenticationMethodResponse {
-            id: method.id,
-            auth_id: method.auth_id,
-            owner_id: method.owner_id,
-            owner_type: method.owner_type,
-            auth_method: method.auth_method,
-            allow_signup: method.allow_signup,
+        .map(|(auth_method, config)| {
+            let auth_name = match (auth_method.auth_method, config) {
+                (
+                    common_enums::AuthMethod::OpenIdConnect,
+                    Some(user_api::AuthConfig::OpenIdConnect(config)),
+                ) => Ok(Some(config.name.clone())),
+                (common_enums::AuthMethod::OpenIdConnect, None) => {
+                    Err(UserErrors::InternalServerError)
+                }
+                _ => Ok(None),
+            }?;
+
+            Ok(user_api::UserAuthenticationMethodResponse {
+                id: auth_method.id,
+                auth_id: auth_method.auth_id,
+                owner_id: auth_method.owner_id,
+                owner_type: auth_method.owner_type,
+                auth_method: user_api::AuthMethodDetails {
+                    name: auth_name,
+                    auth_type: auth_method.auth_method,
+                },
+                allow_signup: auth_method.allow_signup,
+            })
         })
-        .collect();
+        .collect::<UserResult<_>>()?;
 
     Ok(ApplicationResponse::Json(
         user_api::ListUserAuthenticationMethods {
-            user_authentication_methods,
+            user_authentication_methods: some,
         },
     ))
 }
