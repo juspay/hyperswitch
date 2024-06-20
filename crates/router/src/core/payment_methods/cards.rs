@@ -4058,21 +4058,17 @@ pub async fn set_default_payment_method(
 }
 
 pub async fn update_last_used_at(
-    pm_id: &str,
+    payment_method: &diesel_models::PaymentMethod,
     state: &routes::SessionState,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<()> {
     let update_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
         last_used_at: common_utils::date_time::now(),
     };
-    let payment_method = state
-        .store
-        .find_payment_method(pm_id, storage_scheme)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
     state
         .store
-        .update_payment_method(payment_method, update_last_used, storage_scheme)
+        .update_payment_method(payment_method.clone(), update_last_used, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the last_used_at in db")?;
