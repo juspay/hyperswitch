@@ -294,7 +294,7 @@ pub async fn create_merchant_account(
 pub async fn create_merchant_account_v2(
     state: SessionState,
     req: api::MerchantAccountCreateV2,
-) -> RouterResponse<api::MerchantAccountResponse> {
+) -> RouterResponse<api::MerchantAccountResponseV2> {
     let publishable_key = create_merchant_publishable_key();
 
     let merchant_details: OptionalSecretValue = req
@@ -323,6 +323,13 @@ pub async fn create_merchant_account_v2(
         .map(Secret::new);
 
     let db = state.store.as_ref();
+
+    db.find_organization_by_org_id(&req.organization_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "organization with the given id does not exist".to_string(),
+        })?;
+
     let master_key = db.get_master_key();
 
     let key = services::generate_aes256_key()
@@ -399,7 +406,7 @@ pub async fn create_merchant_account_v2(
     insert_merchant_configs(db, &merchant_account.merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+        api::MerchantAccountResponseV2::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))

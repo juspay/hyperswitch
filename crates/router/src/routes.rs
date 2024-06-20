@@ -64,6 +64,10 @@ pub use self::app::{
     MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
     Refunds, SessionState, User, Webhooks,
 };
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub use self::app::MerchantAccountV2;
+
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
 #[cfg(feature = "stripe")]

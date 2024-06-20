@@ -170,7 +170,12 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
-    server_app = server_app.service(routes::Health::server(state));
+    server_app = server_app.service(routes::Health::server(state.clone()));
+
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    {
+        server_app = server_app.service(routes::MerchantAccountV2::server(state));
+    }
 
     server_app
 }
