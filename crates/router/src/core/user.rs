@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -2001,28 +2001,34 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let auth_config = req
-        .config
-        .map(|config| {
-            serde_json::to_value(config)
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
                 .change_context(UserErrors::AuthConfigParsingError)
-                .attach_printable("Failed to convert auth config to json")
-        })
-        .transpose()?;
+                .attach_printable("Failed to convert auth config to json")?;
 
-    let encrypted_config = auth_config
-        .async_map(|config| async {
-            domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                config.into(),
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
                 &user_auth_encryption_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")
-        })
-        .await
-        .transpose()?
-        .map(Into::into);
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
 
     let auth_methods = state
         .store
@@ -2044,8 +2050,9 @@ pub async fn create_user_authentication_method(
             auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
-            auth_method: req.auth_method,
-            config: encrypted_config,
+            auth_type: req.auth_method.foreign_into(),
+            private_config,
+            public_config,
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
@@ -2072,24 +2079,42 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let auth_config = serde_json::to_value(req.config)
-        .change_context(UserErrors::AuthConfigParsingError)
-        .attach_printable("Failed to convert auth config to json")?;
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
 
-    let updated_encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-        auth_config.into(),
-        &user_auth_encryption_key,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?
-    .into();
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
 
     state
         .store
         .update_user_authentication_method(
             &req.id,
             UserAuthenticationMethodUpdate::UpdateConfig {
-                config: Some(updated_encrypted_config),
+                private_config,
+                public_config,
             },
         )
         .await
@@ -2101,57 +2126,26 @@ pub async fn list_user_authentication_methods(
     state: SessionState,
     req: user_api::GetUserAuthenticationMethodsRequest,
 ) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
-    let user_auth_encryption_key = hex::decode(
-        state
-            .conf
-            .user_auth_methods
-            .get_inner()
-            .encryption_key
-            .clone()
-            .expose(),
-    )
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to decode DEK")?;
-
     let user_authentication_methods = state
         .store
         .list_user_authentication_methods_for_auth_id(&req.auth_id)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let user_auth_method_with_decrypted_configs = futures::future::try_join_all(
-        user_authentication_methods.into_iter().map(|method| async {
-            let decrypted_config_data =
-                domain::types::decrypt::<serde_json::Value, masking::WithType>(
-                    method.config.clone(),
-                    &user_auth_encryption_key,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to decrypt auth config")?;
-
-            let decrypted_config: Option<user_api::AuthConfig> = decrypted_config_data
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .map(|decrypted_value| decrypted_value.parse_value("AuthConfig"))
-                .transpose()
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("unable to parse generic data value")?;
-
-            Ok::<_, error_stack::Report<UserErrors>>((method, decrypted_config))
-        }),
-    )
-    .await?;
-
     Ok(ApplicationResponse::Json(
-        user_auth_method_with_decrypted_configs
+        user_authentication_methods
             .into_iter()
-            .map(|(auth_method, config)| {
-                let auth_name = match (auth_method.auth_method, config) {
-                    (
-                        common_enums::AuthMethod::OpenIdConnect,
-                        Some(user_api::AuthConfig::OpenIdConnect(config)),
-                    ) => Ok(Some(config.name)),
-                    (common_enums::AuthMethod::OpenIdConnect, None) => {
+            .map(|auth_method| {
+                let auth_name = match (auth_method.auth_type, auth_method.public_config) {
+                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
+                        let open_id_public_config: user_api::OpenIdConnectPublicConfig = config
+                            .parse_value("OpenIdConnectPublicConfig")
+                            .change_context(UserErrors::InternalServerError)
+                            .attach_printable("unable to parse generic data value")?;
+
+                        Ok(Some(open_id_public_config.name))
+                    }
+                    (common_enums::UserAuthType::OpenIdConnect, None) => {
                         Err(UserErrors::InternalServerError)
                             .attach_printable("No config found for open_id_connect auth_method")
                     }
@@ -2163,7 +2157,7 @@ pub async fn list_user_authentication_methods(
                     auth_id: auth_method.auth_id,
                     auth_method: user_api::AuthMethodDetails {
                         name: auth_name,
-                        auth_type: auth_method.auth_method,
+                        auth_type: auth_method.auth_type,
                     },
                     allow_signup: auth_method.allow_signup,
                 })

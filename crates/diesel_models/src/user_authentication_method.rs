@@ -10,8 +10,9 @@ pub struct UserAuthenticationMethod {
     pub auth_id: String,
     pub owner_id: String,
     pub owner_type: enums::Owner,
-    pub auth_method: enums::AuthMethod,
-    pub config: Option<Encryption>,
+    pub auth_type: enums::UserAuthType,
+    pub private_config: Option<Encryption>,
+    pub public_config: Option<serde_json::Value>,
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -24,8 +25,9 @@ pub struct UserAuthenticationMethodNew {
     pub auth_id: String,
     pub owner_id: String,
     pub owner_type: enums::Owner,
-    pub auth_method: enums::AuthMethod,
-    pub config: Option<Encryption>,
+    pub auth_type: enums::UserAuthType,
+    pub private_config: Option<Encryption>,
+    pub public_config: Option<serde_json::Value>,
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -34,20 +36,28 @@ pub struct UserAuthenticationMethodNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = user_authentication_methods)]
 pub struct OrgAuthenticationMethodUpdateInternal {
-    pub config: Option<Encryption>,
+    pub private_config: Option<Encryption>,
+    pub public_config: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
 }
 
 pub enum UserAuthenticationMethodUpdate {
-    UpdateConfig { config: Option<Encryption> },
+    UpdateConfig {
+        private_config: Option<Encryption>,
+        public_config: Option<serde_json::Value>,
+    },
 }
 
 impl From<UserAuthenticationMethodUpdate> for OrgAuthenticationMethodUpdateInternal {
     fn from(value: UserAuthenticationMethodUpdate) -> Self {
         let last_modified_at = common_utils::date_time::now();
         match value {
-            UserAuthenticationMethodUpdate::UpdateConfig { config } => Self {
-                config,
+            UserAuthenticationMethodUpdate::UpdateConfig {
+                private_config,
+                public_config,
+            } => Self {
+                private_config,
+                public_config,
                 last_modified_at,
             },
         }

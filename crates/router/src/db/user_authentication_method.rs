@@ -108,8 +108,9 @@ impl UserAuthenticationMethodInterface for MockDb {
             auth_id,
             owner_id: user_authentication_method.auth_id,
             owner_type: user_authentication_method.owner_type,
-            auth_method: user_authentication_method.auth_method,
-            config: user_authentication_method.config,
+            auth_type: user_authentication_method.auth_type,
+            public_config: user_authentication_method.public_config,
+            private_config: user_authentication_method.private_config,
             allow_signup: user_authentication_method.allow_signup,
             created_at: user_authentication_method.created_at,
             last_modified_at: user_authentication_method.last_modified_at,
@@ -174,13 +175,15 @@ impl UserAuthenticationMethodInterface for MockDb {
             .find(|auth_method_inner| auth_method_inner.id == id)
             .map(|auth_method_inner| {
                 *auth_method_inner = match user_authentication_method_update {
-                    storage::UserAuthenticationMethodUpdate::UpdateConfig { config } => {
-                        storage::UserAuthenticationMethod {
-                            config,
-                            last_modified_at: common_utils::date_time::now(),
-                            ..auth_method_inner.to_owned()
-                        }
-                    }
+                    storage::UserAuthenticationMethodUpdate::UpdateConfig {
+                        private_config,
+                        public_config,
+                    } => storage::UserAuthenticationMethod {
+                        private_config,
+                        public_config,
+                        last_modified_at: common_utils::date_time::now(),
+                        ..auth_method_inner.to_owned()
+                    },
                 };
                 auth_method_inner.to_owned()
             })

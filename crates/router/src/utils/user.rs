@@ -13,7 +13,10 @@ use crate::{
         authentication::{AuthToken, UserFromToken},
         authorization::roles::RoleInfo,
     },
-    types::domain::{self, MerchantAccount, UserFromStorage},
+    types::{
+        domain::{self, MerchantAccount, UserFromStorage},
+        transformers::ForeignFrom,
+    },
 };
 
 pub mod dashboard_metadata;
@@ -199,4 +202,14 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")
+}
+
+impl ForeignFrom<user_api::AuthConfig> for common_enums::UserAuthType {
+    fn foreign_from(from: user_api::AuthConfig) -> Self {
+        match from {
+            user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
+            user_api::AuthConfig::Password => Self::Password,
+            user_api::AuthConfig::MagicLink => Self::MagicLink,
+        }
+    }
 }

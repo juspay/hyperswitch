@@ -282,12 +282,31 @@ pub struct RecoveryCodes {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
 #[serde(rename_all = "snake_case")]
 pub enum AuthConfig {
-    OpenIdConnect(OpenIdConnect),
+    OpenIdConnect {
+        private_config: OpenIdConnectPrivateConfig,
+        public_config: OpenIdConnectPublicConfig,
+    },
+    MagicLink,
+    Password,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPrivateConfig {
+    pub base_url: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPublicConfig {
+    pub name: OpenIdProvider,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum OpenIdProvider {
     Okta,
@@ -306,8 +325,7 @@ pub struct OpenIdConnect {
 pub struct CreateUserAuthenticationMethodRequest {
     pub owner_id: String,
     pub owner_type: common_enums::Owner,
-    pub auth_method: common_enums::AuthMethod,
-    pub config: Option<AuthConfig>,
+    pub auth_method: AuthConfig,
     pub allow_signup: bool,
 }
 
@@ -315,7 +333,7 @@ pub struct CreateUserAuthenticationMethodRequest {
 pub struct UpdateUserAuthenticationMethodRequest {
     pub id: String,
     // TODO: When adding more fields make config and new fields option
-    pub config: AuthConfig,
+    pub auth_method: AuthConfig,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -334,6 +352,6 @@ pub struct UserAuthenticationMethodResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthMethodDetails {
     #[serde(rename = "type")]
-    pub auth_type: common_enums::AuthMethod,
+    pub auth_type: common_enums::UserAuthType,
     pub name: Option<OpenIdProvider>,
 }
