@@ -84,6 +84,8 @@ pub enum UserErrors {
     UserAuthMethodAlreadyExists,
     #[error("Invalid user auth method operation")]
     InvalidUserAuthMethodOperation,
+    #[error("Auth config parsing error")]
+    AuthConfigParsingError,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -214,6 +216,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidUserAuthMethodOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 44, self.get_error_message(), None))
             }
+            Self::AuthConfigParsingError => {
+                AER::BadRequest(ApiError::new(sub_code, 45, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -259,6 +264,7 @@ impl UserErrors {
             Self::TotpSecretNotFound => "TOTP secret not found",
             Self::UserAuthMethodAlreadyExists => "User auth method already exists",
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
+            Self::AuthConfigParsingError => "Auth config parsing error",
         }
     }
 }

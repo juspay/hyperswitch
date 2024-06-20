@@ -2001,7 +2001,7 @@ pub async fn create_user_authentication_method(
     .attach_printable("Failed to decode DEK")?;
 
     let auth_config = serde_json::to_value(req.config)
-        .change_context(UserErrors::InternalServerError)
+        .change_context(UserErrors::AuthConfigParsingError)
         .attach_printable("Failed to convert auth config to json")?;
 
     let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
@@ -2020,11 +2020,10 @@ pub async fn create_user_authentication_method(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get list of auth methods for the owner id")?;
 
-    let auth_id = if let Some(auth_method) = auth_methods.first() {
-        auth_method.auth_id.clone()
-    } else {
-        uuid::Uuid::new_v4().to_string()
-    };
+    let auth_id = auth_methods
+        .first()
+        .map(|auth_method| auth_method.auth_id.clone())
+        .unwrap_or(uuid::Uuid::new_v4().to_string());
 
     let now = common_utils::date_time::now();
     state
@@ -2063,7 +2062,7 @@ pub async fn update_user_authentication_method(
     .attach_printable("Failed to decode DEK")?;
 
     let auth_config = serde_json::to_value(req.config)
-        .change_context(UserErrors::InternalServerError)
+        .change_context(UserErrors::AuthConfigParsingError)
         .attach_printable("Failed to convert auth config to json")?;
 
     let updated_encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
