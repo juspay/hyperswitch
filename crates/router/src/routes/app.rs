@@ -17,6 +17,7 @@ use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
@@ -29,8 +30,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*, webhook_events::*,
+    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -54,7 +55,7 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
@@ -72,6 +73,8 @@ pub struct ReqState {
 #[derive(Clone)]
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -79,10 +82,10 @@ pub struct SessionState {
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
-    pub tenant: String,
+    pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
 }
@@ -129,6 +132,7 @@ impl SessionStateInfo for SessionState {
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -140,8 +144,8 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -252,6 +256,16 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                &conf.multitenancy.global_tenant,
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await
+            .get_global_storage_interface();
             for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
                 let store: Box<dyn StorageInterface> = Self::get_store_interface(
                     &storage_impl,
@@ -261,12 +275,11 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await;
+                .await
+                .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
-                        .await;
+                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant_name.clone(), pool);
             }
@@ -279,6 +292,7 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
@@ -300,10 +314,10 @@ impl AppState {
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
-        tenant: &settings::Tenant,
+        tenant: &dyn TenantConfig,
         cache_store: Arc<RedisStore>,
         testable: bool,
-    ) -> Box<dyn StorageInterface> {
+    ) -> Box<dyn CommonStorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
@@ -356,8 +370,10 @@ impl AppState {
     where
         F: FnOnce() -> E + Copy,
     {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler: self.event_handler.clone(),
@@ -365,15 +381,8 @@ impl AppState {
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id,
-            base_url: self
-                .conf
-                .multitenancy
-                .get_tenant(tenant)
-                .ok_or_else(err)?
-                .clone()
-                .base_url
-                .clone(),
-            tenant: tenant.to_string().clone(),
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
@@ -1121,6 +1130,19 @@ impl Configs {
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
             )
+    }
+}
+
+pub struct ApplePayCertificatesMigration;
+
+#[cfg(feature = "olap")]
+impl ApplePayCertificatesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/apple_pay_certificates_migration")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
     }
 }
 

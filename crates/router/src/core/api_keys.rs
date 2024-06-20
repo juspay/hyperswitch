@@ -3,7 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     configs::settings,
@@ -151,7 +151,7 @@ pub async fn create_api_key(
     metrics::API_KEY_CREATED.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("merchant", merchant_id)],
+        &add_attributes([("merchant", merchant_id)]),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
@@ -236,7 +236,7 @@ pub async fn add_api_key_expiry_task(
     metrics::TASKS_ADDED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+        &add_attributes([("flow", "ApiKeyExpiry")]),
     );
 
     Ok(())
@@ -381,7 +381,9 @@ pub async fn update_api_key_expiry_task(
         retry_count: Some(0),
         schedule_time,
         tracking_data: Some(updated_api_key_expiry_workflow_model),
-        business_status: Some("Pending".to_string()),
+        business_status: Some(String::from(
+            diesel_models::process_tracker::business_status::PENDING,
+        )),
         status: Some(storage_enums::ProcessTrackerStatus::New),
         updated_at: Some(current_time),
     };
@@ -450,7 +452,7 @@ pub async fn revoke_api_key_expiry_task(
     let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
-        business_status: Some("Revoked".to_string()),
+        business_status: Some(String::from(diesel_models::business_status::REVOKED)),
     };
 
     store

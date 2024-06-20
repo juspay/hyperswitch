@@ -244,10 +244,19 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [adyen.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
+
+[adyenplatform_payout]
+[[adyenplatform_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[adyenplatform_payout.metadata]
+  source_balance_account = "Source balance account ID"
+[adyenplatform_payout.connector_auth.HeaderKey]
+api_key = "Adyen platform's API Key"
 
 [airwallex]
 [[airwallex.credit]]
@@ -352,6 +361,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [authorizedotnet.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -455,6 +465,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [bankofamerica.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -532,6 +543,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [bluesnap.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -764,6 +776,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [checkout.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -772,6 +785,7 @@ label="apple"
 [checkout.metadata]
 acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -845,6 +859,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [cybersource.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -854,6 +869,11 @@ label="apple"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+
+[cybersource.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [cybersource_payout]
 [[cybersource_payout.credit]]
@@ -1141,6 +1161,15 @@ api_key="Klarna Merchant ID Password"
 [klarna.metadata]
 klarna_region=["Europe","NorthAmerica","Oceania"]
 
+[mifinity]
+[[mifinity.wallet]]
+  payment_method_type = "mifinity"
+[mifinity.connector_auth.HeaderKey]
+api_key="key"
+[mifinity.metadata]
+brand_id="Brand ID"
+destination_account_number="Destination Account Number"
+
 [mollie]
 [[mollie.credit]]
   payment_method_type = "Mastercard"
@@ -1309,6 +1338,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nexinets.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1366,6 +1396,7 @@ merchant_secret="Source verification key"
 [nmi.metadata]
 acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
@@ -1379,6 +1410,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nmi.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1446,6 +1478,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [noon.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1525,6 +1558,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nuvei.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1630,6 +1664,10 @@ additional_secret="Payme Client Key"
   payment_method_type = "UnionPay"
 [[paypal.wallet]]
   payment_method_type = "paypal"
+  payment_experience = "invoke_sdk_client"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+  payment_experience = "redirect_to_url"
 [[paypal.bank_redirect]]
   payment_method_type = "ideal"
 [[paypal.bank_redirect]]
@@ -1842,6 +1880,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [rapyd.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1996,6 +2035,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [stripe.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2153,6 +2193,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [trustpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2320,6 +2361,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [worldpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]

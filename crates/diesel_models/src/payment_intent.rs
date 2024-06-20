@@ -7,9 +7,8 @@ use time::PrimitiveDateTime;
 use crate::{enums as storage_enums, schema::payment_intent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_intent)]
+#[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id))]
 pub struct PaymentIntent {
-    pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
@@ -233,10 +232,8 @@ pub struct PaymentIntentUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
-    pub profile_id: Option<String>,
-    merchant_decision: Option<String>,
-    payment_confirm_source: Option<storage_enums::PaymentSource>,
-
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
@@ -244,7 +241,6 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
@@ -271,7 +267,6 @@ impl PaymentIntentUpdate {
             statement_descriptor_suffix,
             order_details,
             attempt_count,
-            profile_id,
             merchant_decision,
             payment_confirm_source,
             updated_by,
@@ -281,7 +276,6 @@ impl PaymentIntentUpdate {
             session_expiry,
             fingerprint_id,
             request_external_three_ds_authentication,
-            charges,
             frm_metadata,
         } = self.into();
         PaymentIntent {
@@ -307,7 +301,6 @@ impl PaymentIntentUpdate {
                 .or(source.statement_descriptor_suffix),
             order_details: order_details.or(source.order_details),
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            profile_id: profile_id.or(source.profile_id),
             merchant_decision: merchant_decision.or(source.merchant_decision),
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
@@ -320,8 +313,6 @@ impl PaymentIntentUpdate {
             session_expiry: session_expiry.or(source.session_expiry),
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
-            charges: charges.or(source.charges),
-
             frm_metadata: frm_metadata.or(source.frm_metadata),
             ..source
         }
