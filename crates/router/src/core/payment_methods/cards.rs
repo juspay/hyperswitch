@@ -3366,6 +3366,7 @@ pub async fn list_customer_payment_method_util(
         let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
             db,
             &merchant_account,
+            &key_store,
             cloned_secret,
         )
         .await?;

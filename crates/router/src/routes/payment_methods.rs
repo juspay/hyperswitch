@@ -259,7 +259,7 @@ pub async fn list_customer_payment_method_api_v2(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0.clone();
 
-    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers(), &customer_id) {
+    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
