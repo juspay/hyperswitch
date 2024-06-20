@@ -214,7 +214,7 @@ pub async fn create_payout_link(
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payout_link;
-    let merchant_config = business_profile
+    let profile_config = business_profile
         .payout_link_config
         .as_ref()
         .map(|config| {
@@ -226,11 +226,11 @@ pub async fn create_payout_link(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "payout_link_config in business_profile",
         })?;
-    let merchant_ui_config = merchant_config.as_ref().map(|c| c.config.ui_config.clone());
+    let profile_ui_config = profile_config.as_ref().map(|c| c.config.ui_config.clone());
     let ui_config = payout_link_config_req
         .as_ref()
         .and_then(|config| config.ui_config.clone())
-        .or_else(|| merchant_ui_config);
+        .or(profile_ui_config);
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {
@@ -243,14 +243,14 @@ pub async fn create_payout_link(
         theme,
     };
     let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
-    let domain = merchant_config
+    let domain = profile_config
         .as_ref()
         .and_then(|c| c.config.domain_name.clone())
         .unwrap_or(state.base_url.clone());
-    let session_expiry = match req.session_expiry {
-        Some(expiry) => expiry,
-        None => default_config.expiry,
-    };
+    let session_expiry = req
+        .session_expiry
+        .as_ref()
+        .map_or(default_config.expiry, |expiry| *expiry);
     let link = Secret::new(format!("{domain}/payout_link/{merchant_id}/{payout_id}"));
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()

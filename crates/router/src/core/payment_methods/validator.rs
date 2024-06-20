@@ -80,7 +80,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let ui_config = req
         .ui_config
         .as_ref()
-        .or_else(|| merchant_ui_config.as_ref())
+        .or(merchant_ui_config.as_ref())
         .cloned();
 
     // Form data to be injected in the link
