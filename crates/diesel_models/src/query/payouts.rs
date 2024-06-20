@@ -13,12 +13,8 @@ use crate::{
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         match generics::generic_insert(conn, self).await {
-            Ok(v) => {
-                Ok(v)
-            }
-            Err(e) => {
-                Err(e)
-            }
+            Ok(v) => Ok(v),
+            Err(e) => Err(e),
         }
     }
 }
