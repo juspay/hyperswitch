@@ -318,7 +318,6 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt payment method auth configs");
 
-    #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
     let user_auth_methods = settings::UserAuthMethodSettings::convert_to_raw_secret(
         conf.user_auth_methods,
