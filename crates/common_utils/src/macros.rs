@@ -99,6 +99,7 @@ macro_rules! collect_missing_value_keys {
 #[macro_export]
 macro_rules! impl_to_sql_from_sql_json {
     ($type:ty, $diesel_type:ty) => {
+        #[allow(unused_qualifications)]
         impl diesel::serialize::ToSql<$diesel_type, diesel::pg::Pg> for $type {
             fn to_sql<'b>(
                 &'b self,
@@ -116,6 +117,7 @@ macro_rules! impl_to_sql_from_sql_json {
             }
         }
 
+        #[allow(unused_qualifications)]
         impl diesel::deserialize::FromSql<$diesel_type, diesel::pg::Pg> for $type {
             fn from_sql(
                 bytes: <diesel::pg::Pg as diesel::backend::Backend>::RawValue<'_>,
