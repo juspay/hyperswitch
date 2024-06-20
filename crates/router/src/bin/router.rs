@@ -2,6 +2,7 @@ use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{ApplicationError, ApplicationResult},
     logger,
+    routes::metrics,
 };
 
 #[tokio::main]
@@ -26,6 +27,11 @@ async fn main() -> ApplicationResult<()> {
     );
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
+
+    // Spawn a thread for collecting metrics at fixed intervals
+    metrics::bg_metrics_collector::spawn_metrics_collector(
+        &conf.log.telemetry.bg_metrics_collection_interval_in_secs,
+    );
 
     #[allow(clippy::expect_used)]
     let server = Box::pin(router::start_server(conf))

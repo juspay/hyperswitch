@@ -14,7 +14,7 @@ impl utils::Connector for Stripe {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Stripe;
         types::api::ConnectorData {
-            connector: Box::new(&Stripe),
+            connector: Box::new(Stripe::new()),
             connector_name: types::Connector::Stripe,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

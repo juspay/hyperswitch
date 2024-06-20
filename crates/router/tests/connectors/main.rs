@@ -8,6 +8,7 @@ use test_utils::connector_auth;
 
 mod aci;
 mod adyen;
+mod adyenplatform;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
@@ -23,6 +24,7 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod datatrans;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;

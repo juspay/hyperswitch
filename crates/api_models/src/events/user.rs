@@ -24,7 +24,6 @@ use crate::user::{
 impl ApiEventMetric for DashboardEntryResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
-            merchant_id: self.merchant_id.clone(),
             user_id: self.user_id.clone(),
         })
     }
@@ -34,7 +33,6 @@ impl ApiEventMetric for DashboardEntryResponse {
 impl ApiEventMetric for VerifyTokenResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
-            merchant_id: self.merchant_id.clone(),
             user_id: self.user_email.peek().to_string(),
         })
     }

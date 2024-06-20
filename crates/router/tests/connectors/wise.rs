@@ -52,7 +52,6 @@ impl utils::Connector for WiseTest {
 impl WiseTest {
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::GBP),
             address: Some(PaymentAddress::new(
                 None,
@@ -121,11 +120,7 @@ async fn should_create_bacs_payout() {
 
     // Create payout
     let create_res: types::PayoutsResponseData = CONNECTOR
-        .create_payout(
-            Some(recipient_res.connector_payout_id),
-            payout_type,
-            payout_info,
-        )
+        .create_payout(recipient_res.connector_payout_id, payout_type, payout_info)
         .await
         .expect("Payout bank creation response");
     assert_eq!(
@@ -150,11 +145,7 @@ async fn should_create_and_fulfill_bacs_payout() {
         enums::PayoutStatus::RequiresCreation
     );
     let response = CONNECTOR
-        .create_and_fulfill_payout(
-            Some(recipient_res.connector_payout_id),
-            payout_type,
-            payout_info,
-        )
+        .create_and_fulfill_payout(recipient_res.connector_payout_id, payout_type, payout_info)
         .await
         .expect("Payout bank creation and fulfill response");
     assert_eq!(response.status.unwrap(), enums::PayoutStatus::Success);

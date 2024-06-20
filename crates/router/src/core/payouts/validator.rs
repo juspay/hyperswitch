@@ -98,7 +98,7 @@ pub async fn validate_create_request(
                 Some(&payout_token),
                 &customer_id,
                 &merchant_account.merchant_id,
-                req.payout_type.as_ref(),
+                req.payout_type,
                 merchant_key_store,
                 None,
                 merchant_account.storage_scheme,
