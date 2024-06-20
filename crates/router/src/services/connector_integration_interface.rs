@@ -530,8 +530,9 @@ impl<T, ResourceCommonData, Req, Resp> api::ConnectorCommon
 }
 
 pub trait ConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>: Send + Sync {
-    fn clone_box(&self)
-        -> Box<dyn ConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>>;
+    fn clone_box(
+        &self,
+    ) -> Box<dyn ConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp> + Send + Sync>;
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError>;
@@ -652,7 +653,8 @@ where
 
     fn clone_box(
         &self,
-    ) -> Box<dyn ConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>> {
+    ) -> Box<dyn ConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp> + Send + Sync>
+    {
         Box::new(self.clone())
     }
 }
