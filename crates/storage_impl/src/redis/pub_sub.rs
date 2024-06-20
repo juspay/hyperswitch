@@ -78,9 +78,10 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             let channel_name = message.channel.to_string();
+            logger::debug!("Received message on channel: {channel_name}");
+
             match channel_name.as_str() {
                 super::cache::IMC_INVALIDATION_CHANNEL => {
-                    logger::debug!("Invalidating {message:?}");
                     let key = match CacheKind::try_from(RedisValue::new(message.value))
                         .change_context(redis_errors::RedisError::OnMessageError)
                     {
@@ -193,7 +194,9 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
                         .ok();
 
-                    logger::debug!("Done invalidating {key}");
+                    logger::debug!(
+                        "Handled message on channel {channel_name} - Done invalidating {key}"
+                    );
                 }
                 _ => {
                     logger::debug!("Received message from unknown channel: {channel_name}");
