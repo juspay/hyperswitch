@@ -142,36 +142,56 @@ pub trait Router {}
 pub trait Connector:
     Send
     + Refund
+    + RefundV2
     + Payment
+    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAccessTokenV2
     + Dispute
+    + DisputeV2
     + FileUpload
+    + FileUploadV2
     + ConnectorTransactionId
     + Payouts
+    + PayoutsV2
     + ConnectorVerifyWebhookSource
+    + ConnectorVerifyWebhookSourceV2
     + FraudCheck
+    + FraudCheckV2
     + ConnectorMandateRevoke
+    + ConnectorMandateRevokeV2
     + ExternalAuthentication
+    + ExternalAuthenticationV2
 {
 }
 
 impl<
         T: Refund
+            + RefundV2
             + Payment
+            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAccessTokenV2
             + Dispute
+            + DisputeV2
             + FileUpload
+            + FileUploadV2
             + ConnectorTransactionId
             + Payouts
+            + PayoutsV2
             + ConnectorVerifyWebhookSource
+            + ConnectorVerifyWebhookSourceV2
             + FraudCheck
+            + FraudCheckV2
             + ConnectorMandateRevoke
-            + ExternalAuthentication,
+            + ConnectorMandateRevokeV2
+            + ExternalAuthentication
+            + ExternalAuthenticationV2,
     > Connector for T
 {
 }

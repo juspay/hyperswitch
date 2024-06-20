@@ -14,18 +14,19 @@ const payment_card_data = {
 
 const billing = {
   address: {
-    line1: "Raadhuisplein",
-    line2: "92",
-    city: "Hoogeveen",
-    state: "FL",
-    zip: "7901 BW",
-    country: "NL",
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "CA",
+    zip: "94122",
+    country: "US",
     first_name: "John",
     last_name: "Doe",
   },
   phone: {
-    number: "0650242319",
-    country_code: "+31",
+    number: "8056594427",
+    country_code: "+91",
   },
 };
 
@@ -40,10 +41,13 @@ export const connectorDetails = {
         payout_type: "card",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_creation",
-          payout_type: "card",
+          error: {
+            type: "invalid_request",
+            message: `Payout Eligibility for Wise is not implemented`,
+            code: "IR_00",
+          },
         },
       },
     },
@@ -56,10 +60,13 @@ export const connectorDetails = {
         payout_type: "card",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_fulfillment",
-          payout_type: "card",
+          error: {
+            type: "invalid_request",
+            message: `Payout Eligibility for Wise is not implemented`,
+            code: "IR_00",
+          },
         },
       },
     },
@@ -73,10 +80,13 @@ export const connectorDetails = {
         recurring: true,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "success",
-          payout_type: "card",
+          error: {
+            type: "invalid_request",
+            message: `Payout Eligibility for Wise is not implemented`,
+            code: "IR_00",
+          },
         },
       },
     },
@@ -100,10 +110,13 @@ export const connectorDetails = {
         payout_type: "card",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "success",
-          payout_type: "card",
+          error: {
+            type: "invalid_request",
+            message: `Payout Eligibility for Wise is not implemented`,
+            code: "IR_00",
+          },
         },
       },
     },
@@ -112,11 +125,15 @@ export const connectorDetails = {
     sepa: {
       Create: {
         Request: {
+          currency: "GBP",
           payout_type: "bank",
-          priority: "regular",
           payout_method_data: {
             bank: {
-              iban: "NL57INGB4654188101",
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Deutsche Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
             },
           },
           billing: billing,
@@ -131,11 +148,15 @@ export const connectorDetails = {
       },
       Confirm: {
         Request: {
+          currency: "GBP",
           payout_type: "bank",
-          priority: "regular",
           payout_method_data: {
             bank: {
-              iban: "NL57INGB4654188101",
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Deutsche Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
             },
           },
           billing: billing,
@@ -150,11 +171,15 @@ export const connectorDetails = {
       },
       Fulfill: {
         Request: {
+          currency: "GBP",
           payout_type: "bank",
-          priority: "regular",
           payout_method_data: {
             bank: {
-              iban: "NL57INGB4654188101",
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Deutsche Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
             },
           },
           billing: billing,
@@ -163,7 +188,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "initiated",
+            status: "success",
             payout_type: "bank",
           },
         },
@@ -173,7 +198,11 @@ export const connectorDetails = {
           payment_method: "bank_transfer",
           payment_method_type: "sepa",
           bank_transfer: {
-            iban: "NL57INGB4654188101",
+            iban: "NL46TEST0136169112",
+            bic: "ABNANL2A",
+            bank_name: "Deutsche Bank",
+            bank_country_code: "NL",
+            bank_city: "Amsterdam",
           },
         },
         Response: {
@@ -186,13 +215,14 @@ export const connectorDetails = {
       },
       Token: {
         Request: {
+          currency: "GBP",
           payout_token: "token",
           payout_type: "bank",
         },
         Response: {
           status: 200,
           body: {
-            status: "initiated",
+            status: "success",
             payout_type: "bank",
           },
         },
