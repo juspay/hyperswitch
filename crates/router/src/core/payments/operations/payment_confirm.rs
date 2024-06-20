@@ -22,7 +22,6 @@ use crate::{
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::cards,
         payments::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
@@ -562,17 +561,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
-            let _update = payment_method_info
-                .as_ref()
-                .async_and_then(|pm| async move {
-                    cards::update_last_used_at(pm.payment_method_id.as_str(), state, storage_scheme)
-                        .await
-                        .map_err(|e| {
-                            logger::error!("Failed to update last used at: {:?}", e);
-                        })
-                        .ok()
-                })
-                .await;
             (Some(token_data), payment_method_info)
         } else {
             (None, payment_method_info)
