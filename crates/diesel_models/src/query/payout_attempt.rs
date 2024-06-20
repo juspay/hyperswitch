@@ -81,6 +81,20 @@ impl PayoutAttempt {
         .await
     }
 
+    pub async fn find_by_merchant_id_connector_payout_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        connector_payout_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_payout_id.eq(connector_payout_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -180,11 +194,12 @@ impl PayoutAttempt {
         let filter_payout_method = Payouts::table()
             .select(payout_dsl::payout_type)
             .distinct()
-            .get_results_async::<enums::PayoutType>(conn)
+            .get_results_async::<Option<enums::PayoutType>>(conn)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?
             .into_iter()
+            .flatten()
             .collect::<Vec<enums::PayoutType>>();
 
         Ok((

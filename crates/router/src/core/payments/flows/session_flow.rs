@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -64,10 +65,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &add_attributes([("connector", connector.connector_name.to_string())]),
         );
         self.decide_flow(
             state,
@@ -84,8 +82,10 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         state: &routes::SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 }
 
@@ -166,8 +166,20 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let apple_pay_metadata =
-            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        let connector_apple_pay_wallet_details =
+            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
+                .map_err(|error| {
+                    logger::debug!(
+                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
+                        error
+                    )
+                })
+                .ok();
+
+        let apple_pay_metadata = match connector_apple_pay_wallet_details {
+            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
+            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
+        };
 
         // Get payment request data , apple pay session request and merchant keys
         let (

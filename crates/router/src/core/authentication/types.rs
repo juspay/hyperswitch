@@ -28,6 +28,7 @@ impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
             message_version,
             acquirer_bin: authentication.acquirer_bin.clone(),
             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+            acquirer_country_code: authentication.acquirer_country_code.clone(),
             connector_metadata: authentication.connector_metadata.clone(),
         })
     }

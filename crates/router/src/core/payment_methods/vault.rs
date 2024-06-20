@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]
@@ -1178,7 +1178,7 @@ pub async fn start_tokenize_data_workflow(
             db.as_scheduler()
                 .finish_process_with_business_status(
                     tokenize_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    diesel_models::process_tracker::business_status::COMPLETED_BY_PT,
                 )
                 .await?;
         }
@@ -1232,16 +1232,16 @@ pub async fn retry_delete_tokenize(
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes(
-                    "flow",
-                    "DeleteTokenizeData",
-                )],
+                &add_attributes([("flow", "DeleteTokenizeData")]),
             );
             retry_schedule
         }
         None => db
             .as_scheduler()
-            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .finish_process_with_business_status(
+                pt,
+                diesel_models::process_tracker::business_status::RETRIES_EXCEEDED,
+            )
             .await
             .map_err(Into::into),
     }

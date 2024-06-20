@@ -318,24 +318,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
         &req,
         (),
         |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_merchants_for_user_with_spt(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let flow = Flow::UserMerchantAccountList;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -674,7 +657,7 @@ pub async fn totp_verify(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -692,7 +675,7 @@ pub async fn verify_recovery_code(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::verify_recovery_code(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -710,7 +693,7 @@ pub async fn totp_update(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::update_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -724,7 +707,7 @@ pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpReques
         &req,
         (),
         |state, user, _, _| user_core::generate_recovery_codes(state, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
