@@ -1142,7 +1142,7 @@
         },
         "responses": {
           "200": {
-            "description": "Merchant Account Created",
+            "description": "Merchant Account has been Successfully Created",
             "content": {
               "application/json": {
                 "schema": {

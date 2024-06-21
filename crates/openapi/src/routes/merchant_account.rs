@@ -32,7 +32,7 @@
 
     ),
     responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account has been Successfully Created", body = MerchantAccountResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",
