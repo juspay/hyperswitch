@@ -19,7 +19,6 @@ use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
-    router_flow_types::payments as sahkal,
 };
 use hyperswitch_interfaces::integrity::{ConnectorIntegrity, FlowType, RequestIntegrity};
 use josekit::jwe;
