@@ -18,8 +18,8 @@ use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-    router_flow_types::payments as sahkal,
     router_data::KlarnaSdkResponse,
+    router_flow_types::payments as sahkal,
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};

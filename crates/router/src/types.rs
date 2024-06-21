@@ -26,7 +26,6 @@ pub use common_utils::{
     request::RequestContent,
     types::{AuthoriseIntegrityObject, MinorUnit},
 };
-
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
