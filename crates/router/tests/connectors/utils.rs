@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use common_utils::pii::Email;
@@ -51,7 +51,6 @@ pub struct PaymentInfo {
     #[cfg(feature = "payouts")]
     pub payout_method_data: Option<types::api::PayoutMethodData>,
     pub currency: Option<enums::Currency>,
-    pub country: Option<enums::CountryAlpha2>,
 }
 
 impl PaymentInfo {
@@ -86,7 +85,7 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let mut request = self.generate_data(
+        let request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
@@ -94,15 +93,6 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = Box::pin(routes::AppState::with_storage(
-            Settings::new().unwrap(),
-            StorageImpl::PostgresqlTest,
-            tx,
-            Box::new(services::MockApiClient),
-        ))
-        .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 
@@ -112,22 +102,12 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let mut request = self.generate_data(
+        let request = self.generate_data(
             types::ConnectorCustomerData {
                 ..(payment_data.unwrap_or(CustomerType::default().0))
             },
             payment_info,
         );
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-
-        let state = Box::pin(routes::AppState::with_storage(
-            Settings::new().unwrap(),
-            StorageImpl::PostgresqlTest,
-            tx,
-            Box::new(services::MockApiClient),
-        ))
-        .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 
@@ -137,22 +117,12 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::TokenizationRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let mut request = self.generate_data(
+        let request = self.generate_data(
             types::PaymentMethodTokenizationData {
                 ..(payment_data.unwrap_or(TokenType::default().0))
             },
             payment_info,
         );
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-
-        let state = Box::pin(routes::AppState::with_storage(
-            Settings::new().unwrap(),
-            StorageImpl::PostgresqlTest,
-            tx,
-            Box::new(services::MockApiClient),
-        ))
-        .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 
@@ -164,7 +134,7 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let mut request = self.generate_data(
+        let request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
                 capture_method: Some(diesel_models::enums::CaptureMethod::Automatic),
@@ -172,16 +142,6 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-
-        let state = Box::pin(routes::AppState::with_storage(
-            Settings::new().unwrap(),
-            StorageImpl::PostgresqlTest,
-            tx,
-            Box::new(services::MockApiClient),
-        ))
-        .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 
@@ -481,7 +441,7 @@ pub trait ConnectorActions: Connector {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
-                payout_type,
+                payout_type: Some(payout_type),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -490,6 +450,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                 }),
                 vendor_details: None,
+                priority: None,
             },
             payment_info,
         )
@@ -529,6 +490,7 @@ pub trait ConnectorActions: Connector {
             connector_meta_data: info
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(Secret::new)),
+            connector_wallets_details: None,
             amount_captured: None,
             minor_amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
@@ -597,19 +559,19 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(None, payout_type, payment_info);
+        let request = self.get_payout_request(None, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        connector_integration
-            .execute_pretasks(&mut request, &state)
-            .await?;
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
@@ -638,19 +600,19 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
+        let request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        connector_integration
-            .execute_pretasks(&mut request, &state)
-            .await?;
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
@@ -683,16 +645,16 @@ pub trait ConnectorActions: Connector {
         request.connector_customer = connector_customer;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        connector_integration
-            .execute_pretasks(&mut request, &state)
-            .await?;
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
@@ -721,20 +683,19 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request =
-            self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
+        let request = self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        connector_integration
-            .execute_pretasks(&mut request, &state)
-            .await?;
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
@@ -762,7 +723,7 @@ pub trait ConnectorActions: Connector {
         );
         let fulfill_res = self
             .fulfill_payout(
-                Some(create_res.connector_payout_id),
+                create_res.connector_payout_id,
                 payout_type,
                 payment_info.to_owned(),
             )
@@ -786,7 +747,11 @@ pub trait ConnectorActions: Connector {
         );
         let cancel_res = self
             .cancel_payout(
-                create_res.connector_payout_id,
+                create_res
+                    .connector_payout_id
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "connector_payout_id",
+                    })?,
                 payout_type,
                 payment_info.to_owned(),
             )
@@ -810,19 +775,19 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(None, payout_type, payment_info);
+        let request = self.get_payout_request(None, payout_type, payment_info);
         let tx = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        connector_integration
-            .execute_pretasks(&mut request, &state)
-            .await?;
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
@@ -846,13 +811,16 @@ async fn call_connector<
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
     services::api::execute_connector_processing_step(
         &state,
         integration,

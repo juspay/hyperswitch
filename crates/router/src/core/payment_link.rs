@@ -14,7 +14,7 @@ use time::PrimitiveDateTime;
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub async fn retrieve_payment_link(
-    state: AppState,
+    state: SessionState,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
@@ -47,8 +47,9 @@ pub async fn retrieve_payment_link(
 }
 
 pub async fn initiate_payment_link_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     merchant_id: String,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -57,6 +58,7 @@ pub async fn initiate_payment_link_flow(
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
             &merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -287,7 +289,7 @@ fn validate_sdk_requirements(
 }
 
 pub async fn list_payment_link(
-    state: AppState,
+    state: SessionState,
     merchant: domain::MerchantAccount,
     constraints: api_models::payments::PaymentLinkListConstraints,
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
@@ -501,8 +503,9 @@ fn check_payment_link_invalid_conditions(
 }
 
 pub async fn get_payment_link_status(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     merchant_id: String,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -511,6 +514,7 @@ pub async fn get_payment_link_status(
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
             &merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await

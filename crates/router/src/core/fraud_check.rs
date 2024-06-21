@@ -24,7 +24,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self as oss_types,
@@ -50,7 +50,7 @@ pub mod types;
 
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req>(
-    state: &AppState,
+    state: &SessionState,
     payment_data: &mut payments::PaymentData<D>,
     frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
@@ -302,7 +302,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn make_frm_data_and_fraud_check_operation<'a, F>(
     _db: &dyn StorageInterface,
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: payments::PaymentData<F>,
     frm_routing_algorithm: FrmRoutingAlgorithm,
@@ -370,7 +370,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn pre_payment_frm_core<'a, F, Req>(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     frm_info: &mut FrmInfo<F>,
@@ -417,6 +417,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -456,7 +457,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn post_payment_frm_core<'a, F>(
-    state: &AppState,
+    state: &SessionState,
     req_state: ReqState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -491,6 +492,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -514,7 +516,7 @@ where
                         merchant_account,
                         frm_configs,
                         &mut frm_suggestion,
-                        key_store,
+                        key_store.clone(),
                         payment_data,
                         customer,
                         should_continue_capture,
@@ -525,6 +527,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -547,7 +550,7 @@ pub async fn call_frm_before_connector_call<'a, F, Req>(
     operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
-    state: &AppState,
+    state: &SessionState,
     frm_info: &mut Option<FrmInfo<F>>,
     customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
@@ -563,7 +566,7 @@ where
         frm_routing_algorithm.zip(frm_connector_label)
     {
         if let Some(frm_configs) = frm_configs.clone() {
-            let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
+            let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
                 db,
                 state,
                 merchant_account,
@@ -572,7 +575,7 @@ where
                 profile_id,
                 frm_configs.clone(),
                 customer,
-            )
+            ))
             .await?;
 
             if is_frm_enabled {
@@ -643,7 +646,7 @@ impl From<PaymentToFrmData> for PaymentDetails {
 
 #[instrument(skip_all)]
 pub async fn frm_fulfillment_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: frm_core_types::FrmFulfillmentRequest,
@@ -653,6 +656,7 @@ pub async fn frm_fulfillment_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id.clone(),
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -705,7 +709,7 @@ pub async fn make_fulfillment_api_call(
     db: &dyn StorageInterface,
     fraud_check: FraudCheck,
     payment_intent: PaymentIntent,
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: frm_core_types::FrmFulfillmentRequest,

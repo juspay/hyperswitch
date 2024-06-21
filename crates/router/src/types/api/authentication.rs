@@ -5,6 +5,10 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
+pub use super::authentication_v2::{
+    ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
+    ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+};
 use super::BoxedConnector;
 use crate::core::errors;
 
@@ -25,6 +29,7 @@ use crate::{connector, services, types, types::storage};
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_mid: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]

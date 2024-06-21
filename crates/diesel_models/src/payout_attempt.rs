@@ -15,7 +15,7 @@ pub struct PayoutAttempt {
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
@@ -51,7 +51,7 @@ pub struct PayoutAttemptNew {
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
@@ -71,7 +71,7 @@ pub struct PayoutAttemptNew {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PayoutAttemptUpdate {
     StatusUpdate {
-        connector_payout_id: String,
+        connector_payout_id: Option<String>,
         status: storage_enums::PayoutStatus,
         error_message: Option<String>,
         error_code: Option<String>,
@@ -138,7 +138,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_code,
                 is_eligible,
             } => Self {
-                connector_payout_id: Some(connector_payout_id),
+                connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
@@ -182,7 +182,7 @@ impl PayoutAttemptUpdate {
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
-            connector_payout_id: connector_payout_id.unwrap_or(source.connector_payout_id),
+            connector_payout_id: connector_payout_id.or(source.connector_payout_id),
             status: status.unwrap_or(source.status),
             error_message: error_message.or(source.error_message),
             error_code: error_code.or(source.error_code),

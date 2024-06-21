@@ -2,7 +2,7 @@ pub mod transformers;
 
 use common_utils::types::MinorUnit;
 use euclid_macros::EnumNums;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
 use crate::{
@@ -144,7 +144,7 @@ impl EuclidKey {
 
 enums::collect_variants!(EuclidKey);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NumValueRefinement {
     NotEqual,
@@ -179,18 +179,18 @@ impl From<NumValueRefinement> for ast::ComparisonType {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StrValue {
     pub value: String,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MetadataValue {
     pub key: String,
     pub value: String,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NumValue {
     pub number: MinorUnit,
     pub refinement: Option<NumValueRefinement>,
@@ -235,7 +235,7 @@ impl NumValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EuclidValue {
     PaymentMethod(enums::PaymentMethod),
     CardBin(StrValue),

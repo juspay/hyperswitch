@@ -7,13 +7,14 @@ use hyperswitch_domain_models::mandates::MandateData;
 
 use crate::{
     core::{errors, payments},
-    routes::AppState,
+    routes::SessionState,
     types::{api, domain},
 };
 
 pub async fn get_profile_id_for_mandate(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     mandate: Mandate,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
@@ -22,6 +23,7 @@ pub async fn get_profile_id_for_mandate(
             .find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await

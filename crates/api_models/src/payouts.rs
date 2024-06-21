@@ -148,24 +148,28 @@ pub struct PayoutCreateRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The send method for processing payouts
+    #[schema(value_type = PayoutSendPriority, example = "instant")]
+    pub priority: Option<api_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
-    Card(Card),
+    Card(CardPayout),
     Bank(Bank),
     Wallet(Wallet),
 }
 
 impl Default for PayoutMethodData {
     fn default() -> Self {
-        Self::Card(Card::default())
+        Self::Card(CardPayout::default())
     }
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct Card {
+pub struct CardPayout {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub card_number: CardNumber,
@@ -345,8 +349,8 @@ pub struct PayoutCreateResponse {
     pub connector: Option<String>,
 
     /// The payout method that is to be used
-    #[schema(value_type = PayoutType, example = "bank")]
-    pub payout_type: api_enums::PayoutType,
+    #[schema(value_type = Option<PayoutType>, example = "bank")]
+    pub payout_type: Option<api_enums::PayoutType>,
 
     /// The billing address for the payout
     #[schema(value_type = Option<Object>, example = json!(r#"{
@@ -440,6 +444,14 @@ pub struct PayoutCreateResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+
+    /// Underlying processor's payout resource ID
+    #[schema(value_type = Option<String>, example = "S3FC9G9M2MVFDXT5")]
+    pub connector_transaction_id: Option<String>,
+
+    /// Payout's send priority (if applicable)
+    #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
+    pub priority: Option<api_enums::PayoutSendPriority>,
 
     /// List of attempts
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]

@@ -8,19 +8,21 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
-use crate::{errors, RemoteStorageObject};
+use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        new: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
@@ -28,6 +30,7 @@ pub trait PaymentIntentInterface {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
@@ -42,6 +45,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
@@ -50,6 +54,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
@@ -58,6 +63,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
@@ -436,6 +442,247 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
+        }
+    }
+}
+
+use diesel_models::PaymentIntentUpdate as DieselPaymentIntentUpdate;
+
+impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
+    fn from(value: PaymentIntentUpdate) -> Self {
+        match value {
+            PaymentIntentUpdate::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                return_url,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                return_url,
+                updated_by,
+                incremental_authorization_allowed,
+            },
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => Self::MetadataUpdate {
+                metadata,
+                updated_by,
+            },
+            PaymentIntentUpdate::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            } => Self::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            },
+            PaymentIntentUpdate::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            } => Self::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            },
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            },
+            PaymentIntentUpdate::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source,
+                updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
+                frm_metadata,
+            } => Self::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source,
+                updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
+                frm_metadata,
+            },
+            PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => Self::SurchargeApplicableUpdate {
+                surcharge_applicable: Some(surcharge_applicable),
+                updated_by,
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
+                Self::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self::AuthorizationCountUpdate {
+                authorization_count,
+            },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            },
+        }
+    }
+}
+
+impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
+    fn from(value: PaymentIntentUpdateInternal) -> Self {
+        let modified_at = Some(common_utils::date_time::now());
+
+        let PaymentIntentUpdateInternal {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at: _,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
+        } = value;
+
+        Self {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
         }
     }
 }

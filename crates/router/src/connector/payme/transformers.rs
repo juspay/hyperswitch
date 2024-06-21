@@ -410,7 +410,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::ApplePay(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",
                 }
@@ -423,6 +424,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
@@ -668,6 +670,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -726,6 +729,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::Crypto(_))
             | Some(PaymentMethodData::MandatePayment)
             | Some(PaymentMethodData::Reward)
+            | Some(PaymentMethodData::RealTimePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::GiftCard(_))
@@ -764,6 +768,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)

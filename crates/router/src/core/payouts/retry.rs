@@ -28,7 +28,7 @@ pub enum PayoutRetryType {
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
@@ -95,7 +95,7 @@ pub async fn do_gsm_multiple_connector_actions(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_single_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -158,7 +158,7 @@ pub async fn do_gsm_single_connector_actions(
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
     retry_type: PayoutRetryType,
@@ -196,7 +196,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: &api::ConnectorData,
     payout_data: &PayoutData,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
@@ -236,7 +236,7 @@ pub fn get_gsm_decision(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -246,12 +246,19 @@ pub async fn do_retry(
 
     modify_trackers(state, &connector, merchant_account, payout_data).await?;
 
-    call_connector_payout(state, merchant_account, key_store, &connector, payout_data).await
+    Box::pin(call_connector_payout(
+        state,
+        merchant_account,
+        key_store,
+        &connector,
+        payout_data,
+    ))
+    .await
 }
 
 #[instrument(skip_all)]
 pub async fn modify_trackers(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
@@ -346,6 +353,9 @@ impl GsmValidation for PayoutData {
             common_enums::PayoutStatus::Success
             | common_enums::PayoutStatus::Cancelled
             | common_enums::PayoutStatus::Pending
+            | common_enums::PayoutStatus::Initiated
+            | common_enums::PayoutStatus::Reversed
+            | common_enums::PayoutStatus::Expired
             | common_enums::PayoutStatus::Ineligible
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData

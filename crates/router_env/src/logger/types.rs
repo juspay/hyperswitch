@@ -298,6 +298,8 @@ pub enum Flow {
     GsmRuleRetrieve,
     /// Gsm Rule Update flow
     GsmRuleUpdate,
+    /// Apple pay certificates migration
+    ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up
@@ -418,6 +420,12 @@ pub enum Flow {
     TerminateTwoFactorAuth,
     // Check 2FA status
     TwoFactorAuthStatus,
+    // Create user authentication method
+    CreateUserAuthenticationMethod,
+    // Update user authentication method
+    UpdateUserAuthenticationMethod,
+    // List user authentication methods
+    ListUserAuthenticationMethods,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

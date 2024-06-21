@@ -25,7 +25,7 @@ use crate::{
         routing::TransactionData,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         api::{self, enums as api_enums},
@@ -41,22 +41,22 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
     merchant_id: &str,
-    payout_type: Option<&api_enums::PayoutType>,
+    payout_type: Option<api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
-    let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
     let hyperswitch_token = if let Some(payout_token) = payout_token {
         if payout_token.starts_with("temporary_token_") {
             Some(payout_token.to_string())
         } else {
+            let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
             let key = format!(
                 "pm_token_{}_{}_hyperswitch",
                 payout_token,
@@ -110,7 +110,7 @@ pub async fn make_payout_method_data<'a>(
         // Get operation
         (None, Some(payout_token), _) => {
             if payout_token.starts_with("temporary_token_")
-                || certain_payout_type == api_enums::PayoutType::Bank
+                || payout_type == Some(api_enums::PayoutType::Bank)
             {
                 let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
                     state,
@@ -186,7 +186,7 @@ pub async fn make_payout_method_data<'a>(
 }
 
 pub async fn save_payout_data_to_locker(
-    state: &AppState,
+    state: &SessionState,
     payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
@@ -574,7 +574,7 @@ pub async fn save_payout_data_to_locker(
 }
 
 pub async fn get_or_create_customer_details(
-    state: &AppState,
+    state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -638,7 +638,7 @@ pub async fn get_or_create_customer_details(
 }
 
 pub async fn decide_payout_connector(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -795,7 +795,7 @@ pub async fn decide_payout_connector(
 }
 
 pub async fn get_default_payout_connector(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -805,7 +805,7 @@ pub async fn get_default_payout_connector(
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -834,7 +834,7 @@ pub fn should_call_payout_connector_create_customer<'a>(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
