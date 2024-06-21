@@ -2094,6 +2094,12 @@ impl MerchantKeyStoreInterface for KafkaStore {
             .list_multiple_key_stores(merchant_ids, key)
             .await
     }
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        self.diesel_store.get_all_key_stores(key).await
+    }
 }
 
 #[async_trait::async_trait]

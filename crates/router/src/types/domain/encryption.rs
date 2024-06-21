@@ -12,3 +12,10 @@ pub struct EncryptionCreateRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
 }
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+pub struct EncryptionTransferRequest {
+    #[serde(flatten)]
+    pub identifier: Identifier,
+    pub key: String,
+}

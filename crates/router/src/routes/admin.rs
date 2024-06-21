@@ -664,6 +664,27 @@ pub async fn merchant_account_kv_status(
     .await
 }
 
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_transfer_keys(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, _, _, _| transfer_key_store_to_key_manager(state),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::ToggleExtendedCardInfo))]
 pub async fn toggle_extended_card_info(
     state: web::Data<AppState>,

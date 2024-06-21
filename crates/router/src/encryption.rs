@@ -6,7 +6,11 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
-use crate::{errors, headers, types::domain::EncryptionCreateRequest, SessionState};
+use crate::{
+    errors, headers, logger,
+    types::domain::{EncryptionCreateRequest, EncryptionTransferRequest},
+    SessionState,
+};
 
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
@@ -111,6 +115,17 @@ pub async fn create_key_in_key_manager(
     request_body: EncryptionCreateRequest,
 ) -> errors::CustomResult<(), errors::ApiClientError> {
     let _ = call_encryption_service(state, "key/create", request_body).await?;
+
+    Ok(())
+}
+
+pub async fn transfer_key_to_key_manager(
+    state: &SessionState,
+    request_body: EncryptionTransferRequest,
+) -> errors::CustomResult<(), errors::ApiClientError> {
+    let resp = call_encryption_service(state, "key/transfer", request_body).await?;
+
+    logger::debug!(keymanager_resp=?resp);
 
     Ok(())
 }

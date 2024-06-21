@@ -21,6 +21,7 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::{
+        encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
         routing::helpers as routing_helpers,
@@ -2177,6 +2178,18 @@ pub(crate) fn validate_connector_auth_type(
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey => Ok(()),
     }
+}
+
+pub async fn transfer_key_store_to_key_manager(
+    state: SessionState,
+) -> RouterResponse<admin_types::TransferKeyResponse> {
+    let resp = transfer_encryption_key(&state).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        admin_types::TransferKeyResponse {
+            total_transferred: resp,
+        },
+    ))
 }
 
 #[cfg(feature = "dummy_connector")]
