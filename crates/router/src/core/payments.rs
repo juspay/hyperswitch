@@ -3653,57 +3653,61 @@ pub async fn perform_session_token_routing<F>(
 where
     F: Clone,
 {
-    let routing_info: Option<storage::PaymentRoutingInfo> = payment_data
-        .payment_attempt
-        .straight_through_algorithm
-        .clone()
-        .map(|val| val.parse_value("PaymentRoutingInfo"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("invalid payment routing info format found in payment attempt")?;
+    // Commenting out this code as `list_payment_method_api` and `perform_session_token_routing`
+    // will happen in parallel the behaviour of the session call differ based on filters in
+    // list_payment_method_api
 
-    if let Some(storage::PaymentRoutingInfo {
-        pre_routing_results: Some(pre_routing_results),
-        ..
-    }) = routing_info
-    {
-        let mut payment_methods: rustc_hash::FxHashMap<
-            (String, enums::PaymentMethodType),
-            api::SessionConnectorData,
-        > = rustc_hash::FxHashMap::from_iter(connectors.iter().map(|c| {
-            (
-                (
-                    c.connector.connector_name.to_string(),
-                    c.payment_method_type,
-                ),
-                c.clone(),
-            )
-        }));
+    // let routing_info: Option<storage::PaymentRoutingInfo> = payment_data
+    //     .payment_attempt
+    //     .straight_through_algorithm
+    //     .clone()
+    //     .map(|val| val.parse_value("PaymentRoutingInfo"))
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("invalid payment routing info format found in payment attempt")?;
 
-        let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
-        for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
-            let routable_connector_list = match pre_routing_choice {
-                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
-                    vec![routable_connector.clone()]
-                }
-                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
-                    routable_connector_list.clone()
-                }
-            };
-            for routable_connector in routable_connector_list {
-                if let Some(session_connector_data) =
-                    payment_methods.remove(&(routable_connector.to_string(), routed_pm_type))
-                {
-                    final_list.push(session_connector_data);
-                    break;
-                }
-            }
-        }
+    // if let Some(storage::PaymentRoutingInfo {
+    //     pre_routing_results: Some(pre_routing_results),
+    //     ..
+    // }) = routing_info
+    // {
+    //     let mut payment_methods: rustc_hash::FxHashMap<
+    //         (String, enums::PaymentMethodType),
+    //         api::SessionConnectorData,
+    //     > = rustc_hash::FxHashMap::from_iter(connectors.iter().map(|c| {
+    //         (
+    //             (
+    //                 c.connector.connector_name.to_string(),
+    //                 c.payment_method_type,
+    //             ),
+    //             c.clone(),
+    //         )
+    //     }));
 
-        if !final_list.is_empty() {
-            return Ok(final_list);
-        }
-    }
+    //     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
+    //     for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
+    //         let routable_connector_list = match pre_routing_choice {
+    //             storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+    //                 vec![routable_connector.clone()]
+    //             }
+    //             storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+    //                 routable_connector_list.clone()
+    //             }
+    //         };
+    //         for routable_connector in routable_connector_list {
+    //             if let Some(session_connector_data) =
+    //                 payment_methods.remove(&(routable_connector.to_string(), routed_pm_type))
+    //             {
+    //                 final_list.push(session_connector_data);
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     if !final_list.is_empty() {
+    //         return Ok(final_list);
+    //     }
+    // }
 
     let routing_enabled_pms = HashSet::from([
         enums::PaymentMethodType::GooglePay,
