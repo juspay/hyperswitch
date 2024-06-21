@@ -50,10 +50,10 @@ impl SPTFlow {
     ) -> UserResult<bool> {
         match self {
             // SSO
-            // Should be decided based on the auth methods configured for the org
+            // SSO flow is not enabled, once the APIs are ready, we can enable this flow
             Self::SSO => Ok(false),
             // TOTP
-            Self::TOTP => Ok(true),
+            Self::TOTP => Ok(!path.contains(&TokenPurpose::SSO)),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
             Self::VerifyEmail => Ok(true),
