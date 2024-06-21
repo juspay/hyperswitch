@@ -131,6 +131,7 @@ pub enum RoutableConnectors {
     // Datatrans,
     Dlocal,
     Ebanx,
+    // Euler,
     Fiserv,
     Forte,
     Globalpay,

@@ -92,6 +92,7 @@ pub enum Connector {
     // Datatrans,
     Dlocal,
     Ebanx,
+    // Euler,
     Fiserv,
     Forte,
     Globalpay,

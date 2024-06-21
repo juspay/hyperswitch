@@ -95,6 +95,7 @@ datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+euler.base_url = "https://api.juspay.in"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -173,6 +174,7 @@ cards = [
     "dlocal",
     "dummyconnector",
     "ebanx",
+    "euler",
     "fiserv",
     "forte",
     "globalpay",
