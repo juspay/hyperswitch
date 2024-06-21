@@ -74,7 +74,7 @@ pub async fn get_store(
             tenant,
             master_enc_key,
             cache_store,
-            storage_impl::redis::cache::PUB_SUB_CHANNEL,
+            storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
         )
         .await?
     };

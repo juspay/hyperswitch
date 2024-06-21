@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     user as storage_user,
+    user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
     user_role::UserRoleNew,
 };
 use error_stack::{report, ResultExt};
@@ -884,7 +886,7 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and org_id = {} is not found",
+                        "User role with user_id = {} and merchant_id = {} is not found",
                         user.get_user_id(),
                         user_from_token.merchant_id
                     ))
@@ -1980,5 +1982,186 @@ pub async fn check_two_factor_auth_status(
             recovery_code: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id)
                 .await?,
         },
+    ))
+}
+
+pub async fn create_user_authentication_method(
+    state: SessionState,
+    req: user_api::CreateUserAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
+
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
+
+    let auth_methods = state
+        .store
+        .list_user_authentication_methods_for_owner_id(&req.owner_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get list of auth methods for the owner id")?;
+
+    let auth_id = auth_methods
+        .first()
+        .map(|auth_method| auth_method.auth_id.clone())
+        .unwrap_or(uuid::Uuid::new_v4().to_string());
+
+    let now = common_utils::date_time::now();
+    state
+        .store
+        .insert_user_authentication_method(UserAuthenticationMethodNew {
+            id: uuid::Uuid::new_v4().to_string(),
+            auth_id,
+            owner_id: req.owner_id,
+            owner_type: req.owner_type,
+            auth_type: req.auth_method.foreign_into(),
+            private_config,
+            public_config,
+            allow_signup: req.allow_signup,
+            created_at: now,
+            last_modified_at: now,
+        })
+        .await
+        .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn update_user_authentication_method(
+    state: SessionState,
+    req: user_api::UpdateUserAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
+
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
+
+    state
+        .store
+        .update_user_authentication_method(
+            &req.id,
+            UserAuthenticationMethodUpdate::UpdateConfig {
+                private_config,
+                public_config,
+            },
+        )
+        .await
+        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_user_authentication_methods(
+    state: SessionState,
+    req: user_api::GetUserAuthenticationMethodsRequest,
+) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
+    let user_authentication_methods = state
+        .store
+        .list_user_authentication_methods_for_auth_id(&req.auth_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(
+        user_authentication_methods
+            .into_iter()
+            .map(|auth_method| {
+                let auth_name = match (auth_method.auth_type, auth_method.public_config) {
+                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
+                        let open_id_public_config: user_api::OpenIdConnectPublicConfig = config
+                            .parse_value("OpenIdConnectPublicConfig")
+                            .change_context(UserErrors::InternalServerError)
+                            .attach_printable("unable to parse generic data value")?;
+
+                        Ok(Some(open_id_public_config.name))
+                    }
+                    (common_enums::UserAuthType::OpenIdConnect, None) => {
+                        Err(UserErrors::InternalServerError)
+                            .attach_printable("No config found for open_id_connect auth_method")
+                    }
+                    _ => Ok(None),
+                }?;
+
+                Ok(user_api::UserAuthenticationMethodResponse {
+                    id: auth_method.id,
+                    auth_id: auth_method.auth_id,
+                    auth_method: user_api::AuthMethodDetails {
+                        name: auth_name,
+                        auth_type: auth_method.auth_type,
+                    },
+                    allow_signup: auth_method.allow_signup,
+                })
+            })
+            .collect::<UserResult<_>>()?,
     ))
 }
