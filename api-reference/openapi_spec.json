@@ -9858,6 +9858,19 @@
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
           },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
+          },
           "assurance_details_required": {
             "type": "boolean",
             "description": "Whether assurance details are required",
