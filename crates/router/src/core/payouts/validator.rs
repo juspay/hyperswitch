@@ -243,15 +243,16 @@ pub async fn create_payout_link(
         theme,
     };
     let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
-    let domain = profile_config
+    let base_url = profile_config
         .as_ref()
-        .and_then(|c| c.config.domain_name.clone())
+        .and_then(|c| c.config.domain_name.as_ref())
+        .map(|domain| format!("https://{}", domain))
         .unwrap_or(state.base_url.clone());
     let session_expiry = req
         .session_expiry
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
-    let link = Secret::new(format!("{domain}/payout_link/{merchant_id}/{payout_id}"));
+    let link = Secret::new(format!("{base_url}/payout_link/{merchant_id}/{payout_id}"));
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());
