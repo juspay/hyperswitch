@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -54,10 +54,10 @@ impl BlocklistInterface for Store {
         pm_blocklist
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -66,10 +66,10 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Blocklist::find_by_merchant_id_fingerprint_id(&conn, merchant_id, fingerprint_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -77,10 +77,10 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Blocklist::list_by_merchant_id(&conn, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -97,10 +97,10 @@ impl BlocklistInterface for Store {
             offset,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -109,8 +109,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Blocklist::delete_by_merchant_id_fingerprint_id(&conn, merchant_id, fingerprint_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -168,6 +167,7 @@ impl BlocklistInterface for KafkaStore {
         self.diesel_store.insert_blocklist_entry(pm_blocklist).await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -178,6 +178,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -188,6 +189,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -200,6 +202,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,

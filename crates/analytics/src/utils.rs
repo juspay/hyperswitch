@@ -1,5 +1,7 @@
 use api_models::analytics::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
+    auth_events::AuthEventMetrics,
+    disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
@@ -35,6 +37,18 @@ pub fn get_sdk_event_metrics_info() -> Vec<NameDescription> {
     SdkEventMetrics::iter().map(Into::into).collect()
 }
 
+pub fn get_auth_event_metrics_info() -> Vec<NameDescription> {
+    AuthEventMetrics::iter().map(Into::into).collect()
+}
+
 pub fn get_api_event_metrics_info() -> Vec<NameDescription> {
     ApiEventMetrics::iter().map(Into::into).collect()
+}
+
+pub fn get_dispute_metrics_info() -> Vec<NameDescription> {
+    DisputeMetrics::iter().map(Into::into).collect()
+}
+
+pub fn get_dispute_dimensions() -> Vec<NameDescription> {
+    DisputeDimensions::iter().map(Into::into).collect()
 }

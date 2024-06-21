@@ -67,7 +67,7 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::StripeElementsCalled)
+            .add_filter_clause("event_name", SdkEventNames::OrcaElementsCalled)
             .switch()?;
 
         time_range

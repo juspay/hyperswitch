@@ -1,38 +1,37 @@
-#[cfg(feature = "payouts")]
 use api_models::payments::{Address, AddressDetails};
-#[cfg(feature = "payouts")]
 use masking::Secret;
-use router::types;
-#[cfg(feature = "payouts")]
-use router::types::{api, storage::enums, PaymentAddress};
+use router::{
+    types,
+    types::{api, storage::enums, PaymentAddress},
+};
 
-#[cfg(feature = "payouts")]
-use crate::utils::PaymentInfo;
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentInfo},
 };
 
 struct WiseTest;
+
 impl ConnectorActions for WiseTest {}
+
 impl utils::Connector for WiseTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Adyen),
             connector_name: types::Connector::Adyen,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
 
-    #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<api::ConnectorData> {
         use router::connector::Wise;
-        Some(types::api::PayoutConnectorData {
+        Some(api::ConnectorData {
             connector: Box::new(&Wise),
-            connector_name: types::PayoutConnectors::Wise,
-            get_token: types::api::GetToken::Connector,
+            connector_name: types::Connector::Wise,
+            get_token: api::GetToken::Connector,
+            merchant_connector_id: None,
         })
     }
 
@@ -51,13 +50,12 @@ impl utils::Connector for WiseTest {
 }
 
 impl WiseTest {
-    #[cfg(feature = "payouts")]
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::GBP),
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::GB),
                         city: Some("London".to_string()),
@@ -66,9 +64,11 @@ impl WiseTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+                None,
+            )),
             payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Bacs(
                 api::BacsBankTransfer {
                     bank_sort_code: "231470".to_string().into(),
@@ -83,12 +83,11 @@ impl WiseTest {
     }
 }
 
-#[cfg(feature = "payouts")]
 static CONNECTOR: WiseTest = WiseTest {};
 
 /******************** Payouts test cases ********************/
 // Creates a recipient at connector's end
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_payout_recipient() {
     let payout_type = enums::PayoutType::Bank;
@@ -104,7 +103,7 @@ async fn should_create_payout_recipient() {
 }
 
 // Create BACS payout
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
@@ -121,11 +120,7 @@ async fn should_create_bacs_payout() {
 
     // Create payout
     let create_res: types::PayoutsResponseData = CONNECTOR
-        .create_payout(
-            Some(recipient_res.connector_payout_id),
-            payout_type,
-            payout_info,
-        )
+        .create_payout(recipient_res.connector_payout_id, payout_type, payout_info)
         .await
         .expect("Payout bank creation response");
     assert_eq!(
@@ -135,7 +130,7 @@ async fn should_create_bacs_payout() {
 }
 
 // Create and fulfill BACS payout
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_and_fulfill_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
@@ -150,11 +145,7 @@ async fn should_create_and_fulfill_bacs_payout() {
         enums::PayoutStatus::RequiresCreation
     );
     let response = CONNECTOR
-        .create_and_fulfill_payout(
-            Some(recipient_res.connector_payout_id),
-            payout_type,
-            payout_info,
-        )
+        .create_and_fulfill_payout(recipient_res.connector_payout_id, payout_type, payout_info)
         .await
         .expect("Payout bank creation and fulfill response");
     assert_eq!(response.status.unwrap(), enums::PayoutStatus::Success);

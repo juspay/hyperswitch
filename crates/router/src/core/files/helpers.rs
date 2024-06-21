@@ -1,6 +1,6 @@
 use actix_multipart::Field;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::TryStreamExt;
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
         errors::{self, StorageErrorExt},
         payments, utils,
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
@@ -31,7 +31,7 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
 }
 
 pub async fn validate_file_upload(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -81,7 +81,7 @@ pub async fn validate_file_upload(
 }
 
 pub async fn delete_file_using_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_key: String,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -97,7 +97,6 @@ pub async fn delete_file_using_file_id(
     ) {
         (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
         _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File not available")?,
     };
     match provider {
@@ -114,7 +113,7 @@ pub async fn delete_file_using_file_id(
 }
 
 pub async fn retrieve_file_from_connector(
-    state: &AppState,
+    state: &SessionState,
     file_metadata: diesel_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -123,7 +122,6 @@ pub async fn retrieve_file_from_connector(
         file_metadata
             .file_upload_provider
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Missing file upload provider")?,
     )?
     .to_string();
@@ -173,7 +171,7 @@ pub async fn retrieve_file_from_connector(
 }
 
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -194,7 +192,6 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
             ) {
                 (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
                 _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-                    .into_report()
                     .attach_printable("File not available")?,
             };
             match provider {
@@ -230,7 +227,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     create_file_request: &api::CreateFileRequest,
@@ -267,6 +264,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &dispute.payment_id,
                         &merchant_account.merchant_id,
+                        key_store,
                         merchant_account.storage_scheme,
                     )
                     .await

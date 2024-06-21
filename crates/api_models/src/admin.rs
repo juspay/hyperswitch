@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{
+    consts,
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
 };
@@ -50,10 +51,6 @@ pub struct MerchantAccountCreate {
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -71,7 +68,7 @@ pub struct MerchantAccountCreate {
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
-    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
@@ -79,7 +76,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
-    /// API key that will be used for server side API access
+    /// API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.
+    /// A `client_secret` can be obtained by creating a payment with `confirm` set to false
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
@@ -97,6 +95,15 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthenticationConnectorDetails {
+    /// List of authentication connectors
+    #[schema(value_type = Vec<AuthenticationConnectors>)]
+    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
+    pub three_ds_requestor_url: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -135,10 +142,6 @@ pub struct MerchantAccountUpdate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -195,7 +198,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
     pub merchant_name: OptionalEncryptableName,
 
-    /// The URL to redirect after the completion of the operation
+    /// The URL to redirect after completion of the payment
     #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
@@ -227,10 +230,6 @@ pub struct MerchantAccountResponse {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -321,124 +320,6 @@ pub struct MerchantDetails {
     /// The merchant's address details
     pub address: Option<AddressDetails>,
 }
-#[cfg(feature = "payouts")]
-pub mod payout_routing_algorithm {
-    use std::{fmt, str::FromStr};
-
-    use serde::{
-        de::{self, Visitor},
-        Deserializer,
-    };
-    use serde_json::Map;
-
-    use super::PayoutRoutingAlgorithm;
-    use crate::enums::PayoutConnectors;
-    struct RoutingAlgorithmVisitor;
-    struct OptionalRoutingAlgorithmVisitor;
-
-    impl<'de> Visitor<'de> for RoutingAlgorithmVisitor {
-        type Value = serde_json::Value;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::MapAccess<'de>,
-        {
-            let mut output = Map::new();
-            let mut routing_data: String = "".to_string();
-            let mut routing_type: String = "".to_string();
-
-            while let Some(key) = map.next_key()? {
-                match key {
-                    "type" => {
-                        routing_type = map.next_value()?;
-                        output.insert(
-                            "type".to_string(),
-                            serde_json::Value::String(routing_type.to_owned()),
-                        );
-                    }
-                    "data" => {
-                        routing_data = map.next_value()?;
-                        output.insert(
-                            "data".to_string(),
-                            serde_json::Value::String(routing_data.to_owned()),
-                        );
-                    }
-                    f => {
-                        output.insert(f.to_string(), map.next_value()?);
-                    }
-                }
-            }
-
-            match routing_type.as_ref() {
-                "single" => {
-                    let routable_payout_connector = PayoutConnectors::from_str(&routing_data);
-                    let routable_conn = match routable_payout_connector {
-                        Ok(rpc) => Ok(rpc),
-                        Err(_) => Err(de::Error::custom(format!(
-                            "Unknown payout connector {routing_data}"
-                        ))),
-                    }?;
-                    Ok(PayoutRoutingAlgorithm::Single(routable_conn))
-                }
-                u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
-            }?;
-            Ok(serde_json::Value::Object(output))
-        }
-    }
-
-    impl<'de> Visitor<'de> for OptionalRoutingAlgorithmVisitor {
-        type Value = Option<serde_json::Value>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            deserializer
-                .deserialize_any(RoutingAlgorithmVisitor)
-                .map(Some)
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_unit<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<serde_json::Value, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_any(RoutingAlgorithmVisitor)
-    }
-
-    pub(crate) fn deserialize_option<'a, D>(
-        deserializer: D,
-    ) -> Result<Option<serde_json::Value>, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_option(OptionalRoutingAlgorithmVisitor)
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -575,7 +456,7 @@ pub struct MerchantConnectorCreate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -625,6 +506,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -636,6 +521,12 @@ pub struct MerchantConnectorWebhookDetails {
     pub merchant_secret: Secret<String>,
     #[schema(value_type = String, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorInfo {
+    pub connector_label: String,
+    pub merchant_connector_id: String,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -718,7 +609,7 @@ pub struct MerchantConnectorResponse {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -811,7 +702,7 @@ pub struct MerchantConnectorUpdate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
@@ -838,8 +729,11 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
-    ///payment method types(credit, debit) that can be used in the payment
-    pub payment_method_types: Vec<FrmPaymentMethodType>,
+    ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
+    ///frm flow type to be used, can be pre/post
+    #[schema(value_type = Option<FrmPreferredFlowTypes>)]
+    pub flow: Option<api_enums::FrmPreferredFlowTypes>,
 }
 
 ///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -852,7 +746,7 @@ pub struct FrmPaymentMethodType {
     ///card networks(like visa mastercard) types that can be used in the payment
     #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
-    ///frm flow type to be used...can be pre/post
+    ///frm flow type to be used, can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
@@ -935,6 +829,22 @@ pub struct ToggleKVRequest {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVRequest {
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVResponse {
+    ///Total number of updated merchants
+    #[schema(example = 20)]
+    pub total_updated: usize,
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
@@ -961,20 +871,6 @@ pub struct MerchantConnectorDetails {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum PayoutRoutingAlgorithm {
-    Single(api_enums::PayoutConnectors),
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum PayoutStraightThroughAlgorithm {
-    Single(api_enums::PayoutConnectors),
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
@@ -1022,10 +918,6 @@ pub struct BusinessProfileCreate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1037,6 +929,21 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1092,10 +999,6 @@ pub struct BusinessProfileResponse {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1107,6 +1010,24 @@ pub struct BusinessProfileResponse {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
+
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1154,10 +1075,6 @@ pub struct BusinessProfileUpdate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1169,6 +1086,24 @@ pub struct BusinessProfileUpdate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1192,6 +1127,12 @@ pub struct PaymentLinkConfigRequest {
     /// Custom layout for sdk
     #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
     pub sdk_layout: Option<String>,
+    /// Display only the sdk for payment link
+    #[schema(default = false, example = true)]
+    pub display_sdk_only: Option<bool>,
+    /// Enable saved payment method option for payment link
+    #[schema(default = false, example = true)]
+    pub enabled_saved_payment_method: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -1204,4 +1145,67 @@ pub struct PaymentLinkConfig {
     pub seller_name: String,
     /// Custom layout for sdk
     pub sdk_layout: String,
+    /// Display only the sdk for payment link
+    pub display_sdk_only: bool,
+    /// Enable saved payment method option for payment link
+    pub enabled_saved_payment_method: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ExtendedCardInfoChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConnectorAgnosticMitChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExtendedCardInfoConfig {
+    /// Merchant public key
+    #[schema(value_type = String)]
+    pub public_key: Secret<String>,
+    /// TTL for extended card info
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
+    #[serde(default)]
+    pub ttl_in_secs: TtlForExtendedCardInfo,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct TtlForExtendedCardInfo(u16);
+
+impl Default for TtlForExtendedCardInfo {
+    fn default() -> Self {
+        Self(consts::DEFAULT_TTL_FOR_EXTENDED_CARD_INFO)
+    }
+}
+
+impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u16::deserialize(deserializer)?;
+
+        // Check if value exceeds the maximum allowed
+        if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
+            Err(serde::de::Error::custom(
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl std::ops::Deref for TtlForExtendedCardInfo {
+    type Target = u16;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }

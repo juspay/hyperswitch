@@ -1,8 +1,11 @@
+use common_utils::consts::TENANT_HEADER;
 use futures::StreamExt;
 use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
+
+use crate::headers;
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -138,16 +141,32 @@ where
     // TODO: have a common source of truth for the list of top level fields
     // /crates/router_env/src/logger/storage.rs also has a list of fields  called PERSISTENT_KEYS
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let tenant_id = req
+            .headers()
+            .get(TENANT_HEADER)
+            .and_then(|i| i.to_str().ok())
+            .map(|s| s.to_owned());
         let response_fut = self.service.call(req);
-
         Box::pin(
-            response_fut.instrument(
+            async move {
+                if let Some(tenant_id) = tenant_id {
+                    router_env::tracing::Span::current().record("tenant_id", &tenant_id);
+                }
+                let response = response_fut.await;
+                router_env::tracing::Span::current().record("golden_log_line", true);
+                response
+            }
+            .instrument(
                 router_env::tracing::info_span!(
-                    "golden_log_line",
+                    "ROOT_SPAN",
                     payment_id = Empty,
                     merchant_id = Empty,
                     connector_name = Empty,
-                    flow = "UNKNOWN"
+                    payment_method = Empty,
+                    status_code = Empty,
+                    flow = "UNKNOWN",
+                    golden_log_line = Empty,
+                    tenant_id = "ta"
                 )
                 .or_current(),
             ),
@@ -245,21 +264,52 @@ where
                 .into_iter()
                 .collect::<Result<Vec<bytes::Bytes>, actix_web::error::PayloadError>>()?;
             let bytes = payload.clone().concat().to_vec();
+            let bytes_length = bytes.len();
             // we are creating h1 payload manually from bytes, currently there's no way to create http2 payload with actix
             let (_, mut new_payload) = actix_http::h1::Payload::create(true);
             new_payload.unread_data(bytes.to_vec().clone().into());
             let new_req = actix_web::dev::ServiceRequest::from_parts(http_req, new_payload.into());
+
+            let content_length_header = new_req
+                .headers()
+                .get(headers::CONTENT_LENGTH)
+                .map(ToOwned::to_owned);
             let response_fut = svc.call(new_req);
             let response = response_fut.await?;
             // Log the request_details when we receive 400 status from the application
             if response.status() == 400 {
-                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
                 let request_id = request_id_fut.await?.as_hyphenated().to_string();
-                logger::info!(
-                    "request_id: {}, request_details: {}",
-                    request_id,
-                    get_request_details_from_value(&value, "")
-                );
+                let content_length_header_string = content_length_header
+                    .map(|content_length_header| {
+                        content_length_header.to_str().map(ToOwned::to_owned)
+                    })
+                    .transpose()
+                    .map_err(|error| {
+                        logger::warn!("Could not convert content length to string {error:?}");
+                        error
+                    })
+                    .ok()
+                    .flatten();
+
+                logger::info!("Content length from header: {content_length_header_string:?}, Bytes length: {bytes_length}");
+
+                if !bytes.is_empty() {
+                    let value_result: Result<serde_json::Value, serde_json::Error> =
+                        serde_json::from_slice(&bytes);
+                    match value_result {
+                        Ok(value) => {
+                            logger::info!(
+                                "request_id: {request_id}, request_details: {}",
+                                get_request_details_from_value(&value, "")
+                            );
+                        }
+                        Err(err) => {
+                            logger::warn!("error while parsing the request in json value: {err}");
+                        }
+                    }
+                } else {
+                    logger::info!("request_id: {request_id}, request_details: Empty Body");
+                }
             }
             Ok(response)
         })

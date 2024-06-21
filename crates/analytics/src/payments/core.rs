@@ -10,9 +10,10 @@ use api_models::analytics::{
     MetricsResponse, PaymentFiltersResponse,
 };
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -115,16 +116,15 @@ pub async fn get_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         match task_type {
             TaskType::MetricTask(metric, data) => {
                 let data = data?;
-                let attributes = &[
-                    metrics::request::add_attributes("metric_type", metric.to_string()),
-                    metrics::request::add_attributes("source", pool.to_string()),
-                ];
+                let attributes = &add_attributes([
+                    ("metric_type", metric.to_string()),
+                    ("source", pool.to_string()),
+                ]);
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
@@ -173,10 +173,10 @@ pub async fn get_metrics(
             }
             TaskType::DistributionTask(distribution, data) => {
                 let data = data?;
-                let attributes = &[
-                    metrics::request::add_attributes("distribution_type", distribution.to_string()),
-                    metrics::request::add_attributes("source", pool.to_string()),
-                ];
+                let attributes = &add_attributes([
+                    ("distribution_type", distribution.to_string()),
+                    ("source", pool.to_string()),
+                ]);
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
@@ -292,6 +292,8 @@ pub async fn get_filters(
             PaymentDimensions::AuthType => fil.authentication_type.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentMethod => fil.payment_method,
             PaymentDimensions::PaymentMethodType => fil.payment_method_type,
+            PaymentDimensions::ClientSource => fil.client_source,
+            PaymentDimensions::ClientVersion => fil.client_version,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

@@ -95,7 +95,7 @@ pub async fn customers_delete() {}
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
-    tag = "Customers List",
+    tag = "Customers",
     operation_id = "List all Customers for a Merchant",
     security(("api_key" = []))
 )]

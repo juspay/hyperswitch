@@ -4,19 +4,22 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        auth_events::AuthEventFlows,
+        disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod, PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
+        PaymentMethodType,
     },
     refunds::RefundStatus,
 };
 use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
@@ -177,7 +180,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_start(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)?;
 
         Ok(value.replace_time(clipped_time))
@@ -204,7 +206,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_end(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)
         .attach_printable_lazy(|| format!("Bucket Clip Error: {value}"))?;
 
@@ -247,6 +248,11 @@ pub enum Aggregate<R> {
         field: R,
         alias: Option<&'static str>,
     },
+    Percentile {
+        field: R,
+        alias: Option<&'static str>,
+        percentile: Option<&'static u8>,
+    },
 }
 
 // Window functions in query
@@ -286,12 +292,12 @@ pub enum Order {
     Descending,
 }
 
-impl ToString for Order {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Ascending => "asc",
-            Self::Descending => "desc",
-        })
+impl std::fmt::Display for Order {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ascending => write!(f, "asc"),
+            Self::Descending => write!(f, "desc"),
+        }
     }
 }
 
@@ -311,6 +317,7 @@ impl ToString for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,
@@ -379,13 +386,22 @@ impl_to_sql_for_to_string!(
     Order
 );
 
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
-
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
+impl_to_sql_for_to_string!(
+    &SdkEventDimensions,
+    SdkEventDimensions,
+    SdkEventNames,
+    AuthEventFlows,
+    &ApiEventDimensions,
+    ApiEventDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
+    DisputeStage
+);
 
 #[derive(Debug)]
 pub enum FilterTypes {
     Equal,
+    NotEqual,
     EqualBool,
     In,
     Gte,
@@ -400,6 +416,7 @@ pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
         FilterTypes::Equal => format!("{l} = '{r}'"),
+        FilterTypes::NotEqual => format!("{l} != '{r}'"),
         FilterTypes::In => format!("{l} IN ({r})"),
         FilterTypes::Gte => format!("{l} >= '{r}'"),
         FilterTypes::Gt => format!("{l} > {r}"),
@@ -501,6 +518,14 @@ where
         value: impl ToSql<T>,
     ) -> QueryResult<()> {
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
+    }
+
+    pub fn add_negative_filter_clause(
+        &mut self,
+        key: impl ToSql<T>,
+        value: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        self.add_custom_filter_clause(key, value, FilterTypes::NotEqual)
     }
 
     pub fn add_custom_filter_clause(
@@ -640,8 +665,7 @@ where
         if self.columns.is_empty() {
             Err(QueryBuildingError::InvalidQuery(
                 "No select fields provided",
-            ))
-            .into_report()?;
+            ))?;
         }
         let mut query = String::from("SELECT ");
 
@@ -706,12 +730,12 @@ where
         Ok(query)
     }
 
-    pub async fn execute_query<R, P: AnalyticsDataSource>(
+    pub async fn execute_query<R, P>(
         &mut self,
         store: &P,
     ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
     where
-        P: LoadRow<R>,
+        P: LoadRow<R> + AnalyticsDataSource,
         Aggregate<&'static str>: ToSql<T>,
         Window<&'static str>: ToSql<T>,
     {

@@ -6,14 +6,18 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core,
         errors::AnalyticsError, lambda_utils::invoke_lambda,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
+        search::{
+            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
+        },
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
-        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
-    use router_env::AnalyticsFlow;
 
     use crate::{
         core::api_locking,
@@ -70,6 +74,10 @@ pub mod routes {
                         web::resource("filters/sdk_events")
                             .route(web::post().to(get_sdk_event_filters)),
                     )
+                    .service(
+                        web::resource("metrics/auth_events")
+                            .route(web::post().to(get_auth_event_metrics)),
+                    )
                     .service(web::resource("api_event_logs").route(web::get().to(get_api_events)))
                     .service(web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)))
                     .service(
@@ -88,6 +96,20 @@ pub mod routes {
                         web::resource("metrics/api_events")
                             .route(web::post().to(get_api_events_metrics)),
                     )
+                    .service(
+                        web::resource("search").route(web::post().to(get_global_search_results)),
+                    )
+                    .service(
+                        web::resource("search/{domain}").route(web::post().to(get_search_results)),
+                    )
+                    .service(
+                        web::resource("filters/disputes")
+                            .route(web::post().to(get_dispute_filters)),
+                    )
+                    .service(
+                        web::resource("metrics/disputes")
+                            .route(web::post().to(get_dispute_metrics)),
+                    )
             }
             route
         }
@@ -96,7 +118,7 @@ pub mod routes {
     pub async fn get_info(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        domain: actix_web::web::Path<analytics::AnalyticsDomain>,
+        domain: web::Path<analytics::AnalyticsDomain>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetInfo;
         Box::pin(api::server_wrap(
@@ -104,7 +126,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain| async {
+            |_, _, domain: analytics::AnalyticsDomain, _| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)
@@ -136,7 +158,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::payments::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -172,7 +194,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::refunds::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -208,9 +230,46 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
+                    auth.merchant_account.publishable_key.as_ref(),
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
+    pub async fn get_auth_event_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetAuthEventMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetAuthEventMetricRequest");
+        let flow = AnalyticsFlow::GetAuthMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::auth_events::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
                     auth.merchant_account.publishable_key.as_ref(),
                     req,
                 )
@@ -234,7 +293,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::payments::get_filters(
                     &state.pool,
                     req,
@@ -260,7 +319,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req: GetRefundFilterRequest| async move {
+            |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
                 analytics::refunds::get_filters(
                     &state.pool,
                     req,
@@ -286,7 +345,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_filters(
                     &state.pool,
                     req,
@@ -312,7 +371,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 api_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
@@ -336,7 +395,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
@@ -358,7 +417,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 sdk_events_core(
                     &state.pool,
                     req,
@@ -384,8 +443,8 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 
@@ -426,8 +485,8 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 
@@ -468,8 +527,8 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 
@@ -493,7 +552,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::Analytics),
+            &auth::JWTAuth(Permission::PaymentWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -520,7 +579,7 @@ pub mod routes {
             state.clone(),
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_api_event_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -546,7 +605,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_filters(
                     &state.pool,
                     req,
@@ -572,10 +631,128 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 connector_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_global_search_results(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetGlobalSearchRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetGlobalSearchResults;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::search::msearch_results(
+                    &state.opensearch_client,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_search_results(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetSearchRequest>,
+        index: web::Path<SearchIndex>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSearchResults;
+        let indexed_req = GetSearchRequestWithIndex {
+            search_req: json_payload.into_inner(),
+            index: index.into_inner(),
+        };
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            indexed_req,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::search::search_results(
+                    &state.opensearch_client,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_dispute_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetDisputeFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::disputes::get_filters(
+                    &state.pool,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
+    pub async fn get_dispute_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetDisputeMetricRequest");
+        let flow = AnalyticsFlow::GetDisputeMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::disputes::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

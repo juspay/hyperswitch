@@ -134,7 +134,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 ..Default::default()
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
-                recon_status,
+                recon_status: Some(recon_status),
                 ..Default::default()
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
@@ -195,7 +195,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         Self: Sized,
     {
         async {
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 merchant_id: item.merchant_id,
                 return_url: item.return_url,

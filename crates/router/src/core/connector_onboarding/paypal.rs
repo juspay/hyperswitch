@@ -1,6 +1,6 @@
 use api_models::{admin::MerchantConnectorUpdate, connector_onboarding as api};
 use common_utils::ext_traits::Encode;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
@@ -11,10 +11,10 @@ use crate::{
     services::{send_request, ApplicationResponse, Request},
     types::{self as oss_types, api as oss_api_types, api::connector_onboarding as types},
     utils::connector_onboarding as utils,
-    AppState,
+    SessionState,
 };
 
-fn build_referral_url(state: AppState) -> String {
+fn build_referral_url(state: SessionState) -> String {
     format!(
         "{}v2/customer/partner-referrals",
         state.conf.connectors.paypal.base_url
@@ -22,7 +22,7 @@ fn build_referral_url(state: AppState) -> String {
 }
 
 async fn build_referral_request(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     return_url: String,
 ) -> RouterResult<Request> {
@@ -37,7 +37,7 @@ async fn build_referral_request(
 }
 
 pub async fn get_action_url_from_paypal(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     return_url: String,
 ) -> RouterResult<String> {
@@ -55,15 +55,20 @@ pub async fn get_action_url_from_paypal(
     let parsed_response: types::paypal::PartnerReferralResponse = referral_response
         .json()
         .await
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse paypal response")?;
 
     parsed_response.extract_action_url()
 }
 
-fn merchant_onboarding_status_url(state: AppState, tracking_id: String) -> String {
-    let partner_id = state.conf.connector_onboarding.paypal.partner_id.to_owned();
+fn merchant_onboarding_status_url(state: SessionState, tracking_id: String) -> String {
+    let partner_id = state
+        .conf
+        .connector_onboarding
+        .get_inner()
+        .paypal
+        .partner_id
+        .to_owned();
     format!(
         "{}v1/customer/partners/{}/merchant-integrations?tracking_id={}",
         state.conf.connectors.paypal.base_url,
@@ -73,7 +78,7 @@ fn merchant_onboarding_status_url(state: AppState, tracking_id: String) -> Strin
 }
 
 pub async fn sync_merchant_onboarding_status(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
 ) -> RouterResult<api::OnboardingStatus> {
     let access_token = utils::paypal::generate_access_token(state.clone()).await?;
@@ -100,7 +105,6 @@ pub async fn sync_merchant_onboarding_status(
     let parsed_response: types::paypal::SellerStatusDetailsResponse = merchant_details_response
         .json()
         .await
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse paypal merchant details response")?;
 
@@ -109,7 +113,7 @@ pub async fn sync_merchant_onboarding_status(
 }
 
 async fn find_paypal_merchant_by_tracking_id(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     access_token: &oss_types::AccessToken,
 ) -> RouterResult<Option<types::paypal::SellerStatusResponse>> {
@@ -127,7 +131,6 @@ async fn find_paypal_merchant_by_tracking_id(
             seller_status_response
                 .json()
                 .await
-                .into_report()
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse paypal onboarding status response")?,
         ));
@@ -136,15 +139,15 @@ async fn find_paypal_merchant_by_tracking_id(
 }
 
 pub async fn update_mca(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     connector_id: String,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
-    let connector_auth_json =
-        Encode::<oss_types::ConnectorAuthType>::encode_to_value(&auth_details)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while deserializing connector_account_details")?;
+    let connector_auth_json = auth_details
+        .encode_to_value()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while deserializing connector_account_details")?;
 
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,

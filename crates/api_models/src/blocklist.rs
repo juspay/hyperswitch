@@ -1,5 +1,6 @@
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
+use masking::StrongSecret;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -10,6 +11,15 @@ pub enum BlocklistRequest {
     ExtendedCardBin(String),
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GenerateFingerprintRequest {
+    pub card: Card,
+    pub hash_key: StrongSecret<String>,
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Card {
+    pub card_number: StrongSecret<String>,
+}
 pub type AddToBlocklistRequest = BlocklistRequest;
 pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
@@ -20,6 +30,16 @@ pub struct BlocklistResponse {
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GenerateFingerprintResponsePayload {
+    pub card_fingerprint: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleBlocklistResponse {
+    pub blocklist_guard_status: String,
 }
 
 pub type AddToBlocklistResponse = BlocklistResponse;
@@ -39,6 +59,17 @@ fn default_list_limit() -> u16 {
     10
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleBlocklistQuery {
+    #[schema(value_type = BlocklistDataKind)]
+    pub status: bool,
+}
+
 impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}
+impl ApiEventMetric for ToggleBlocklistResponse {}
 impl ApiEventMetric for ListBlocklistQuery {}
+impl ApiEventMetric for GenerateFingerprintRequest {}
+impl ApiEventMetric for ToggleBlocklistQuery {}
+impl ApiEventMetric for GenerateFingerprintResponsePayload {}
+impl ApiEventMetric for Card {}

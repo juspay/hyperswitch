@@ -47,13 +47,6 @@ macro_rules! newtype {
     };
 }
 
-#[macro_export]
-macro_rules! async_spawn {
-    ($t:block) => {
-        tokio::spawn(async move { $t });
-    };
-}
-
 /// Use this to ensure that the corresponding
 /// openapi route has been implemented in the openapi crate
 #[macro_export]

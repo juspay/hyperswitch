@@ -11,11 +11,12 @@ use crate::{
 };
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
 // #[actix_web::get("/health")]
 pub async fn health() -> impl actix_web::Responder {
     metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
     logger::info!("Health was called");
+
     actix_web::HttpResponse::Ok().body("health is good")
 }
 
@@ -33,19 +34,21 @@ pub async fn deep_health_check(
         state,
         &request,
         (),
-        |state, _, _| deep_health_check_func(state),
+        |state, _, _, _| deep_health_check_func(state),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHealthCheckResponse> {
+async fn deep_health_check_func(
+    state: app::SessionState,
+) -> RouterResponse<RouterHealthCheckResponse> {
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
+    let db_status = state.health_check_db().await.map_err(|err| {
         error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
             component: "Database",
             message: err.to_string()
@@ -56,52 +59,70 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
 
     logger::debug!("Redis health check begin");
 
-    let redis_status = state
-        .health_check_redis()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Redis",
-                message: err.to_string()
-            })
-        })?;
+    let redis_status = state.health_check_redis().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Redis",
+            message: err.to_string()
+        })
+    })?;
 
     logger::debug!("Redis health check end");
 
     logger::debug!("Locker health check begin");
 
-    let locker_status = state
-        .health_check_locker()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Locker",
-                message: err.to_string()
-            })
-        })?;
-
-    #[cfg(feature = "olap")]
-    let analytics_status = state
-        .health_check_analytics()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Analytics",
-                message: err.to_string()
-            })
-        })?;
+    let locker_status = state.health_check_locker().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Locker",
+            message: err.to_string()
+        })
+    })?;
 
     logger::debug!("Locker health check end");
 
+    logger::debug!("Analytics health check begin");
+
+    #[cfg(feature = "olap")]
+    let analytics_status = state.health_check_analytics().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Analytics",
+            message: err.to_string()
+        })
+    })?;
+
+    logger::debug!("Analytics health check end");
+
+    logger::debug!("Opensearch health check begin");
+
+    #[cfg(feature = "olap")]
+    let opensearch_status = state.health_check_opensearch().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Opensearch",
+            message: err.to_string()
+        })
+    })?;
+
+    logger::debug!("Opensearch health check end");
+
+    logger::debug!("Outgoing Request health check begin");
+
+    let outgoing_check = state.health_check_outgoing().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Outgoing Request",
+            message: err.to_string()
+        })
+    })?;
+
+    logger::debug!("Outgoing Request health check end");
+
     let response = RouterHealthCheckResponse {
-        database: db_status,
-        redis: redis_status,
-        locker: locker_status,
+        database: db_status.into(),
+        redis: redis_status.into(),
+        vault: locker_status.into(),
         #[cfg(feature = "olap")]
-        analytics: analytics_status,
+        analytics: analytics_status.into(),
+        #[cfg(feature = "olap")]
+        opensearch: opensearch_status.into(),
+        outgoing_request: outgoing_check.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))

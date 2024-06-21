@@ -8,7 +8,6 @@ use super::{NameDescription, TimeRange};
 pub struct ApiLogsRequest {
     #[serde(flatten)]
     pub query_param: QueryType,
-    pub api_name_filter: Option<Vec<String>>,
 }
 
 pub enum FilterType {
@@ -26,6 +25,10 @@ pub enum QueryType {
     Refund {
         payment_id: String,
         refund_id: String,
+    },
+    Dispute {
+        payment_id: String,
+        dispute_id: String,
     },
 }
 

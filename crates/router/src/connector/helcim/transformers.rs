@@ -1,5 +1,5 @@
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use crate::{
         RefundsRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -19,22 +19,10 @@ pub struct HelcimRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for HelcimRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for HelcimRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -45,9 +33,9 @@ impl<T>
 }
 
 pub fn check_currency(
-    currency: types::storage::enums::Currency,
-) -> Result<types::storage::enums::Currency, errors::ConnectorError> {
-    if currency == types::storage::enums::Currency::USD {
+    currency: enums::Currency,
+) -> Result<enums::Currency, errors::ConnectorError> {
+    if currency == enums::Currency::USD {
         Ok(currency)
     } else {
         Err(errors::ConnectorError::NotSupported {
@@ -121,9 +109,11 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
-impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyRequest {
+impl TryFrom<(&types::SetupMandateRouterData, &domain::Card)> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: (&types::SetupMandateRouterData, &api::Card)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (&types::SetupMandateRouterData, &domain::Card),
+    ) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
             card_expiry: req_card
@@ -157,23 +147,23 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+            domain::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Helcim"),
                 ))?
@@ -185,14 +175,14 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
 impl
     TryFrom<(
         &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::Card,
+        &domain::Card,
     )> for HelcimPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
             &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::Card,
+            &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
@@ -259,25 +249,27 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
         item: &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Helcim"),
-            ))?,
+            domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+            domain::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Helcim"),
+                ))?
+            }
         }
     }
 }
@@ -299,14 +291,14 @@ impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HelcimPaymentStatus {
     Approved,
     Declined,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimTransactionType {
     Purchase,
@@ -339,7 +331,7 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
@@ -379,6 +371,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -434,6 +427,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -493,6 +487,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -541,7 +536,6 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCap
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             amount: item.amount,
             ip_address,
@@ -580,6 +574,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -605,7 +600,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for HelcimVoidRequest {
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ip_address,
             ecommerce: None,
@@ -643,6 +637,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -672,7 +667,6 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let ip_address = item
@@ -689,12 +683,12 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimRefundTransactionType {
     Refund,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     status: HelcimPaymentStatus,
@@ -748,19 +742,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, strum::Display, Deserialize)]
+#[derive(Debug, strum::Display, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum HelcimErrorTypes {
     StringType(String),
     JsonType(serde_json::Value),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HelcimPaymentsErrorResponse {
     pub errors: HelcimErrorTypes,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum HelcimErrorResponse {
     Payment(HelcimPaymentsErrorResponse),

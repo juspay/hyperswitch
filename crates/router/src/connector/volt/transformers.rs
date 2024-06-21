@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::{id_type, pii::Email};
 use diesel_models::enums;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
 };
 
 const PASSWORD: &str = "password";
@@ -18,18 +18,13 @@ pub struct VoltRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for VoltRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for VoltRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -75,7 +70,7 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct ShopperDetails {
-    reference: String,
+    reference: id_type::CustomerId,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -87,8 +82,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         item: &VoltRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
+                domain::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency;
                     let merchant_internal_reference =
@@ -98,10 +93,11 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                     let payment_pending_url = item.router_data.request.router_return_url.clone();
                     let payment_cancel_url = item.router_data.request.router_return_url.clone();
                     let address = item.router_data.get_billing_address()?;
+                    let first_name = address.get_first_name()?;
                     let shopper = ShopperDetails {
                         email: item.router_data.request.email.clone(),
-                        first_name: address.get_first_name()?.to_owned(),
-                        last_name: address.get_last_name()?.to_owned(),
+                        first_name: first_name.to_owned(),
+                        last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
                         reference: item.router_data.get_customer_id()?.to_owned(),
                     };
                     let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
@@ -118,41 +114,43 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         transaction_type,
                     })
                 }
-                api_models::payments::BankRedirectData::BancontactCard { .. }
-                | api_models::payments::BankRedirectData::Bizum {}
-                | api_models::payments::BankRedirectData::Blik { .. }
-                | api_models::payments::BankRedirectData::Eps { .. }
-                | api_models::payments::BankRedirectData::Giropay { .. }
-                | api_models::payments::BankRedirectData::Ideal { .. }
-                | api_models::payments::BankRedirectData::Interac { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                | api_models::payments::BankRedirectData::Przelewy24 { .. }
-                | api_models::payments::BankRedirectData::Sofort { .. }
-                | api_models::payments::BankRedirectData::Trustly { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum {}
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Giropay { .. }
+                | domain::BankRedirectData::Ideal { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )
                     .into())
                 }
             },
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
                 )
@@ -185,12 +183,12 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
-    pub refresh_token: String,
+    pub refresh_token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
@@ -240,10 +238,8 @@ impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
 impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
-            VoltPaymentStatus::Completed
-            | VoltPaymentStatus::Received
-            | VoltPaymentStatus::Settled => Self::Charged,
-            VoltPaymentStatus::DelayedAtBank => Self::Pending,
+            VoltPaymentStatus::Received | VoltPaymentStatus::Settled => Self::Charged,
+            VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => Self::Pending,
             VoltPaymentStatus::NewPayment
             | VoltPaymentStatus::BankRedirect
             | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
@@ -289,6 +285,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -370,6 +367,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -410,6 +408,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -421,13 +420,13 @@ impl<F, T>
 impl From<VoltWebhookPaymentStatus> for enums::AttemptStatus {
     fn from(status: VoltWebhookPaymentStatus) -> Self {
         match status {
-            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                Self::Charged
-            }
+            VoltWebhookPaymentStatus::Received => Self::Charged,
             VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                 Self::Failure
             }
-            VoltWebhookPaymentStatus::Pending => Self::Pending,
+            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                Self::Pending
+            }
         }
     }
 }
@@ -451,7 +450,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -577,13 +576,13 @@ impl From<VoltWebhookBodyEventType> for api::IncomingWebhookEvent {
     fn from(status: VoltWebhookBodyEventType) -> Self {
         match status {
             VoltWebhookBodyEventType::Payment(payment_data) => match payment_data.status {
-                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                    Self::PaymentIntentSuccess
-                }
+                VoltWebhookPaymentStatus::Received => Self::PaymentIntentSuccess,
                 VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                     Self::PaymentIntentFailure
                 }
-                VoltWebhookPaymentStatus::Pending => Self::PaymentIntentProcessing,
+                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                    Self::PaymentIntentProcessing
+                }
             },
             VoltWebhookBodyEventType::Refund(refund_data) => match refund_data.status {
                 VoltWebhookRefundsStatus::RefundConfirmed => Self::RefundSuccess,
@@ -598,7 +597,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

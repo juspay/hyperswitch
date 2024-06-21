@@ -1,42 +1,23 @@
 use common_utils::ext_traits::ConfigExt;
+use masking::PeekInterface;
 use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(not(feature = "kms"))]
-        {
-            when(self.jwt_secret.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "JWT secret must not be empty".into(),
-                ))
-            })?;
+        when(self.jwt_secret.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "JWT secret must not be empty".into(),
+            ))
+        })?;
 
-            when(self.admin_api_key.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "admin API key must not be empty".into(),
-                ))
-            })?;
-        }
+        when(self.admin_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "admin API key must not be empty".into(),
+            ))
+        })?;
 
-        #[cfg(feature = "kms")]
-        {
-            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "KMS encrypted JWT secret must not be empty".into(),
-                ))
-            })?;
-
-            when(
-                self.kms_encrypted_admin_api_key.is_default_or_empty(),
-                || {
-                    Err(ApplicationError::InvalidConfigurationValueError(
-                        "KMS encrypted admin API key must not be empty".into(),
-                    ))
-                },
-            )?;
-        }
         when(self.master_enc_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Master encryption key must not be empty".into(),
@@ -68,9 +49,17 @@ impl super::settings::Locker {
 
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+        use common_utils::fp_utils::when;
+
+        when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "server host must not be empty".into(),
+            ))
+        })?;
+
+        when(self.workers == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "number of workers must be greater than 0".into(),
             ))
         })
     }
@@ -116,6 +105,22 @@ impl super::settings::SupportedConnectors {
     }
 }
 
+impl super::settings::CorsSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.wildcard_origin && !self.origins.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Allowed Origins must be empty when wildcard origin is true".to_string(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(!self.wildcard_origin && self.origins.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Allowed origins must not be empty. Please either enable wildcard origin or provide Allowed Origin".to_string(),
+            ))
+        })
+    }
+}
+
 #[cfg(feature = "kv_store")]
 impl super::settings::DrainerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -131,19 +136,20 @@ impl super::settings::ApiKeys {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(feature = "kms")]
-        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "API key hashing key must not be empty when KMS feature is enabled".into(),
-            ))
-        });
-
-        #[cfg(not(feature = "kms"))]
-        when(self.hash_key.is_empty(), || {
+        when(self.hash_key.peek().is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
             ))
-        })
+        })?;
+
+        #[cfg(feature = "email")]
+        when(self.expiry_reminder_days.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key expiry reminder days must not be empty".into(),
+            ))
+        })?;
+
+        Ok(())
     }
 }
 

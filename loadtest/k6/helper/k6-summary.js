@@ -160,26 +160,26 @@ function toFixedNoTrailingZerosTrunc(val, prec) {
   return toFixedNoTrailingZeros(Math.trunc(mult * val) / mult, prec)
 }
 
-function humanizeGenericDuration(dur) {
-  if (dur === 0) {
+function humanizeGenericDuration(duration) {
+  if (duration === 0) {
     return '0s'
   }
 
-  if (dur < 0.001) {
+  if (duration < 0.001) {
     // smaller than a microsecond, print nanoseconds
-    return Math.trunc(dur * 1000000) + 'ns'
+    return Math.trunc(duration * 1000000) + 'ns'
   }
-  if (dur < 1) {
+  if (duration < 1) {
     // smaller than a millisecond, print microseconds
-    return toFixedNoTrailingZerosTrunc(dur * 1000, 2) + 'µs'
+    return toFixedNoTrailingZerosTrunc(duration * 1000, 2) + 'µs'
   }
-  if (dur < 1000) {
+  if (duration < 1000) {
     // duration is smaller than a second
-    return toFixedNoTrailingZerosTrunc(dur, 2) + 'ms'
+    return toFixedNoTrailingZerosTrunc(duration, 2) + 'ms'
   }
 
-  var result = toFixedNoTrailingZerosTrunc((dur % 60000) / 1000, dur > 60000 ? 0 : 2) + 's'
-  var rem = Math.trunc(dur / 60000)
+  var result = toFixedNoTrailingZerosTrunc((duration % 60000) / 1000, duration > 60000 ? 0 : 2) + 's'
+  var rem = Math.trunc(duration / 60000)
   if (rem < 1) {
     // less than a minute
     return result
@@ -193,12 +193,12 @@ function humanizeGenericDuration(dur) {
   return rem + 'h' + result
 }
 
-function humanizeDuration(dur, timeUnit) {
+function humanizeDuration(duration, timeUnit) {
   if (timeUnit !== '' && unitMap.hasOwnProperty(timeUnit)) {
-    return (dur * unitMap[timeUnit].coef).toFixed(2) + unitMap[timeUnit].unit
+    return (duration * unitMap[timeUnit].coef).toFixed(2) + unitMap[timeUnit].unit
   }
 
-  return humanizeGenericDuration(dur)
+  return humanizeGenericDuration(duration)
 }
 
 function humanizeValue(val, metric, timeUnit) {

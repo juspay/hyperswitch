@@ -3,9 +3,9 @@ use masking::Secret;
 
 use super::jwt;
 use crate::{
+    configs::Settings,
     consts,
     core::{self, errors::RouterResult},
-    routes::app::settings::Settings,
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]

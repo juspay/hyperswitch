@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 #[cfg(feature = "payouts")]
@@ -13,6 +13,7 @@ use self::transformers as wise;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -25,8 +26,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payments, routes};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
@@ -82,11 +81,16 @@ impl ConnectorCommon for Wise {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: wise::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let default_status = response.status.unwrap_or_default().to_string();
         match response.errors {
             Some(errs) => {
@@ -278,12 +282,17 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCancel>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoCancel>, errors::ConnectorError> {
         let response: wise::WisePayoutResponse = res
             .response
             .parse_struct("WisePayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -294,11 +303,16 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: wise::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let def_res = response.status.unwrap_or_default().to_string();
         let errors = response.errors.unwrap_or_default();
         let (code, message) = if let Some(e) = errors.first() {
@@ -374,12 +388,17 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoQuote>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoQuote>, errors::ConnectorError> {
         let response: wise::WisePayoutQuoteResponse = res
             .response
             .parse_struct("WisePayoutQuoteResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -390,8 +409,9 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -449,12 +469,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoRecipient>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoRecipient>, errors::ConnectorError> {
         let response: wise::WiseRecipientCreateResponse = res
             .response
             .parse_struct("WiseRecipientCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -465,8 +490,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -475,44 +501,6 @@ impl
 impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        // Create a quote
-        let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
-        let quote_connector_integration: Box<
-            &(dyn services::ConnectorIntegration<
-                api::PoQuote,
-                types::PayoutsData,
-                types::PayoutsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(self);
-        let quote_router_resp = services::execute_connector_processing_step(
-            app_state,
-            quote_connector_integration,
-            quote_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        match quote_router_resp.response.to_owned() {
-            Ok(resp) => {
-                router_data.quote_id = Some(resp.connector_payout_id);
-                Ok(())
-            }
-            Err(_err) => {
-                router_data.response = quote_router_resp.response;
-                Ok(())
-            }
-        }
-    }
-
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
@@ -560,12 +548,17 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCreate>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
         let response: wise::WisePayoutResponse = res
             .response
             .parse_struct("WisePayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -576,8 +569,9 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -594,7 +588,7 @@ impl
         _req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        // Eligiblity check for cards is not implemented
+        // Eligibility check for cards is not implemented
         Err(
             errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string())
                 .into(),
@@ -667,12 +661,17 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
         let response: wise::WiseFulfillResponse = res
             .response
             .parse_struct("WiseFulfillResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -683,8 +682,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -708,20 +708,20 @@ impl api::IncomingWebhook for Wise {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

@@ -1,5 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
-use router::types::{self, storage::enums};
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -39,7 +39,7 @@ static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 impl CashtocodeTest {
     fn get_payment_authorize_data(
         payment_method_type: Option<enums::PaymentMethodType>,
-        payment_method_data: types::api::PaymentMethodData,
+        payment_method_data: domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
             amount: 1000,
@@ -70,21 +70,27 @@ impl CashtocodeTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         })
     }
 
     fn get_payment_info() -> Option<utils::PaymentInfo> {
         Some(utils::PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+                None,
+            )),
             return_url: Some("https://google.com".to_owned()),
             ..Default::default()
         })
@@ -98,7 +104,7 @@ async fn should_fetch_pay_url_classic() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::ClassicReward),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
@@ -116,7 +122,7 @@ async fn should_fetch_pay_url_evoucher() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::Evoucher),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )

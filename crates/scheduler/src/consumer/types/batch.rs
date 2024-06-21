@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, ext_traits::OptionExt};
 use diesel_models::process_tracker::ProcessTracker;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::errors;
@@ -35,7 +35,6 @@ impl ProcessTrackerBatch {
             (
                 "trackers",
                 serde_json::to_string(&self.trackers)
-                    .into_report()
                     .change_context(errors::ProcessTrackerError::SerializationFailed)
                     .attach_printable_lazy(|| {
                         format!("Unable to stringify trackers: {:?}", self.trackers)
@@ -79,12 +78,10 @@ impl ProcessTrackerBatch {
             let offset_date_time = time::OffsetDateTime::from_unix_timestamp(
                 created_time
                     .as_str()
-                    .parse()
-                    .into_report()
+                    .parse::<i64>()
                     .change_context(errors::ParsingError::UnknownError)
                     .change_context(errors::ProcessTrackerError::DeserializationFailed)?,
             )
-            .into_report()
             .attach_printable_lazy(|| format!("Unable to parse time {}", &created_time))
             .change_context(errors::ProcessTrackerError::MissingRequiredField)?;
             PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time())
@@ -102,12 +99,12 @@ impl ProcessTrackerBatch {
             .change_context(errors::ProcessTrackerError::MissingRequiredField)?;
 
         let trackers = serde_json::from_str::<Vec<ProcessTracker>>(trackers.as_str())
-            .into_report()
             .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| {
                 format!("Unable to parse trackers from JSON string: {trackers:?}")
             })
-            .change_context(errors::ProcessTrackerError::DeserializationFailed)?;
+            .change_context(errors::ProcessTrackerError::DeserializationFailed)
+            .attach_printable("Error parsing ProcessTracker from redis stream entry")?;
 
         Ok(Self {
             id,
@@ -118,6 +115,5 @@ impl ProcessTrackerBatch {
             rule,
             trackers,
         })
-        .attach_printable("Error parsing ProcessTracker from redis stream entry")
     }
 }

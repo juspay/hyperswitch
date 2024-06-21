@@ -18,7 +18,8 @@
       }
     },
     "raw_json_formatted": {
-      "amount": 1000
+      "amount": 1000,
+      "amount_to_capture": 1000
     }
   },
   "url": {

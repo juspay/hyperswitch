@@ -1,5 +1,5 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,17 +10,15 @@ use crate::{
 };
 
 impl CustomerNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Customer {
-    #[instrument(skip(conn))]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: String,
+        customer_id: id_type::CustomerId,
         merchant_id: String,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
@@ -45,10 +43,9 @@ impl Customer {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
@@ -60,10 +57,9 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
@@ -73,7 +69,6 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -88,10 +83,9 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(

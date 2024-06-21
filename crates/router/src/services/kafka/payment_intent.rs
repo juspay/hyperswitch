@@ -1,5 +1,6 @@
-use data_models::payments::PaymentIntent;
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -7,10 +8,10 @@ pub struct KafkaPaymentIntent<'a> {
     pub payment_id: &'a String,
     pub merchant_id: &'a String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
-    pub customer_id: Option<&'a String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub customer_id: Option<&'a id_type::CustomerId>,
     pub description: Option<&'a String>,
     pub return_url: Option<&'a String>,
     pub connector_id: Option<&'a String>,
@@ -29,6 +30,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -56,6 +58,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_country: intent.business_country,
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
+            payment_confirm_source: intent.payment_confirm_source,
         }
     }
 }
@@ -65,7 +68,7 @@ impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
         format!("{}_{}", self.merchant_id, self.payment_id)
     }
 
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.modified_at.unix_timestamp())
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::PaymentIntent
     }
 }

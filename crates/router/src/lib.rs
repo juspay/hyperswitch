@@ -30,7 +30,9 @@ use actix_web::{
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
-use routes::AppState;
+use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
+use router_env::tracing::Instrument;
+use routes::{AppState, SessionState};
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
@@ -45,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
@@ -69,6 +72,11 @@ pub mod headers {
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
+    pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
+    pub const X_CLIENT_VERSION: &str = "X-Client-Version";
+    pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
+    pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
+    pub const CONTENT_LENGTH: &str = "Content-Length";
 }
 
 pub mod pii {
@@ -91,7 +99,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit);
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -123,6 +131,7 @@ pub fn mk_app(
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::PaymentMethods::server(state.clone()))
+            .service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -135,16 +144,13 @@ pub fn mk_app(
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
-            .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::ApplePayCertificatesMigration::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
-    }
-
-    #[cfg(all(feature = "olap", feature = "kms"))]
-    {
-        server_app = server_app.service(routes::Verify::server(state.clone()));
+            .service(routes::Verify::server(state.clone()))
+            .service(routes::WebhookEvents::server(state.clone()));
     }
 
     #[cfg(feature = "payouts")]
@@ -175,7 +181,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
@@ -188,14 +194,14 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
+    let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    tokio::spawn(receiver_for_error(rx, server.handle()));
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 
@@ -231,6 +237,7 @@ impl Stop for mpsc::Sender<()> {
 
 pub fn get_application_builder(
     request_body_limit: usize,
+    cors: settings::CorsSettings,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -257,9 +264,9 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
-        .wrap(cors::cors())
-        .wrap(middleware::LogSpanInitializer)
+        .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

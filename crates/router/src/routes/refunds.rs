@@ -36,7 +36,7 @@ pub async fn refunds_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| refund_create_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundWrite),
@@ -63,7 +63,7 @@ pub async fn refunds_create(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -76,14 +76,19 @@ pub async fn refunds_retrieve(
         force_sync: query_params.force_sync,
         merchant_connector_details: None,
     };
-    let flow = Flow::RefundsRetrieve;
+    let flow = match query_params.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         refund_request,
-        |state, auth, refund_request| {
+        |state, auth, refund_request, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -115,20 +120,26 @@ pub async fn refunds_retrieve(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundsRetrieveRequest>,
 ) -> HttpResponse {
-    let flow = Flow::RefundsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| {
+        |state, auth, req, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -171,15 +182,15 @@ pub async fn refunds_update(
     let flow = Flow::RefundsUpdate;
     let mut refund_update_req = json_payload.into_inner();
     refund_update_req.refund_id = path.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         refund_update_req,
-        |state, auth, req| refund_update_core(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - List
@@ -204,21 +215,22 @@ pub async fn refunds_list(
     payload: web::Json<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_list(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_list(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
+
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -241,18 +253,51 @@ pub async fn refunds_filter_list(
     payload: web::Json<api_models::payments::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_filter_list(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
+    .await
+}
+
+/// Refunds - Filter V2
+///
+/// To list the refunds filters associated with list of connectors, currencies and payment statuses
+#[utoipa::path(
+    get,
+    path = "/refunds/v2/filter",
+    responses(
+        (status = 200, description = "List of static filters", body = RefundListFilters),
+    ),
+    tag = "Refunds",
+    operation_id = "List all filters for Refunds",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsFilters))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::RefundsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

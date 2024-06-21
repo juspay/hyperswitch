@@ -58,7 +58,8 @@
         "phone": {
           "number": "8056594427",
           "country_code": "+91"
-        }
+        },
+        "email": "example@example.com"
       },
       "shipping": {
         "address": {

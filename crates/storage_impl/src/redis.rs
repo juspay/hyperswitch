@@ -4,9 +4,7 @@ pub mod pub_sub;
 
 use std::sync::{atomic, Arc};
 
-use error_stack::{IntoReport, ResultExt};
-use redis_interface::PubsubInterface;
-use router_env::logger;
+use router_env::tracing::Instrument;
 
 use self::{kv_store::RedisConnInterface, pub_sub::PubSubInterface};
 
@@ -35,31 +33,12 @@ impl RedisStore {
 
     pub fn set_error_callback(&self, callback: tokio::sync::oneshot::Sender<()>) {
         let redis_clone = self.redis_conn.clone();
-        tokio::spawn(async move {
-            redis_clone.on_error(callback).await;
-        });
-    }
-
-    pub async fn subscribe_to_channel(
-        &self,
-        channel: &str,
-    ) -> error_stack::Result<(), redis_interface::errors::RedisError> {
-        self.redis_conn.subscriber.manage_subscriptions();
-
-        self.redis_conn
-            .subscriber
-            .subscribe::<(), _>(channel)
-            .await
-            .into_report()
-            .change_context(redis_interface::errors::RedisError::SubscribeError)?;
-
-        let redis_clone = self.redis_conn.clone();
-        tokio::spawn(async move {
-            if let Err(e) = redis_clone.on_message().await {
-                logger::error!(pubsub_err=?e);
+        let _task_handle = tokio::spawn(
+            async move {
+                redis_clone.on_error(callback).await;
             }
-        });
-        Ok(())
+            .in_current_span(),
+        );
     }
 }
 

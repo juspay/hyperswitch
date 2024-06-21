@@ -4,17 +4,24 @@ use std::{
 };
 
 #[cfg(feature = "olap")]
-use analytics::ReportConfig;
+use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-use external_services::file_storage::FileStorageConfig;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::{
+    file_storage::FileStorageConfig,
+    managers::{
+        encryption_management::EncryptionManagementConfig,
+        secrets_management::SecretsManagementConfig,
+    },
+};
+pub use hyperswitch_interfaces::configs::Connectors;
+use hyperswitch_interfaces::secrets_interface::secret_state::{
+    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+};
+use masking::Secret;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -29,10 +36,6 @@ use crate::{
     env::{self, logger, Env},
     events::EventsConfig,
 };
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
-pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -53,77 +56,141 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
-/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
-/// allocations.
-/// note: we can consider adding such behaviour in the future with custom implementation
-#[derive(Clone)]
-pub struct ActiveKmsSecrets {
-    pub jwekey: masking::Secret<Jwekey>,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct Settings {
+pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub master_database: Database,
+    pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
-    pub replica_database: Database,
+    pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
     pub log: Log,
-    pub secrets: Secrets,
+    pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
     pub connectors: Connectors,
-    pub forex_api: ForexApi,
+    pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
-    pub jwekey: Jwekey,
+    pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
-    pub api_keys: ApiKeys,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
+    pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
-    #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub encryption_management: EncryptionManagementConfig,
+    pub secrets_management: SecretsManagementConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub user: UserSettings,
+    pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    pub payment_method_auth: PaymentMethodAuth,
+    pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
-    pub applepay_decrypt_keys: ApplePayDecryptConifg,
+    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
-    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
-    pub analytics: AnalyticsConfig,
+    pub analytics: SecretStateContainer<AnalyticsConfig, S>,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
     #[cfg(feature = "frm")]
     pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
+    #[cfg(feature = "olap")]
+    pub opensearch: OpenSearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
-    pub connector_onboarding: ConnectorOnboarding,
+    pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
+    pub unmasked_headers: UnmaskedHeaders,
+    pub multitenancy: Multitenancy,
+    pub saved_payment_methods: EligiblePaymentMethods,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+    pub enabled: bool,
+    pub global_tenant: GlobalTenant,
+}
+
+impl Multitenancy {
+    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+        &self.tenants.0
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
+    pub clickhouse_database: String,
+}
+
+impl storage_impl::config::TenantConfig for Tenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GlobalTenant {
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UnmaskedHeaders {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub keys: HashSet<String>,
 }
 
 #[cfg(feature = "frm")]
@@ -135,6 +202,7 @@ pub struct Frm {
 #[derive(Debug, Deserialize, Clone)]
 pub struct KvConfig {
     pub ttl: u32,
+    pub soft_kill: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -146,8 +214,8 @@ pub struct PaymentLink {
 #[serde(default)]
 pub struct ForexApi {
     pub local_fetch_retry_count: u64,
-    pub api_key: masking::Secret<String>,
-    pub fallback_api_key: masking::Secret<String>,
+    pub api_key: Secret<String>,
+    pub fallback_api_key: Secret<String>,
     /// in ms
     pub call_delay: i64,
     /// in ms
@@ -161,7 +229,14 @@ pub struct ForexApi {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodAuth {
     pub redis_expiry: i64,
-    pub pm_auth_key: String,
+    pub pm_auth_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EligiblePaymentMethods {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub sdk_eligible_payment_methods: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -182,16 +257,16 @@ pub struct Conversion {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ApplepayMerchantConfigs {
-    pub merchant_cert: String,
-    pub merchant_cert_key: String,
-    pub common_merchant_identifier: String,
+    pub merchant_cert: Secret<String>,
+    pub merchant_cert_key: Secret<String>,
+    pub common_merchant_identifier: Secret<String>,
     pub applepay_endpoint: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct MultipleApiVersionSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub supported_connectors: HashSet<api_models::enums::Connector>,
+    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -205,10 +280,10 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
+    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
+    pub payout_connector_list: HashSet<enums::PayoutConnectors>,
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -235,8 +310,26 @@ pub struct DummyConnector {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct CorsSettings {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub origins: HashSet<String>,
+    #[serde(default)]
+    pub wildcard_origin: bool,
+    pub max_age: usize,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub allowed_methods: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTransactionIdSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -252,7 +345,7 @@ pub struct SupportedPaymentMethodTypesForMandate(
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedConnectorsForMandate {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -295,16 +388,14 @@ pub enum PaymentMethodTypeTokenFilter {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(
-    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
-);
+pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<api_models::enums::BankNames>,
+    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -318,17 +409,17 @@ pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCoun
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum PaymentMethodFilterKey {
-    PaymentMethodType(api_models::enums::PaymentMethodType),
-    CardNetwork(api_models::enums::CardNetwork),
+    PaymentMethodType(enums::PaymentMethodType),
+    CardNetwork(enums::CardNetwork),
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "deserialize_optional_hashset")]
-    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    pub currency: Option<HashSet<enums::Currency>>,
     #[serde(deserialize_with = "deserialize_optional_hashset")]
-    pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
+    pub country: Option<HashSet<enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
 
@@ -359,19 +450,17 @@ pub struct RequiredFieldFinal {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
-    #[cfg(not(feature = "kms"))]
-    pub jwt_secret: String,
-    #[cfg(not(feature = "kms"))]
-    pub admin_api_key: String,
-    #[cfg(not(feature = "kms"))]
-    pub recon_admin_api_key: String,
-    pub master_enc_key: Password,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
+    pub jwt_secret: Secret<String>,
+    pub admin_api_key: Secret<String>,
+    pub recon_admin_api_key: Secret<String>,
+    pub master_enc_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct UserSettings {
+    pub password_validity_in_days: u16,
+    pub two_factor_auth_expiry_in_secs: i64,
+    pub totp_issuer_name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -383,6 +472,7 @@ pub struct Locker {
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
+    pub ttl_for_storage_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -401,10 +491,10 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    pub vault_encryption_key: String,
-    pub rust_locker_encryption_key: String,
-    pub vault_private_key: String,
-    pub tunnel_private_key: String,
+    pub vault_encryption_key: Secret<String>,
+    pub rust_locker_encryption_key: Secret<String>,
+    pub vault_private_key: Secret<String>,
+    pub tunnel_private_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -422,7 +512,6 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    pub base_url: String,
     pub shutdown_timeout: u64,
 }
 
@@ -430,7 +519,7 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    pub password: Password,
+    pub password: Secret<String>,
     pub host: String,
     pub port: u16,
     pub dbname: String,
@@ -441,7 +530,6 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[cfg(not(feature = "kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
         Self {
@@ -463,107 +551,6 @@ impl From<Database> for storage_impl::config::Database {
 #[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct Connectors {
-    pub aci: ConnectorParams,
-    #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
-    #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
-    pub airwallex: ConnectorParams,
-    pub applepay: ConnectorParams,
-    pub authorizedotnet: ConnectorParams,
-    pub bambora: ConnectorParams,
-    pub bankofamerica: ConnectorParams,
-    pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
-    pub boku: ConnectorParams,
-    pub braintree: ConnectorParams,
-    pub cashtocode: ConnectorParams,
-    pub checkout: ConnectorParams,
-    pub coinbase: ConnectorParams,
-    pub cryptopay: ConnectorParams,
-    pub cybersource: ConnectorParams,
-    pub dlocal: ConnectorParams,
-    #[cfg(feature = "dummy_connector")]
-    pub dummyconnector: ConnectorParams,
-    pub fiserv: ConnectorParams,
-    pub forte: ConnectorParams,
-    pub globalpay: ConnectorParams,
-    pub globepay: ConnectorParams,
-    pub gocardless: ConnectorParams,
-    pub helcim: ConnectorParams,
-    pub iatapay: ConnectorParams,
-    pub klarna: ConnectorParams,
-    pub mollie: ConnectorParams,
-    pub multisafepay: ConnectorParams,
-    pub nexinets: ConnectorParams,
-    pub nmi: ConnectorParams,
-    pub noon: ConnectorParamsWithModeType,
-    pub nuvei: ConnectorParams,
-    pub opayo: ConnectorParams,
-    pub opennode: ConnectorParams,
-    pub payeezy: ConnectorParams,
-    pub payme: ConnectorParams,
-    pub paypal: ConnectorParams,
-    pub payu: ConnectorParams,
-    pub placetopay: ConnectorParams,
-    pub powertranz: ConnectorParams,
-    pub prophetpay: ConnectorParams,
-    pub rapyd: ConnectorParams,
-    pub riskified: ConnectorParams,
-    pub shift4: ConnectorParams,
-    pub signifyd: ConnectorParams,
-    pub square: ConnectorParams,
-    pub stax: ConnectorParams,
-    pub stripe: ConnectorParamsWithFileUploadUrl,
-    pub trustpay: ConnectorParamsWithMoreUrls,
-    pub tsys: ConnectorParams,
-    pub volt: ConnectorParams,
-    pub wise: ConnectorParams,
-    pub worldline: ConnectorParams,
-    pub worldpay: ConnectorParams,
-    pub zen: ConnectorParams,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParams {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithModeType {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-    /// Can take values like Test or Live for Noon
-    pub key_mode: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithMoreUrls {
-    pub base_url: String,
-    pub base_url_bank_redirects: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithFileUploadUrl {
-    pub base_url: String,
-    pub base_url_file_upload: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithSecondaryBaseUrl {
-    pub base_url: String,
-    pub secondary_base_url: String,
 }
 
 #[cfg(feature = "kv_store")]
@@ -594,15 +581,9 @@ pub struct WebhookIgnoreErrorSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
-    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
-    /// keys
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: kms::KmsValue,
-
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
-    #[cfg(not(feature = "kms"))]
-    pub hash_key: String,
+    pub hash_key: Secret<String>,
 
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
@@ -612,21 +593,21 @@ pub struct ApiKeys {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+    pub connectors_with_delayed_session_response: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct WebhookSourceVerificationCall {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
+    pub connectors_with_webhook_source_verification_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConifg {
-    pub apple_pay_ppc: String,
-    pub apple_pay_ppc_key: String,
-    pub apple_pay_merchant_cert: String,
-    pub apple_pay_merchant_cert_key: String,
+    pub apple_pay_ppc: Secret<String>,
+    pub apple_pay_ppc_key: Secret<String>,
+    pub apple_pay_merchant_cert: Secret<String>,
+    pub apple_pay_merchant_cert_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -634,7 +615,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-impl Settings {
+impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
     }
@@ -681,9 +662,9 @@ impl Settings {
 
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
-        self.master_database.validate()?;
+        self.master_database.get_inner().validate()?;
         #[cfg(feature = "olap")]
-        self.replica_database.validate()?;
+        self.replica_database.get_inner().validate()?;
         self.redis.validate().map_err(|error| {
             println!("{error}");
             ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
@@ -701,9 +682,11 @@ impl Settings {
                 ));
             }
         }
-        self.secrets.validate()?;
+        self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+
+        self.cors.validate()?;
 
         self.scheduler
             .as_ref()
@@ -711,11 +694,7 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.api_keys.validate()?;
-        #[cfg(feature = "kms")]
-        self.kms
-            .validate()
-            .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
+        self.api_keys.get_inner().validate()?;
 
         self.file_storage
             .validate()
@@ -723,7 +702,30 @@ impl Settings {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        #[cfg(feature = "olap")]
+        self.opensearch.validate()?;
+
+        self.encryption_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.secrets_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
+    }
+}
+
+impl Settings<RawSecret> {
+    #[cfg(feature = "kv_store")]
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        self.kv_config.soft_kill.unwrap_or(false)
+    }
+
+    #[cfg(not(feature = "kv_store"))]
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        false
     }
 }
 
@@ -771,9 +773,9 @@ pub struct ConnectorOnboarding {
 #[cfg(feature = "olap")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PayPalOnboarding {
-    pub client_id: masking::Secret<String>,
-    pub client_secret: masking::Secret<String>,
-    pub partner_id: masking::Secret<String>,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub partner_id: Secret<String>,
     pub enabled: bool,
 }
 

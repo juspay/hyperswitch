@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl CaptureNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Capture> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Capture {
-    #[instrument(skip(conn))]
     pub async fn find_by_capture_id(conn: &PgPooledConn, capture_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -25,7 +22,7 @@ impl Capture {
         )
         .await
     }
-    #[instrument(skip(conn))]
+
     pub async fn update_with_capture_id(
         self,
         conn: &PgPooledConn,
@@ -51,7 +48,6 @@ impl Capture {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_all_by_merchant_id_payment_id_authorized_attempt_id(
         merchant_id: &str,
         payment_id: &str,

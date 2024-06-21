@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 pub use common_utils::request::Method;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, pii::Email};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -18,11 +18,11 @@ use crate::{
 pub struct CashtocodePaymentsRequest {
     amount: f64,
     transaction_id: String,
-    user_id: Secret<String>,
+    user_id: Secret<id_type::CustomerId>,
     currency: enums::Currency,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
-    user_alias: Secret<String>,
+    user_alias: Secret<id_type::CustomerId>,
     requested_url: String,
     cancel_url: String,
     email: Option<Email>,
@@ -57,8 +57,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
             &item.connector_auth_type,
             item.request.payment_method_type,
             item.request.currency,
-        )
-        .into_report()?;
+        )?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: utils::to_currency_base_unit_asf64(
@@ -168,7 +167,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
@@ -176,20 +175,20 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CashtocodePaymentsResponse {
     CashtoCodeError(CashtocodeErrorResponse),
     CashtoCodeData(CashtocodePaymentsResponseData),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
     pub pay_url: url::Url,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
@@ -204,13 +203,13 @@ fn get_redirect_form_data(
         enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
             endpoint: response_data.pay_url.to_string(),
-            method: services::Method::Post,
+            method: Method::Post,
             form_fields: Default::default(),
         }),
         enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
             //here the pay url gets parsed, and query params are sent as formfields as the connector expects
             response_data.pay_url,
-            services::Method::Get,
+            Method::Get,
         ))),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("CashToCode"),
@@ -269,6 +268,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                 )
             }
@@ -313,13 +313,14 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CashtocodeErrorResponse {
     pub error: serde_json::Value,
     pub error_description: String,
