@@ -8,6 +8,7 @@ use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -22,7 +23,7 @@ use crate::{
     db::StorageInterface,
     events::outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
     logger,
-    routes::{app::SessionStateInfo, metrics::request::add_attributes, SessionState},
+    routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
         api,
@@ -501,7 +502,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
             crate::routes::metrics::TASKS_ADDED_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[add_attributes("flow", "OutgoingWebhookRetry")],
+                &add_attributes([("flow", "OutgoingWebhookRetry")]),
             );
             Ok(process_tracker)
         }
@@ -509,7 +510,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
             crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[add_attributes("flow", "OutgoingWebhookRetry")],
+                &add_attributes([("flow", "OutgoingWebhookRetry")]),
             );
             Err(error)
         }

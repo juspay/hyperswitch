@@ -2,12 +2,17 @@ pub mod flow_common_types;
 
 use std::{marker::PhantomData, ops::Deref};
 
-pub use flow_common_types::*;
+#[cfg(feature = "payouts")]
+pub use flow_common_types::PayoutFlowData;
+pub use flow_common_types::{
+    AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+    FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
+};
 
 use crate::router_data::{ConnectorAuthType, ErrorResponse};
 
 #[derive(Debug, Clone)]
-pub struct RouterDataNew<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse> {
+pub struct RouterDataV2<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse> {
     pub flow: PhantomData<Flow>,
     pub resource_common_data: ResourceCommonData,
     pub connector_auth_type: ConnectorAuthType,
@@ -18,7 +23,7 @@ pub struct RouterDataNew<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpec
 }
 
 impl<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse> Deref
-    for RouterDataNew<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse>
+    for RouterDataV2<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse>
 {
     type Target = ResourceCommonData;
     fn deref(&self) -> &Self::Target {

@@ -9,8 +9,9 @@ license.workspace = true
 
 [features]
 signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
-async_ext = ["dep:futures", "dep:async-trait"]
+async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
+metrics = ["dep:router_env", "dep:futures"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
@@ -29,7 +30,9 @@ rand = "0.8.5"
 regex = "1.10.4"
 reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = { version = "0.17.8", features = ["std", "wasm32_unknown_unknown_js"] }
+rust_decimal = "1.35"
 rustc-hash = "1.1.0"
+semver = { version = "1.0.22", features = ["serde"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 serde_urlencoded = "0.7.1"
@@ -38,12 +41,10 @@ strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional = true }
-semver = { version = "1.0.22", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
 
 # First party crates
-rust_decimal = "1.35"
 rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }

@@ -19,17 +19,22 @@ use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
-pub use hyperswitch_interfaces::api::{
-    BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Tera};
@@ -51,8 +56,7 @@ use crate::{
     logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
-        metrics::{self, request as metrics_request},
-        AppState, SessionState,
+        metrics, AppState, SessionState,
     },
     types::{
         self,
@@ -178,9 +182,9 @@ where
             metrics::CONNECTOR_CALL_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    ("connector", req.connector.to_string()),
+                    (
                         "flow",
                         std::any::type_name::<T>()
                             .split("::")
@@ -188,7 +192,7 @@ where
                             .unwrap_or_default()
                             .to_string(),
                     ),
-                ],
+                ]),
             );
 
             let connector_request = match connector_request {
@@ -204,10 +208,7 @@ where
                             metrics::REQUEST_BUILD_FAILURE.add(
                                 &metrics::CONTEXT,
                                 1,
-                                &[metrics::request::add_attributes(
-                                    "connector",
-                                    req.connector.to_string(),
-                                )],
+                                &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
                         error
@@ -272,10 +273,10 @@ where
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
                                                 &metrics::CONTEXT,
                                                 1,
-                                                &[metrics::request::add_attributes(
+                                                &add_attributes([(
                                                     "connector",
                                                     req.connector.to_string(),
-                                                )],
+                                                )]),
                                             )
                                         }
                                             error
@@ -313,10 +314,7 @@ where
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
-                                        &[metrics::request::add_attributes(
-                                            "connector",
-                                            req.connector.clone(),
-                                        )],
+                                        &add_attributes([("connector", req.connector.clone())]),
                                     );
 
                                     let error = match body.status_code {
@@ -338,6 +336,7 @@ where
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
@@ -542,9 +541,10 @@ pub async fn send_request(
             .attach_printable("Unable to send request to connector")
     };
 
-    let response = metrics_request::record_operation_time(
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
+        &metrics::CONTEXT,
         &[metrics_tag.clone()],
     )
     .await;
@@ -569,9 +569,10 @@ pub async fn send_request(
                     logger::info!(
                         "Retrying request due to connection closed before message could complete"
                     );
-                    metrics_request::record_operation_time(
+                    common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
                         &[metrics_tag],
                     )
                     .await
@@ -789,10 +790,10 @@ where
         .into_iter()
         .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        common_utils::consts::DEFAULT_TENANT.to_string()
+        DEFAULT_TENANT.to_string()
     } else {
         incoming_request_header
-            .get("x-tenant-id")
+            .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
             .map(|req_tenant_id| {
@@ -915,7 +916,11 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
+    metrics::request::status_code_metrics(
+        status_code.to_string(),
+        flow.to_string(),
+        merchant_id.to_string(),
+    );
 
     output
 }

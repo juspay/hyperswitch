@@ -123,12 +123,14 @@ pub struct Settings<S: SecretState> {
     pub unmasked_headers: UnmaskedHeaders,
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+    pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
+    pub global_tenant: GlobalTenant,
 }
 
 impl Multitenancy {
@@ -153,6 +155,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -161,6 +164,12 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
+    }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
     }
 }
 
@@ -605,6 +614,11 @@ pub struct ApplePayDecryptConifg {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UserAuthMethodSettings {
+    pub encryption_key: Secret<String>,
 }
 
 impl Settings<SecuredSecret> {
