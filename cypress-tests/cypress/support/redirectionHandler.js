@@ -198,6 +198,24 @@ function bankRedirectRedirection(
       }
       verifyUrl = true;
       break;
+    case "paypal":
+      switch (payment_method_type) {
+        case "eps":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+          break;
+        case "ideal":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+          break;
+        case "giropay":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+          break;
+        default:
+          throw new Error(
+            `Unsupported payment method type: ${payment_method_type}`
+          );
+      }
+      verifyUrl = true;
+      break;
     case "stripe":
       switch (payment_method_type) {
         case "eps":
