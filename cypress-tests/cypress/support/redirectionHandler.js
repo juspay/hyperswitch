@@ -264,13 +264,8 @@ function bankRedirectRedirection(
           cy.get("input#submitButton.btn.btn-primary").click();
           break;
         case "ideal":
-          cy.get("p").should(
-            "contain.text",
-            "Choose your iDeal Issuer Bank please"
-          );
-          cy.get("#issuerSearchInput").click();
-          cy.get("#issuerSearchInput").type("ING{enter}");
-          cy.get("#trustpay__selectIssuer_submit").click();
+          cy.contains("button", "Select your bank").click();
+          cy.get('[data-testid="ideal-box-bank-item-INGBNL2A"]').click();
           break;
         case "giropay":
           cy.get("._transactionId__header__iXVd_").should(
