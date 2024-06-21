@@ -743,7 +743,6 @@ impl AuthoriseIntegrityObject {
     }
 }
 
-
 /// Sync flow integrity object
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyncIntegrityObject {
@@ -785,7 +784,6 @@ impl ConnectorIntegrity for AuthoriseIntegrityObject {
             mismatched_fields.push("currency".to_string());
         }
 
-
         if mismatched_fields.is_empty() {
             println!("integrity check passed");
             Ok(())
@@ -825,7 +823,6 @@ impl ConnectorIntegrity for SyncIntegrityObject {
             mismatched_fields.push("currency".to_string());
         }
 
-
         if mismatched_fields.is_empty() {
             Ok(())
         } else {
@@ -843,4 +840,3 @@ pub trait RequestIntegrity<T: ConnectorIntegrity> {
     fn get_response_integrity_object(&self) -> Option<T::IntegrityObject>;
     fn get_request_integrity_object(&self) -> T::IntegrityObject;
 }
-
