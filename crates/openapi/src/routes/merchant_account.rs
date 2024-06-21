@@ -41,6 +41,34 @@
 )]
 pub async fn merchant_account_create() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Create
+///
+/// Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.
+#[utoipa::path(
+    post,
+    path = "/v2/accounts",
+    request_body(
+        content = MerchantAccountCreateV2,
+        examples(
+            (
+                "Create a merchant account with minimal fields" = (
+                    value = json!({"id": "merchant_abc"})
+                )
+            ),
+        )
+
+    ),
+    responses(
+        (status = 200, description = "Merchant Account has been Successfully Created", body = MerchantAccountResponseV2),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Create a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_create_v2() {}
+
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a *merchant* account details.
