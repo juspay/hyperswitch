@@ -2,10 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{
-    consts, errors,
-    ext_traits::OptionExt,
-    id_type, pii, types as common_types,
-    types::{AuthoriseIntegrityObject, MinorUnit, RequestIntegrity, SyncIntegrityObject},
+    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -18,9 +15,7 @@ use crate::{
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
-    router_flow_types as flows,
-    router_flow_types::payments as api,
-    router_response_types as response_types,
+    router_flow_types as flows, router_response_types as response_types,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -70,18 +65,34 @@ pub struct PaymentsAuthorizeData {
     pub integrity_object: Option<AuthoriseIntegrityObject>,
 }
 
-impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
-    fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
-        self.integrity_object.clone()
-    }
-
-    fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
-        AuthoriseIntegrityObject {
-            amount: self.minor_amount,
-            currency: self.currency,
-        }
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct AuthoriseIntegrityObject {
+    /// Authorise amount
+    pub amount: MinorUnit,
+    /// Authorise currency
+    pub currency: storage_enums::Currency,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyncIntegrityObject {
+    /// Sync amount
+    pub amount: Option<MinorUnit>,
+    /// Sync currency
+    pub currency: Option<storage_enums::Currency>,
+}
+
+// impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
+//     fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
+//         self.integrity_object.clone()
+//     }
+
+//     fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
+//         AuthoriseIntegrityObject {
+//             amount: self.minor_amount,
+//             currency: self.currency,
+//         }
+//     }
+// }
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct PaymentCharges {
@@ -372,18 +383,18 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<SyncIntegrityObject>,
 }
 
-impl RequestIntegrity<SyncIntegrityObject> for PaymentsSyncData {
-    fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
-        self.integrity_object.clone()
-    }
+// impl RequestIntegrity<SyncIntegrityObject> for PaymentsSyncData {
+//     fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
+//         self.integrity_object.clone()
+//     }
 
-    fn get_request_integrity_object(&self) -> SyncIntegrityObject {
-        SyncIntegrityObject {
-            amount: Some(self.amount),
-            currency: Some(self.currency),
-        }
-    }
-}
+//     fn get_request_integrity_object(&self) -> SyncIntegrityObject {
+//         SyncIntegrityObject {
+//             amount: Some(self.amount),
+//             currency: Some(self.currency),
+//         }
+//     }
+// }
 
 #[derive(Debug, Default, Clone)]
 pub enum SyncRequestType {

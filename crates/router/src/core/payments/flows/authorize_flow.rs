@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use common_utils::types::ConnectorIntegrity;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;

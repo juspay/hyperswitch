@@ -16,11 +16,15 @@ use common_utils::{
     ext_traits::StringExt,
     id_type,
     pii::{self, Email, IpAddress},
-    types::{AmountConvertor, AuthoriseIntegrityObject, MinorUnit, SyncIntegrityObject},
+    types::{AmountConvertor, MinorUnit},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
+use hyperswitch_domain_models::{
+    mandates,
+    payments::payment_attempt::PaymentAttempt,
+    router_request_types::{AuthoriseIntegrityObject, SyncIntegrityObject},
+};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;

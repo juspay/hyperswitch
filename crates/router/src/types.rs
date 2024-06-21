@@ -20,13 +20,7 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-pub use common_utils::{
-    pii,
-    pii::Email,
-    request::RequestContent,
-    types::{AuthoriseIntegrityObject, MinorUnit},
-};
-
+pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{

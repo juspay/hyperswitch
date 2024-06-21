@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::enums::PaymentMethod;
 use common_utils::{errors::CustomResult, ext_traits::Encode, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};

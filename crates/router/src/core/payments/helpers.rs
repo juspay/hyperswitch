@@ -9,7 +9,7 @@ use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type, pii,
-    types::{ConnectorIntegrity, MinorUnit, RequestIntegrity},
+    types::MinorUnit,
 };
 use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
@@ -18,9 +18,9 @@ use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-    router_flow_types::payments as sahkal,
     router_data::KlarnaSdkResponse,
 };
+use hyperswitch_interfaces::integrity::{ConnectorIntegrity, FlowType, RequestIntegrity};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -4804,61 +4804,61 @@ where
     flow.check_integrity(&request, connector_transaction_id)
 }
 
-pub trait FlowType<Request, T> {
-    fn check_integrity(
-        &self,
-        request: &Request,
-        connector_transaction_id: Option<String>,
-    ) -> Result<(), common_utils::errors::IntegrityCheckError>;
-}
+// pub trait FlowType<Request, T> {
+//     fn check_integrity(
+//         &self,
+//         request: &Request,
+//         connector_transaction_id: Option<String>,
+//     ) -> Result<(), common_utils::errors::IntegrityCheckError>;
+// }
 
-impl<T, Request> FlowType<Request, T> for sahkal::Authorize
-where
-    T: ConnectorIntegrity,
-    Request: RequestIntegrity<T>,
-{
-    fn check_integrity(
-        &self,
-        request: &Request,
-        connector_transaction_id: Option<String>,
-    ) -> Result<(), common_utils::errors::IntegrityCheckError> {
-        match request.get_response_integrity_object() {
-            Some(res_integrity_object) => {
-                let req_integrity_object = request.get_request_integrity_object();
-                T::compare(
-                    req_integrity_object,
-                    res_integrity_object,
-                    connector_transaction_id,
-                )
-            }
-            None => Ok(()),
-        }
-    }
-}
+// impl<T, Request> FlowType<Request, T> for sahkal::Authorize
+// where
+//     T: ConnectorIntegrity,
+//     Request: RequestIntegrity<T>,
+// {
+//     fn check_integrity(
+//         &self,
+//         request: &Request,
+//         connector_transaction_id: Option<String>,
+//     ) -> Result<(), common_utils::errors::IntegrityCheckError> {
+//         match request.get_response_integrity_object() {
+//             Some(res_integrity_object) => {
+//                 let req_integrity_object = request.get_request_integrity_object();
+//                 T::compare(
+//                     req_integrity_object,
+//                     res_integrity_object,
+//                     connector_transaction_id,
+//                 )
+//             }
+//             None => Ok(()),
+//         }
+//     }
+// }
 
-impl<T, Request> FlowType<Request, T> for sahkal::PSync
-where
-    T: ConnectorIntegrity,
-    Request: RequestIntegrity<T>,
-{
-    fn check_integrity(
-        &self,
-        request: &Request,
-        connector_transaction_id: Option<String>,
-    ) -> Result<(), common_utils::errors::IntegrityCheckError> {
-        match request.get_response_integrity_object() {
-            Some(res_integrity_object) => {
-                let req_integrity_object = request.get_request_integrity_object();
-                T::compare(
-                    req_integrity_object,
-                    res_integrity_object,
-                    connector_transaction_id,
-                )
-            }
-            None => Ok(()),
-        }
-    }
-}
+// impl<T, Request> FlowType<Request, T> for sahkal::PSync
+// where
+//     T: ConnectorIntegrity,
+//     Request: RequestIntegrity<T>,
+// {
+//     fn check_integrity(
+//         &self,
+//         request: &Request,
+//         connector_transaction_id: Option<String>,
+//     ) -> Result<(), common_utils::errors::IntegrityCheckError> {
+//         match request.get_response_integrity_object() {
+//             Some(res_integrity_object) => {
+//                 let req_integrity_object = request.get_request_integrity_object();
+//                 T::compare(
+//                     req_integrity_object,
+//                     res_integrity_object,
+//                     connector_transaction_id,
+//                 )
+//             }
+//             None => Ok(()),
+//         }
+//     }
+// }
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &String,

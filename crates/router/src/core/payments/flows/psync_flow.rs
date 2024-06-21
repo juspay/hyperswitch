@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use common_utils::types::ConnectorIntegrity;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
