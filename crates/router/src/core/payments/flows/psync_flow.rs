@@ -9,7 +9,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
-    routes::AppState,
+    routes::SessionState,
     services::{self, logger},
     types::{self, api, domain, storage},
 };
@@ -20,7 +20,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -51,7 +51,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 {
     async fn decide_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
@@ -116,16 +116,18 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -167,7 +169,7 @@ where
 {
     async fn execute_connector_processing_step_for_each_capture(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _pending_connector_capture_id_list: Vec<String>,
         _call_connector_action: payments::CallConnectorAction,
         _connector_integration: services::BoxedConnectorIntegration<
@@ -185,7 +187,7 @@ impl RouterDataPSync
 {
     async fn execute_connector_processing_step_for_each_capture(
         &self,
-        state: &AppState,
+        state: &SessionState,
         pending_connector_capture_id_list: Vec<String>,
         call_connector_action: payments::CallConnectorAction,
         connector_integration: services::BoxedConnectorIntegration<

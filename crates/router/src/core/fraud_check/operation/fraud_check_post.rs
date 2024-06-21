@@ -38,7 +38,7 @@ use crate::{
         },
         ResponseId,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -73,7 +73,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: PaymentToFrmData,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
@@ -142,7 +142,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         _req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
@@ -182,7 +182,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     #[instrument(skip_all)]
     async fn execute_post_tasks(
         &self,
-        state: &AppState,
+        state: &SessionState,
         req_state: ReqState,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -293,7 +293,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     #[instrument(skip_all)]
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -330,6 +330,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
         payment_data: &mut payments::PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
@@ -520,6 +521,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                         merchant_decision,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
+                    key_store,
                     frm_data.merchant_account.storage_scheme,
                 )
                 .await

@@ -270,6 +270,8 @@ pub enum StripeErrorCode {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant")]
+    InvalidTenant,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -661,6 +663,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 field_names,
                 connector_transaction_id,
             },
+            errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
+            | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
         }
     }
 }
@@ -740,7 +744,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
-            | Self::WebhookProcessingError => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::WebhookProcessingError
+            | Self::InvalidTenant => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)

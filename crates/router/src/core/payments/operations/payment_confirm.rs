@@ -29,7 +29,8 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -48,7 +49,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         merchant_account: &domain::MerchantAccount,
@@ -73,6 +74,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 m_merchant_id.as_str(),
+                key_store,
                 storage_scheme,
             )
             .await
@@ -303,6 +305,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             payment_intent,
                             payment_attempt,
                             &*state.store,
+                            key_store,
                             storage_scheme,
                         )
                         .await?;
@@ -687,7 +690,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
@@ -717,7 +720,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_attempt: &storage::PaymentAttempt,
         requeue: bool,
         schedule_time: Option<time::PrimitiveDateTime>,
@@ -732,7 +735,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
             async move {
                 helpers::add_domain_task_to_pt(
                     &m_self,
-                    m_state.as_ref(),
+                    &m_state,
                     &m_payment_attempt,
                     requeue,
                     schedule_time,
@@ -748,7 +751,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
@@ -761,7 +764,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
-        state: &AppState,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -770,7 +773,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
-        state: &AppState,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
@@ -857,17 +860,24 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        state: &AppState,
+        state: &SessionState,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, merchant_account, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            merchant_account,
+            key_store,
+            payment_data,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
-        state: &AppState,
+        state: &SessionState,
         payment_id: &str,
         business_profile: &storage::BusinessProfile,
         payment_method_data: &Option<api::PaymentMethodData>,
@@ -934,8 +944,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b AppState,
-        _req_state: ReqState,
+        state: &'b SessionState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -1217,6 +1227,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
+        let m_key_store = key_store.clone();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1245,6 +1256,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                     },
+                    &m_key_store,
                     storage_scheme,
                 )
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
@@ -1294,6 +1306,19 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
 
+        let client_src = payment_data.payment_attempt.client_source.clone();
+        let client_ver = payment_data.payment_attempt.client_version.clone();
+
+        let frm_message = payment_data.frm_message.clone();
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentConfirm {
+                client_src,
+                client_ver,
+                frm_message,
+            }))
+            .with(payment_data.to_event())
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }

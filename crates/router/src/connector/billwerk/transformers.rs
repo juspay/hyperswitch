@@ -99,6 +99,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Crypto(_)
             | domain::payments::PaymentMethodData::MandatePayment
             | domain::payments::PaymentMethodData::Reward
+            | domain::payments::PaymentMethodData::RealTimePayment(_)
             | domain::payments::PaymentMethodData::Upi(_)
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)

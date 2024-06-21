@@ -277,6 +277,10 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
+    MissingTenantId,
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
+    InvalidTenant { tenant_id: String },
 }
 
 #[derive(Clone)]
@@ -621,7 +625,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                     connector_transaction_id: connector_transaction_id.to_owned(),
                     ..Default::default()
                 })
-            ))
+            )),
+            Self::MissingTenantId => {
+                AER::InternalServerError(ApiError::new("HE", 6, "Missing Tenant ID in the request".to_string(), None))
+            }
+            Self::InvalidTenant { tenant_id }  => {
+                AER::InternalServerError(ApiError::new("HE", 6, format!("Invalid Tenant {tenant_id}"), None))
+            }
         }
     }
 }

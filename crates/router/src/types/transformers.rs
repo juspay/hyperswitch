@@ -209,6 +209,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
+            api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
@@ -223,6 +224,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
+            // api_enums::Connector::Datatrans => Self::Datatrans,  added as template code for future use
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -238,7 +240,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Klarna => Self::Klarna,
-            // api_enums::Connector::Mifinity => Self::Mifinity, Added as template code for future usage
+            api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
@@ -436,7 +438,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Momo
             | api_enums::PaymentMethodType::Cashapp
             | api_enums::PaymentMethodType::KakaoPay
-            | api_enums::PaymentMethodType::Venmo => Self::Wallet,
+            | api_enums::PaymentMethodType::Venmo
+            | api_enums::PaymentMethodType::Mifinity => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -450,6 +453,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::LocalBankRedirect
             | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
@@ -506,6 +510,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
             | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
+            api_enums::PaymentMethodType::Fps
+            | api_enums::PaymentMethodType::DuitNow
+            | api_enums::PaymentMethodType::PromptPay
+            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
         }
     }
 }
@@ -526,6 +534,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
             payments::PaymentMethodData::Reward => Ok(Self::Reward),
+            payments::PaymentMethodData::RealTimePayment(..) => Ok(Self::RealTimePayment),
             payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
@@ -547,6 +556,29 @@ impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventTyp
             api_enums::RefundStatus::ManualReview
             | api_enums::RefundStatus::Pending
             | api_enums::RefundStatus::TransactionFailure => None,
+        }
+    }
+}
+
+impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::PayoutStatus) -> Self {
+        match value {
+            storage_enums::PayoutStatus::Success => Some(storage_enums::EventType::PayoutSuccess),
+            storage_enums::PayoutStatus::Failed => Some(storage_enums::EventType::PayoutFailed),
+            storage_enums::PayoutStatus::Cancelled => {
+                Some(storage_enums::EventType::PayoutCancelled)
+            }
+            storage_enums::PayoutStatus::Initiated => {
+                Some(storage_enums::EventType::PayoutInitiated)
+            }
+            storage_enums::PayoutStatus::Expired => Some(storage_enums::EventType::PayoutExpired),
+            storage_enums::PayoutStatus::Reversed => Some(storage_enums::EventType::PayoutReversed),
+            storage_enums::PayoutStatus::Ineligible
+            | storage_enums::PayoutStatus::Pending
+            | storage_enums::PayoutStatus::RequiresCreation
+            | storage_enums::PayoutStatus::RequiresFulfillment
+            | storage_enums::PayoutStatus::RequiresPayoutMethodData
+            | storage_enums::PayoutStatus::RequiresVendorAccountCreation => None,
         }
     }
 }
@@ -584,6 +616,28 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
         match value {
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::PayoutStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess => Ok(Self::Success),
+            api_models::webhooks::IncomingWebhookEvent::PayoutFailure => Ok(Self::Failed),
+            api_models::webhooks::IncomingWebhookEvent::PayoutCancelled => Ok(Self::Cancelled),
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing => Ok(Self::Pending),
+            api_models::webhooks::IncomingWebhookEvent::PayoutCreated => Ok(Self::Initiated),
+            api_models::webhooks::IncomingWebhookEvent::PayoutExpired => Ok(Self::Expired),
+            api_models::webhooks::IncomingWebhookEvent::PayoutReversed => Ok(Self::Reversed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type",
             }),

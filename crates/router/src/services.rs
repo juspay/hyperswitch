@@ -13,12 +13,17 @@ pub mod recon;
 #[cfg(feature = "email")]
 pub mod email;
 
+use std::sync::Arc;
+
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::StorageResult;
+pub use hyperswitch_interfaces::connector_integration_v2::{
+    BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+};
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
-use storage_impl::RouterStore;
+use storage_impl::{config::TenantConfig, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
@@ -40,7 +45,8 @@ pub type Store = KVRouterStore<StoreType>;
 #[allow(clippy::expect_used)]
 pub async fn get_store(
     config: &Settings,
-    shut_down_signal: oneshot::Sender<()>,
+    tenant: &dyn TenantConfig,
+    cache_store: Arc<RedisStore>,
     test_transaction: bool,
 ) -> StorageResult<Store> {
     let master_config = config.master_database.clone().into_inner();
@@ -61,13 +67,13 @@ pub async fn get_store(
     let conf = (master_config.into(), replica_config.into());
 
     let store: RouterStore<StoreType> = if test_transaction {
-        RouterStore::test_store(conf, &config.redis, master_enc_key).await?
+        RouterStore::test_store(conf, tenant, &config.redis, master_enc_key).await?
     } else {
         RouterStore::from_config(
             conf,
-            &config.redis,
+            tenant,
             master_enc_key,
-            shut_down_signal,
+            cache_store,
             storage_impl::redis::cache::PUB_SUB_CHANNEL,
         )
         .await?
@@ -83,6 +89,15 @@ pub async fn get_store(
     );
 
     Ok(store)
+}
+
+#[allow(clippy::expect_used)]
+pub async fn get_cache_store(
+    config: &Settings,
+    shut_down_signal: oneshot::Sender<()>,
+    _test_transaction: bool,
+) -> StorageResult<Arc<RedisStore>> {
+    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
 }
 
 #[inline]

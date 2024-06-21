@@ -1,5 +1,9 @@
 pub mod types;
 
+use std::fmt::Debug;
+
+use serde::{Deserialize, Serialize};
+
 use crate::{
     backend::{self, inputs, EuclidBackend},
     frontend::{
@@ -9,6 +13,7 @@ use crate::{
     },
 };
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VirInterpreterBackend<O> {
     program: vir::ValuedProgram<O>,
 }

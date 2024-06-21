@@ -119,6 +119,8 @@ diesel::table! {
         ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
         directory_server_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_country_code -> Nullable<Varchar>,
     }
 }
 
@@ -679,6 +681,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
+        connector_wallets_details -> Nullable<Bytea>,
     }
 }
 
@@ -709,8 +712,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_attempt (id) {
-        id -> Int4,
+    payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -799,8 +801,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_intent (id) {
-        id -> Int4,
+    payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -967,7 +968,7 @@ diesel::table! {
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
-        connector_payout_id -> Varchar,
+        connector_payout_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_token -> Nullable<Varchar>,
         status -> PayoutStatus,
@@ -1001,7 +1002,7 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         address_id -> Varchar,
-        payout_type -> PayoutType,
+        payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         amount -> Int8,
@@ -1023,6 +1024,8 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
+        #[max_length = 32]
+        priority -> Nullable<Varchar>,
     }
 }
 
@@ -1218,7 +1221,7 @@ diesel::table! {
         #[max_length = 255]
         name -> Varchar,
         #[max_length = 255]
-        password -> Varchar,
+        password -> Nullable<Varchar>,
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,

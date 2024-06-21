@@ -9,7 +9,7 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, storage},
 };
@@ -24,7 +24,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -51,7 +51,7 @@ impl
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
@@ -78,16 +78,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
@@ -104,7 +106,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn create_connector_customer<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
@@ -118,7 +120,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {

@@ -29,8 +29,6 @@ pub enum ApiEventsType {
         customer_id: id_type::CustomerId,
     },
     User {
-        //specified merchant_id will overridden on global defined
-        merchant_id: String,
         user_id: String,
     },
     PaymentMethodList {
@@ -50,6 +48,7 @@ pub enum ApiEventsType {
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
     RustLocker,
+    ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
     Dispute {

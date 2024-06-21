@@ -258,7 +258,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = cryptopay::CryptopayRouterData::try_from((amount, req))?;
+        let connector_router_data = cryptopay::CryptopayRouterData::from((amount, req));
         let connector_req = cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -297,7 +297,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        let capture_amount_core = match response.data.price_amount {
+        let capture_amount_in_minor_units = match response.data.price_amount {
             Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
@@ -311,8 +311,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
-            capture_amount_core,
+            capture_amount_in_minor_units,
         ))
     }
 
@@ -393,7 +392,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        let capture_amount_core = match response.data.price_amount {
+        let capture_amount_in_minor_units = match response.data.price_amount {
             Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
@@ -407,8 +406,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
-            capture_amount_core,
+            capture_amount_in_minor_units,
         ))
     }
 

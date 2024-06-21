@@ -81,6 +81,7 @@ outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webh
 dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
 payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
+consolidated_events_topic = "topic"   # Kafka topic to be used for Consolidated events
 
 # File storage configuration
 [file_storage]
@@ -138,6 +139,7 @@ otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
+bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
 
 [lock_settings]
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
@@ -229,7 +231,6 @@ recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authent
 
 # Server configuration
 [server]
-base_url = "https://server_base_url"
 workers = 8
 port = 8080
 host = "127.0.0.1"
@@ -252,3 +253,10 @@ encryption_manager = "aws_kms" # Encryption manager client to be used
 [encryption_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+[multitenancy]
+enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}

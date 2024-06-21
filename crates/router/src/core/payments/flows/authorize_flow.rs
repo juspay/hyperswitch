@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use common_utils::types::ConnectorIntegrity;
+use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -12,9 +13,9 @@ use crate::{
         },
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
 #[async_trait]
@@ -27,7 +28,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -59,7 +60,7 @@ impl
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
@@ -106,16 +107,50 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
+    }
+
+    async fn add_session_token<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized,
+    {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::AuthorizeSessionToken,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
+            &self,
+            types::AuthorizeSessionTokenData::foreign_from(&self),
+        ));
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            authorize_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+        let mut router_data = self;
+        router_data.session_token = resp.session_token;
+        Ok(router_data)
     }
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
@@ -132,7 +167,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn preprocessing_steps<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         authorize_preprocessing_steps(state, &self, true, connector).await
@@ -140,7 +175,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn create_connector_customer<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
@@ -154,7 +189,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -186,21 +221,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                connector_integration
-                    .execute_pretasks(self, state)
-                    .await
-                    .to_payment_failed_response()?;
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[
-                        metrics::request::add_attributes(
-                            "connector",
-                            connector.connector_name.to_string(),
-                        ),
-                        metrics::request::add_attributes("flow", format!("{:?}", api::Authorize)),
-                    ],
+                    &add_attributes([
+                        ("connector", connector.connector_name.to_string()),
+                        ("flow", format!("{:?}", api::Authorize)),
+                    ]),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -279,7 +307,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 }
 
 pub async fn authorize_preprocessing_steps<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     confirm: bool,
     connector: &api::ConnectorData,
@@ -318,13 +346,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[
-                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
-                metrics::request::add_attributes(
-                    "payment_method",
-                    router_data.payment_method.to_string(),
-                ),
-                metrics::request::add_attributes(
+            &add_attributes([
+                ("connector", connector.connector_name.to_string()),
+                ("payment_method", router_data.payment_method.to_string()),
+                (
                     "payment_method_type",
                     router_data
                         .request
@@ -333,15 +358,33 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                         .map(|inner| inner.to_string())
                         .unwrap_or("null".to_string()),
                 ),
-            ],
+            ]),
         );
-
-        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+        let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),
             router_data.request.to_owned(),
-            resp.response,
+            resp.response.clone(),
         );
-
+        if connector.connector_name == api_models::enums::Connector::Airwallex {
+            authorize_router_data.reference_id = resp.reference_id;
+        } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+            let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
+                Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                }) => (*enrolled_v2, related_transaction_id.clone()),
+                _ => (false, None),
+            };
+            authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+            authorize_router_data.request.related_transaction_id = related_transaction_id;
+        } else if connector.connector_name == api_models::enums::Connector::Shift4 {
+            if resp.request.enrolled_for_3ds {
+                authorize_router_data.response = resp.response;
+                authorize_router_data.status = resp.status;
+            } else {
+                authorize_router_data.request.enrolled_for_3ds = false;
+            }
+        }
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())

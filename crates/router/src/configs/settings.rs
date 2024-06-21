@@ -17,6 +17,7 @@ use external_services::{
         secrets_management::SecretsManagementConfig,
     },
 };
+pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
@@ -120,7 +121,70 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+    pub enabled: bool,
+    pub global_tenant: GlobalTenant,
+}
+
+impl Multitenancy {
+    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+        &self.tenants.0
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
+    pub clickhouse_database: String,
+}
+
+impl storage_impl::config::TenantConfig for Tenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GlobalTenant {
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -396,6 +460,7 @@ pub struct Secrets {
 pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
+    pub totp_issuer_name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -447,7 +512,6 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    pub base_url: String,
     pub shutdown_timeout: u64,
 }
 
@@ -487,115 +551,6 @@ impl From<Database> for storage_impl::config::Database {
 #[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct Connectors {
-    pub aci: ConnectorParams,
-    #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
-    #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
-    pub airwallex: ConnectorParams,
-    pub applepay: ConnectorParams,
-    pub authorizedotnet: ConnectorParams,
-    pub bambora: ConnectorParams,
-    pub bankofamerica: ConnectorParams,
-    pub billwerk: ConnectorParams,
-    pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
-    pub boku: ConnectorParams,
-    pub braintree: ConnectorParams,
-    pub cashtocode: ConnectorParams,
-    pub checkout: ConnectorParams,
-    pub coinbase: ConnectorParams,
-    pub cryptopay: ConnectorParams,
-    pub cybersource: ConnectorParams,
-    pub dlocal: ConnectorParams,
-    #[cfg(feature = "dummy_connector")]
-    pub dummyconnector: ConnectorParams,
-    pub ebanx: ConnectorParams,
-    pub fiserv: ConnectorParams,
-    pub forte: ConnectorParams,
-    pub globalpay: ConnectorParams,
-    pub globepay: ConnectorParams,
-    pub gocardless: ConnectorParams,
-    pub gpayments: ConnectorParams,
-    pub helcim: ConnectorParams,
-    pub iatapay: ConnectorParams,
-    pub klarna: ConnectorParams,
-    pub mifinity: ConnectorParams,
-    pub mollie: ConnectorParams,
-    pub multisafepay: ConnectorParams,
-    pub netcetera: ConnectorParams,
-    pub nexinets: ConnectorParams,
-    pub nmi: ConnectorParams,
-    pub noon: ConnectorParamsWithModeType,
-    pub nuvei: ConnectorParams,
-    pub opayo: ConnectorParams,
-    pub opennode: ConnectorParams,
-    pub payeezy: ConnectorParams,
-    pub payme: ConnectorParams,
-    pub payone: ConnectorParams,
-    pub paypal: ConnectorParams,
-    pub payu: ConnectorParams,
-    pub placetopay: ConnectorParams,
-    pub powertranz: ConnectorParams,
-    pub prophetpay: ConnectorParams,
-    pub rapyd: ConnectorParams,
-    pub riskified: ConnectorParams,
-    pub shift4: ConnectorParams,
-    pub signifyd: ConnectorParams,
-    pub square: ConnectorParams,
-    pub stax: ConnectorParams,
-    pub stripe: ConnectorParamsWithFileUploadUrl,
-    pub threedsecureio: ConnectorParams,
-    pub trustpay: ConnectorParamsWithMoreUrls,
-    pub tsys: ConnectorParams,
-    pub volt: ConnectorParams,
-    pub wise: ConnectorParams,
-    pub worldline: ConnectorParams,
-    pub worldpay: ConnectorParams,
-    pub zen: ConnectorParams,
-    pub zsl: ConnectorParams,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParams {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithModeType {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-    /// Can take values like Test or Live for Noon
-    pub key_mode: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithMoreUrls {
-    pub base_url: String,
-    pub base_url_bank_redirects: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithFileUploadUrl {
-    pub base_url: String,
-    pub base_url_file_upload: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithSecondaryBaseUrl {
-    pub base_url: String,
-    pub secondary_base_url: String,
 }
 
 #[cfg(feature = "kv_store")]

@@ -2,12 +2,10 @@ use common_utils::{
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
-use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use super::utils as connector_utils;
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
@@ -22,13 +20,12 @@ pub struct CryptopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for CryptopayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CryptopayRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -77,6 +74,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::MandatePayment {}
             | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -141,15 +139,13 @@ pub struct CryptopayPaymentsResponse {
 impl<F, T>
     ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-        diesel_models::enums::Currency,
         Option<MinorUnit>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, currency, amount_captured_core): (
+        (item, amount_captured_in_minor_units): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-            diesel_models::enums::Currency,
             Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -193,23 +189,14 @@ impl<F, T>
                 charge_id: None,
             })
         };
-
-        match item.response.data.price_amount {
-            Some(price_amount) => {
-                let amount_captured = Some(
-                    connector_utils::to_currency_lower_unit(
-                        price_amount.get_amount_as_string(),
-                        currency,
-                    )?
-                    .parse::<i64>()
-                    .change_context(errors::ConnectorError::ParsingFailed)?,
-                );
-
+        match amount_captured_in_minor_units {
+            Some(minor_amount) => {
+                let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
                     status,
                     response,
                     amount_captured,
-                    minor_amount_captured: amount_captured_core,
+                    minor_amount_captured: Some(minor_amount),
                     ..item.data
                 })
             }
