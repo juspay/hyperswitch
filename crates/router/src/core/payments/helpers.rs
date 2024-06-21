@@ -9,7 +9,7 @@ use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type, pii,
-    types::{MinorUnit,RequestIntegrity, ConnectorIntegrity}
+    types::{ConnectorIntegrity, MinorUnit, RequestIntegrity},
 };
 use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
@@ -4792,13 +4792,11 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
 
-
 pub fn check_integrity_based_on_flow<T, Request>(
     request: Request,
     flow: &dyn FlowType<Request, T>,
-    connector_transaction_id: Option<String>
-
-) -> Result<(), common_utils::errors::IntegrityCheckError> 
+    connector_transaction_id: Option<String>,
+) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: ConnectorIntegrity,
     Request: RequestIntegrity<T>,
@@ -4806,38 +4804,58 @@ where
     flow.check_integrity(&request, connector_transaction_id)
 }
 
-pub trait FlowType<Request,T> {
-    fn check_integrity(&self, request: &Request, connector_transaction_id: Option<String>) -> Result<(), common_utils::errors::IntegrityCheckError>;
+pub trait FlowType<Request, T> {
+    fn check_integrity(
+        &self,
+        request: &Request,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), common_utils::errors::IntegrityCheckError>;
 }
 
-impl<T, Request> FlowType<Request,T> for sahkal::Authorize 
+impl<T, Request> FlowType<Request, T> for sahkal::Authorize
 where
     T: ConnectorIntegrity,
     Request: RequestIntegrity<T>,
 {
-    fn check_integrity(&self, request: &Request,connector_transaction_id: Option<String>) -> Result<(), common_utils::errors::IntegrityCheckError> {
+    fn check_integrity(
+        &self,
+        request: &Request,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), common_utils::errors::IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
-                T::compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+                T::compare(
+                    req_integrity_object,
+                    res_integrity_object,
+                    connector_transaction_id,
+                )
             }
-            None => Ok(())
+            None => Ok(()),
         }
     }
 }
 
-impl<T, Request> FlowType<Request,T> for sahkal::PSync 
+impl<T, Request> FlowType<Request, T> for sahkal::PSync
 where
     T: ConnectorIntegrity,
     Request: RequestIntegrity<T>,
 {
-    fn check_integrity(&self, request: &Request, connector_transaction_id: Option<String>) -> Result<(), common_utils::errors::IntegrityCheckError> {
+    fn check_integrity(
+        &self,
+        request: &Request,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), common_utils::errors::IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
-                T::compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+                T::compare(
+                    req_integrity_object,
+                    res_integrity_object,
+                    connector_transaction_id,
+                )
             }
-            None => Ok(())
+            None => Ok(()),
         }
     }
 }

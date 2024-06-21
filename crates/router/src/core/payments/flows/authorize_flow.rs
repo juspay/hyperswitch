@@ -95,7 +95,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 _ => None,
             };
 
-            let integrity_result = helpers::check_integrity_based_on_flow(resp.request.clone(), &api::Authorize, connector_transaction_id);
+            let integrity_result = helpers::check_integrity_based_on_flow(
+                resp.request.clone(),
+                &api::Authorize,
+                connector_transaction_id,
+            );
             resp.integrity_check = integrity_result;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics

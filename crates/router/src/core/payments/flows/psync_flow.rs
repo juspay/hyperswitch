@@ -105,7 +105,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     _ => None,
                 };
 
-                let integrity_result = helpers::check_integrity_based_on_flow(resp.request.clone(), &api::PSync, connector_transaction_id);
+                let integrity_result = helpers::check_integrity_based_on_flow(
+                    resp.request.clone(),
+                    &api::PSync,
+                    connector_transaction_id,
+                );
 
                 resp.integrity_check = integrity_result;
 
