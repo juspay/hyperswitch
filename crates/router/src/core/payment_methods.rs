@@ -1,25 +1,32 @@
 pub mod cards;
+pub mod helpers;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
-
 pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use diesel_models::enums;
+use diesel_models::{enums, payment_method};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
+    core::{
+        errors::{self, RouterResult},
+        payments::helpers,
+        pm_auth as core_pm_auth,
+    },
     routes::SessionState,
     types::{
         api::{self, payments},
         domain, storage,
     },
 };
+
+const PAYMENT_METHOD_MANDATE_DETAILS_UPDATE_TASK: &str = "PAYMENT_METHOD_MANDATE_DETAILS_UPDATE";
+const PAYMENT_METHOD_MANDATE_DETAILS_TAG: &str = "PAYMENT_METHOD_MANDATE_DETAILS_UPDATE";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
@@ -232,4 +239,52 @@ pub async fn retrieve_payment_method_with_token(
         },
     };
     Ok(token)
+}
+
+pub async fn update_payment_method_task(
+    db: &dyn db::StorageInterface,
+    // payment_method: diesel_models::PaymentMethod,
+    filter_mca: HashMap<String, Connector>,
+    card_updation_obj: CardDetailUpdate,
+    merchant_id: &str,
+    payment_mandate_data: PaymentsMandateReferenceRecord,
+    modified_at: time::PrimitiveDateTime,
+) -> Result<(), errors::ProcessTrackerError> {
+    let schedule_time =
+        modified_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+    let tracking_data = storage::PaymentMethodUpdateTrackingData {
+        merchant_id: merchant_id.to_string(),
+        list_mca_ids: filter_mca,
+        payment_mandate_rec: payment_mandate_data,
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentMethodUpdateTrackingData;
+    let task = PAYMENT_METHOD_MANDATE_DETAILS_UPDATE_TASK;
+    let tag = [PAYMENT_METHOD_MANDATE_DETAILS_TAG];
+
+    let process_tracker_id = format!("{runner}_{task}_{key_id}");
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
+
+    db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
+                payment_method.payment_method_id.clone()
+            )
+        })?;
+
+    Ok(())
 }

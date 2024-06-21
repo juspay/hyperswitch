@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use api_models::payment_methods;
+use api_models::{enums as api_enums, payment_methods};
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
@@ -109,4 +109,19 @@ impl DerefMut for PaymentsMandateReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+impl PaymentsMandateReference {
+    pub fn collect_connector_mandate_ids(&self) -> Vec<String> {
+        self.0
+            .values()
+            .map(|ref_record| ref_record.connector_mandate_id.clone())
+            .collect()
+    }
+}
+
+pub struct PaymentMethodUpdateTrackingData {
+    pub merchant_id: String,
+    pub payment_mandate_rec: PaymentsMandateReference,
+    pub list_mca_ids: HashMap<String, api_enums::Connector>,
 }

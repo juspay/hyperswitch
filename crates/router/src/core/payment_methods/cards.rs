@@ -50,7 +50,8 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
-            transformers as payment_methods,
+            helpers::is_conector_update_possible,
+            transformers as payment_methods, update_payment_method_task,
             utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
             vault,
         },
@@ -75,7 +76,9 @@ use crate::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
         },
-        storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
+        storage::{
+            self, enums, PaymentMethodListContext, PaymentTokenData, PaymentsMandateReference,
+        },
         transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
@@ -834,6 +837,33 @@ pub async fn update_customer_payment_method(
             validate_payment_method_update(card_update.clone(), existing_card_data.clone());
 
         let response = if is_card_updation_required {
+            // If connector mandate details present then add the task to process tracker
+            let connector_mandate_id = pm
+                .connector_mandate_details
+                .map(|val| {
+                    val.parse_value::<PaymentsMandateReference>("PaymentsMandateReference")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize the mandate reference")
+                })
+                .transpose()?;
+
+            if card_update.nick_name.is_none() {
+                if let Some(connector_mandate_details) = connector_mandate_id {
+                    // get the mca ids and then filter on the basis of configs
+                    let conf = state.conf.mandates.update_mandate_supported;
+                    update_connector_mandate_metadata(
+                        db,
+                        connector_mandate_details,
+                        key_store,
+                        merchant_account.merchant_id,
+                        pm,
+                        common_utils::date_time::now();
+                        &conf,
+                        card_update,
+                    )
+                    .await?;
+                }
+            }
             // Fetch the existing card data from locker for getting card number
             let card_data_from_locker = get_card_from_locker(
                 &state,
@@ -1021,7 +1051,70 @@ pub fn validate_payment_method_update(
                     .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
             })
 }
+pub async fn update_connector_mandate_metadata(
+    db: dyn StorageInterface,
+    payment_mandate_reference: PaymentsMandateReference,
+    merchant_id: &str,
+    pm: &diesel_models::PaymentMethod,
+    key_store: &domain::MerchantKeyStore,
+    modified_at_time : time::PrimitiveDateTime,
+    conf: &settings::SupportedPaymentMethodsForMandate,
+    card_updation_obj: CardDetailUpdate,
+) -> errors::RouterResult<()> {
+    // check if connector name supports update and also if its a valid mca,ie, the mca is there in the hashmap
+    let mca_ids = get_all_mcas(db, &key_store, merchant_id, Some(false)).await?;
+    let filtered_mca_ids = mca_ids
+        .into_iter()
+        .filter(|(mca_id, conn_name)| {
+            payment_mandate_reference.contains_key(mca_id)
+                && is_conector_update_possible(
+                    conf,
+                    pm.payment_method,
+                    pm.payment_method_type,
+                    conn_name,
+                )
+        })
+        .collect::<HashMap<_, _>>();
 
+    // let connector_data = ConnectorData::get_connector_by_name(
+    //     &state.conf.connectors,
+    //     //from cmid,
+    //     GetToken::Connector,
+    //     //fromcmid,,
+    // )?;
+    // let connector_integration: services::BoxedConnectorIntegration<
+    //     '_,
+    //     types::api::MandateRevoke,
+    //     types::MandateRevokeRequestData,
+    //     types::MandateRevokeResponseData,
+    // > = connector_data.connector.get_connector_integration();
+    let _a = update_payment_method_task(
+        &db,
+        // pm,
+        filtered_mca_ids,
+        card_updation_obj,
+        merchant_id,
+        payment_mandate_reference,
+        modified_at_time
+    )
+    .await?;
+    // let router_data = utils::construct_mandate_revoke_router_data(
+    //     merchant_connector_account,
+    //     &merchant_account,
+    //     mandate.clone(),
+    // )
+    // .await?;
+
+    // let response = services::execute_connector_processing_step(
+    //     &state,
+    //     connector_integration,
+    //     &router_data,
+    //     CallConnectorAction::Trigger,
+    //     None,
+    // )
+    // .await
+    // .change_context(errors::ApiErrorResponse::InternalServerError)?;
+}
 // Wrapper function to switch lockers
 
 #[cfg(feature = "payouts")]
@@ -3495,36 +3588,62 @@ pub async fn get_mca_status(
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
 ) -> errors::RouterResult<bool> {
     if let Some(connector_mandate_details) = connector_mandate_details {
-        let mcas = state
-            .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_id,
-                true,
-                key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_id.to_string(),
-            })?;
-
-        let mut mca_ids = HashSet::new();
-        let mcas = mcas
-            .into_iter()
-            .filter(|mca| mca.disabled == Some(true))
-            .collect::<Vec<_>>();
-
-        for mca in mcas {
-            mca_ids.insert(mca.merchant_connector_id);
-        }
+        let mca_ids = get_all_mcas(
+            &*state.store,
+            key_store,
+            merchant_id,
+            Some(true),
+            connector_mandate_details,
+        )
+        .await?;
 
         for mca_id in connector_mandate_details.keys() {
-            if !mca_ids.contains(mca_id) {
+            if !mca_ids.contains_key(mca_id) {
                 return Ok(true);
             }
         }
     }
     Ok(false)
 }
+pub struct UpdateMandate {
+    connector_mandate_id: String,
+    connector_variant: api_enums::Connector,
+}
+pub async fn get_all_mcas(
+    db: dyn db::StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    value: Option<bool>,
+) -> errors::RouterResult<HashMap<String, api_enums::Connector>> {
+    let mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_id.to_string(),
+        })?;
+
+    let mcas = mcas
+        .into_iter()
+        .filter(|mca| mca.disabled == value)
+        .collect::<Vec<_>>();
+    let mut mca_ids = HashMap::new();
+    for mca in mcas {
+        let connector_variant = api_enums::Connector::from_str(mca.connector_name.as_str())
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name: {}", mca.connector_name)
+            })?;
+        mca_ids.insert(mca.merchant_connector_id, connector_variant);
+    }
+    Ok(mca_ids)
+}
+
 pub async fn decrypt_generic_data<T>(
     data: Option<Encryption>,
     key: &[u8],
