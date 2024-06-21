@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.20.1-hotfix1
+
+### Bug Fixes
+
+- **router:** Avoid considering pre-routing results during `perform_session_token_routing` ([#5078](https://github.com/juspay/hyperswitch/pull/5078)) ([`5fb283e`](https://github.com/juspay/hyperswitch/commit/5fb283ed4aabaa1652c5a00a7f34e46e571a9cd9))
+
+- - -
+
 ## 2024.06.20.1
 
 ### Features
