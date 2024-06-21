@@ -93,7 +93,7 @@ describe("UPI Payments - Hyperswitch", () => {
   });
 
   context("[Payment] [UPI - UPI Intent] Create & Confirm", () => {
-    should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -103,6 +103,12 @@ describe("UPI Payments - Hyperswitch", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
     });
 
     it("Create payment intent", () => {

@@ -293,89 +293,49 @@ export const connectorDetails = {
         },
       },
     }),
-    "3DSManualCapture": {
+    "3DSManualCapture": getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    "3DSAutoCapture": {
+    }),
+    "3DSAutoCapture": getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    No3DSManualCapture: {
+    }),
+    No3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    No3DSAutoCapture: {
+    }),
+    No3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    Capture: {
+    }),
+    Capture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
-        },
-      },
-    },
-    PartialCapture: {
+    }),
+    PartialCapture: getCustomExchange({
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
-        },
-      },
-    },
-    Void: {
+    }),
+    Void: getCustomExchange({
       Request: {},
       Response: {
         status: 400,
@@ -388,61 +348,28 @@ export const connectorDetails = {
           },
         },
       },
-    },
-    Refund: {
+    }),
+    Refund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    PartialRefund: {
+    }),
+    PartialRefund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    SyncRefund: {
+    }),
+    SyncRefund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
+    }),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
