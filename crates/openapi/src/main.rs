@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use utoipa::OpenApi;
 
 #[cfg(feature = "v2")]
@@ -7,7 +9,10 @@ mod openapi;
 mod routes;
 
 fn main() {
-    let file_path = "api-reference/openapi_spec.json";
+    let relative_file_path = "api-reference/openapi_spec.json";
+    let mut file_path = PathBuf::new();
+    file_path.push(router_env::workspace_path());
+    file_path.push(relative_file_path);
 
     #[allow(unused_mut)]
     let mut openapi = <openapi::ApiDoc as OpenApi>::openapi();
@@ -35,5 +40,5 @@ fn main() {
             .expect("Failed to serialize OpenAPI specification as JSON"),
     )
     .expect("Failed to write OpenAPI specification to file");
-    println!("Successfully saved OpenAPI specification file at '{file_path}'");
+    println!("Successfully saved OpenAPI specification file at '{relative_file_path}'");
 }
