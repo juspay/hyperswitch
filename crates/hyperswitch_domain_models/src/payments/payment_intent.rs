@@ -6,7 +6,7 @@ use common_utils::{
     pii::{self, Email},
     types::MinorUnit,
 };
-use masking::Secret;
+use masking::{Secret, Deserialize};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -79,7 +79,7 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize)]
+#[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 pub struct CustomerData {
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,

@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
+    RequestSurchargeDetails, CustomerDetailsResponse,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
@@ -10,7 +10,8 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use masking::{Maskable, PeekInterface, Secret, ExposeInterface};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -504,7 +505,22 @@ where
         ))
     }
 
-    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
+
+    let customer_details_response = if let Some(customer_details_raw) = payment_intent.customer_details.clone(){
+        let customer_details_encrypted = serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+        let mut response_cus_data = CustomerDetailsResponse::new();
+        if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+            customer_details_encrypted_data.name.map(|name| response_cus_data.set_name(name));
+            customer_details_encrypted_data.phone.map(|phone| response_cus_data.set_phone(phone));
+            customer_details_encrypted_data.email.map(|email| response_cus_data.set_email(email));
+            customer_details_encrypted_data.phone_country_code.map(|pcc| response_cus_data.set_phone_country_code(pcc));
+            Some(response_cus_data)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     headers.extend(
         external_latency

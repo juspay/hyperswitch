@@ -2276,6 +2276,7 @@ pub async fn list_payment_methods(
 
     let req = api_models::payments::PaymentsRequest::foreign_from((
         payment_attempt.as_ref(),
+        payment_intent.as_ref(),
         shipping_address.as_ref(),
         billing_address_for_calculating_required_fields,
         customer.as_ref(),

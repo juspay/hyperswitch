@@ -1116,6 +1116,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
 impl
     ForeignFrom<(
         Option<&storage::PaymentAttempt>,
+        Option<&storage::PaymentIntent>,
         Option<&domain::Address>,
         Option<&domain::Address>,
         Option<&domain::Customer>,
@@ -1124,21 +1125,19 @@ impl
     fn foreign_from(
         value: (
             Option<&storage::PaymentAttempt>,
+            Option<&storage::PaymentIntent>,
             Option<&domain::Address>,
             Option<&domain::Address>,
             Option<&domain::Customer>,
         ),
     ) -> Self {
-        let (payment_attempt, shipping, billing, customer) = value;
-        let guest_customer_details = pi.cus;
+        let (payment_attempt, _payment_intent, shipping, billing, customer) = value;
         Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing.map(api_types::Address::from),
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
-            email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
-                .or(),
+            email: customer.and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
@@ -1242,7 +1241,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer
                 .name
                 .as_ref()
