@@ -361,7 +361,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
