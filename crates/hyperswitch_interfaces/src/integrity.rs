@@ -119,14 +119,6 @@ impl ConnectorIntegrity for AuthoriseIntegrityObject {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct SyncIntegrityObject {
-//     /// Sync amount
-//     pub amount: Option<MinorUnit>,
-//     /// Sync currency
-//     pub currency: Option<enums::Currency>,
-// }
-
 impl ConnectorIntegrity for SyncIntegrityObject {
     type IntegrityObject = SyncIntegrityObject;
     fn compare(

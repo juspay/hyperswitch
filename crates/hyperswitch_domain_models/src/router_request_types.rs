@@ -81,19 +81,6 @@ pub struct SyncIntegrityObject {
     pub currency: Option<storage_enums::Currency>,
 }
 
-// impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
-//     fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
-//         self.integrity_object.clone()
-//     }
-
-//     fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
-//         AuthoriseIntegrityObject {
-//             amount: self.minor_amount,
-//             currency: self.currency,
-//         }
-//     }
-// }
-
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct PaymentCharges {
     pub charge_type: api_models::enums::PaymentChargeType,
@@ -382,19 +369,6 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
 }
-
-// impl RequestIntegrity<SyncIntegrityObject> for PaymentsSyncData {
-//     fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
-//         self.integrity_object.clone()
-//     }
-
-//     fn get_request_integrity_object(&self) -> SyncIntegrityObject {
-//         SyncIntegrityObject {
-//             amount: Some(self.amount),
-//             currency: Some(self.currency),
-//         }
-//     }
-// }
 
 #[derive(Debug, Default, Clone)]
 pub enum SyncRequestType {

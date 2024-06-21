@@ -4804,61 +4804,6 @@ where
     flow.check_integrity(&request, connector_transaction_id)
 }
 
-// pub trait FlowType<Request, T> {
-//     fn check_integrity(
-//         &self,
-//         request: &Request,
-//         connector_transaction_id: Option<String>,
-//     ) -> Result<(), common_utils::errors::IntegrityCheckError>;
-// }
-
-// impl<T, Request> FlowType<Request, T> for sahkal::Authorize
-// where
-//     T: ConnectorIntegrity,
-//     Request: RequestIntegrity<T>,
-// {
-//     fn check_integrity(
-//         &self,
-//         request: &Request,
-//         connector_transaction_id: Option<String>,
-//     ) -> Result<(), common_utils::errors::IntegrityCheckError> {
-//         match request.get_response_integrity_object() {
-//             Some(res_integrity_object) => {
-//                 let req_integrity_object = request.get_request_integrity_object();
-//                 T::compare(
-//                     req_integrity_object,
-//                     res_integrity_object,
-//                     connector_transaction_id,
-//                 )
-//             }
-//             None => Ok(()),
-//         }
-//     }
-// }
-
-// impl<T, Request> FlowType<Request, T> for sahkal::PSync
-// where
-//     T: ConnectorIntegrity,
-//     Request: RequestIntegrity<T>,
-// {
-//     fn check_integrity(
-//         &self,
-//         request: &Request,
-//         connector_transaction_id: Option<String>,
-//     ) -> Result<(), common_utils::errors::IntegrityCheckError> {
-//         match request.get_response_integrity_object() {
-//             Some(res_integrity_object) => {
-//                 let req_integrity_object = request.get_request_integrity_object();
-//                 T::compare(
-//                     req_integrity_object,
-//                     res_integrity_object,
-//                     connector_transaction_id,
-//                 )
-//             }
-//             None => Ok(()),
-//         }
-//     }
-// }
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &String,
