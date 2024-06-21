@@ -45,7 +45,9 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{transformers as payment_methods, vault},
+        payment_methods::{
+            add_payment_method_status_update_task, transformers as payment_methods, vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -297,6 +299,21 @@ pub async fn get_client_secret_or_add_payment_method(
         )
         .await?;
 
+        if res.status == enums::PaymentMethodStatus::AwaitingData {
+            add_payment_method_status_update_task(
+                db,
+                &res,
+                enums::PaymentMethodStatus::AwaitingData,
+                enums::PaymentMethodStatus::Inactive,
+                merchant_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method status update task in process tracker",
+            )?;
+        }
+
         Ok(services::api::ApplicationResponse::Json(
             api::PaymentMethodResponse::foreign_from(res),
         ))
@@ -357,7 +374,7 @@ pub async fn add_payment_method_data(
         .attach_printable("Unable to find payment method")?;
 
     if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
-        return Err((errors::ApiErrorResponse::DuplicatePaymentMethod).into());
+        return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
 
     let customer_id = payment_method.customer_id.clone();
