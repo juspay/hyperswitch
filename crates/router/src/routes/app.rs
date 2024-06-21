@@ -1377,6 +1377,18 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::scope("/auth")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_user_authentication_method))
+                        .route(web::put().to(update_user_authentication_method)),
+                )
+                .service(
+                    web::resource("/list").route(web::get().to(list_user_authentication_methods)),
+                ),
+        );
+
         #[cfg(feature = "email")]
         {
             route = route

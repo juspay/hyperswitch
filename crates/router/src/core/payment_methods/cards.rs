@@ -3094,19 +3094,6 @@ fn filter_pm_based_on_capture_method_used(
         .unwrap_or(true)
 }
 
-fn filter_amount_based(
-    payment_method: &RequestPaymentMethodTypes,
-    amount: Option<MinorUnit>,
-) -> bool {
-    let min_check = amount
-        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
-        .unwrap_or(true);
-    let max_check = amount
-        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
-        .unwrap_or(true);
-    (min_check && max_check) || amount == Some(MinorUnit::zero())
-}
-
 fn card_network_filter(
     country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
@@ -3276,6 +3263,19 @@ fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
         (None, Some(r)) => Some(r.to_vec()),
         (_, _) => None,
     }
+}
+
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
+) -> bool {
+    let min_check = amount
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
+        .unwrap_or(true);
+    let max_check = amount
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
+        .unwrap_or(true);
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
 }
 
 fn filter_pm_based_on_allowed_types(

@@ -11,14 +11,15 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
-    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
-    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
-    VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
+    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
+    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -77,7 +78,10 @@ common_utils::impl_misc_api_event_type!(
     BeginTotpResponse,
     VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
-    RecoveryCodes
+    RecoveryCodes,
+    GetUserAuthenticationMethodsRequest,
+    CreateUserAuthenticationMethodRequest,
+    UpdateUserAuthenticationMethodRequest
 );
 
 #[cfg(feature = "dummy_connector")]

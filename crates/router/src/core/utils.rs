@@ -170,9 +170,9 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
-            amount: payouts.amount.get_amount_as_i64(), // need to be removed
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
+            amount: payouts.amount.get_amount_as_i64(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
