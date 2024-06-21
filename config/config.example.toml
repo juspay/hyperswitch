@@ -19,6 +19,10 @@ request_body_limit = 32_768
 idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults to 90s)
 
 
+# Configuration for the Key Manager Service
+[key_manager]
+url = "http://localhost:5000" # URL of the encryption service
+
 # Main SQL data store credentials
 [master_database]
 username = "db_user"      # DB Username

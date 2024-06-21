@@ -313,6 +313,7 @@ pub(crate) async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         env: conf.env,
+        key_manager: conf.key_manager,
         #[cfg(feature = "olap")]
         replica_database,
         secrets,

@@ -9,6 +9,9 @@ traces_enabled = true
 metrics_enabled = true
 ignore_errors = false
 
+[key_manager]
+url = "http://localhost:5000"
+
 [master_database]
 username = "postgres"
 password = "postgres"

@@ -8777,3 +8777,11 @@ impl Default for super::settings::ApiKeys {
         }
     }
 }
+
+impl Default for super::settings::KeyManagerConfig {
+    fn default() -> Self {
+        Self {
+            url: String::from("localhost:5000"),
+        }
+    }
+}
