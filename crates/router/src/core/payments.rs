@@ -3653,12 +3653,9 @@ pub async fn perform_session_token_routing<F>(
 where
     F: Clone,
 {
-
-    // Commenting out this code as `list_payment_method_api` and `perform_session_token_routing` 
-    // will happen in parallel the behaviour of the session call differ based on filters in 
+    // Commenting out this code as `list_payment_method_api` and `perform_session_token_routing`
+    // will happen in parallel the behaviour of the session call differ based on filters in
     // list_payment_method_api
-
-
 
     // let routing_info: Option<storage::PaymentRoutingInfo> = payment_data
     //     .payment_attempt
