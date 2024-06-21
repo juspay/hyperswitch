@@ -5,7 +5,7 @@ use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii, types as common_types,
-    types::{AuthoriseIntegrityObject, MinorUnit, SyncIntegrityObject},
+    types::{AuthoriseIntegrityObject, MinorUnit, SyncIntegrityObject, RequestIntegrity},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -15,6 +15,7 @@ use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
+    router_flow_types::payments as api,
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
@@ -66,6 +67,19 @@ pub struct PaymentsAuthorizeData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+}
+
+impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
+    fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
+        AuthoriseIntegrityObject{
+            amount: self.minor_amount,
+            currency: self.currency
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -346,6 +360,19 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+}
+
+impl RequestIntegrity<SyncIntegrityObject> for PaymentsSyncData {
+    fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> SyncIntegrityObject {
+        SyncIntegrityObject{
+            amount: Some(self.amount),
+            currency: Some(self.currency)
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]

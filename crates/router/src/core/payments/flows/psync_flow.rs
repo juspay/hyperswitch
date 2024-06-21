@@ -105,22 +105,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     _ => None,
                 };
 
-                let integrity_result = match resp.request.integrity_object.clone() {
-                    Some(res_integrity_object) => {
-                        let integrity_check = common_utils::types::SyncIntegrity;
-                        let req_integrity_object = common_utils::types::SyncIntegrityObject {
-                            amount: Some(resp.request.amount),
-                            currency: Some(resp.request.currency),
-                        };
-                        integrity_check.compare(
-                            req_integrity_object,
-                            res_integrity_object,
-                            connector_transaction_id,
-                        )
-                    }
-                    None => Ok(()),
-                };
-                // Assigning integrity check result
+                let integrity_result = helpers::check_integrity_based_on_flow(resp.request.clone(), &api::PSync, connector_transaction_id);
+
                 resp.integrity_check = integrity_result;
 
                 Ok(resp)
