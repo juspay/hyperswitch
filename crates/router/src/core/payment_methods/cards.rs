@@ -25,10 +25,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
 };
-use diesel_models::{
-    business_profile::BusinessProfile, encryption::Encryption,
-    payment_method,
-};
+use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
 use euclid::{
