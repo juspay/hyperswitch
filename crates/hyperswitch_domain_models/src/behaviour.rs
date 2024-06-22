@@ -1,6 +1,5 @@
 use common_utils::errors::{CustomResult, ValidationError};
-
-use crate::pii::Secret;
+use masking::Secret;
 
 /// Trait for converting domain types to storage models
 #[async_trait::async_trait]

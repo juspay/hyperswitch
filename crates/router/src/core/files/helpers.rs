@@ -264,6 +264,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &dispute.payment_id,
                         &merchant_account.merchant_id,
+                        key_store,
                         merchant_account.storage_scheme,
                     )
                     .await

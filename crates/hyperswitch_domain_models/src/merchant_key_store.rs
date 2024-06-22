@@ -1,15 +1,13 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
     custom_serde, date_time,
+    errors::{CustomResult, ValidationError},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::{
-    errors::{CustomResult, ValidationError},
-    types::domain::types::TypeEncryption,
-};
+use crate::type_encryption::TypeEncryption;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {

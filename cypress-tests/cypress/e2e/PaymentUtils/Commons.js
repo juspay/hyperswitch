@@ -81,6 +81,133 @@ export const getCustomExchange = (overrides) => {
   };
 };
 
+export const payment_methods_enabled = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: [
+          "AmericanExpress",
+          "Discover",
+          "Interac",
+          "JCB",
+          "Mastercard",
+          "Visa",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "debit",
+        card_networks: [
+          "AmericanExpress",
+          "Discover",
+          "Interac",
+          "JCB",
+          "Mastercard",
+          "Visa",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_transfer",
+    payment_method_types: [
+      {
+        payment_method_type: "pix",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "ideal",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "giropay",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sofort",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "eps",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "blik",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "przelewy24",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
@@ -380,6 +507,75 @@ export const connectorDetails = {
           accepted_at: "1963-05-03T04:07:52.723Z",
           online: {
             ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
             user_agent: "amet irure esse",
           },
         },
