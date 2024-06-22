@@ -1,6 +1,7 @@
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 
 pub use api_models::enums::Connector;
