@@ -1,7 +1,6 @@
 use crate::common_config::{
-    ApiModelMetaData, CardProvider, ConnectorApiIntegrationPayload, DashboardMetaData,
-    DashboardPaymentMethodPayload, DashboardRequestPayload, GoogleApiModelData, GooglePayData,
-    GpayDashboardPayLoad, Provider,
+    CardProvider, ConnectorApiIntegrationPayload, DashboardPaymentMethodPayload,
+    DashboardRequestPayload, Provider,
 };
 
 impl ConnectorApiIntegrationPayload {
@@ -287,7 +286,7 @@ impl ConnectorApiIntegrationPayload {
             card_provider: Some(credit_details),
         };
 
-        let meta_data = response.metadata.map(DashboardMetaData::from);
+        // let meta_data = response.metadata.map(DashboardMetaData::from);
 
         DashboardRequestPayload {
             connector: response.connector_name,
@@ -306,61 +305,7 @@ impl ConnectorApiIntegrationPayload {
                 credit_details,
                 gift_card,
             ]),
-            metadata: meta_data,
+            metadata: response.metadata,
         }
-    }
-}
-
-impl From<ApiModelMetaData> for DashboardMetaData {
-    fn from(api_model: ApiModelMetaData) -> Self {
-        Self {
-            merchant_config_currency: api_model.merchant_config_currency,
-            merchant_account_id: api_model.merchant_account_id,
-            account_name: api_model.account_name,
-            terminal_id: api_model.terminal_id,
-            merchant_id: api_model.merchant_id,
-            google_pay: api_model.google_pay,
-            paypal_sdk: api_model.paypal_sdk,
-            apple_pay: api_model.apple_pay,
-            apple_pay_combined: api_model.apple_pay_combined,
-            endpoint_prefix: api_model.endpoint_prefix,
-            mcc: api_model.mcc,
-            merchant_country_code: api_model.merchant_country_code,
-            merchant_name: api_model.merchant_name,
-            acquirer_bin: api_model.acquirer_bin,
-            acquirer_merchant_id: api_model.acquirer_merchant_id,
-            acquirer_country_code: api_model.acquirer_country_code,
-            three_ds_requestor_name: api_model.three_ds_requestor_name,
-            three_ds_requestor_id: api_model.three_ds_requestor_id,
-            pull_mechanism_for_external_3ds_enabled: api_model
-                .pull_mechanism_for_external_3ds_enabled,
-            klarna_region: api_model.klarna_region,
-            source_balance_account: api_model.source_balance_account,
-            brand_id: api_model.brand_id,
-        }
-    }
-}
-
-pub fn get_google_pay_metadata_response(
-    google_pay_data: Option<GoogleApiModelData>,
-) -> Option<GooglePayData> {
-    match google_pay_data {
-        Some(google_pay) => match google_pay {
-            GoogleApiModelData::Standard(standard_data) => {
-                let data = standard_data
-                    .allowed_payment_methods
-                    .first()
-                    .map(|allowed_pm| allowed_pm.tokenization_specification.parameters.clone())?;
-                Some(GooglePayData::Standard(GpayDashboardPayLoad {
-                    gateway_merchant_id: data.gateway_merchant_id,
-                    stripe_version: data.stripe_version,
-                    stripe_publishable_key: data.stripe_publishable_key,
-                    merchant_name: standard_data.merchant_info.merchant_name,
-                    merchant_id: standard_data.merchant_info.merchant_id,
-                }))
-            }
-            GoogleApiModelData::Zen(data) => Some(GooglePayData::Zen(data)),
-        },
-        None => None,
     }
 }

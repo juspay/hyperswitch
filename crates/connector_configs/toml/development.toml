@@ -230,8 +230,13 @@ api_key="Adyen API Key"
 key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
-[adyen.metadata]
-endpoint_prefix="Live endpoint prefix"
+
+[adyen.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Live endpoint prefix"
+placeholder="Enter Live endpoint prefix"
+required=true
+type="Text"
 
 [[adyen.metadata.google_pay]]
 name="merchant_name"
@@ -312,16 +317,20 @@ name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
-type="Toggle"
-options=["Connector","HyperSwitch"]
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [adyenplatform_payout]
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
-[adyenplatform_payout.metadata]
-source_balance_account="Source balance account ID"
 [adyenplatform_payout.connector_auth.HeaderKey]
 api_key="Adyen platform's API Key"
+[adyenplatform_payout.metadata.source_balance_account]
+name="source_balance_account"
+label="Source balance account ID"
+placeholder="Enter Source balance account ID"
+required=true
+type="Text"
 
 [airwallex]
 [[airwallex.credit]]
@@ -639,8 +648,12 @@ initiative_context="Domain Name"
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
-[bluesnap.metadata]
-merchant_id="Merchant Id"
+[bluesnap.metadata.merchant_id]
+name="merchant_id"
+label="Merchant Id"
+placeholder="Enter Merchant Id"
+required=true
+type="Text"
 
 [boku]
 [[boku.wallet]]
@@ -707,9 +720,19 @@ merchant_secret="Source verification key"
 api_key="Public Key"
 key1="Merchant Id"
 api_secret="Private Key"
-[braintree.metadata]
-merchant_account_id="Merchant Account Id"
-merchant_config_currency="Currency"
+[braintree.metadata.merchant_account_id]
+name="merchant_account_id"
+label="Merchant Account Id"
+placeholder="Enter Merchant Account Id"
+required=true
+type="Text"
+[braintree.metadata.merchant_config_currency]
+name="merchant_config_currency"
+label="Currency"
+placeholder="Enter Currency"
+required=true
+type="Select"
+options=[]
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -885,11 +908,24 @@ initiative_context="Domain Name"
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
-
-[checkout.metadata]
-acquirer_bin = "Acquirer Bin"
-acquirer_merchant_id = "Acquirer Merchant ID"
-acquirer_country_code = "Acquirer Country Code"
+[checkout.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[checkout.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[checkout.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -986,11 +1022,24 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
-
-[cybersource.metadata]
-acquirer_bin = "Acquirer Bin"
-acquirer_merchant_id = "Acquirer Merchant ID"
-acquirer_country_code = "Acquirer Country Code"
+[cybersource.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[cybersource.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[cybersource.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [cybersource_payout]
 [[cybersource_payout.credit]]
@@ -1125,8 +1174,13 @@ api_key = "Integration Key"
 api_key="API Key"
 key1="Merchant ID"
 api_secret="API Secret"
-[fiserv.metadata]
-terminal_id="Terminal ID"
+[fiserv.metadata.terminal_id]
+name="terminal_id"
+label="Terminal ID"
+placeholder="Enter Terminal ID"
+required=true
+type="Text"
+
 [fiserv.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -1227,8 +1281,13 @@ merchant_secret="Source verification key"
 [globalpay.connector_auth.BodyKey]
 api_key="Global App Key"
 key1="Global App ID"
-[globalpay.metadata]
-account_name="Account Name"
+[globalpay.metadata.account_name]
+name="account_name"
+label="Account Name"
+placeholder="Enter Account Name"
+required=true
+type="Text"
+
 [globalpay.connector_webhook_details]
 merchant_secret="Source verification key"
 [[globalpay.metadata.google_pay]]
@@ -1289,16 +1348,25 @@ merchant_secret="Source verification key"
 [klarna.connector_auth.BodyKey]
 key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
-[klarna.metadata]
-klarna_region=["Europe","NorthAmerica","Oceania"]
+[klarna.metadata.klarna_region]
+name="klarna_region"
+label="Region of your Klarna Merchant Account"
+placeholder="Enter Region of your Klarna Merchant Account"
+required=true
+type="Select"
+options=["Europe","NorthAmerica","Oceania"]
 
 [mifinity]
 [[mifinity.wallet]]
   payment_method_type = "mifinity"
 [mifinity.connector_auth.HeaderKey]
 api_key="key"
-[mifinity.metadata]
-brand_id="Brand ID"
+[mifinity.metadata.brand_id]
+name="brand_id"
+label="Merchant Brand ID"
+placeholder="Enter Brand ID"
+required=true
+type="Text"
 
 [mollie]
 [[mollie.credit]]
@@ -1536,10 +1604,24 @@ key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[nmi.metadata]
-acquirer_bin = "Acquirer Bin"
-acquirer_merchant_id = "Acquirer Merchant ID"
-acquirer_country_code = "Acquirer Country Code"
+[nmi.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[nmi.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[nmi.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [[nmi.metadata.google_pay]]
 name="merchant_name"
@@ -2901,8 +2983,14 @@ api_key="Api Key"
   payment_method_type = "sepa"
 [[adyen_payout.wallet]]
   payment_method_type = "paypal"
-[adyen_payout.metadata]
-  endpoint_prefix="Live endpoint prefix"
+
+[adyen_payout.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Live endpoint prefix"
+placeholder="Enter Live endpoint prefix"
+required=true
+type="Text"
+
 [adyen_payout.connector_auth.SignatureKey]
 api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"
@@ -2928,23 +3016,75 @@ key1 = "Wise Account Id"
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
 api_key="Api Key"
-[threedsecureio.metadata]
-mcc="MCC"
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-pull_mechanism_for_external_3ds_enabled=true
+
+[threedsecureio.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=true
+type="Text"
+[threedsecureio.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=true
+type="Text"
+[threedsecureio.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+[threedsecureio.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
+
+
 
 [netcetera]
 [netcetera.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
-[netcetera.metadata]
-mcc="MCC"
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-endpoint_prefix="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-three_ds_requestor_name="ThreeDS requestor name"
-three_ds_requestor_id="ThreeDS request id"
+
+[netcetera.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=true
+type="Text"
+[netcetera.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Live endpoint prefix"
+placeholder="Enter Live endpoint prefix"
+required=true
+type="Text"
+[netcetera.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=true
+type="Text"
+[netcetera.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+[netcetera.metadata.three_ds_requestor_name]
+name="three_ds_requestor_name"
+label="ThreeDS requestor name"
+placeholder="Enter ThreeDS requestor name"
+required=true
+type="Text"
+[netcetera.metadata.three_ds_requestor_id]
+name="three_ds_requestor_id"
+label="ThreeDS request id"
+placeholder="Enter ThreeDS request id"
+required=true
+type="Text"
 
 [billwerk]
 [[billwerk.credit]]

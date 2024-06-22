@@ -10,9 +10,7 @@ use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{
-    CardProvider, GooglePayData, MetaDataInupt, PaypalSdkData, Provider, ZenApplePay,
-};
+use crate::common_config::{CardProvider, MetaDataInupt, Provider, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Classic {
@@ -85,28 +83,28 @@ pub enum KlarnaEndpoint {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
-    pub merchant_config_currency: Option<String>,
-    pub merchant_account_id: Option<String>,
-    pub account_name: Option<String>,
-    pub terminal_id: Option<String>,
+    pub merchant_config_currency: Option<MetaDataInupt>,
+    pub merchant_account_id: Option<MetaDataInupt>,
+    pub account_name: Option<MetaDataInupt>,
+    pub terminal_id: Option<MetaDataInupt>,
     pub google_pay: Option<Vec<MetaDataInupt>>,
-    pub paypal_sdk: Option<PaypalSdkData>,
+    // pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub apple_pay_v2: Option<Vec<MetaDataInupt>>,
-    pub merchant_id: Option<String>,
-    pub endpoint_prefix: Option<String>,
-    pub mcc: Option<String>,
-    pub merchant_country_code: Option<String>,
-    pub merchant_name: Option<String>,
-    pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
-    pub acquirer_country_code: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
-    pub klarna_region: Option<Vec<KlarnaEndpoint>>,
-    pub source_balance_account: Option<String>,
-    pub brand_id: Option<String>,
+    pub merchant_id: Option<MetaDataInupt>,
+    pub endpoint_prefix: Option<MetaDataInupt>,
+    pub mcc: Option<MetaDataInupt>,
+    pub merchant_country_code: Option<MetaDataInupt>,
+    pub merchant_name: Option<MetaDataInupt>,
+    pub acquirer_bin: Option<MetaDataInupt>,
+    pub acquirer_merchant_id: Option<MetaDataInupt>,
+    pub acquirer_country_code: Option<MetaDataInupt>,
+    pub three_ds_requestor_name: Option<MetaDataInupt>,
+    pub three_ds_requestor_id: Option<MetaDataInupt>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<MetaDataInupt>,
+    pub klarna_region: Option<MetaDataInupt>,
+    pub source_balance_account: Option<MetaDataInupt>,
+    pub brand_id: Option<MetaDataInupt>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -114,7 +112,7 @@ pub struct ConfigMetadata {
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
-    pub metadata: Option<ConfigMetadata>,
+    pub metadata: Option<Box<ConfigMetadata>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
     pub bank_transfer: Option<Vec<Provider>>,

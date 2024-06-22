@@ -188,35 +188,7 @@ pub struct DashboardPaymentMethodPayload {
 pub struct DashboardRequestPayload {
     pub connector: api_models::enums::Connector,
     pub payment_methods_enabled: Option<Vec<DashboardPaymentMethodPayload>>,
-    pub metadata: Option<DashboardMetaData>,
-}
-
-#[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub struct DashboardMetaData {
-    pub merchant_config_currency: Option<api_models::enums::Currency>,
-    pub merchant_account_id: Option<String>,
-    pub account_name: Option<String>,
-    pub terminal_id: Option<String>,
-    pub merchant_id: Option<String>,
-    pub google_pay: Option<GoogleApiModelData>,
-    pub paypal_sdk: Option<PaypalSdkData>,
-    pub apple_pay: Option<ApplePayData>,
-    pub apple_pay_combined: Option<ApplePayData>,
-    pub endpoint_prefix: Option<String>,
-    pub mcc: Option<String>,
-    pub merchant_country_code: Option<String>,
-    pub merchant_name: Option<String>,
-    pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
-    pub acquirer_country_code: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
-    pub klarna_region: Option<KlarnaEndpoint>,
-    pub source_balance_account: Option<String>,
-    pub brand_id: Option<String>,
+    pub metadata: Option<ApiModelMetaData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -224,8 +196,10 @@ pub struct DashboardMetaData {
 #[serde(tag = "type", content = "options")]
 pub enum InputType {
     Text,
-    Toggle(Vec<String>),
+    Toggle,
+    Radio(Vec<String>),
     Select(Vec<String>),
+    MultiSelect(Vec<String>),
 }
 
 #[serde_with::skip_serializing_none]
