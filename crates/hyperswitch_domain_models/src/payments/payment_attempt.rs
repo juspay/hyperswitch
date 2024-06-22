@@ -453,6 +453,15 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<String>,
         updated_by: String,
     },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
+        updated_by: String,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+    },
 }
 
 impl ForeignIDRef for PaymentAttempt {

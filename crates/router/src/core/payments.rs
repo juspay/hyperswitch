@@ -4201,18 +4201,14 @@ pub async fn payments_manual_update(
         None
     };
     // Update the payment_attempt
-    let attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
-        connector: None,
-        status: attempt_status.unwrap_or(payment_attempt.status),
+    let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
+        status: attempt_status,
         error_code: error_code.map(Some),
         error_message: error_message.map(Some),
         error_reason: error_reason.map(Some),
-        amount_capturable: None,
         updated_by: merchant_account.storage_scheme.to_string(),
         unified_code: option_gsm.as_ref().map(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.map(|gsm| gsm.unified_message),
-        connector_transaction_id: None,
-        payment_method_data: None,
     };
     let updated_payment_attempt = state
         .store

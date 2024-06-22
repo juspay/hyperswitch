@@ -350,6 +350,15 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<String>,
         updated_by: String,
     },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
+        updated_by: String,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -879,6 +888,24 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => Self {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
         }

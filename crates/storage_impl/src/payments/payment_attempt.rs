@@ -1746,6 +1746,23 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_id,
                 updated_by,
             },
+            Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            },
         }
     }
 
@@ -2074,6 +2091,23 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+            },
+            DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
             },
         }
     }
