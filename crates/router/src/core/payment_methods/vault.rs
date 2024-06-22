@@ -1086,7 +1086,7 @@ pub async fn delete_tokenized_data(
         let response = redis_conn.delete_key(redis_key.as_str()).await;
 
         match response {
-            Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
+            Ok(redis_interface::DelReply::KeyDeleted(_)) => Ok(()),
             Ok(redis_interface::DelReply::KeyNotDeleted) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Token invalid or expired")

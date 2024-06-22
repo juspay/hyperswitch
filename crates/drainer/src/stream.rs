@@ -44,7 +44,7 @@ impl Store {
 
     pub async fn make_stream_available(&self, stream_name_flag: &str) -> errors::DrainerResult<()> {
         match self.redis_conn.delete_key(stream_name_flag).await {
-            Ok(redis::DelReply::KeyDeleted) => Ok(()),
+            Ok(redis::DelReply::KeyDeleted(_)) => Ok(()),
             Ok(redis::DelReply::KeyNotDeleted) => {
                 logger::error!("Tried to unlock a stream which is already unlocked");
                 Ok(())

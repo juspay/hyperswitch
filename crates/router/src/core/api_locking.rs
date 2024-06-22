@@ -129,7 +129,7 @@ impl LockAction {
                     Ok(val) => {
                         if val == state.get_request_id() {
                             match redis_conn.delete_key(redis_locking_key.as_str()).await {
-                                Ok(redis::types::DelReply::KeyDeleted) => {
+                                Ok(redis::types::DelReply::KeyDeleted(_)) => {
                                     logger::info!("Lock freed for locking input {:?}", input);
                                     tracing::Span::current()
                                         .record("redis_lock_released", redis_locking_key);

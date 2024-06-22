@@ -1,16 +1,13 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use storage_impl::redis::{
-    cache::{self, CacheKind, CONFIG_CACHE},
-    kv_store::RedisConnInterface,
-    pub_sub::PubSubInterface,
-};
+use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    routes::app::StorageInterface,
     types::storage,
 };
 
@@ -69,14 +66,11 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        self.get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .publish(
-                cache::IMC_INVALIDATION_CHANNEL,
-                CacheKind::Config((&inserted.key).into()),
-            )
-            .await
-            .map_err(Into::<errors::StorageError>::into)?;
+        cache::publish_into_redact_channel(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config((&inserted.key).into())],
+        )
+        .await?;
 
         Ok(inserted)
     }
@@ -100,7 +94,7 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::publish_and_redact(self, CacheKind::Config(key.into()), || {
+        cache::db_call_with_redact_and_publish(self, [CacheKind::Config(key.into())], || {
             self.update_config_in_database(key, config_update)
         })
         .await
@@ -177,14 +171,11 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        self.get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .publish(
-                cache::IMC_INVALIDATION_CHANNEL,
-                CacheKind::Config(key.into()),
-            )
-            .await
-            .map_err(Into::<errors::StorageError>::into)?;
+        cache::publish_into_redact_channel(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config(key.into())],
+        )
+        .await?;
 
         Ok(deleted)
     }

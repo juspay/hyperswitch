@@ -102,9 +102,11 @@ impl ApiKeyInterface for Store {
                 "ApiKey of {_key_id} not found"
             ))))?;
 
-            cache::publish_and_redact(
+            cache::db_call_with_redact_and_publish(
                 self,
-                CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                [CacheKind::Accounts(
+                    api_key.hashed_api_key.into_inner().into(),
+                )],
                 update_call,
             )
             .await
@@ -144,9 +146,11 @@ impl ApiKeyInterface for Store {
                         "ApiKey of {key_id} not found"
                     ))))?;
 
-            cache::publish_and_redact(
+            cache::db_call_with_redact_and_publish(
                 self,
-                CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                [CacheKind::Accounts(
+                    api_key.hashed_api_key.into_inner().into(),
+                )],
                 delete_call,
             )
             .await
@@ -515,11 +519,11 @@ mod tests {
 
         let delete_call = || async { db.revoke_api_key(merchant_id, &api.key_id).await };
 
-        cache::publish_and_redact(
+        cache::db_call_with_redact_and_publish(
             &db,
-            CacheKind::Accounts(
+            [CacheKind::Accounts(
                 format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()).into(),
-            ),
+            )],
             delete_call,
         )
         .await
