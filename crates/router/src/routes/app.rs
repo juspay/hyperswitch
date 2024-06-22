@@ -1338,6 +1338,8 @@ impl User {
 
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
+            .service(web::resource("/sso").route(web::get().to(get_sso_auth_url)))
+            .service(web::resource("/sss_code/{code}/{state}").route(web::get().to(sso_sign)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))

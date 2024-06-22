@@ -1968,3 +1968,14 @@ pub async fn check_two_factor_auth_status(
         },
     ))
 }
+
+pub async fn get_sso_auth_url(state: SessionState) -> UserResponse<()> {
+    let url = crate::services::okta::get_authorization_url(state).await.unwrap();
+    println!("{url}");
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn sso_sign(state: SessionState,code: String,state_query: String) -> UserResponse<()> {
+    crate::services::okta::authorize_code(state, code,state_query).await;
+    Ok(ApplicationResponse::StatusOk)
+}

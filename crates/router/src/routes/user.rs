@@ -749,3 +749,36 @@ pub async fn check_two_factor_auth_status(
     ))
     .await
 }
+
+pub async fn get_sso_auth_url(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::get_sso_auth_url(state),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn sso_sign(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_param: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    let (code, csrf) = query_param.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (&code, &csrf),
+        |state, user, code, _| user_core::sso_sign(state, code.0.to_string(), code.1.to_string()),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
