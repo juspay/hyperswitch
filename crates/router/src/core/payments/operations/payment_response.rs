@@ -115,6 +115,21 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
 
+        if let Some(payment_method_info) = &payment_data.payment_method_info {
+            if payment_data.payment_intent.off_session.is_none() && resp.response.is_ok() {
+                payment_methods::cards::update_last_used_at(
+                    payment_method_info,
+                    state,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!("Failed to update last used at: {:?}", e);
+                })
+                .ok();
+            }
+        };
+
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),

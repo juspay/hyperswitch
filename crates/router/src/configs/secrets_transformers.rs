@@ -220,6 +220,22 @@ impl SecretsHandler for settings::Secrets {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::UserAuthMethodSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let user_auth_methods = value.get_inner();
+
+        let encryption_key = secret_management_client
+            .get_secret(user_auth_methods.encryption_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|_| Self { encryption_key }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -302,6 +318,14 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt payment method auth configs");
 
+    #[allow(clippy::expect_used)]
+    let user_auth_methods = settings::UserAuthMethodSettings::convert_to_raw_secret(
+        conf.user_auth_methods,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt user_auth_methods configs");
+
     Settings {
         server: conf.server,
         master_database,
@@ -368,5 +392,6 @@ pub(crate) async fn fetch_raw_secrets(
         unmasked_headers: conf.unmasked_headers,
         saved_payment_methods: conf.saved_payment_methods,
         multitenancy: conf.multitenancy,
+        user_auth_methods,
     }
 }

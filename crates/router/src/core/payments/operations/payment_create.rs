@@ -644,6 +644,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None
         };
 
+        // Updation of Customer Details for the cases where both customer_id and specific customer
+        // details are provided in Payment Create Request
         let key = key_store.key.get_inner().peek();
         let customer_details = if raw_customer_details.is_some() {
             raw_customer_details
@@ -1061,7 +1063,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
-        // let key = key_store.key.get_inner().peek();
+        // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.name.is_some()
             || request.email.is_some()
             || request.phone.is_some()
@@ -1072,16 +1074,12 @@ impl PaymentCreate {
                 phone: request.phone.clone(),
                 email: request.email.clone(),
                 phone_country_code: request.phone_country_code.clone(),
-                // name: request.name
-                //     .async_lift(|inner|
-                //         encrypt_optional(inner, key)).await
-                //     .change_context(errors::ApiErrorResponse::InternalServerError)
-                //     .attach_printable("Unable to encrypt customer_name")?,
             })
         } else {
             None
         };
 
+        // Encrypting our Customer Details to be stored in Payment Intent
         let key = key_store.key.get_inner().peek();
         let customer_details = if raw_customer_details.is_some() {
             raw_customer_details

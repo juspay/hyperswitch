@@ -12,7 +12,7 @@ use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{Maskable, PeekInterface, Secret, ExposeInterface};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
@@ -506,20 +506,28 @@ where
     }
 
 
+    // For the case when we don't have Customer data directly stored in Payment intent
+    let customer_table_response: Option<CustomerDetailsResponse> = customer.as_ref().map(ForeignInto::foreign_into);
+
+    // If we have customer data in Payment Intent, We are populating the Retrieve response from the
+    // same
     let customer_details_response = if let Some(customer_details_raw) = payment_intent.customer_details.clone(){
         let customer_details_encrypted = serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
         let mut response_cus_data = CustomerDetailsResponse::new();
         if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+            if let Some(customer_table_response) = customer_table_response {
+                customer_table_response.id.map(|id| response_cus_data.set_id(id));
+            }
             customer_details_encrypted_data.name.map(|name| response_cus_data.set_name(name));
             customer_details_encrypted_data.phone.map(|phone| response_cus_data.set_phone(phone));
             customer_details_encrypted_data.email.map(|email| response_cus_data.set_email(email));
             customer_details_encrypted_data.phone_country_code.map(|pcc| response_cus_data.set_phone_country_code(pcc));
             Some(response_cus_data)
         } else {
-            None
+           customer_table_response 
         }
     } else {
-        None
+       customer_table_response 
     };
 
     headers.extend(
@@ -860,12 +868,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)
@@ -1498,6 +1506,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
+            minor_amount: Some(amount),
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
