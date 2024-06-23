@@ -1,6 +1,5 @@
 // Validate status 2xx 
 pm.test("[POST]::/payments - Status code is 2xx", function () {
-   console.log(pm.response.json());
    pm.response.to.be.success;
 });
 
