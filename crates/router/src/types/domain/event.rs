@@ -1,5 +1,6 @@
 use common_utils::crypto::OptionalEncryptableSecretString;
 use diesel_models::{
+    encryption::Encryption,
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
     events::EventUpdateInternal,
 };
@@ -10,7 +11,7 @@ use super::Identifier;
 use crate::{
     errors::{CustomResult, ValidationError},
     routes::SessionState,
-    types::domain::types::{self, AsyncLift},
+    types::domain::types,
 };
 
 #[derive(Clone, Debug)]
@@ -88,39 +89,37 @@ impl super::behaviour::Conversion for Event {
     where
         Self: Sized,
     {
-        async {
-            let identifier = Identifier::Merchant(key_store_ref_id.clone());
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                event_id: item.event_id,
-                event_type: item.event_type,
-                event_class: item.event_class,
-                is_webhook_notified: item.is_webhook_notified,
-                primary_object_id: item.primary_object_id,
-                primary_object_type: item.primary_object_type,
-                created_at: item.created_at,
-                merchant_id: item.merchant_id,
-                business_profile_id: item.business_profile_id,
-                primary_object_created_at: item.primary_object_created_at,
-                idempotent_event_id: item.idempotent_event_id,
-                initial_attempt_id: item.initial_attempt_id,
-                request: item
-                    .request
-                    .async_lift(|inner| {
-                        types::decrypt(state, inner, identifier.clone(), key.peek())
-                    })
-                    .await?,
-                response: item
-                    .response
-                    .async_lift(|inner| {
-                        types::decrypt(state, inner, identifier.clone(), key.peek())
-                    })
-                    .await?,
-                delivery_attempt: item.delivery_attempt,
-            })
-        }
+        let identifier = Identifier::Merchant(key_store_ref_id.clone());
+        let decrypted = types::batch_decrypt_optional(
+            state,
+            vec![item.request.clone(), item.response.clone()],
+            identifier,
+            key.peek(),
+        )
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting event data".to_string(),
+        })?;
+        let inner_decrypt = |encryption: Encryption| {
+            let key = String::from_utf8_lossy(encryption.get_inner().peek()).to_string();
+            decrypted.get(&key).cloned()
+        };
+        Ok(Self {
+            event_id: item.event_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_webhook_notified: item.is_webhook_notified,
+            primary_object_id: item.primary_object_id,
+            primary_object_type: item.primary_object_type,
+            created_at: item.created_at,
+            merchant_id: item.merchant_id,
+            business_profile_id: item.business_profile_id,
+            primary_object_created_at: item.primary_object_created_at,
+            idempotent_event_id: item.idempotent_event_id,
+            initial_attempt_id: item.initial_attempt_id,
+            request: item.request.and_then(inner_decrypt),
+            response: item.response.and_then(inner_decrypt),
+            delivery_attempt: item.delivery_attempt,
         })
     }
 

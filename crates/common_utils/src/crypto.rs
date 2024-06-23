@@ -11,7 +11,7 @@ use ring::{
 
 use crate::{
     errors::{self, CustomResult},
-    pii::{self, EncryptionStrategy},
+    pii::{EmailStrategy, EncryptionStrategy},
 };
 
 #[derive(Clone, Debug)]
@@ -483,7 +483,7 @@ pub type OptionalEncryptableSecretString = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
 pub type OptionalEncryptableName = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
-pub type OptionalEncryptableEmail = Option<Encryptable<Secret<String, pii::EmailStrategy>>>;
+pub type OptionalEncryptableEmail = Option<Encryptable<Secret<String, EmailStrategy>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
 pub type OptionalEncryptablePhone = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<serde_json::Value>>>`

@@ -26,7 +26,7 @@ pub use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
@@ -50,7 +50,7 @@ use crate::{
         self,
         domain::{
             self,
-            types::{encrypt_optional, AsyncLift},
+            types::{batch_encrypt_optional, encrypt_optional, AsyncLift},
             Identifier,
         },
         storage,
@@ -669,43 +669,40 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         merchant_id: String,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         let identifier = Identifier::Merchant(merchant_id);
+        let email_as_secret_string = self
+            .email
+            .clone()
+            .map(|email| Secret::new(email.expose().expose()));
+        let encrypted_data = batch_encrypt_optional(
+            state,
+            vec![
+                address_details.line1.clone(),
+                address_details.line2.clone(),
+                address_details.line3.clone(),
+                address_details.zip.clone(),
+                address_details.state.clone(),
+                address_details.first_name.clone(),
+                address_details.last_name.clone(),
+                self.phone.clone(),
+                email_as_secret_string.clone(),
+            ],
+            identifier.clone(),
+            key,
+        )
+        .await?;
+        let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
         async {
             Ok(storage::AddressUpdate::Update {
                 city: address_details.city,
                 country: address_details.country,
-                line1: address_details
-                    .line1
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                line2: address_details
-                    .line2
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                line3: address_details
-                    .line3
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                zip: address_details
-                    .zip
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                state: address_details
-                    .state
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                first_name: address_details
-                    .first_name
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                last_name: address_details
-                    .last_name
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                phone_number: self
-                    .phone
-                    .clone()
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
+                line1: address_details.line1.and_then(inner_encrypt),
+                line2: address_details.line2.and_then(inner_encrypt),
+                line3: address_details.line3.and_then(inner_encrypt),
+                zip: address_details.zip.and_then(inner_encrypt),
+                state: address_details.state.and_then(inner_encrypt),
+                first_name: address_details.first_name.and_then(inner_encrypt),
+                last_name: address_details.last_name.and_then(inner_encrypt),
+                phone_number: self.phone.clone().and_then(inner_encrypt),
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
                 email: self
@@ -736,44 +733,36 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
         let identifier = Identifier::Merchant(merchant_id.to_string());
+        let encrypted_data = batch_encrypt_optional(
+            state,
+            vec![
+                address_details.line1.clone(),
+                address_details.line2.clone(),
+                address_details.line3.clone(),
+                address_details.zip.clone(),
+                address_details.state.clone(),
+                address_details.first_name.clone(),
+                address_details.last_name.clone(),
+                self.phone.clone(),
+            ],
+            identifier.clone(),
+            key,
+        )
+        .await?;
+        let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
         async {
             let address = domain::Address {
                 id: None,
                 city: address_details.city,
                 country: address_details.country,
-                line1: address_details
-                    .line1
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                line2: address_details
-                    .line2
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                line3: address_details
-                    .line3
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                zip: address_details
-                    .zip
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                state: address_details
-                    .state
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                first_name: address_details
-                    .first_name
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                last_name: address_details
-                    .last_name
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
-                phone_number: self
-                    .phone
-                    .clone()
-                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone(), key))
-                    .await?,
+                line1: address_details.line1.and_then(inner_encrypt),
+                line2: address_details.line2.and_then(inner_encrypt),
+                line3: address_details.line3.and_then(inner_encrypt),
+                zip: address_details.zip.and_then(inner_encrypt),
+                state: address_details.state.clone().and_then(inner_encrypt),
+                first_name: address_details.first_name.and_then(inner_encrypt),
+                last_name: address_details.last_name.and_then(inner_encrypt),
+                phone_number: self.phone.clone().and_then(inner_encrypt),
                 country_code: self.phone_country_code.clone(),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),

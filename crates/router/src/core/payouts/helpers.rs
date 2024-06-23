@@ -611,17 +611,22 @@ pub async fn get_or_create_customer_details(
         Some(customer) => Ok(Some(customer)),
         None => {
             let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+            let encrypted_data = domain_types::batch_encrypt_optional(
+                state,
+                vec![
+                    customer_details.name.clone(),
+                    customer_details.phone.clone(),
+                ],
+                identifier.clone(),
+                key,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: domain_types::encrypt_optional(
-                    state,
-                    customer_details.name.to_owned(),
-                    identifier.clone(),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                name: customer_details.name.clone().and_then(inner_encrypt),
                 email: domain_types::encrypt_optional(
                     state,
                     customer_details.email.to_owned().map(|e| e.expose()),
@@ -630,14 +635,7 @@ pub async fn get_or_create_customer_details(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: domain_types::encrypt_optional(
-                    state,
-                    customer_details.phone.to_owned(),
-                    identifier.clone(),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                phone: customer_details.phone.clone().and_then(inner_encrypt),
                 description: None,
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,

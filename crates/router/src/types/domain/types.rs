@@ -10,12 +10,14 @@ use error_stack::ResultExt;
 #[allow(unused_imports)]
 use masking::{ExposeInterface, StrongSecret};
 use masking::{PeekInterface, Secret};
+use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
+use rustc_hash::FxHashMap;
 
 #[allow(unused_imports)]
 use super::{
     DecryptDataRequest, DecryptDataResponse, DecryptedData, EncryptDataRequest,
-    EncryptDataResponse, EncryptedData, Identifier, Version,
+    EncryptDataResponse, EncryptedData, Identifier,
 };
 #[allow(unused_imports)]
 use crate::{
@@ -60,6 +62,34 @@ pub trait TypeEncryption<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
+
+    async fn batch_encrypt_via_api(
+        state: &SessionState,
+        masked_data: Vec<Secret<T, S>>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+
+    async fn batch_decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Vec<Encryption>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+
+    async fn batch_encrypt(
+        masked_data: Vec<Secret<T, S>>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+
+    async fn batch_decrypt(
+        encrypted_data: Vec<Encryption>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
 }
 
 #[async_trait]
@@ -83,31 +113,31 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = EncryptDataRequest {
-                data: DecryptedData::from_data(StrongSecret::new(
-                    masked_data.clone().expose().as_bytes().to_vec(),
-                )),
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/encrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
-                        let encrypt_object = encrypt_response
-                            .response
-                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
-                            .change_context(errors::CryptoError::EncodingFailed);
-                        match encrypt_object {
-                            Ok(encrypted) => Ok(Self::new(
-                                masked_data,
-                                encrypted.data.data.peek().clone().into(),
-                            )),
-                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                        match EncryptDataResponse::try_from(encrypt_response.response) {
+                            Ok(encrypted) => {
+                                encrypted.data.0.get(masked_data.clone().peek()).map(|ed| {
+                                    Self::new(masked_data.clone(), ed.data.peek().clone().into())
+                                })
+                            }
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -127,34 +157,44 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = DecryptDataRequest {
-                data: EncryptedData {
-                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
-                    version: Version::from("v1".to_string()),
-                },
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/decrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
-                        let decrypt_object = decrypt_response
-                            .response
-                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
-                            .change_context(errors::CryptoError::DecodingFailed);
-                        match decrypt_object {
-                            Ok(decrypted) => Ok(Self::new(
-                                String::from_utf8_lossy(decrypted.data.inner().peek())
-                                    .to_string()
-                                    .into(),
-                                encrypted_data.into_inner(),
-                            )),
-                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                        match DecryptDataResponse::try_from(decrypt_response.response) {
+                            Ok(decrypted) => {
+                                let decrypted_data = decrypted.data.0.get(
+                                    &String::from_utf8_lossy(
+                                        encrypted_data.clone().into_inner().expose().to_bytes(),
+                                    )
+                                    .to_string(),
+                                );
+                                decrypted_data.map(|data| {
+                                    Self::new(
+                                        String::from_utf8_lossy(
+                                            data.clone().inner().peek().to_bytes(),
+                                        )
+                                        .to_string()
+                                        .into(),
+                                        encrypted_data.clone().into_inner(),
+                                    )
+                                })
+                            }
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -182,6 +222,150 @@ impl<
 
         Ok(Self::new(value.into(), encrypted))
     }
+
+    async fn batch_encrypt_via_api(
+        state: &SessionState,
+        masked_data: Vec<Secret<String, S>>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_encrypt(masked_data, key, crypt_algo).await
+        }
+
+        #[cfg(feature = "encryption_service")]
+        {
+            let response = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match response {
+                Ok(result) => match result {
+                    Ok(encrypted_data) => {
+                        match EncryptDataResponse::try_from(encrypted_data.response) {
+                            Ok(encrypted_data_response) => {
+                                let encrypted = encrypted_data_response
+                                    .data
+                                    .0
+                                    .into_iter()
+                                    .map(|(k, v)| {
+                                        (
+                                            k.clone(),
+                                            Self::new(
+                                                k.clone().into(),
+                                                v.data.peek().clone().into(),
+                                            ),
+                                        )
+                                    })
+                                    .collect();
+                                Some(encrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::batch_encrypt(masked_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Vec<Encryption>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+        }
+
+        #[cfg(feature = "encryption_service")]
+        {
+            let response = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match response {
+                Ok(service_response) => match service_response {
+                    Ok(decrypted_response) => {
+                        match DecryptDataResponse::try_from(decrypted_response.response) {
+                            Ok(decrypted_data) => {
+                                let decrypted: FxHashMap<String, Self> = decrypted_data
+                                    .data
+                                    .0
+                                    .into_iter()
+                                    .map(|(k, v)| {
+                                        (
+                                            k.clone(),
+                                            Self::new(k.into(), v.inner().peek().clone().into()),
+                                        )
+                                    })
+                                    .collect();
+                                Some(decrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::batch_decrypt(encrypted_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_encrypt(
+        masked_data: Vec<Secret<String, S>>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for masked in masked_data {
+            let encrypted_data = crypt_algo.encode_message(key, masked.peek().as_bytes())?;
+            encrypted.insert(
+                masked.clone().expose(),
+                Self::new(masked, encrypted_data.into()),
+            );
+        }
+        Ok(encrypted)
+    }
+
+    async fn batch_decrypt(
+        encrypted_data: Vec<Encryption>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for encrypted in encrypted_data {
+            let encrypted_inner = encrypted.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted_inner.clone())?;
+
+            let value: String = std::str::from_utf8(&data)
+                .change_context(errors::CryptoError::DecodingFailed)?
+                .to_string();
+            decrypted.insert(
+                String::from_utf8_lossy(encrypted_inner.peek()).to_string(),
+                Self::new(value.into(), encrypted_inner),
+            );
+        }
+        Ok(decrypted)
+    }
 }
 
 #[async_trait]
@@ -206,31 +390,33 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = EncryptDataRequest {
-                data: DecryptedData::from_data(StrongSecret::new(
-                    masked_data.clone().expose().to_string().as_bytes().to_vec(),
-                )),
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/encrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
-                        let encrypt_object = encrypt_response
-                            .response
-                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
-                            .change_context(errors::CryptoError::EncodingFailed);
-                        match encrypt_object {
-                            Ok(encrypted) => Ok(Self::new(
-                                masked_data,
-                                encrypted.data.data.peek().clone().into(),
-                            )),
-                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                        match EncryptDataResponse::try_from(encrypt_response.response) {
+                            Ok(encrypted) => encrypted
+                                .data
+                                .0
+                                .get(&masked_data.clone().peek().to_string())
+                                .map(|data| {
+                                    Self::new(masked_data.clone(), data.data.peek().clone().into())
+                                }),
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -250,38 +436,46 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = DecryptDataRequest {
-                data: EncryptedData {
-                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
-                    version: Version::from("v1".to_string()),
-                },
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/decrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
-                        let decrypt_object = decrypt_response
-                            .response
-                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
-                            .change_context(errors::CryptoError::DecodingFailed);
-                        match decrypt_object {
-                            Ok(decrypted) => {
-                                let value: Result<serde_json::Value, serde_json::Error> =
-                                    serde_json::from_slice(decrypted.data.inner().peek());
-                                match value {
-                                    Ok(val) => {
-                                        Ok(Self::new(val.into(), encrypted_data.into_inner()))
+                        match DecryptDataResponse::try_from(decrypt_response.response) {
+                            Ok(decrypted) => decrypted
+                                .data
+                                .0
+                                .get(
+                                    &String::from_utf8_lossy(
+                                        encrypted_data.clone().get_inner().peek(),
+                                    )
+                                    .to_string(),
+                                )
+                                .and_then(|data| {
+                                    let value: Result<serde_json::Value, serde_json::Error> =
+                                        serde_json::from_slice(data.clone().inner().peek());
+                                    match value {
+                                        Ok(val) => Some(Self::new(
+                                            val.into(),
+                                            encrypted_data.clone().into_inner(),
+                                        )),
+                                        Err(_) => None,
                                     }
-                                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
-                                }
-                            }
-                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                                }),
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -311,6 +505,147 @@ impl<
             serde_json::from_slice(&data).change_context(errors::CryptoError::DecodingFailed)?;
         Ok(Self::new(value.into(), encrypted))
     }
+
+    async fn batch_encrypt_via_api(
+        state: &SessionState,
+        masked_data: Vec<Secret<serde_json::Value, S>>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_encrypt(masked_data, key, crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let response = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match response {
+                Ok(result) => match result {
+                    Ok(encrypted_data) => {
+                        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+                        match EncryptDataResponse::try_from(encrypted_data.response) {
+                            Ok(data) => {
+                                for (k, v) in data.data.0.iter() {
+                                    let masked_data = serde_json::from_str(k.as_str())
+                                        .change_context(errors::CryptoError::EncodingFailed)?;
+                                    let encrypted_data = Secret::new(v.data.peek().clone());
+                                    encrypted.insert(
+                                        k.to_string(),
+                                        Self::new(masked_data, encrypted_data),
+                                    );
+                                }
+                                Some(encrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::batch_encrypt(masked_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Vec<Encryption>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let response = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match response {
+                Ok(service_response) => match service_response {
+                    Ok(decrypted_response) => {
+                        match DecryptDataResponse::try_from(decrypted_response.response) {
+                            Ok(decrypted_data) => {
+                                let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+                                for (k, v) in decrypted_data.data.0.iter() {
+                                    decrypted.insert(
+                                        k.to_string(),
+                                        Self::new(
+                                            serde_json::from_slice(
+                                                v.clone().inner().peek().clone().to_bytes(),
+                                            )
+                                            .change_context(errors::CryptoError::DecodingFailed)?,
+                                            k.as_bytes().to_vec().into(),
+                                        ),
+                                    );
+                                }
+                                Some(decrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::batch_decrypt(encrypted_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_encrypt(
+        masked_data: Vec<Secret<serde_json::Value, S>>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for masked in masked_data {
+            let data = serde_json::to_vec(&masked.peek())
+                .change_context(errors::CryptoError::DecodingFailed)?;
+            let encrypted_data = crypt_algo.encode_message(key, &data)?;
+            encrypted.insert(
+                masked.clone().expose().to_string(),
+                Self::new(masked, encrypted_data.into()),
+            );
+        }
+        Ok(encrypted)
+    }
+
+    async fn batch_decrypt(
+        encrypted_data: Vec<Encryption>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for encrypted in encrypted_data {
+            let encrypted_inner = encrypted.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted_inner.clone())?;
+
+            let value: serde_json::Value = serde_json::from_slice(&data)
+                .change_context(errors::CryptoError::DecodingFailed)?;
+            decrypted.insert(
+                String::from_utf8_lossy(data.to_bytes()).to_string(),
+                Self::new(value.into(), encrypted_inner),
+            );
+        }
+        Ok(decrypted)
+    }
 }
 
 #[async_trait]
@@ -334,31 +669,33 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = EncryptDataRequest {
-                data: DecryptedData::from_data(StrongSecret::new(
-                    masked_data.clone().expose().to_vec(),
-                )),
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/encrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
-                        let encrypt_object = encrypt_response
-                            .response
-                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
-                            .change_context(errors::CryptoError::EncodingFailed);
-                        match encrypt_object {
-                            Ok(encrypted) => Ok(Self::new(
-                                masked_data.clone(),
-                                encrypted.data.data.peek().clone().into(),
-                            )),
-                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                        match EncryptDataResponse::try_from(encrypt_response.response) {
+                            Ok(encrypted) => encrypted
+                                .data
+                                .0
+                                .get(&String::from_utf8_lossy(masked_data.peek()).to_string())
+                                .map(|data| {
+                                    Self::new(masked_data.clone(), data.data.peek().clone().into())
+                                }),
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -378,32 +715,41 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let request_body = DecryptDataRequest {
-                data: EncryptedData {
-                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
-                    version: Version::from("v1".to_string()),
-                },
-                identifier: identifier.clone(),
-            };
-            let result = call_encryption_service(state, "data/decrypt", request_body).await;
-            match result {
+            let result = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
-                        let decrypt_object = decrypt_response
-                            .response
-                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
-                            .change_context(errors::CryptoError::DecodingFailed);
-                        match decrypt_object {
-                            Ok(decrypted) => Ok(Self::new(
-                                decrypted.data.inner().peek().clone().into(),
-                                encrypted_data.into_inner(),
-                            )),
-                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                        match DecryptDataResponse::try_from(decrypt_response.response) {
+                            Ok(decrypted) => decrypted
+                                .data
+                                .0
+                                .get(
+                                    &String::from_utf8_lossy(
+                                        encrypted_data.clone().into_inner().peek().to_bytes(),
+                                    )
+                                    .to_string(),
+                                )
+                                .map(|data| {
+                                    Self::new(
+                                        data.clone().inner().peek().clone().into(),
+                                        encrypted_data.clone().into_inner(),
+                                    )
+                                }),
+                            Err(_) => None,
                         }
                     }
-                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                    Err(_) => None,
                 },
-                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -427,6 +773,150 @@ impl<
         let encrypted = encrypted_data.into_inner();
         let data = crypt_algo.decode_message(key, encrypted.clone())?;
         Ok(Self::new(data.into(), encrypted))
+    }
+
+    async fn batch_encrypt_via_api(
+        state: &SessionState,
+        masked_data: Vec<Secret<Vec<u8>, S>>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_encrypt(masked_data, key, crypt_algo).await
+        }
+
+        #[cfg(feature = "encryption_service")]
+        {
+            let response = call_encryption_service(
+                state,
+                "data/encrypt",
+                EncryptDataRequest::from((masked_data.clone(), identifier)),
+            )
+            .await;
+            let encrypted = match response {
+                Ok(encryption_service_result) => match encryption_service_result {
+                    Ok(encryption_response) => {
+                        match EncryptDataResponse::try_from(encryption_response.response) {
+                            Ok(encrypted_data_response) => {
+                                let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+                                for (k, v) in encrypted_data_response.data.0.iter() {
+                                    let masked_data = k.as_bytes().to_vec();
+                                    let encrypted_data = Secret::new(v.data.peek().clone());
+                                    encrypted.insert(
+                                        k.to_string(),
+                                        Self::new(masked_data.into(), encrypted_data),
+                                    );
+                                }
+                                Some(encrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match encrypted {
+                Some(en) => Ok(en),
+                None => Self::batch_encrypt(masked_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Vec<Encryption>,
+        identifier: Identifier,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let mut encrypted_data_group = FxHashMap::default();
+            for encrypted in encrypted_data.iter() {
+                let encrypted_inner = encrypted.clone().into_inner().expose();
+                let k = String::from_utf8_lossy(encrypted_inner.as_slice()).to_string();
+                encrypted_data_group.insert(
+                    k,
+                    EncryptedData {
+                        data: StrongSecret::new(encrypted_inner),
+                    },
+                );
+            }
+            let response = call_encryption_service(
+                state,
+                "data/decrypt",
+                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+            )
+            .await;
+            let decrypted = match response {
+                Ok(service_response) => match service_response {
+                    Ok(decrypted_response) => {
+                        match DecryptDataResponse::try_from(decrypted_response.response) {
+                            Ok(decrypted_data) => {
+                                let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+                                for (k, v) in decrypted_data.data.0.iter() {
+                                    decrypted.insert(
+                                        k.to_string(),
+                                        Self::new(
+                                            v.clone().inner().peek().clone().into(),
+                                            k.as_bytes().to_vec().into(),
+                                        ),
+                                    );
+                                }
+                                Some(decrypted)
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+            match decrypted {
+                Some(de) => Ok(de),
+                None => Self::batch_decrypt(encrypted_data, key, crypt_algo).await,
+            }
+        }
+    }
+
+    async fn batch_encrypt(
+        masked_data: Vec<Secret<Vec<u8>, S>>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for masked in masked_data {
+            let encrypted_data = crypt_algo.encode_message(key, masked.peek())?;
+            encrypted.insert(
+                String::from_utf8_lossy(masked.clone().expose().as_slice()).to_string(),
+                Self::new(masked, encrypted_data.into()),
+            );
+        }
+        Ok(encrypted)
+    }
+
+    async fn batch_decrypt(
+        encrypted_data: Vec<Encryption>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+        for encrypted in encrypted_data {
+            let encrypted_inner = encrypted.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted_inner.clone())?;
+            decrypted.insert(
+                String::from_utf8_lossy(data.as_slice()).to_string(),
+                Self::new(data.into(), encrypted_inner),
+            );
+        }
+        Ok(decrypted)
     }
 }
 
@@ -496,6 +986,31 @@ where
 }
 
 #[inline]
+pub async fn batch_encrypt<E: Clone, S>(
+    state: &SessionState,
+    inner: Vec<Secret<E, S>>,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+where
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    request::record_operation_time(
+        crypto::Encryptable::batch_encrypt_via_api(
+            state,
+            inner,
+            identifier,
+            key,
+            crypto::GcmAes256,
+        ),
+        &ENCRYPTION_TIME,
+        &[],
+    )
+    .await
+}
+
+#[inline]
 pub async fn encrypt_optional<E: Clone, S>(
     state: &SessionState,
     inner: Option<Secret<E, S>>,
@@ -511,6 +1026,25 @@ where
         .async_map(|f| encrypt(state, f, identifier, key))
         .await
         .transpose()
+}
+
+#[inline]
+pub async fn batch_encrypt_optional<E: Clone, S>(
+    state: &SessionState,
+    inner: Vec<Option<Secret<E, S>>>,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+where
+    Secret<E, S>: Send,
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    let mut masked_data: Vec<Secret<E, S>> = vec![];
+    for item in inner {
+        item.map(|masked| masked_data.push(masked));
+    }
+    batch_encrypt(state, masked_data, identifier, key).await
 }
 
 #[inline]
@@ -532,4 +1066,46 @@ where
     )
     .await
     .transpose()
+}
+
+#[inline]
+pub async fn batch_decrypt_optional<T: Clone, S: masking::Strategy<T>>(
+    state: &SessionState,
+    inner: Vec<Option<Encryption>>,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
+    let mut encrypted_data = vec![];
+    for item in inner {
+        item.map(|encrypted| encrypted_data.push(encrypted));
+    }
+    batch_decrypt(state, encrypted_data, identifier, key).await
+}
+
+#[inline]
+pub async fn batch_decrypt<E: Clone, S>(
+    state: &SessionState,
+    inner: Vec<Encryption>,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+where
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    request::record_operation_time(
+        crypto::Encryptable::batch_decrypt_via_api(
+            state,
+            inner,
+            identifier,
+            key,
+            crypto::GcmAes256,
+        ),
+        &ENCRYPTION_TIME,
+        &[],
+    )
+    .await
 }

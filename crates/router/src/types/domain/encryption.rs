@@ -1,12 +1,11 @@
-use core::fmt;
-use std::fmt::Display;
-
 use base64::Engine;
-use masking::PeekInterface;
-use serde::{
-    de::{self, Unexpected, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use bytes::Bytes;
+use common_utils::ext_traits::BytesExt;
+use diesel_models::encryption::Encryption;
+use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
+use rdkafka::message::ToBytes;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::consts::BASE64_ENGINE;
 
@@ -36,38 +35,195 @@ pub struct EncryptionCreateRequest {
 pub struct EncryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub data: DecryptedData,
+    pub data: DecryptedDataGroup,
 }
 
-#[derive(Serialize, Deserialize)]
+impl<S> From<(Secret<Vec<u8>, S>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<Vec<u8>>,
+{
+    fn from((secret, identifier): (Secret<Vec<u8>, S>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        group.insert(
+            String::from_utf8_lossy(secret.peek()).to_string(),
+            DecryptedData(StrongSecret::new(secret.expose())),
+        );
+        Self {
+            identifier,
+            data: DecryptedDataGroup(group),
+        }
+    }
+}
+
+impl<S> From<(Vec<Secret<Vec<u8>, S>>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<Vec<u8>>,
+{
+    fn from((vec, identifier): (Vec<Secret<Vec<u8>, S>>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        for item in vec.iter() {
+            group.insert(
+                String::from_utf8_lossy(item.clone().peek()).to_string(),
+                DecryptedData(StrongSecret::new(item.clone().expose())),
+            );
+        }
+        Self {
+            identifier,
+            data: DecryptedDataGroup(group),
+        }
+    }
+}
+
+impl<S> From<(Secret<String, S>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<String>,
+{
+    fn from((secret, identifier): (Secret<String, S>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        let exposed = secret.clone().expose();
+        group.insert(
+            exposed.clone(),
+            DecryptedData(StrongSecret::new(exposed.as_bytes().to_vec())),
+        );
+        Self {
+            data: DecryptedDataGroup(group),
+            identifier: identifier.clone(),
+        }
+    }
+}
+
+impl<S> From<(Secret<serde_json::Value, S>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<serde_json::Value>,
+{
+    fn from((secret, identifier): (Secret<serde_json::Value, S>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        let exposed = secret.clone().expose();
+        group.insert(
+            exposed.clone().to_string(),
+            DecryptedData(StrongSecret::new(exposed.to_string().as_bytes().to_vec())),
+        );
+        Self {
+            data: DecryptedDataGroup(group),
+            identifier: identifier.clone(),
+        }
+    }
+}
+
+impl<S> From<(Vec<Secret<serde_json::Value, S>>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<serde_json::Value>,
+{
+    fn from((vec, identifier): (Vec<Secret<serde_json::Value, S>>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        for item in vec.into_iter() {
+            let exposed = item.clone().expose();
+            group.insert(
+                exposed.clone().to_string(),
+                DecryptedData(StrongSecret::new(exposed.to_string().as_bytes().to_vec())),
+            );
+        }
+        Self {
+            data: DecryptedDataGroup(group),
+            identifier,
+        }
+    }
+}
+
+impl<S> From<(Vec<Secret<String, S>>, Identifier)> for EncryptDataRequest
+where
+    S: Strategy<String>,
+{
+    fn from((vec, identifier): (Vec<Secret<String, S>>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        for item in vec.into_iter() {
+            let exposed = item.clone().expose();
+            group.insert(
+                exposed.clone(),
+                DecryptedData(StrongSecret::new(exposed.as_bytes().to_vec())),
+            );
+        }
+        Self {
+            data: DecryptedDataGroup(group),
+            identifier,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, serde::Deserialize)]
+pub struct DecryptedDataGroup(pub FxHashMap<String, DecryptedData>);
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EncryptDataResponse {
-    pub data: EncryptedData,
+    pub data: EncryptedDataGroup,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl TryFrom<Bytes> for EncryptDataResponse {
+    type Error = error_stack::Report<common_utils::errors::ParsingError>;
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        value.parse_struct::<Self>("EncryptDataResponse")
+    }
+}
+
+#[derive(Debug, Serialize, serde::Deserialize)]
+pub struct EncryptedDataGroup(pub FxHashMap<String, EncryptedData>);
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub data: EncryptedData,
+    pub data: EncryptedDataGroup,
 }
 
-#[derive(Serialize, Deserialize)]
+impl From<(Encryption, Identifier)> for DecryptDataRequest {
+    fn from((encryption, identifier): (Encryption, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        let exposed = encryption.clone().into_inner().expose();
+        group.insert(
+            String::from_utf8_lossy(exposed.to_bytes()).to_string(),
+            EncryptedData {
+                data: StrongSecret::new(exposed),
+            },
+        );
+        Self {
+            data: EncryptedDataGroup(group),
+            identifier,
+        }
+    }
+}
+
+impl From<(Vec<Encryption>, Identifier)> for DecryptDataRequest {
+    fn from((vec, identifier): (Vec<Encryption>, Identifier)) -> Self {
+        let mut group = FxHashMap::default();
+        for item in vec.into_iter() {
+            let exposed = item.clone().into_inner().expose();
+            group.insert(
+                String::from_utf8_lossy(exposed.to_bytes()).to_string(),
+                EncryptedData {
+                    data: StrongSecret::new(exposed),
+                },
+            );
+        }
+        Self {
+            data: EncryptedDataGroup(group),
+            identifier,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptDataResponse {
-    pub data: DecryptedData,
+    pub data: DecryptedDataGroup,
 }
 
-#[derive(Debug)]
-pub struct DecryptedData(masking::StrongSecret<Vec<u8>>);
-
-impl DecryptedData {
-    pub fn from_data(data: masking::StrongSecret<Vec<u8>>) -> Self {
-        Self(data)
-    }
-
-    pub fn inner(self) -> masking::StrongSecret<Vec<u8>> {
-        self.0
+impl TryFrom<Bytes> for DecryptDataResponse {
+    type Error = error_stack::Report<common_utils::errors::ParsingError>;
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        value.parse_struct::<Self>("DecryptDataResponse")
     }
 }
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct DecryptedData(StrongSecret<Vec<u8>>);
 
 impl Serialize for DecryptedData {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -79,118 +235,17 @@ impl Serialize for DecryptedData {
     }
 }
 
-impl<'de> Deserialize<'de> for DecryptedData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct DecryptedDataVisitor;
+impl DecryptedData {
+    pub fn from_data(data: StrongSecret<Vec<u8>>) -> Self {
+        Self(data)
+    }
 
-        impl<'de> Visitor<'de> for DecryptedDataVisitor {
-            type Value = DecryptedData;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("string of the format {version}:{base64_encoded_data}'")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<DecryptedData, E>
-            where
-                E: de::Error,
-            {
-                let dec_data = BASE64_ENGINE.decode(value).map_err(|err| {
-                    let err = err.to_string();
-                    E::invalid_value(Unexpected::Str(value), &err.as_str())
-                })?;
-
-                Ok(DecryptedData(dec_data.into()))
-            }
-        }
-
-        deserializer.deserialize_str(DecryptedDataVisitor)
+    pub fn inner(self) -> StrongSecret<Vec<u8>> {
+        self.0
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EncryptedData {
-    pub version: Version,
-    pub data: masking::StrongSecret<Vec<u8>>,
-}
-
-impl EncryptedData {
-    pub fn inner(self) -> masking::StrongSecret<Vec<u8>> {
-        self.data
-    }
-}
-
-impl Serialize for EncryptedData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let data = BASE64_ENGINE.encode(self.data.peek());
-        let encoded = format!("{}:{}", &self.version, data);
-        serializer.serialize_str(&encoded)
-    }
-}
-
-impl<'de> Deserialize<'de> for EncryptedData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct EncryptedDataVisitor;
-
-        impl<'de> Visitor<'de> for EncryptedDataVisitor {
-            type Value = EncryptedData;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("string of the format {version}:{base64_encoded_data}'")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<EncryptedData, E>
-            where
-                E: de::Error,
-            {
-                let (version, data) = value.split_once(':').ok_or_else(|| {
-                    E::invalid_value(
-                        Unexpected::Str(value),
-                        &"String should of the format {version}:{base64_encoded_data}",
-                    )
-                })?;
-
-                let dec_data = BASE64_ENGINE.decode(data).map_err(|err| {
-                    let err = err.to_string();
-                    E::invalid_value(Unexpected::Str(data), &err.as_str())
-                })?;
-
-                Ok(EncryptedData {
-                    version: Version::from(version.to_string()),
-                    data: masking::StrongSecret::new(dec_data),
-                })
-            }
-        }
-
-        deserializer.deserialize_str(EncryptedDataVisitor)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Version(String);
-
-impl Display for Version {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Self("v1".to_string())
-    }
-}
-
-impl From<String> for Version {
-    fn from(v: String) -> Self {
-        Self(v)
-    }
+    pub data: StrongSecret<Vec<u8>>,
 }

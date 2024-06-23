@@ -68,18 +68,30 @@ impl super::behaviour::Conversion for Customer {
         Self: Sized,
     {
         let identifier = Identifier::Merchant(item.merchant_id.clone());
+        let decrypted = types::batch_decrypt_optional(
+            state,
+            vec![item.name.clone(), item.phone.clone()],
+            identifier.clone(),
+            key.peek(),
+        )
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting customer data".to_string(),
+        })?;
+        let inner_decrypt = |inner: Encryption| {
+            let key = String::from_utf8_lossy(inner.get_inner().peek()).to_string();
+            decrypted.get(&key).cloned()
+        };
         async {
-            let inner_decrypt =
-                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             let inner_decrypt_email =
                 |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,
-                name: item.name.async_lift(inner_decrypt).await?,
+                name: item.name.and_then(inner_decrypt),
                 email: item.email.async_lift(inner_decrypt_email).await?,
-                phone: item.phone.async_lift(inner_decrypt).await?,
+                phone: item.phone.and_then(inner_decrypt),
                 phone_country_code: item.phone_country_code,
                 description: item.description,
                 created_at: item.created_at,
