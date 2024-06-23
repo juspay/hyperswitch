@@ -253,7 +253,9 @@ impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
         ) = &self.request.payment_method_data
         {
             if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
-                if !assurance_details.card_holder_authenticated {
+                if !assurance_details.card_holder_authenticated
+                    || !assurance_details.account_verified
+                {
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
                 }
             }

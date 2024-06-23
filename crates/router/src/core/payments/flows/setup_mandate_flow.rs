@@ -50,7 +50,7 @@ impl
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
-        self,
+        mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
@@ -63,7 +63,19 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-
+        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false
+        if let hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(google_pay_data),
+        ) = &self.request.payment_method_data
+        {
+            if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
+                if !assurance_details.card_holder_authenticated
+                    || !assurance_details.account_verified
+                {
+                    self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
+                }
+            }
+        }
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
