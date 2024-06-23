@@ -534,7 +534,7 @@ where
                                     .find(|payment_method| {
                                         payment_method.payment_method_type == payment_method_type
                                     })
-                                    .map(|pm| pm.clone())),
+                                    .cloned()),
                                 Err(error) => {
                                     if error.current_context().is_db_not_found() {
                                         Ok(None)
