@@ -29,8 +29,6 @@ pub enum ApiEventsType {
         customer_id: id_type::CustomerId,
     },
     User {
-        //specified merchant_id will overridden on global defined
-        merchant_id: String,
         user_id: String,
     },
     PaymentMethodList {

@@ -749,3 +749,60 @@ pub async fn check_two_factor_auth_status(
     ))
     .await
 }
+
+pub async fn create_user_authentication_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::CreateUserAuthenticationMethodRequest>,
+) -> HttpResponse {
+    let flow = Flow::CreateUserAuthenticationMethod;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _, req_body, _| user_core::create_user_authentication_method(state, req_body),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn update_user_authentication_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UpdateUserAuthenticationMethodRequest>,
+) -> HttpResponse {
+    let flow = Flow::UpdateUserAuthenticationMethod;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _, req_body, _| user_core::update_user_authentication_method(state, req_body),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_user_authentication_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::GetUserAuthenticationMethodsRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListUserAuthenticationMethods;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, _, req, _| user_core::list_user_authentication_methods(state, req),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -26,8 +26,13 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
-pub use hyperswitch_interfaces::api::{
-    BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
 };
 use masking::{Maskable, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
@@ -52,8 +57,7 @@ use crate::{
     logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
-        metrics::{self, request as metrics_request},
-        AppState, SessionState,
+        metrics, AppState, SessionState,
     },
     services::generic_link_response::build_generic_link_html,
     types::{
@@ -334,6 +338,7 @@ where
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
@@ -538,9 +543,10 @@ pub async fn send_request(
             .attach_printable("Unable to send request to connector")
     };
 
-    let response = metrics_request::record_operation_time(
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
+        &metrics::CONTEXT,
         &[metrics_tag.clone()],
     )
     .await;
@@ -565,9 +571,10 @@ pub async fn send_request(
                     logger::info!(
                         "Retrying request due to connection closed before message could complete"
                     );
-                    metrics_request::record_operation_time(
+                    common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
                         &[metrics_tag],
                     )
                     .await

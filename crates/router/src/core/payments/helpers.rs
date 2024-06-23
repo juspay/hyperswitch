@@ -19,6 +19,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    router_data::KlarnaSdkResponse,
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -615,6 +616,7 @@ pub async fn get_token_for_recurring_mandate(
             db.find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
+                merchant_key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1778,11 +1780,11 @@ pub async fn retrieve_payment_method_with_temporary_token(
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
     locker_id: &str,
-    payment_method_id: &str,
+    _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
     _merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    _storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1836,7 +1838,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-    cards::update_last_used_at(payment_method_id, state, storage_scheme).await?;
+
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
@@ -2423,12 +2425,14 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
     let result = db
         .filter_payment_intent_by_constraints(
             merchant_id,
             &constraints.clone().into(),
+            key_store,
             storage_scheme,
         )
         .await?;
@@ -2844,6 +2848,7 @@ pub(crate) fn validate_pm_or_token_given(
 pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
@@ -2854,6 +2859,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_id,
                     &merchant_account.merchant_id,
+                    key_store,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -2949,7 +2955,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_not_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
@@ -3009,7 +3014,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
@@ -3068,7 +3072,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
@@ -3600,6 +3603,7 @@ impl AttemptType {
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
@@ -3641,6 +3645,7 @@ impl AttemptType {
                             attempt_count: new_attempt_count,
                             updated_by: storage_scheme.to_string(),
                         },
+                        key_store,
                         storage_scheme,
                     )
                     .await
@@ -3864,7 +3869,7 @@ pub async fn get_additional_payment_data(
             _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
         api_models::payments::PaymentMethodData::PayLater(_) => {
-            api_models::payments::AdditionalPaymentData::PayLater {}
+            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None }
         }
         api_models::payments::PaymentMethodData::BankTransfer(_) => {
             api_models::payments::AdditionalPaymentData::BankTransfer {}
@@ -4508,6 +4513,15 @@ pub fn add_connector_response_to_additional_payment_data(
                 ..*additional_card_data.clone()
             },
         )),
+        (
+            api_models::payments::AdditionalPaymentData::PayLater { .. },
+            AdditionalPaymentMethodConnectorResponse::PayLater {
+                klarna_sdk: Some(KlarnaSdkResponse { payment_type }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::PayLater {
+            klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
+        },
+
         _ => additional_payment_data,
     }
 }

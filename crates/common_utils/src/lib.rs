@@ -32,6 +32,9 @@ pub mod static_cache;
 pub mod types;
 pub mod validation;
 
+#[cfg(feature = "metrics")]
+pub mod metrics;
+
 /// Date-time utilities.
 pub mod date_time {
     #[cfg(feature = "async_ext")]
