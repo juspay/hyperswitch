@@ -6,13 +6,15 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::MinorUnit, pii::Email,
+    pii::Email,
+    types::MinorUnit,
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData}, type_encryption::{encrypt_optional, decrypt},
+    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
+    type_encryption::{decrypt, encrypt_optional},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -34,10 +36,7 @@ use crate::{
     services,
     types::{
         api::{self, PaymentIdTypeExt},
-        domain::{
-            self,
-            types::AsyncLift,
-        },
+        domain::{self, types::AsyncLift},
         storage::{
             self,
             enums::{self, IntentStatus},

@@ -6,7 +6,7 @@ use common_utils::{
     pii::{self, Email},
     types::MinorUnit,
 };
-use masking::{Secret, Deserialize};
+use masking::{Deserialize, Secret};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
