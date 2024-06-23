@@ -28,7 +28,7 @@ pub trait RequestIntegrity<T: ConnectorIntegrity> {
 
 /// Trait to check flow type, based on which various integrity checks will be performed
 pub trait FlowType<Request, T> {
-    /// Function to check to intiate integrity check
+    /// Function to check to initiate integrity check
     fn check_integrity(
         &self,
         request: &Request,
@@ -85,10 +85,10 @@ where
 }
 
 impl ConnectorIntegrity for AuthoriseIntegrityObject {
-    type IntegrityObject = AuthoriseIntegrityObject;
+    type IntegrityObject = Self;
     fn compare(
-        req_integrity_object: AuthoriseIntegrityObject,
-        res_integrity_object: AuthoriseIntegrityObject,
+        req_integrity_object: Self,
+        res_integrity_object: Self,
         connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
@@ -116,10 +116,10 @@ impl ConnectorIntegrity for AuthoriseIntegrityObject {
 }
 
 impl ConnectorIntegrity for SyncIntegrityObject {
-    type IntegrityObject = SyncIntegrityObject;
+    type IntegrityObject = Self;
     fn compare(
-        req_integrity_object: Self::IntegrityObject,
-        res_integrity_object: Self::IntegrityObject,
+        req_integrity_object: Self,
+        res_integrity_object: Self,
         connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();

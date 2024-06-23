@@ -129,7 +129,7 @@ async fn should_sync_authorized_payment() {
                 currency: enums::Currency::EUR,
                 payment_experience: None,
                 integrity_object: None,
-                amount: MinorUnit::new(1000),
+                amount: MinorUnit::new(100),
             }),
             None,
         )
