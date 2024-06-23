@@ -342,7 +342,7 @@ fn generate_task_id_for_payment_method_status_update_workflow(
 }
 
 pub async fn add_payment_method_status_update_task(
-    db: &dyn db::StorageInterface,
+    db: &dyn StorageInterface,
     payment_method: &diesel_models::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
