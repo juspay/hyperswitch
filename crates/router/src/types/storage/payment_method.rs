@@ -1,13 +1,13 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
-
 use api_models::{enums as api_enums, payment_methods};
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
+};
+use serde;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
 };
 
 use crate::types::api::{self, payments};
@@ -110,18 +110,28 @@ impl DerefMut for PaymentsMandateReference {
         &mut self.0
     }
 }
-
-impl PaymentsMandateReference {
-    pub fn collect_connector_mandate_ids(&self) -> Vec<String> {
-        self.0
-            .values()
-            .map(|ref_record| ref_record.connector_mandate_id.clone())
-            .collect()
-    }
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateMandate {
+    pub connector_mandate_id: Option<String>,
+    pub connector_variant: api_enums::Connector,
 }
+// impl PaymentsMandateReference {
+//     pub fn collect_connector_mandate_id(&self) -> String {
+//     let h = self.0.get()
+//     }
+// }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodUpdateTrackingData {
     pub merchant_id: String,
-    pub payment_mandate_rec: PaymentsMandateReference,
-    pub list_mca_ids: HashMap<String, api_enums::Connector>,
+    // pub payment_mandate_rec: PaymentsMandateReference,
+    pub list_mca_ids: HashMap<String, UpdateMandate>,
+    pub card_updation_obj: payment_methods::CardDetailUpdate,
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodStatusTrackingData {
+    pub payment_method_id: String,
+    pub prev_status: enums::PaymentMethodStatus,
+    pub curr_status: enums::PaymentMethodStatus,
+    pub merchant_id: String,
 }

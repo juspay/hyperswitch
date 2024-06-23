@@ -4,13 +4,13 @@ use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
-use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
+use hyperswitch_domain_models::router_data::{ConnectorAuthType, ErrorResponse, RouterData};
 use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
 use crate::{
-    configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+    configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// type BoxedConnectorIntegration
@@ -33,7 +33,9 @@ where
 }
 
 /// trait ConnectorIntegration
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+pub trait ConnectorIntegration<T, Req, Resp>:
+    ConnectorIntegrationAny<T, Req, Resp> + Sync + ConnectorCommon
+{
     /// fn get_headers
     fn get_headers(
         &self,
@@ -181,4 +183,74 @@ pub enum CaptureSyncMethod {
     Individual,
     /// For syncing multiple captures together
     Bulk,
+}
+
+/// Connector accepted currency unit as either "Base" or "Minor"
+#[derive(Debug)]
+pub enum CurrencyUnit {
+    /// Base currency unit
+    Base,
+    /// Minor currency unit
+    Minor,
+}
+
+/// The trait that provides the common
+pub trait ConnectorCommon {
+    /// Name of the connector (in lowercase).
+    fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
+
+    /// HTTP header used for authorization.
+    fn get_auth_header(
+        &self,
+        _auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        Ok(Vec::new())
+    }
+
+    /// HTTP `Content-Type` to be used for POST requests.
+    /// Defaults to `application/json`.
+    fn common_get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    // FIXME write doc - think about this
+    // fn headers(&self) -> Vec<(&str, &str)>;
+
+    /// The base URL for interacting with the connector's API.
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
+
+    /// common error response for a connector if it is same in all case
+    fn build_error_response(
+        &self,
+        res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
+}
+
+/// Extended trait for connector common to allow functions with generic type
+pub trait ConnectorCommonExt<Flow, Req, Resp>:
+    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
+{
+    /// common header builder when every request for the connector have same headers
+    fn build_headers(
+        &self,
+        _req: &RouterData<Flow, Req, Resp>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        Ok(Vec::new())
+    }
 }

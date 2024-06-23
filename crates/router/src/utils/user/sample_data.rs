@@ -5,7 +5,7 @@ use api_models::{
 use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
@@ -20,7 +20,7 @@ pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &str,
-) -> SampleDataResult<Vec<(PaymentIntentNew, PaymentAttemptBatchNew, Option<RefundNew>)>> {
+) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let merchant_id = merchant_id.to_string();
     let sample_data_size: usize = req.record.unwrap_or(100);
 
@@ -101,7 +101,7 @@ pub async fn generate_sample_data(
     let mut rng = thread_rng();
     random_array.shuffle(&mut rng);
 
-    let mut res: Vec<(PaymentIntentNew, PaymentAttemptBatchNew, Option<RefundNew>)> = Vec::new();
+    let mut res: Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)> = Vec::new();
     let start_time = req
         .start_time
         .unwrap_or(common_utils::date_time::now() - time::Duration::days(7))
@@ -172,7 +172,7 @@ pub async fn generate_sample_data(
         let is_failed_payment =
             (random_array.get(num - 1).unwrap_or(&0) % failure_after_attempts) == 0;
 
-        let payment_intent = PaymentIntentNew {
+        let payment_intent = PaymentIntent {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             status: match is_failed_payment {
@@ -186,8 +186,8 @@ pub async fn generate_sample_data(
                     .unwrap_or(&common_enums::Currency::USD),
             ),
             description: Some("This is a sample payment".to_string()),
-            created_at: Some(created_at),
-            modified_at: Some(modified_at),
+            created_at,
+            modified_at,
             last_synced: Some(last_synced),
             client_secret: Some(client_secret),
             business_country: business_country_default,
