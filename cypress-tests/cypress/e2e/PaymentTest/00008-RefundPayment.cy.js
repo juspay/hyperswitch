@@ -44,7 +44,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -104,7 +104,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -178,7 +178,7 @@ describe("Card - Refund flow test", () => {
           res_data,
           "no_three_ds",
           "automatic",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -198,7 +198,7 @@ describe("Card - Refund flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 
   context(
@@ -225,7 +225,7 @@ describe("Card - Refund flow test", () => {
           res_data,
           "no_three_ds",
           "automatic",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -267,7 +267,7 @@ describe("Card - Refund flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 
   context("Card - Full Refund for fully captured No-3DS payment", () => {
@@ -291,7 +291,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -378,7 +378,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -478,7 +478,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -565,7 +565,7 @@ describe("Card - Refund flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -657,7 +657,7 @@ describe("Card - Refund flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -669,7 +669,7 @@ describe("Card - Refund flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
@@ -679,7 +679,7 @@ describe("Card - Refund flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
@@ -704,7 +704,7 @@ describe("Card - Refund flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 });
 
@@ -739,7 +739,7 @@ context("Card - Full Refund flow test for 3DS", () => {
       res_data,
       "three_ds",
       "automatic",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -802,7 +802,7 @@ context("Card - Partial Refund flow test for 3DS", () => {
       res_data,
       "three_ds",
       "automatic",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -877,7 +877,7 @@ context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
       res_data,
       "three_ds",
       "automatic",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -927,7 +927,7 @@ context(
         res_data,
         "three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -974,7 +974,7 @@ context(
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
-  },
+  }
 );
 
 context("Card - Full Refund for fully captured 3DS payment", () => {
@@ -998,7 +998,7 @@ context("Card - Full Refund for fully captured 3DS payment", () => {
       res_data,
       "three_ds",
       "manual",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -1077,7 +1077,7 @@ context("Card - Partial Refund for fully captured 3DS payment", () => {
       res_data,
       "three_ds",
       "manual",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -1166,7 +1166,7 @@ context("Card - Full Refund for partially captured 3DS payment", () => {
       res_data,
       "three_ds",
       "manual",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
@@ -1245,7 +1245,7 @@ context("Card - partial Refund for partially captured 3DS payment", () => {
       res_data,
       "three_ds",
       "manual",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);

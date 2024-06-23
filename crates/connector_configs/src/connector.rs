@@ -88,7 +88,6 @@ pub struct ConfigMetadata {
     pub account_name: Option<MetaDataInupt>,
     pub terminal_id: Option<MetaDataInupt>,
     pub google_pay: Option<Vec<MetaDataInupt>>,
-    // pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub apple_pay_v2: Option<Vec<MetaDataInupt>>,
     pub merchant_id: Option<MetaDataInupt>,
@@ -105,6 +104,7 @@ pub struct ConfigMetadata {
     pub klarna_region: Option<MetaDataInupt>,
     pub source_balance_account: Option<MetaDataInupt>,
     pub brand_id: Option<MetaDataInupt>,
+    pub destination_account_number: Option<MetaDataInupt>,
 }
 
 #[serde_with::skip_serializing_none]

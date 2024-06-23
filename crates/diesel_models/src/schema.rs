@@ -712,8 +712,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_attempt (id) {
-        id -> Int4,
+    payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -802,8 +801,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_intent (id) {
-        id -> Int4,
+    payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1004,7 +1002,7 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         address_id -> Varchar,
-        payout_type -> PayoutType,
+        payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         amount -> Int8,
@@ -1178,6 +1176,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    user_authentication_methods (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        auth_id -> Varchar,
+        #[max_length = 64]
+        owner_id -> Varchar,
+        #[max_length = 64]
+        owner_type -> Varchar,
+        #[max_length = 64]
+        auth_type -> Varchar,
+        private_config -> Nullable<Bytea>,
+        public_config -> Nullable<Jsonb>,
+        allow_signup -> Bool,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     user_key_store (user_id) {
         #[max_length = 64]
         user_id -> Varchar,
@@ -1223,7 +1244,7 @@ diesel::table! {
         #[max_length = 255]
         name -> Varchar,
         #[max_length = 255]
-        password -> Varchar,
+        password -> Nullable<Varchar>,
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
@@ -1272,6 +1293,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    user_authentication_methods,
     user_key_store,
     user_roles,
     users,

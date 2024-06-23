@@ -5,7 +5,6 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
-use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -18,6 +17,7 @@ use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
@@ -82,10 +82,10 @@ pub struct SessionState {
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
-    pub tenant: String,
+    pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
 }
@@ -144,8 +144,8 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -256,19 +256,11 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_tenant = if conf.multitenancy.enabled {
-                GLOBAL_TENANT
-            } else {
-                DEFAULT_TENANT
-            };
             let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
-                &settings::GlobalTenant {
-                    schema: global_tenant.to_string(),
-                    redis_key_prefix: String::default(),
-                },
+                &conf.multitenancy.global_tenant,
                 Arc::clone(&cache_store),
                 testable,
             )
@@ -287,9 +279,7 @@ impl AppState {
                 .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
-                        .await;
+                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant_name.clone(), pool);
             }
@@ -380,6 +370,7 @@ impl AppState {
     where
         F: FnOnce() -> E + Copy,
     {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
@@ -390,15 +381,8 @@ impl AppState {
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id,
-            base_url: self
-                .conf
-                .multitenancy
-                .get_tenant(tenant)
-                .ok_or_else(err)?
-                .clone()
-                .base_url
-                .clone(),
-            tenant: tenant.to_string().clone(),
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
@@ -1390,6 +1374,18 @@ impl User {
                 )
                 .service(
                     web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/auth")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_user_authentication_method))
+                        .route(web::put().to(update_user_authentication_method)),
+                )
+                .service(
+                    web::resource("/list").route(web::get().to(list_user_authentication_methods)),
                 ),
         );
 

@@ -15,6 +15,8 @@ use diesel_models::configs;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
+#[cfg(not(feature = "business_profile_routing"))]
+use storage_impl::redis::cache;
 
 use super::payments;
 #[cfg(feature = "payouts")]
@@ -232,7 +234,11 @@ pub async fn create_routing_config(
         if records_are_empty {
             merchant_dictionary.active_id = Some(algorithm_id.clone());
             algorithm_ref.update_algorithm_id(algorithm_id);
-            helpers::update_merchant_active_algorithm_ref(db, &key_store, algorithm_ref).await?;
+            let key =
+                cache::CacheKind::Routing(format!("dsl_{}", &merchant_account.merchant_id).into());
+
+            helpers::update_merchant_active_algorithm_ref(db, &key_store, key, algorithm_ref)
+                .await?;
         }
 
         helpers::update_merchant_routing_dictionary(
@@ -363,7 +369,9 @@ pub async fn link_routing_config(
             merchant_dictionary,
         )
         .await?;
-        helpers::update_merchant_active_algorithm_ref(db, &key_store, routing_ref).await?;
+        let key =
+            cache::CacheKind::Routing(format!("dsl_{}", &merchant_account.merchant_id).into());
+        helpers::update_merchant_active_algorithm_ref(db, &key_store, key, routing_ref).await?;
 
         metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
