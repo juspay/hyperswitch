@@ -1136,7 +1136,12 @@ impl
         let (payment_attempt, payment_intent, shipping, billing, customer) = value;
         // Populating the dynamic fields directly, for the cases where we have customer details stored in
         // Payment Intent
-        if let Some(Ok(customer_details)) = payment_intent.map(|pi| pi.customer_details.clone().map(|cd| serde_json::from_value::<CustomerData>(cd.into_inner().expose())).transpose()) {
+        if let Some(Ok(customer_details)) = payment_intent.map(|pi| {
+            pi.customer_details
+                .clone()
+                .map(|cd| serde_json::from_value::<CustomerData>(cd.into_inner().expose()))
+                .transpose()
+        }) {
             Self {
                 currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
                 shipping: shipping.map(api_types::Address::from),
