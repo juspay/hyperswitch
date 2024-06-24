@@ -512,6 +512,75 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
   },
   bank_transfer_pm: {
     PaymentIntent: getCustomExchange({

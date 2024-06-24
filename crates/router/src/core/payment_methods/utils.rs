@@ -1,5 +1,5 @@
 use std::{str::FromStr, sync::Arc};
-
+:
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
@@ -571,7 +571,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Weak,
+                    cgraph::Strength::Strong,
                 ));
             }
             admin::AcceptedCountries::DisableOnly(countries) => {
@@ -592,7 +592,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Weak,
+                    cgraph::Strength::Strong,
                 ));
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
@@ -628,7 +628,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     config_country_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Weak,
+                    cgraph::Strength::Strong,
                 ));
             }
         }
