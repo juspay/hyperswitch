@@ -1028,7 +1028,7 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
-        let mut raw_billing_address_details = AddressDetails::new();
+        let mut raw_billing_address_details = AddressDetails::default();
         let details_present = request.billing.clone().map(|billing_details| {
             billing_details.address.clone().map(|address| {
                 raw_billing_address_details.set_city(address.city);

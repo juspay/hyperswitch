@@ -2951,21 +2951,6 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
-    /// Null constructor
-    pub fn new() -> Self {
-        Self {
-            city: None,
-            country: None,
-            line1: None,
-            line2: None,
-            line3: None,
-            zip: None,
-            state: None,
-            first_name: None,
-            last_name: None,
-        }
-    }
-
     /// Setter for city
     pub fn set_city(&mut self, city: Option<String>) {
         self.city = city;
