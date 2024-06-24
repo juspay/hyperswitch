@@ -1017,7 +1017,7 @@ pub async fn add_bank_to_locker(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    bank: &api::BankPayout,
+    bank: &api::BankData,
     customer_id: &id_type::CustomerId,
 ) -> errors::CustomResult<
     (
@@ -4087,7 +4087,7 @@ pub async fn get_bank_from_hs_locker(
     customer_id: &id_type::CustomerId,
     merchant_id: &str,
     token_ref: &str,
-) -> errors::RouterResult<api::BankPayout> {
+) -> errors::RouterResult<api::BankData> {
     let payment_method = get_payment_method_from_hs_locker(
         state,
         key_store,

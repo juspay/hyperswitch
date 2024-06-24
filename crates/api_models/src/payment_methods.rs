@@ -18,6 +18,72 @@ use crate::{
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum BankAccountData {
+    Ach {
+        /// Bank account number is an unique identifier assigned by a bank to a customer.
+        #[schema(value_type = String, example = "000123456")]
+        bank_account_number: masking::Secret<String>,
+
+        /// [9 digits] Routing number - used in USA for identifying a specific bank.
+        #[schema(value_type = String, example = "110000000")]
+        bank_routing_number: masking::Secret<String>,
+    },
+    Bacs {
+        #[schema(value_type = String, example = "000123456")]
+        bank_account_number: masking::Secret<String>,
+
+        /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
+        #[schema(value_type = String, example = "98-76-54")]
+        bank_sort_code: masking::Secret<String>,
+    },
+    Sepa {
+        /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: masking::Secret<String>,
+
+        /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
+        #[schema(value_type = String, example = "HSBCGB2LXXX")]
+        bic: Option<masking::Secret<String>>,
+    },
+    Pix {
+        #[schema(value_type = String, example = "000123456")]
+        pix_key: masking::Secret<String>,
+
+        /// Individual taxpayer identification number
+        #[schema(value_type = Option<String>, example = "000123456")]
+        tax_id: Option<masking::Secret<String>>,
+
+        /// Bank account number is an unique identifier assigned by a bank to a customer.
+        #[schema(value_type = String, example = "000123456")]
+        bank_account_number: masking::Secret<String>,
+    },
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BankData {
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
+
+    /// Bank country code
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
+
+    /// Bank city
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
+
+    #[schema(value_type = Option<String>, example = "3707")]
+    pub bank_branch: Option<String>,
+
+    /// Bank account data
+    #[schema(value_type = Option<BankAccountData>)]
+    pub bank_account_data: BankAccountData,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
@@ -58,8 +124,8 @@ pub struct PaymentMethodCreate {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    pub bank_transfer: Option<payouts::Bank>,
+    #[schema(value_type = Option<BankData>)]
+    pub bank_transfer: Option<BankData>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
@@ -236,9 +302,9 @@ pub struct PaymentMethodResponse {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
+    #[schema(value_type = Option<BankData>)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_transfer: Option<payouts::Bank>,
+    pub bank_transfer: Option<BankData>,
 
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -916,9 +982,9 @@ pub struct CustomerPaymentMethod {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
+    #[schema(value_type = Option<BankData>)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_transfer: Option<payouts::Bank>,
+    pub bank_transfer: Option<BankData>,
 
     /// Masked bank details from PM auth services
     #[schema(example = json!({"mask": "0000"}))]
