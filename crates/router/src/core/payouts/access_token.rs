@@ -55,6 +55,8 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
     router_data: &types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
+    use crate::types::api::ConnectorCommon;
+
     if connector
         .connector_name
         .supports_access_token_for_payout(payout_type)
@@ -142,8 +144,7 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     >,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
