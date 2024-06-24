@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData, payments::AddressDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -12,7 +12,7 @@ use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::{payment_attempt::PaymentAttempt, payment_intent::BillingAddressDetails},
+    payments::payment_attempt::PaymentAttempt,
     type_encryption::{encrypt_optional, AsyncLift},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -1027,7 +1027,7 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
-        let mut raw_billing_address_details = BillingAddressDetails::new();
+        let mut raw_billing_address_details = AddressDetails::new();
         let details_present = request.billing.clone().map(|billing_details| {
             billing_details.address.clone().map(|address| {
                 raw_billing_address_details.set_city(address.city);
