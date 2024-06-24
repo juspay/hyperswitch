@@ -367,6 +367,8 @@ pub async fn payouts_confirm_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
+        .await?;
     helpers::validate_payout_status_against_not_allowed_statuses(
         &status,
         &[
@@ -441,74 +443,7 @@ pub async fn payouts_update_core(
             ),
         }));
     }
-    // Update DB with new data
-    let payouts = payout_data.payouts.to_owned();
-    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
-        .get_amount_as_i64();
-    let updated_payouts = storage::PayoutsUpdate::Update {
-        amount,
-        destination_currency: req.currency.unwrap_or(payouts.destination_currency),
-        source_currency: req.currency.unwrap_or(payouts.source_currency),
-        description: req.description.clone().or(payouts.description.clone()),
-        recurring: req.recurring.unwrap_or(payouts.recurring),
-        auto_fulfill: req.auto_fulfill.unwrap_or(payouts.auto_fulfill),
-        return_url: req.return_url.clone().or(payouts.return_url.clone()),
-        entity_type: req.entity_type.unwrap_or(payouts.entity_type),
-        metadata: req.metadata.clone().or(payouts.metadata.clone()),
-        status: Some(status),
-        profile_id: Some(payout_attempt.profile_id.clone()),
-        confirm: req.confirm,
-    };
-
-    let db = &*state.store;
-    payout_data.payouts = db
-        .update_payout(
-            &payouts,
-            updated_payouts,
-            &payout_attempt,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error updating payouts")?;
-
-    let updated_business_country =
-        payout_attempt
-            .business_country
-            .map_or(req.business_country.to_owned(), |c| {
-                req.business_country
-                    .to_owned()
-                    .and_then(|nc| if nc != c { Some(nc) } else { None })
-            });
-    let updated_business_label =
-        payout_attempt
-            .business_label
-            .map_or(req.business_label.to_owned(), |l| {
-                req.business_label
-                    .to_owned()
-                    .and_then(|nl| if nl != l { Some(nl) } else { None })
-            });
-    match (updated_business_country, updated_business_label) {
-        (None, None) => {}
-        (business_country, business_label) => {
-            let payout_attempt = payout_data.payout_attempt;
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
-                business_country,
-                business_label,
-            };
-            payout_data.payout_attempt = db
-                .update_payout_attempt(
-                    &payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_attempt")?;
-        }
-    }
-
+    helpers::update_payouts_and_payout_attempt(&mut payout_data,&merchant_account,&req,&state).await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
 
     if (req.connector.is_none(), payout_attempt.connector.is_some()) != (true, true) {
