@@ -73,6 +73,12 @@ pub async fn insert_merchant_configs(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+type MerchantAccountResponse = api::MerchantAccountResponseV2;
+
+#[cfg(not(feature = "v2"))]
+type MerchantAccountResponse = api::MerchantAccountResponse;
+
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
@@ -294,7 +300,7 @@ pub async fn create_merchant_account(
 pub async fn create_merchant_account_v2(
     state: SessionState,
     req: api::MerchantAccountCreateV2,
-) -> RouterResponse<api::MerchantAccountResponseV2> {
+) -> RouterResponse<MerchantAccountResponse> {
     let publishable_key = create_merchant_publishable_key();
 
     let merchant_details: OptionalSecretValue = req
@@ -406,7 +412,7 @@ pub async fn create_merchant_account_v2(
     insert_merchant_configs(db, &merchant_account.merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponseV2::foreign_try_from(merchant_account)
+        MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -440,7 +446,7 @@ pub async fn list_merchant_account(
 pub async fn get_merchant_account(
     state: SessionState,
     req: api::MerchantId,
-) -> RouterResponse<api::MerchantAccountResponse> {
+) -> RouterResponse<MerchantAccountResponse> {
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
@@ -456,7 +462,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+        MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))

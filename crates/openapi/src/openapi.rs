@@ -547,7 +547,11 @@ struct SecurityAddon;
 #[cfg(feature = "v2")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
-    paths(routes::merchant_account::merchant_account_create_v2),
+    paths(
+        // Routes for MerchantAccount
+        routes::merchant_account::merchant_account_create_v2,
+        routes::merchant_account::retrieve_merchant_account_v2
+    ),
     components(schemas(
         api_models::admin::MerchantAccountCreateV2,
         api_models::admin::MerchantAccountResponseV2,

@@ -68,6 +68,9 @@ pub enum Flow {
     MerchantAccountCreateV2,
     /// Merchants account retrieve flow.
     MerchantsAccountRetrieve,
+    /// Merhcant account retrieve flow for v2
+    #[cfg(feature = "v2")]
+    MerchantAccountRetrieveV2,
     /// Merchants account update flow.
     MerchantsAccountUpdate,
     /// Merchants account delete flow.

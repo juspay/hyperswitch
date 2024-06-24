@@ -8,21 +8,6 @@ use crate::{
     types::api::admin,
 };
 
-/// Merchant Account - Create
-///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
-#[utoipa::path(
-    post,
-    path = "/accounts",
-    request_body= MerchantAccountCreate,
-    responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
-        (status = 400, description = "Invalid data")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Create a Merchant Account",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -43,21 +28,6 @@ pub async fn merchant_account_create(
 }
 
 #[cfg(feature = "v2")]
-/// Merchant Account - Create
-///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
-#[utoipa::path(
-    post,
-    path = "/v2/accounts",
-    request_body= MerchantAccountCreateV2,
-    responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponseV2),
-        (status = 400, description = "Invalid data")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Create a Merchant Account",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantAccountCreateV2))]
 pub async fn merchant_account_create_v2(
     state: web::Data<AppState>,
@@ -77,21 +47,6 @@ pub async fn merchant_account_create_v2(
     .await
 }
 
-/// Merchant Account - Retrieve
-///
-/// Retrieve a merchant account details.
-#[utoipa::path(
-    get,
-    path = "/accounts/{account_id}",
-    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
-    responses(
-        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
-        (status = 404, description = "Merchant account not found")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Retrieve a Merchant Account",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
@@ -99,6 +54,39 @@ pub async fn retrieve_merchant_account(
     mid: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountRetrieve;
+    let merchant_id = mid.into_inner();
+    let payload = web::Json(admin::MerchantId {
+        merchant_id: merchant_id.to_owned(),
+    })
+    .into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| get_merchant_account(state, req),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountRetrieveV2))]
+pub async fn retrieve_merchant_account_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    mid: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::MerchantAccountRetrieveV2;
     let merchant_id = mid.into_inner();
     let payload = web::Json(admin::MerchantId {
         merchant_id: merchant_id.to_owned(),
