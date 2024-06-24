@@ -3403,7 +3403,7 @@ impl
                     rules
                         .iter()
                         .map(|risk_info| {
-                            risk_info.name.map_or("".to_string(), |name| {
+                            risk_info.name.clone().map_or("".to_string(), |name| {
                                 format!(" , {}", name.clone().expose())
                             })
                         })
