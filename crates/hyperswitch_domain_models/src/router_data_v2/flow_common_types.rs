@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub payment_id: String,
     pub attempt_id: String,
@@ -54,7 +54,7 @@ pub struct PaymentFlowData {
 #[derive(Debug, Clone)]
 pub struct RefundFlowData {
     pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
@@ -73,7 +73,7 @@ pub struct RefundFlowData {
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
     pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub return_url: Option<String>,
     pub address: PaymentAddress,
@@ -85,6 +85,7 @@ pub struct PayoutFlowData {
     pub quote_id: Option<String>,
 }
 
+#[cfg(feature = "frm")]
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: String,
@@ -127,7 +128,7 @@ pub struct DisputesFlowData {
 #[derive(Debug, Clone)]
 pub struct MandateRevokeFlowData {
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub payment_id: Option<String>,
 }
 

@@ -1067,8 +1067,7 @@ pub async fn create_recipient(
         .await?;
 
         // 2. Fetch connector integration details
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             api::PoRecipient,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -1077,7 +1076,7 @@ pub async fn create_recipient(
         // 3. Call connector service
         let router_resp = services::execute_connector_processing_step(
             state,
-            connector_integration.to_owned(),
+            connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
@@ -1234,8 +1233,7 @@ pub async fn check_payout_eligibility(
     .await?;
 
     // 2. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
@@ -1425,8 +1423,7 @@ pub async fn create_payout(
     .await?;
 
     // 3. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoCreate,
         types::PayoutsData,
         types::PayoutsResponseData,
@@ -1535,8 +1532,7 @@ async fn complete_payout_quote_steps_if_required<F>(
     {
         let quote_router_data =
             types::PayoutsRouterData::foreign_from((router_data, router_data.request.clone()));
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             api::PoQuote,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -1608,8 +1604,7 @@ pub async fn create_recipient_disburse_account(
     .await?;
 
     // 2. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoRecipientAccount,
         types::PayoutsData,
         types::PayoutsResponseData,
@@ -1694,8 +1689,7 @@ pub async fn cancel_payout(
     .await?;
 
     // 2. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoCancel,
         types::PayoutsData,
         types::PayoutsResponseData,
@@ -1810,8 +1804,7 @@ pub async fn fulfill_payout(
     .await?;
 
     // 3. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoFulfill,
         types::PayoutsData,
         types::PayoutsResponseData,

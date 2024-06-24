@@ -207,8 +207,7 @@ pub async fn trigger_refund_to_gateway(
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
             api::Execute,
             types::RefundsData,
             types::RefundsResponseData,
@@ -491,8 +490,7 @@ pub async fn sync_refund_with_gateway(
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
             api::RSync,
             types::RefundsData,
             types::RefundsResponseData,
