@@ -304,7 +304,7 @@ impl<F>
                     ),
                     redirection_data: None,
                     mandate_reference: None,
-                    connector_metadata: serde_json::to_value(response).ok(),
+                    connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
@@ -498,7 +498,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<DataTransCancelResponse>>
                 }
             }
             DataTransCancelResponse::Error(error) => {
-                if error.message == "transaction already canceled".to_string() {
+                if error.message == *"transaction already canceled" {
                     common_enums::AttemptStatus::Voided
                 } else {
                     common_enums::AttemptStatus::Failure
