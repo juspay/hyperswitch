@@ -195,7 +195,6 @@ pub struct UserFromToken {
     pub org_id: String,
 }
 
-
 #[derive(Clone)]
 pub struct UserWithPermissions {
     pub user_id: String,

@@ -3,7 +3,10 @@ pub use analytics::*;
 pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core, errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError, outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core, AnalyticsFlow
+        api_event::api_events_core, connector_events::connector_events_core,
+        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
+        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         search::{
@@ -670,9 +673,7 @@ pub mod routes {
                     ),
                 ]
                 .into_iter()
-                .filter(|(_, perm)| {
-                    perm.iter().any(|p| auth.permissions.contains(p))
-                })
+                .filter(|(_, perm)| perm.iter().any(|p| auth.permissions.contains(p)))
                 .map(|i| i.0)
                 .collect();
 
@@ -709,7 +710,7 @@ pub mod routes {
             &req,
             indexed_req,
             |state, auth: UserWithPermissions, req, _| async move {
-            let _ = vec![
+                let _ = vec![
                     (
                         SearchIndex::PaymentAttempts,
                         vec![Permission::PaymentRead, Permission::PaymentWrite],
@@ -728,19 +729,13 @@ pub mod routes {
                     ),
                 ]
                 .into_iter()
-                .filter(|(ind, _)| {
-                    *ind == index
-                })
+                .filter(|(ind, _)| *ind == index)
                 .filter(|i| i.1.iter().any(|p| auth.permissions.contains(p)))
                 .next()
                 .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
-                analytics::search::search_results(
-                    &state.opensearch_client,
-                    req,
-                    &auth.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
