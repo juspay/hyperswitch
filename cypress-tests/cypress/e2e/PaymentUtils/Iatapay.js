@@ -93,14 +93,13 @@ export const connectorDetails = {
       Response: {
         status: 404,
         body: {
-          "error": {
-            "type": "invalid_request",
-            "message": "Payment does not exist in our records",
-            "code": "HE_02"
-          }
+          error: {
+            type: "invalid_request",
+            message: "Payment does not exist in our records",
+            code: "HE_02",
+          },
         },
-
-      }
+      },
     },
     No3DSManualCapture: {
       Request: {
@@ -335,7 +334,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Iatapay is not implemented",
-            code: "IR_00"
+            code: "IR_00",
           },
         },
       },

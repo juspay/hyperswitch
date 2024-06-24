@@ -916,9 +916,9 @@ describe("Card - Refund flow - 3DS", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "3DSAutoCapture"
-        ];
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmPaymentTest(
@@ -943,9 +943,9 @@ describe("Card - Refund flow - 3DS", () => {
       });
 
       it("refund-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "PartialRefund"
-        ];
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PartialRefund"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(refundBody, req_data, res_data, 3000, globalState);
@@ -954,9 +954,9 @@ describe("Card - Refund flow - 3DS", () => {
       });
 
       it("refund-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "PartialRefund"
-        ];
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PartialRefund"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(refundBody, req_data, res_data, 3000, globalState);
@@ -965,9 +965,9 @@ describe("Card - Refund flow - 3DS", () => {
       });
 
       it("sync-refund-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "SyncRefund"
-        ];
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefund"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.syncRefundCallTest(req_data, res_data, globalState);
