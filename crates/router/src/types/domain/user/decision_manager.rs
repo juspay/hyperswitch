@@ -32,6 +32,7 @@ impl UserFlow {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum SPTFlow {
+    AuthSelect,
     SSO,
     TOTP,
     VerifyEmail,
@@ -49,8 +50,9 @@ impl SPTFlow {
         state: &SessionState,
     ) -> UserResult<bool> {
         match self {
-            // SSO
-            // SSO flow is not enabled, once the APIs are ready, we can enable this flow
+            // Auth
+            // AuthSelect and SSO flow are not enabled, once the terminate SSO API is ready, we can enable these flows
+            Self::AuthSelect => Ok(false),
             Self::SSO => Ok(false),
             // TOTP
             Self::TOTP => Ok(!path.contains(&TokenPurpose::SSO)),
@@ -179,7 +181,8 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 6] = [
+    UserFlow::SPTFlow(SPTFlow::AuthSelect),
     UserFlow::SPTFlow(SPTFlow::SSO),
     UserFlow::SPTFlow(SPTFlow::TOTP),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
@@ -322,6 +325,7 @@ impl From<UserFlow> for TokenPurpose {
 impl From<SPTFlow> for TokenPurpose {
     fn from(value: SPTFlow) -> Self {
         match value {
+            SPTFlow::AuthSelect => Self::AuthSelect,
             SPTFlow::SSO => Self::SSO,
             SPTFlow::TOTP => Self::TOTP,
             SPTFlow::VerifyEmail => Self::VerifyEmail,
