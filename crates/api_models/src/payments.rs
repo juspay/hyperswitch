@@ -2601,6 +2601,17 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
+    //assurance_details of the card
+    pub assurance_details: Option<GooglePayAssuranceDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GooglePayAssuranceDetails {
+    ///indicates that Cardholder possession validation has been performed
+    pub card_holder_authenticated: bool,
+    /// indicates that identification and verifications (ID&V) was performed
+    pub account_verified: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4098,6 +4109,8 @@ pub struct GpayAllowedMethodsParameters {
     /// Billing address parameters
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+    /// Whether assurance details are required
+    pub assurance_details_required: Option<bool>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
