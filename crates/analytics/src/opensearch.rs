@@ -214,7 +214,7 @@ impl OpenSearchClient {
             OpenSearchQuery::Search(index) => {
                 let payload = query_builder
                     .clone()
-                    .construct_payload(&vec![index])
+                    .construct_payload(&[index])
                     .change_context(OpenSearchError::QueryBuildingError)?;
 
                 let final_payload = payload.first().unwrap_or(&Value::Null);
@@ -391,7 +391,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn construct_payload(&self, indexes: &Vec<SearchIndex>) -> QueryResult<Vec<Value>> {
+    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query =
             vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
 

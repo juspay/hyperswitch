@@ -730,8 +730,7 @@ pub mod routes {
                 ]
                 .into_iter()
                 .filter(|(ind, _)| *ind == index)
-                .filter(|i| i.1.iter().any(|p| auth.permissions.contains(p)))
-                .next()
+                .find(|i| i.1.iter().any(|p| auth.permissions.contains(p)))
                 .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
                 analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
                     .await
