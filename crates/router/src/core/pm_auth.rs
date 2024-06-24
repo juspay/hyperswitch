@@ -721,7 +721,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         let required_conversion = util_types::FloatMajorUnitForConnector;
         let converted_amount = required_conversion
             .convert_back(balance, currency)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Could not convert FloatMajorUnit to MinorUnit")?;
 
         if converted_amount < payment_intent.amount {
