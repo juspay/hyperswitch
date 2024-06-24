@@ -1266,8 +1266,7 @@ impl PayoutLink {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
         route = route.service(
-            web::resource("/{merchant_id}/{payment_link_id}")
-                .route(web::get().to(render_payout_link)),
+            web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
         );
         route
     }
