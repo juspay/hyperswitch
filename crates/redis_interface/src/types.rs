@@ -248,16 +248,16 @@ impl From<StreamCapTrim> for fred::types::XCapTrim {
 
 #[derive(Debug)]
 pub enum DelReply {
-    KeyDeleted(i64),
-    KeyNotDeleted, // Key not found
+    KeysDeleted(i64),
+    NoKeysDeleted, // Key not found
 }
 
 impl fred::types::FromRedis for DelReply {
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotDeleted),
+            fred::types::RedisValue::Integer(0) => Ok(Self::NoKeysDeleted),
             fred::types::RedisValue::Integer(no_of_deleted_keys) => {
-                Ok(Self::KeyDeleted(no_of_deleted_keys))
+                Ok(Self::KeysDeleted(no_of_deleted_keys))
             }
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,

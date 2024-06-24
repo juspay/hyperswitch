@@ -77,7 +77,8 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                     .attach_printable("Failed to convert RedisValue to String")?,
             )
         }
-        let serialized_keys = serde_json::json!(keys_to_be_published_to_redis).to_string();
+        let serialized_keys = serde_json::to_string(&keys_to_be_published_to_redis)
+            .change_context(redis_errors::RedisError::JsonSerializationFailed).attach_printable("Failed while serializing keys to be published to IMC invalidation channel as a String of json")?;
 
         self.publisher
             .publish(
@@ -98,19 +99,23 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
             match channel_name.as_str() {
                 cache::IMC_INVALIDATION_CHANNEL => {
-                    let keys_to_be_invalidated =
-                        match CacheKind::from_redis_value(RedisValue::new(message.value))
-                            .change_context(redis_errors::RedisError::OnMessageError)
-                        {
-                            Ok(value) => value,
-                            Err(err) => {
-                                logger::error!(value_conversion_err=?err);
-                                continue;
-                            }
-                        };
+                    let keys_to_be_invalidated = match CacheKind::from_redis_value(RedisValue::new(
+                        message.value,
+                    ))
+                    .change_context(redis_errors::RedisError::OnMessageError)
+                    {
+                        Ok(value) => value,
+                        Err(err) => {
+                            logger::error!(value_conversion_err=?err, "Failed to parse the message on invalidation channel to CacheKind");
+                            continue;
+                        }
+                    };
 
-                    cache::invalidate_cache_entry(keys_to_be_invalidated, self.key_prefix.clone())
-                        .await;
+                    cache::invalidate_cache_entries(
+                        keys_to_be_invalidated,
+                        self.key_prefix.clone(),
+                    )
+                    .await;
                 }
                 _ => {
                     logger::debug!("Received message from unknown channel: {channel_name}");

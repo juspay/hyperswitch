@@ -41,12 +41,6 @@ pub trait ConfigInterface {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError>;
-
     async fn delete_config_by_key(
         &self,
         key: &str,
@@ -66,25 +60,13 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        cache::publish_into_redact_channel(
+        cache::redact_from_redis_and_publish(
             self.get_cache_store().as_ref(),
             [CacheKind::Config((&inserted.key).into())],
         )
         .await?;
 
         Ok(inserted)
-    }
-
-    #[instrument(skip_all)]
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::update_by_key(&conn, key, config_update)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     //update in DB and remove in redis and cache
@@ -94,10 +76,15 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::db_call_with_redact_and_publish(self, [CacheKind::Config(key.into())], || {
-            self.update_config_in_database(key, config_update)
-        })
-        .await
+        let update_call = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            storage::Config::update_by_key(&conn, key, config_update)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        cache::db_call_with_redact_and_publish(self, [CacheKind::Config(key.into())], update_call)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -171,7 +158,7 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        cache::publish_into_redact_channel(
+        cache::redact_from_redis_and_publish(
             self.get_cache_store().as_ref(),
             [CacheKind::Config(key.into())],
         )
@@ -197,14 +184,6 @@ impl ConfigInterface for MockDb {
         };
         configs.push(config_new.clone());
         Ok(config_new)
-    }
-
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.update_config_by_key(key, config_update).await
     }
 
     async fn update_config_by_key(

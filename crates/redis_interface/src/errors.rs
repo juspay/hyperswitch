@@ -68,4 +68,9 @@ pub enum RedisError {
     OnMessageError,
     #[error("Got an unknown result from redis")]
     UnknownResult,
+    #[error("Deleted {actual_deletions} keys from redis instead of {expected_deletions}")]
+    InconsistentDeletions {
+        expected_deletions: i64,
+        actual_deletions: i64,
+    },
 }
