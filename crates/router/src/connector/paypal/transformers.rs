@@ -1,8 +1,8 @@
 use api_models::enums;
 use base64::Engine;
+use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
-use common_utils::pii::Email;
-use common_utils::{errors::CustomResult, types::StringMajorUnit};
+use common_utils::{pii::Email, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};

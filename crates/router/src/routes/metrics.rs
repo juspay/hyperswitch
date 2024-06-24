@@ -131,6 +131,3 @@ counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
 
 // A counter to indicate the access token cache miss
 counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
-
-// A counter to indicate the integrity check failures
-counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);

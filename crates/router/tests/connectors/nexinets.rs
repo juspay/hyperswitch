@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
-use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentsAuthorizeData};
 
@@ -128,8 +127,6 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::EUR,
                 payment_experience: None,
-                integrity_object: None,
-                amount: MinorUnit::new(100),
             }),
             None,
         )

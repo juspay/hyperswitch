@@ -9,8 +9,6 @@ pub mod consts;
 pub mod encryption_interface;
 pub mod errors;
 pub mod events;
-/// connector integrity check interface
-pub mod integrity;
 pub mod metrics;
 pub mod secrets_interface;
 pub mod types;

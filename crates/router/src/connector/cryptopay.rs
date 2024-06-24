@@ -298,7 +298,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_in_minor_units = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
+            Some(ref amount) => Some(utils::convert_back(
                 self.amount_converter,
                 amount.clone(),
                 data.request.currency,
@@ -393,7 +393,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_in_minor_units = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
+            Some(ref amount) => Some(utils::convert_back(
                 self.amount_converter,
                 amount.clone(),
                 data.request.currency,

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::payments::OrderDetailsWithAmount;
 use cards::CardNumber;
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{self, domain, storage::enums};
 
@@ -106,8 +106,6 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
-                amount: MinorUnit::new(100),
-                integrity_object: None,
             }),
             None,
         )
@@ -225,8 +223,6 @@ async fn should_sync_auto_captured_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
-                amount: MinorUnit::new(100),
-                integrity_object: None,
             }),
             None,
         )
