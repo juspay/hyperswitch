@@ -11,7 +11,7 @@ impl utils::Connector for PlacetopayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Placetopay;
         types::api::ConnectorData {
-            connector: Box::new(&Placetopay),
+            connector: Box::new(Placetopay::new()),
             connector_name: types::Connector::Placetopay,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

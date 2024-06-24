@@ -363,7 +363,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(connector::Payme::new())),
                 enums::Connector::Payone => Ok(Box::new(&connector::Payone)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
-                enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
+                enums::Connector::Placetopay => Ok(Box::new(connector::Placetopay::new())),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
