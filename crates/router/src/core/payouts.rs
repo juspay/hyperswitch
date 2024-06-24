@@ -2263,7 +2263,7 @@ pub async fn make_payout_data(
                         Some(&payout_token),
                         &customer_id,
                         &merchant_account.merchant_id,
-                        Some(&payouts.payout_type),
+                        payouts.payout_type,
                         key_store,
                         None,
                         merchant_account.storage_scheme,
