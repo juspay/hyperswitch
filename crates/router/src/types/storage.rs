@@ -64,7 +64,7 @@ pub use self::{
     file::*, fraud_check::*, generic_link::*, gsm::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
-    routing_algorithm::*, user::*, user_role::*,
+    routing_algorithm::*, user::*, user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
 
