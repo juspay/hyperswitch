@@ -110,10 +110,16 @@ pub struct BillingAddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
+impl Default for BillingAddressDetails {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BillingAddressDetails {
     /// Null constructor
     pub fn new() -> Self {
-        BillingAddressDetails {
+        Self {
             city: None,
             country: None,
             line1: None,
