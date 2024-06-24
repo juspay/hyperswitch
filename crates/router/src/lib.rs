@@ -210,28 +210,41 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     let server = match server.tls {
         None => server_builder.run(),
         Some(tls_conf) => {
-            let cert_file = &mut BufReader::new(File::open(tls_conf.certificate).unwrap());
-            let key_file = &mut BufReader::new(File::open(tls_conf.private_key).unwrap());
+            let cert_file =
+                &mut BufReader::new(File::open(tls_conf.certificate).map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?);
+            let key_file =
+                &mut BufReader::new(File::open(tls_conf.private_key).map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?);
 
             let cert_chain = rustls_pemfile::certs(cert_file)
                 .collect::<Result<Vec<_>, _>>()
-                .unwrap();
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
 
             let mut keys = rustls_pemfile::pkcs8_private_keys(key_file)
                 .map(|key| key.map(PrivateKeyDer::Pkcs8))
                 .collect::<Result<Vec<_>, _>>()
-                .unwrap();
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
 
             // exit if no keys could be parsed
             if keys.is_empty() {
-                eprintln!("Could not locate PKCS 8 private keys.");
-                std::process::exit(1);
+                return Err(errors::ApplicationError::InvalidConfigurationValueError(
+                    "Could not locate PKCS 8 private keys.".into(),
+                ));
             }
 
             let config_builder = ServerConfig::builder().with_no_client_auth();
             let config = config_builder
                 .with_single_cert(cert_chain, keys.remove(0))
-                .unwrap();
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
 
             server_builder
                 .bind_rustls_0_22(
