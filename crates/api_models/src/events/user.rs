@@ -19,7 +19,7 @@ use crate::user::{
     SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
     TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest, GetSsoAuthUrlRequest
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -81,7 +81,8 @@ common_utils::impl_misc_api_event_type!(
     RecoveryCodes,
     GetUserAuthenticationMethodsRequest,
     CreateUserAuthenticationMethodRequest,
-    UpdateUserAuthenticationMethodRequest
+    UpdateUserAuthenticationMethodRequest,
+    GetSsoAuthUrlRequest
 );
 
 #[cfg(feature = "dummy_connector")]

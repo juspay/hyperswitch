@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use api_models::{
+    payments::RedirectionResponse,
+    user::{self as user_api, InviteMultipleUserResponse},
+};
 use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -13,7 +16,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use external_services::email::EmailData;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
@@ -26,7 +29,7 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, ApplicationResponse},
+    services::{authentication as auth, authorization::roles, okta, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
@@ -2166,13 +2169,67 @@ pub async fn list_user_authentication_methods(
     ))
 }
 
-pub async fn get_sso_auth_url(state: SessionState) -> UserResponse<()> {
-    let url = crate::services::okta::get_authorization_url(state).await.unwrap();
-    println!("{url}");
-    Ok(ApplicationResponse::StatusOk)
+pub async fn get_sso_auth_url(
+    state: SessionState,
+    request: user_api::GetSsoAuthUrlRequest,
+) -> UserResponse<()> {
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(request.auth_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let redirect_url = format!("localhost:8080/health?id={}", request.auth_id);
+
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let encrypted_private_config = user_authentication_method.private_config;
+
+    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
+        encrypted_private_config,
+        &user_auth_encryption_key,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decrypt private config")?
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable("Private config not found")?
+    .into_inner()
+    .expose();
+
+    let open_id_private_config: user_api::OpenIdConnectPrivateConfig = private_config
+        .parse_value("OpenIdConnectPrivateConfig")
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("unable to parse generic data value")?;
+
+    okta::get_authorization_url(
+        state,
+        redirect_url,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id,
+    )
+    .await
+    .map(|url| {
+        ApplicationResponse::JsonForRedirection(RedirectionResponse {
+            headers: Vec::with_capacity(0),
+            return_url: String::new(),
+            http_method: String::new(),
+            params: Vec::with_capacity(0),
+            return_url_with_query_params: url.to_string(),
+        })
+    })
 }
 
-pub async fn sso_sign(state: SessionState,code: String,state_query: String) -> UserResponse<()> {
-    crate::services::okta::authorize_code(state, code,state_query).await;
-    Ok(ApplicationResponse::StatusOk)
-}
+// pub async fn sso_sign(state: SessionState, code: String, state_query: String) -> UserResponse<()> {
+//     crate::services::okta::authorize_code(state, code, state_query).await;
+//     Ok(ApplicationResponse::StatusOk)

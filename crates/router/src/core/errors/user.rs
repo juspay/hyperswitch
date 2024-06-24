@@ -222,7 +222,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new(sub_code, 45, self.get_error_message(), None))
             }
             Self::SSOFailed => {
-                AER::BadRequest(ApiError::new(sub_code, 43, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
             }
         }
     }
@@ -267,10 +267,10 @@ impl UserErrors {
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
-            Self::SSOFailed => "Invalid SSO request"
             Self::UserAuthMethodAlreadyExists => "User auth method already exists",
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
             Self::AuthConfigParsingError => "Auth config parsing error",
+            Self::SSOFailed => "Invalid SSO request",
         }
     }
 }
