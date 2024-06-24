@@ -1147,12 +1147,8 @@ impl
                 shipping: shipping.map(api_types::Address::from),
                 billing: billing.map(api_types::Address::from),
                 amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
-                email: customer_details
-                    .clone()
-                    .and_then(|cust| cust.email),
-                phone: customer_details
-                    .clone()
-                    .and_then(|cust| cust.phone),
+                email: customer_details.clone().and_then(|cust| cust.email),
+                phone: customer_details.clone().and_then(|cust| cust.phone),
                 name: customer_details.and_then(|cust| cust.name),
                 ..Self::default()
             }
