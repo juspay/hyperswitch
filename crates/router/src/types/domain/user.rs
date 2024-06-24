@@ -1107,6 +1107,7 @@ impl SignInWithMultipleRolesStrategy {
                     TokenPurpose::AcceptInvite,
                     Origin::SignIn,
                     &state.conf,
+                    vec![],
                 )
                 .await?
                 .into(),
