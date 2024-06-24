@@ -3,6 +3,9 @@
 
 pub mod api;
 pub mod configs;
+/// definition of the new connector integration trait
+pub mod connector_integration_v2;
+pub mod consts;
 pub mod encryption_interface;
 pub mod errors;
 pub mod events;

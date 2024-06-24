@@ -78,9 +78,13 @@ pub async fn revoke_mandate(
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
-            let profile_id =
-                helpers::get_profile_id_for_mandate(&state, &merchant_account, mandate.clone())
-                    .await?;
+            let profile_id = helpers::get_profile_id_for_mandate(
+                &state,
+                &merchant_account,
+                &key_store,
+                mandate.clone(),
+            )
+            .await?;
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
