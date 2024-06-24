@@ -227,7 +227,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData, 
       },
       Response: {
         status: 400,
@@ -246,7 +246,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData, 
       },
       Response: {
         status: 400,
@@ -265,7 +265,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData, 
       },
       Response: {
         status: 400,
@@ -284,7 +284,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData, 
       },
       Response: {
         status: 400,
@@ -303,7 +303,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData,
+        mandate_data: multiUseMandateData, 
       },
       Response: {
         status: 400,
@@ -322,7 +322,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData,
+       mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
