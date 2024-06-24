@@ -191,7 +191,7 @@
         ),
     ),
     responses(
-        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
@@ -268,7 +268,7 @@ pub fn payments_retrieve() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment updated", body = PaymentsResponse),
+        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
@@ -326,7 +326,7 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsResponse),
+        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",

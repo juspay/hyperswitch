@@ -3229,7 +3229,9 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
+#[generate_schemas(PaymentsCreateResponseOpenApi)]
+
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -3418,11 +3420,11 @@ pub struct PaymentsResponse {
     pub error_message: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
-    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[remove_in(PaymentsCreateResponseOpenApi)]
     pub unified_code: Option<String>,
 
     /// error message unified across the connectors is received here if there was an error while calling connector
-    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[remove_in(PaymentsCreateResponseOpenApi)]
     pub unified_message: Option<String>,
 
     /// Payment Experience for the current payment
