@@ -4,7 +4,10 @@ use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
-use common_utils::{ext_traits::{AsyncExt, Encode, ValueExt}, pii::Email};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    pii::Email,
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use router_derive::PaymentOperation;
@@ -15,8 +18,9 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils, payment_methods::cards::create_encrypted_data,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
@@ -682,20 +686,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.billing_address_id.clone(),
         );
 
-        let raw_customer_details = customer.map(|customer|
-            CustomerData {
-                name: customer.clone().name.map(|name| name.into_inner()).clone(),
-                email: customer.clone().email.map(Email::from).clone(),
-                phone: customer.clone().phone.map(|phone| phone.into_inner()).clone(),
-                phone_country_code: customer.phone_country_code.clone(),
-            }
-        );
+        let raw_customer_details = customer.map(|customer| CustomerData {
+            name: customer.clone().name.map(|name| name.into_inner()).clone(),
+            email: customer.clone().email.map(Email::from).clone(),
+            phone: customer
+                .clone()
+                .phone
+                .map(|phone| phone.into_inner())
+                .clone(),
+            phone_country_code: customer.phone_country_code.clone(),
+        });
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
         let customer_details = if raw_customer_details.is_some() {
-            create_encrypted_data(key_store, raw_customer_details)
-                .await
+            create_encrypted_data(key_store, raw_customer_details).await
         } else {
             None
         };

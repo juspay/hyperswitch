@@ -211,8 +211,8 @@ where
 
                 let pm_data_encrypted =
                     payment_methods::cards::create_encrypted_data(key_store, pm_card_details)
-                .await
-                .map(|details| details.into());
+                        .await
+                        .map(|details| details.into());
 
                 let encrypted_payment_method_billing_address =
                     payment_methods::cards::create_encrypted_data(

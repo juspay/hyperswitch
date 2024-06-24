@@ -449,8 +449,8 @@ pub async fn save_payout_data_to_locker(
                 });
             (
                 cards::create_encrypted_data(key_store, Some(pm_data))
-                .await
-                .map(|details| details.into()),
+                    .await
+                    .map(|details| details.into()),
                 payment_method,
             )
         } else {

@@ -22,8 +22,9 @@ use api_models::{
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     consts,
+    crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    generate_id, id_type, crypto::Encryptable,
+    generate_id, id_type,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -466,8 +467,7 @@ pub async fn add_payment_method_data(
                         };
 
                         let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                        let pm_data_encrypted =
-                            create_encrypted_data(&key_store, updated_pmd)
+                        let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
                             .await
                             .map(|details| details.into());
 
@@ -680,8 +680,8 @@ pub async fn add_payment_method(
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
                     let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
-                    .await
-                    .map(|details| details.into());
+                        .await
+                        .map(|details| details.into());
 
                     let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                         payment_method_data: pm_data_encrypted,
@@ -755,8 +755,9 @@ pub async fn insert_payment_method(
         .card
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details).await
-    .map(|details| details.into());
+    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details)
+        .await
+        .map(|details| details.into());
 
     create_payment_method(
         db,
@@ -938,8 +939,8 @@ pub async fn update_customer_payment_method(
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
             let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
-            .await
-            .map(|details| details.into());
+                .await
+                .map(|details| details.into());
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted,
@@ -4378,8 +4379,7 @@ where
 {
     let key = key_store.key.get_inner().peek();
 
-    data
-        .as_ref()
+    data.as_ref()
         .map(Encode::encode_to_value)
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)

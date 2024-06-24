@@ -520,11 +520,12 @@ where
                 if let Some(customer_table_response) = customer_table_response {
                     response_cus_data.set_id(customer_table_response.id);
                 }
-            response_cus_data.set_name(customer_details_encrypted_data.name);
-            response_cus_data.set_phone(customer_details_encrypted_data.phone);
-            response_cus_data.set_email(customer_details_encrypted_data.email);
-            response_cus_data.set_phone_country_code(customer_details_encrypted_data.phone_country_code);
-            Some(response_cus_data)
+                response_cus_data.set_name(customer_details_encrypted_data.name);
+                response_cus_data.set_phone(customer_details_encrypted_data.phone);
+                response_cus_data.set_email(customer_details_encrypted_data.email);
+                response_cus_data
+                    .set_phone_country_code(customer_details_encrypted_data.phone_country_code);
+                Some(response_cus_data)
             } else {
                 customer_table_response
             }
