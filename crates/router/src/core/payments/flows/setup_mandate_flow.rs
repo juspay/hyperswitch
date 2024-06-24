@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -50,7 +51,7 @@ impl
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
-        self,
+        mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
@@ -62,7 +63,21 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-
+        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false
+        if let hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(google_pay_data),
+        ) = &self.request.payment_method_data
+        {
+            if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
+                // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated or assurance_details.account_verified is false
+                if !assurance_details.card_holder_authenticated
+                    || !assurance_details.account_verified
+                {
+                    logger::info!("Googlepay transaction stepped up to 3DS");
+                    self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
+                }
+            }
+        }
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
