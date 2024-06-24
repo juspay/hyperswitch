@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -73,6 +74,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 if !assurance_details.card_holder_authenticated
                     || !assurance_details.account_verified
                 {
+                    logger::info!("Googlepay transaction stepped up to 3DS");
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
                 }
             }

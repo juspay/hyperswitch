@@ -257,6 +257,7 @@ impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
                 if !assurance_details.card_holder_authenticated
                     || !assurance_details.account_verified
                 {
+                    logger::info!("Googlepay transaction stepped up to 3DS");
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
                 }
             }
