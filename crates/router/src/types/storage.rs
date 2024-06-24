@@ -35,6 +35,7 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_authentication_method;
 pub mod user_role;
 
 use std::collections::HashMap;
@@ -62,7 +63,7 @@ pub use self::{
     file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
     process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
-    user_role::*,
+    user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
 

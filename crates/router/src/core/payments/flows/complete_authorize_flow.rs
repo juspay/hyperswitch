@@ -67,8 +67,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
@@ -92,8 +91,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn add_payment_method_token<'a>(
@@ -126,8 +127,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::CompleteAuthorize,
                     types::CompleteAuthorizeData,
                     types::PaymentsResponseData,
@@ -159,8 +159,7 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
     connector: &api::ConnectorData,
 ) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
     if confirm {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PreProcessing,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,

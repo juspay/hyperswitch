@@ -38,8 +38,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    session_amount_converter:
-        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    session_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Payme {

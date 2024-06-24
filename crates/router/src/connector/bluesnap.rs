@@ -44,8 +44,7 @@ pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merc
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    session_amount_converter:
-        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    session_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Bluesnap {

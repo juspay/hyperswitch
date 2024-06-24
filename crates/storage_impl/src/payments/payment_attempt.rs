@@ -14,6 +14,7 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::{
@@ -192,11 +193,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        let intents = pi
-            .iter()
-            .cloned()
-            .map(|pi| pi.to_storage_model())
-            .collect::<Vec<diesel_models::PaymentIntent>>();
+        let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
+            pi.convert()
+                .await
+                .change_context(errors::StorageError::EncryptionError)
+        }))
+        .await?;
+
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
@@ -352,7 +355,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 let key_str = key.to_string();
                 let created_attempt = PaymentAttempt {
-                    id: Default::default(),
                     payment_id: payment_attempt.payment_id.clone(),
                     merchant_id: payment_attempt.merchant_id.clone(),
                     attempt_id: payment_attempt.attempt_id.clone(),
@@ -1137,7 +1139,6 @@ impl DataModelExt for PaymentAttempt {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttempt {
-            id: self.id,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1207,7 +1208,6 @@ impl DataModelExt for PaymentAttempt {
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
-            id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,

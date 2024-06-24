@@ -91,10 +91,6 @@ histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 
-// Encryption and Decryption metrics
-histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
-
 // Apple Pay Flow Metrics
 counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
 counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW, GLOBAL_METER);
