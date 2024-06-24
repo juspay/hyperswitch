@@ -72,4 +72,6 @@ pub struct ActivePaymentsMetricsBucketValue {
 pub struct MetricsBucketResponse {
     #[serde(flatten)]
     pub values: ActivePaymentsMetricsBucketValue,
+    #[serde(flatten)]
+    pub dimensions: ActivePaymentsMetricsBucketIdentifier,
 }

@@ -73,8 +73,9 @@ pub async fn get_metrics(
 
             let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
                 .into_iter()
-                .map(|(_, val)| MetricsBucketResponse {
+                .map(|(id, val)| MetricsBucketResponse {
                     values: val.collect(),
+                    dimensions: id,
                 })
                 .collect();
 
