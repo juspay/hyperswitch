@@ -1,0 +1,134 @@
+acknowledgements:
+  enabled: true
+
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+
+sources:
+  kafka_tx_events:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: sessionizer
+    topics:
+      - hyperswitch-payment-attempt-events
+      - hyperswitch-payment-intent-events
+      - hyperswitch-refund-events
+      - hyperswitch-dispute-events
+    decoding:
+      codec: json
+
+  app_logs:
+    type: docker_logs
+    include_labels:
+      - "logs=promtail"
+
+  vector_metrics:
+    type: internal_metrics
+
+  node_metrics:
+    type: host_metrics
+
+transforms:
+  plus_1_events:
+    type: filter
+    inputs:
+      - kafka_tx_events
+    condition: ".sign_flag == 1"
+
+  hs_server_logs:
+    type: filter
+    inputs:
+      - app_logs
+    condition: '.labels."com.docker.compose.service" == "hyperswitch-server"'
+
+  parsed_hs_server_logs:
+    type: remap
+    inputs:
+      - app_logs
+    source: |-
+      .message = parse_json!(.message)
+
+  events:
+    type: remap
+    inputs:
+      - plus_1_events
+    source: |-
+      .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
+
+sinks:
+  opensearch_events:
+    type: elasticsearch
+    inputs:
+      - events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+    bulk:
+      # Add a date prefixed index for better grouping
+      # index: "vector-{{ .topic }}-%Y-%m-%d"
+      index: "{{ .topic }}"
+
+  opensearch_logs:
+    type: elasticsearch
+    inputs:
+      - parsed_hs_server_logs
+    endpoints:
+      - "https://opensearch:9200"
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    bulk:
+      # Add a date prefixed index for better grouping
+      # index: "vector-{{ .topic }}-%Y-%m-%d"
+      index: "logs-{{ .container_name }}-%Y-%m-%d"
+
+  log_events:
+    type: loki
+    inputs:
+      - kafka_tx_events
+    endpoint: http://loki:3100
+    labels:
+      source: vector
+      topic: "{{ .topic }}"
+      job: kafka
+    encoding:
+      codec: json
+
+  log_app_loki:
+    type: loki
+    inputs:
+      - parsed_hs_server_logs
+    endpoint: http://loki:3100
+    labels:
+      source: vector
+      job: app_logs
+      container: "{{ .container_name }}"
+      stream: "{{ .stream }}"
+    encoding:
+      codec: json
+
+  metrics:
+    type: prometheus_exporter
+    inputs:
+      - vector_metrics
+      - node_metrics
