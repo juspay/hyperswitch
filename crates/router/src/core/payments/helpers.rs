@@ -18,6 +18,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    router_data::KlarnaSdkResponse,
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -1768,11 +1769,11 @@ pub async fn retrieve_payment_method_with_temporary_token(
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
     locker_id: &str,
-    payment_method_id: &str,
+    _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
     _merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    _storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1826,7 +1827,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-    cards::update_last_used_at(payment_method_id, state, storage_scheme).await?;
+
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
@@ -3857,7 +3858,7 @@ pub async fn get_additional_payment_data(
             _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
         api_models::payments::PaymentMethodData::PayLater(_) => {
-            api_models::payments::AdditionalPaymentData::PayLater {}
+            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None }
         }
         api_models::payments::PaymentMethodData::BankTransfer(_) => {
             api_models::payments::AdditionalPaymentData::BankTransfer {}
@@ -4501,6 +4502,15 @@ pub fn add_connector_response_to_additional_payment_data(
                 ..*additional_card_data.clone()
             },
         )),
+        (
+            api_models::payments::AdditionalPaymentData::PayLater { .. },
+            AdditionalPaymentMethodConnectorResponse::PayLater {
+                klarna_sdk: Some(KlarnaSdkResponse { payment_type }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::PayLater {
+            klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
+        },
+
         _ => additional_payment_data,
     }
 }
