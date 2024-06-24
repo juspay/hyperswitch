@@ -6,7 +6,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData,RouterData},
     consts,
     core::errors,
     types::{
@@ -163,6 +163,12 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotImplemented(
+                "Three_ds payments through Datatrans".to_string(),
+            )
+            .into());
+        };
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => Ok(Self {
                 amount: item.amount,
