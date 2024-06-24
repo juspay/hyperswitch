@@ -1,7 +1,7 @@
+use base64::Engine;
 use common_utils::pii;
 use error_stack::ResultExt;
-use masking::{ExposeInterface,PeekInterface, Secret};
-use base64::Engine;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -21,7 +21,6 @@ pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($
 pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
 pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
 pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
-
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,7 +73,7 @@ pub struct ApiErrorResponse {
 }
 
 pub struct BraintreeAuthType {
-    pub(super) auth_header: String
+    pub(super) auth_header: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
@@ -87,9 +86,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
         {
             let auth_key = format!("{}:{}", public_key.peek(), private_key.peek());
             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-            Ok(Self {
-                auth_header,
-            })
+            Ok(Self { auth_header })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
