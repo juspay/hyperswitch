@@ -988,6 +988,7 @@ impl MerchantAccountV2 {
         web::scope("/v2/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create_v2)))
+            .service(web::resource("/{id}").route(web::get().to(retrieve_merchant_account_v2)))
     }
 }
 

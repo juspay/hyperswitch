@@ -86,6 +86,24 @@ pub async fn merchant_account_create_v2() {}
 )]
 pub async fn retrieve_merchant_account() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Retrieve
+///
+/// Retrieve a *merchant* account details.
+#[utoipa::path(
+    get,
+    path = "/v2/accounts/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponseV2),
+        (status = 404, description = "Merchant account not found")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Retrieve a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn retrieve_merchant_account_v2() {}
+
 /// Merchant Account - Update
 ///
 /// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
