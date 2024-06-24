@@ -85,7 +85,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut resp = services::execute_connector_processing_step(
+                let mut new_router_data = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     &self,
@@ -96,23 +96,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 .to_payment_failed_response()?;
 
                 // Initiating Integrity checks
-                let connector_transaction_id = match resp.response.clone() {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        connector_response_reference_id,
-                        ..
-                    }) => connector_response_reference_id.clone(),
-                    _ => None,
-                };
-
                 let integrity_result = helpers::check_integrity_based_on_flow(
-                    resp.request.clone(),
-                    &api::PSync,
-                    connector_transaction_id,
+                    &new_router_data.request,
+                    &new_router_data.response,
                 );
 
-                resp.integrity_check = integrity_result;
+                new_router_data.integrity_check = integrity_result;
 
-                Ok(resp)
+                Ok(new_router_data)
             }
         }
     }

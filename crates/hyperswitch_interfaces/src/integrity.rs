@@ -1,9 +1,6 @@
 use common_utils::errors::IntegrityCheckError;
-use hyperswitch_domain_models::{
-    router_flow_types::payments as api,
-    router_request_types::{
-        AuthoriseIntegrityObject, PaymentsAuthorizeData, PaymentsSyncData, SyncIntegrityObject,
-    },
+use hyperswitch_domain_models::router_request_types::{
+    AuthoriseIntegrityObject, PaymentsAuthorizeData, PaymentsSyncData, SyncIntegrityObject,
 };
 
 /// Connector Integrity trait to check connector data integrity
@@ -27,7 +24,7 @@ pub trait RequestIntegrity<T: ConnectorIntegrity> {
 }
 
 /// Trait to check flow type, based on which various integrity checks will be performed
-pub trait FlowType<Request, T> {
+pub trait RouterDataType<Request, T> {
     /// Function to check to initiate integrity check
     fn check_integrity(
         &self,
@@ -36,7 +33,7 @@ pub trait FlowType<Request, T> {
     ) -> Result<(), IntegrityCheckError>;
 }
 
-impl<T, Request> FlowType<Request, T> for api::Authorize
+impl<T, Request> RouterDataType<Request, T> for PaymentsAuthorizeData
 where
     T: ConnectorIntegrity,
     Request: RequestIntegrity<T>,
@@ -60,7 +57,7 @@ where
     }
 }
 
-impl<T, Request> FlowType<Request, T> for api::PSync
+impl<T, Request> RouterDataType<Request, T> for PaymentsSyncData
 where
     T: ConnectorIntegrity,
     Request: RequestIntegrity<T>,

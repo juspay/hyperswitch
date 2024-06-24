@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::integrity::{ConnectorIntegrity, FlowType, RequestIntegrity};
+use hyperswitch_interfaces::integrity::{ConnectorIntegrity, RequestIntegrity, RouterDataType};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -62,7 +62,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
-        RecurringMandatePaymentData, RouterData,
+        PaymentsResponseData, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -4793,15 +4793,32 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
-    request: Request,
-    flow: &dyn FlowType<Request, T>,
-    connector_transaction_id: Option<String>,
+    request: &Request,
+    payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: ConnectorIntegrity,
-    Request: RequestIntegrity<T>,
+    Request: RequestIntegrity<T> + RouterDataType<Request, T>,
 {
-    flow.check_integrity(&request, connector_transaction_id)
+    let connector_transaction_id = match payment_response_data {
+        Ok(resp_data) => match resp_data {
+            PaymentsResponseData::TransactionResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::TransactionUnresolvedResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::PreProcessingResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            _ => &None,
+        },
+        Err(_) => &None,
+    };
+    request.check_integrity(request, connector_transaction_id.to_owned())
 }
 
 pub async fn config_skip_saving_wallet_at_connector(

@@ -75,7 +75,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let mut resp = services::execute_connector_processing_step(
+            let mut new_router_data = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -86,23 +86,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .to_payment_failed_response()?;
 
             // Initiating Integrity check
-            let connector_transaction_id = match resp.response.clone() {
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    connector_response_reference_id,
-                    ..
-                }) => connector_response_reference_id.clone(),
-                _ => None,
-            };
-
             let integrity_result = helpers::check_integrity_based_on_flow(
-                resp.request.clone(),
-                &api::Authorize,
-                connector_transaction_id,
+                &new_router_data.request,
+                &new_router_data.response,
             );
-            resp.integrity_check = integrity_result;
+
+            new_router_data.integrity_check = integrity_result;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-            Ok(resp)
+            Ok(new_router_data)
         } else {
             Ok(self.clone())
         }
