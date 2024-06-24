@@ -7,7 +7,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use router_derive;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
@@ -846,7 +846,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             // match on connector integrity check
             match router_data.integrity_check.clone() {
                 Err(err) => {
-                    println!("integrity flow check ");
                     let field_name = err.field_names;
                     let connector_transaction_id = err.connector_transaction_id;
                     (
@@ -1307,16 +1306,29 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
-        Err(err) => Err(error_stack::Report::new(
-            errors::ApiErrorResponse::IntegrityCheckFailed {
-                reason: payment_data
-                    .payment_attempt
-                    .error_message
-                    .unwrap_or_default(),
-                field_names: err.field_names,
-                connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
-            },
-        )),
+        Err(err) => {
+            metrics::INTEGRITY_CHECK_FAILED.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([
+                    (
+                        "connector",
+                        payment_data.payment_attempt.connector.unwrap_or_default(),
+                    ),
+                    ("merchant_id", payment_data.payment_attempt.merchant_id),
+                ]),
+            );
+            Err(error_stack::Report::new(
+                errors::ApiErrorResponse::IntegrityCheckFailed {
+                    reason: payment_data
+                        .payment_attempt
+                        .error_message
+                        .unwrap_or_default(),
+                    field_names: err.field_names,
+                    connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+                },
+            ))
+        }
     }
 }
 

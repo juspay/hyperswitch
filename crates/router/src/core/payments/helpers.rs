@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::integrity::{ConnectorIntegrity, RequestIntegrity, RouterDataType};
+use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -4797,8 +4797,8 @@ pub fn check_integrity_based_on_flow<T, Request>(
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
-    T: ConnectorIntegrity,
-    Request: RequestIntegrity<T> + RouterDataType<Request, T>,
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T> + CheckIntegrity<Request, T>,
 {
     let connector_transaction_id = match payment_response_data {
         Ok(resp_data) => match resp_data {

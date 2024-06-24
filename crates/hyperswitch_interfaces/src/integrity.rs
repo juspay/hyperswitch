@@ -4,7 +4,7 @@ use hyperswitch_domain_models::router_request_types::{
 };
 
 /// Connector Integrity trait to check connector data integrity
-pub trait ConnectorIntegrity {
+pub trait FlowIntegrity {
     /// Output type for the connector
     type IntegrityObject;
     /// helps in connector integrity check
@@ -15,8 +15,8 @@ pub trait ConnectorIntegrity {
     ) -> Result<(), IntegrityCheckError>;
 }
 
-/// Trait to get connector integrity object based on request
-pub trait RequestIntegrity<T: ConnectorIntegrity> {
+/// Trait to get connector integrity object based on request and response
+pub trait GetIntegrityObject<T: FlowIntegrity> {
     /// function to get response integrity object
     fn get_response_integrity_object(&self) -> Option<T::IntegrityObject>;
     /// function to get request integrity object
@@ -24,7 +24,7 @@ pub trait RequestIntegrity<T: ConnectorIntegrity> {
 }
 
 /// Trait to check flow type, based on which various integrity checks will be performed
-pub trait RouterDataType<Request, T> {
+pub trait CheckIntegrity<Request, T> {
     /// Function to check to initiate integrity check
     fn check_integrity(
         &self,
@@ -33,10 +33,10 @@ pub trait RouterDataType<Request, T> {
     ) -> Result<(), IntegrityCheckError>;
 }
 
-impl<T, Request> RouterDataType<Request, T> for PaymentsAuthorizeData
+impl<T, Request> CheckIntegrity<Request, T> for PaymentsAuthorizeData
 where
-    T: ConnectorIntegrity,
-    Request: RequestIntegrity<T>,
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T>,
 {
     fn check_integrity(
         &self,
@@ -57,10 +57,10 @@ where
     }
 }
 
-impl<T, Request> RouterDataType<Request, T> for PaymentsSyncData
+impl<T, Request> CheckIntegrity<Request, T> for PaymentsSyncData
 where
-    T: ConnectorIntegrity,
-    Request: RequestIntegrity<T>,
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T>,
 {
     fn check_integrity(
         &self,
@@ -81,38 +81,7 @@ where
     }
 }
 
-impl ConnectorIntegrity for AuthoriseIntegrityObject {
-    type IntegrityObject = Self;
-    fn compare(
-        req_integrity_object: Self,
-        res_integrity_object: Self,
-        connector_transaction_id: Option<String>,
-    ) -> Result<(), IntegrityCheckError> {
-        let mut mismatched_fields = Vec::new();
-
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push("amount".to_string());
-        }
-
-        if req_integrity_object.currency != res_integrity_object.currency {
-            mismatched_fields.push("currency".to_string());
-        }
-
-        if mismatched_fields.is_empty() {
-            println!("integrity check passed");
-            Ok(())
-        } else {
-            let field_names = mismatched_fields.join(", ");
-
-            Err(IntegrityCheckError {
-                field_names,
-                connector_transaction_id,
-            })
-        }
-    }
-}
-
-impl ConnectorIntegrity for SyncIntegrityObject {
+impl FlowIntegrity for AuthoriseIntegrityObject {
     type IntegrityObject = Self;
     fn compare(
         req_integrity_object: Self,
@@ -142,7 +111,37 @@ impl ConnectorIntegrity for SyncIntegrityObject {
     }
 }
 
-impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
+impl FlowIntegrity for SyncIntegrityObject {
+    type IntegrityObject = Self;
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push("amount".to_string());
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push("currency".to_string());
+        }
+
+        if mismatched_fields.is_empty() {
+            Ok(())
+        } else {
+            let field_names = mismatched_fields.join(", ");
+
+            Err(IntegrityCheckError {
+                field_names,
+                connector_transaction_id,
+            })
+        }
+    }
+}
+
+impl GetIntegrityObject<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
     fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
         self.integrity_object.clone()
     }
@@ -155,7 +154,7 @@ impl RequestIntegrity<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
     }
 }
 
-impl RequestIntegrity<SyncIntegrityObject> for PaymentsSyncData {
+impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
     fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
         self.integrity_object.clone()
     }
