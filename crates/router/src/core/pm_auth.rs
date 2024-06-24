@@ -717,20 +717,17 @@ pub async fn retrieve_payment_method_from_auth_service(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("Bank account details not found")?;
 
-    if let Some(balance) = bank_account.balance {
+    if let (Some(balance), Some(currency)) = (bank_account.balance, payment_intent.currency) {
         let required_conversion = util_types::FloatMajorUnitForConnector;
         let converted_amount = required_conversion
-            .convert_back(
-                balance,
-                payment_intent.currency.unwrap_or(enums::Currency::USD),
-            )
+            .convert_back(balance, currency)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not convert to MinorUnit")?;
+            .attach_printable("Could not convert FloatMajorUnit to MinorUnit")?;
 
         if converted_amount < payment_intent.amount {
             return Err((ApiErrorResponse::InvalidRequestData {
                 message:
-                    "Payment amount is less than the available amount in selected bank account"
+                    "Payment amount is greater than the available amount in selected bank account"
                         .to_string(),
             })
             .into());
