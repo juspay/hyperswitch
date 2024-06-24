@@ -288,7 +288,7 @@ pub async fn merchant_select_token_only_flow(
         .into();
 
     let current_flow =
-        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::MerchantSelect.into())?;
+        domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     let token = next_flow
