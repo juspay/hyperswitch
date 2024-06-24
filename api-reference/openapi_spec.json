@@ -5378,6 +5378,160 @@
           }
         ]
       },
+      "BankAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "bank_account_number",
+                  "bank_routing_number"
+                ],
+                "properties": {
+                  "bank_account_number": {
+                    "type": "string",
+                    "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+                    "example": "000123456"
+                  },
+                  "bank_routing_number": {
+                    "type": "string",
+                    "description": "[9 digits] Routing number - used in USA for identifying a specific bank.",
+                    "example": "110000000"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object",
+                "required": [
+                  "bank_account_number",
+                  "bank_sort_code"
+                ],
+                "properties": {
+                  "bank_account_number": {
+                    "type": "string",
+                    "example": "000123456"
+                  },
+                  "bank_sort_code": {
+                    "type": "string",
+                    "description": "[6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.",
+                    "example": "98-76-54"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "bic"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+                    "example": "DE89370400440532013000"
+                  },
+                  "bic": {
+                    "type": "string",
+                    "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
+                    "example": "HSBCGB2LXXX"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "type": "object",
+                "required": [
+                  "pix_key",
+                  "bank_account_number"
+                ],
+                "properties": {
+                  "pix_key": {
+                    "type": "string",
+                    "example": "000123456"
+                  },
+                  "tax_id": {
+                    "type": "string",
+                    "description": "Individual taxpayer identification number",
+                    "example": "000123456",
+                    "nullable": true
+                  },
+                  "bank_account_number": {
+                    "type": "string",
+                    "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+                    "example": "000123456"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankData": {
+        "type": "object",
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "example": "3707",
+            "nullable": true
+          },
+          "bank_account_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankAccountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "BankDebitBilling": {
         "type": "object",
         "properties": {
@@ -8452,7 +8606,7 @@
           "bank_transfer": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/BankData"
               }
             ],
             "nullable": true
@@ -13259,7 +13413,7 @@
           "bank_transfer": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/BankData"
               }
             ],
             "nullable": true
@@ -13703,7 +13857,7 @@
           "bank_transfer": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/BankData"
               }
             ],
             "nullable": true
@@ -17020,7 +17174,7 @@
             ],
             "properties": {
               "bank": {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/BankData"
               }
             }
           },

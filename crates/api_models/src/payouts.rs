@@ -158,6 +158,7 @@ pub struct PayoutCreateRequest {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
     Card(CardPayout),
+    #[schema(value_type = BankData)]
     Bank(payment_methods::BankData),
     Wallet(Wallet),
 }

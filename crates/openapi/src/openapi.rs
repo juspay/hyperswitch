@@ -535,6 +535,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,
         api_models::payments::CustomerDetailsResponse,
+        api_models::payment_methods::BankData,
+        api_models::payment_methods::BankAccountData,
     )),
     modifiers(&SecurityAddon)
 )]
