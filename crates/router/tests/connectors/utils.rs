@@ -10,7 +10,11 @@ use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
     db::StorageImpl,
-    routes, services,
+    routes,
+    services::{
+        self,
+        connector_integration_interface::{BoxedConnectorIntegrationInterface, ConnectorEnum},
+    },
     types::{self, storage::enums, AccessToken, MinorUnit, PaymentAddress, RouterData},
 };
 use test_utils::connector_auth::ConnectorAuthType;
@@ -36,6 +40,20 @@ pub trait Connector {
     #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
+    }
+}
+
+pub fn construct_connector_data_old(
+    connector: types::api::BoxedConnector,
+    connector_name: types::Connector,
+    get_token: types::api::GetToken,
+    merchant_connector_id: Option<String>,
+) -> types::api::ConnectorData {
+    types::api::ConnectorData {
+        connector: ConnectorEnum::Old(connector),
+        connector_name,
+        get_token,
+        merchant_connector_id,
     }
 }
 
@@ -548,8 +566,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoEligibility,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -589,8 +606,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoFulfill,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -630,8 +646,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoCreate,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -672,8 +687,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoCancel,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -764,8 +778,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoRecipient,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -801,11 +814,15 @@ pub trait ConnectorActions: Connector {
 
 async fn call_connector<
     T: Debug + Clone + 'static,
+    ResourceCommonData: Debug
+        + Clone
+        + services::connector_integration_interface::RouterDataConversion<T, Req, Resp>
+        + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     request: RouterData<T, Req, Resp>,
-    integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
+    integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;

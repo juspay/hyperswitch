@@ -12,12 +12,12 @@ impl ConnectorActions for OpennodeTest {}
 impl utils::Connector for OpennodeTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Opennode;
-        api::ConnectorData {
-            connector: Box::new(&Opennode),
-            connector_name: types::Connector::Opennode,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Opennode),
+            types::Connector::Opennode,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

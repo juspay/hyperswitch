@@ -15,12 +15,12 @@ impl ConnectorActions for ForteTest {}
 impl utils::Connector for ForteTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Forte;
-        api::ConnectorData {
-            connector: Box::new(&Forte),
-            connector_name: types::Connector::Forte,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Forte),
+            types::Connector::Forte,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
