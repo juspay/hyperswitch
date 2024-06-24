@@ -612,10 +612,10 @@ merchant_secret="Source verification key"
 merchant_secret="Source verification key"
 
 
-[braintree.connector_auth.SignatureKey]
+[braintree.connector_auth.BodyKey]
 api_key="Public Key"
-key1="Merchant Id"
-api_secret="Private Key"
+key1="Private Key"
+
 [braintree.metadata]
 merchant_account_id="Merchant Account Id"
 merchant_config_currency="Currency"
