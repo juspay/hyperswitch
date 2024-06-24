@@ -4,7 +4,7 @@ use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
     id_type,
-    pii::{self, Email},
+    pii,
     types::MinorUnit,
 };
 use masking::Secret;
