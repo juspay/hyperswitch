@@ -186,6 +186,8 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     components(schemas(
         common_utils::types::MinorUnit,
+        common_utils::link_utils::GenericLinkUiConfig,
+        common_utils::link_utils::EnabledPaymentMethod,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
@@ -540,8 +542,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::WebhookDeliveryAttempt,
         api_models::enums::PaymentChargeType,
         api_models::enums::StripeChargeType,
-        api_models::enums::GenericLinkUIConfig,
-        api_models::enums::EnabledPaymentMethod,
         api_models::payments::PaymentChargeRequest,
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,

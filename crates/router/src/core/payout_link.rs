@@ -60,7 +60,7 @@ pub async fn initiate_payout_link(
     let link_data = payout_link.link_data.clone();
     let default_config = &state.conf.generic_link.payout_link;
     let default_ui_config = default_config.ui_config.clone();
-    let ui_config_data = enums::GenericLinkUIConfigFormData {
+    let ui_config_data = link_utils::GenericLinkUIConfigFormData {
         merchant_name: link_data
             .ui_config
             .merchant_name
@@ -85,7 +85,7 @@ pub async fn initiate_payout_link(
                 let payout_link_update = PayoutLinkUpdate::StatusUpdate {
                     link_status: link_utils::PayoutLinkStatus::Invalidated,
                 };
-                db.update_payout_link_by_merchant_id_link_id(payout_link, payout_link_update)
+                db.update_payout_link(payout_link, payout_link_update)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error updating payout links in db")?;
@@ -125,9 +125,18 @@ pub async fn initiate_payout_link(
             let enabled_payout_methods =
                 filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
-            let default_enabled_payout_methods = &default_config.enabled_payment_methods;
+            let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
+            for (payment_method, payment_method_types) in
+                default_config.enabled_payment_methods.clone().into_iter()
+            {
+                let enabled_payment_method = link_utils::EnabledPaymentMethod {
+                    payment_method,
+                    payment_method_types,
+                };
+                default_enabled_payout_methods.push(enabled_payment_method);
+            }
             let fallback_enabled_payout_methods = if enabled_payout_methods.is_empty() {
-                default_enabled_payout_methods
+                &default_enabled_payout_methods
             } else {
                 &enabled_payout_methods
             };
@@ -219,7 +228,7 @@ pub async fn filter_payout_methods(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
-) -> errors::RouterResult<Vec<enums::EnabledPaymentMethod>> {
+) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -238,7 +247,7 @@ pub async fn filter_payout_methods(
         common_enums::ConnectorType::PayoutProcessor,
     );
 
-    let mut response: Vec<enums::EnabledPaymentMethod> = vec![];
+    let mut response: Vec<link_utils::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<
         common_enums::PaymentMethod,
         HashSet<common_enums::PaymentMethodType>,
@@ -280,7 +289,7 @@ pub async fn filter_payout_methods(
         if !method_types.is_empty() {
             let payment_method_types: Vec<enums::PaymentMethodType> =
                 method_types.into_iter().collect();
-            let enabled_payment_method = enums::EnabledPaymentMethod {
+            let enabled_payment_method = link_utils::EnabledPaymentMethod {
                 payment_method: pm,
                 payment_method_types,
             };

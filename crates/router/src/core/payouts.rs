@@ -395,7 +395,7 @@ pub async fn payouts_confirm_core(
             let payout_link_update = storage::PayoutLinkUpdate::StatusUpdate {
                 link_status: PayoutLinkStatus::Submitted,
             };
-            db.update_payout_link_by_merchant_id_link_id(pl, payout_link_update)
+            db.update_payout_link(pl, payout_link_update)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout links in db")

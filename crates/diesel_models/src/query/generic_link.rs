@@ -15,44 +15,40 @@ use crate::{
 
 impl GenericLinkNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GenericLinkState> {
-        let res: Result<GenericLink, Report<db_errors::DatabaseError>> =
-            generics::generic_insert(conn, self).await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => GenericLinkState::try_from(res)
-                .change_context(db_errors::DatabaseError::Others)
-                .attach_printable("failed to parse generic link data from DB for id - {link_id}"),
-        }
+        generics::generic_insert(conn, self)
+            .await
+            .and_then(|res: GenericLink| {
+                GenericLinkState::try_from(res)
+                    .change_context(db_errors::DatabaseError::Others)
+                    .attach_printable(
+                        "failed to parse generic link data from DB for id - {link_id}",
+                    )
+            })
     }
 
     pub async fn insert_pm_collect_link(
         self,
         conn: &PgPooledConn,
     ) -> StorageResult<PaymentMethodCollectLink> {
-        let res: Result<GenericLink, Report<db_errors::DatabaseError>> =
-            generics::generic_insert(conn, self).await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => PaymentMethodCollectLink::try_from(res)
-                .change_context(db_errors::DatabaseError::Others)
-                .attach_printable(
-                    "failed to parse payment method collect link data from DB for id - {link_id}",
-                ),
-        }
+        generics::generic_insert(conn, self)
+            .await
+            .and_then(|res: GenericLink| {
+                PaymentMethodCollectLink::try_from(res)
+            .change_context(db_errors::DatabaseError::Others)
+            .attach_printable(
+                "failed to parse payment method collect link data from DB for id - {link_id}",
+            )
+            })
     }
 
     pub async fn insert_payout_link(self, conn: &PgPooledConn) -> StorageResult<PayoutLink> {
-        let res: Result<GenericLink, Report<db_errors::DatabaseError>> =
-            generics::generic_insert(conn, self).await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => PayoutLink::try_from(res)
-                .change_context(db_errors::DatabaseError::Others)
-                .attach_printable("failed to parse payout link data from DB for id - {link_id}"),
-        }
+        generics::generic_insert(conn, self)
+            .await
+            .and_then(|res: GenericLink| {
+                PayoutLink::try_from(res)
+                    .change_context(db_errors::DatabaseError::Others)
+                    .attach_printable("failed to parse payout link data from DB for id - {link_id}")
+            })
     }
 }
 
@@ -61,71 +57,62 @@ impl GenericLink {
         conn: &PgPooledConn,
         link_id: &str,
     ) -> StorageResult<GenericLinkState> {
-        let res: Result<Self, Report<db_errors::DatabaseError>> =
-            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-                conn,
-                dsl::link_id.eq(link_id.to_owned()),
-            )
-            .await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => GenericLinkState::try_from(res)
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::link_id.eq(link_id.to_owned()),
+        )
+        .await
+        .and_then(|res: Self| {
+            GenericLinkState::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
-                .attach_printable("failed to parse generic link data from DB for id - {link_id}"),
-        }
+                .attach_printable("failed to parse generic link data from DB for id - {link_id}")
+        })
     }
 
     pub async fn find_pm_collect_link_by_link_id(
         conn: &PgPooledConn,
         link_id: &str,
     ) -> StorageResult<PaymentMethodCollectLink> {
-        let res: Result<Self, Report<db_errors::DatabaseError>> =
-            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-                conn,
-                dsl::link_id.eq(link_id.to_owned()),
-            )
-            .await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => PaymentMethodCollectLink::try_from(res)
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::link_id.eq(link_id.to_owned()),
+        )
+        .await
+        .and_then(|res: Self| {
+            PaymentMethodCollectLink::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
                 .attach_printable(
                     "failed to parse payment method collect link data from DB for id - {link_id}",
-                ),
-        }
+                )
+        })
     }
 
     pub async fn find_payout_link_by_link_id(
         conn: &PgPooledConn,
         link_id: &str,
     ) -> StorageResult<PayoutLink> {
-        let res: Result<Self, Report<db_errors::DatabaseError>> =
-            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-                conn,
-                dsl::link_id.eq(link_id.to_owned()),
-            )
-            .await;
-
-        match res {
-            Err(e) => Err(e),
-            Ok(res) => PayoutLink::try_from(res)
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::link_id.eq(link_id.to_owned()),
+        )
+        .await
+        .and_then(|res: Self| {
+            PayoutLink::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
                 .attach_printable(
                     "failed to parse payment method collect link data from DB for id - {link_id}",
-                ),
-        }
+                )
+        })
     }
 }
 
 impl PayoutLink {
-    pub async fn update_payout_link_by_merchant_id_link_id(
+    pub async fn update_payout_link(
         self,
         conn: &PgPooledConn,
         payout_link_update: PayoutLinkUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::link_id
                 .eq(self.link_id.to_owned())
@@ -133,15 +120,15 @@ impl PayoutLink {
             GenericLinkUpdateInternal::from(payout_link_update),
         )
         .await
-        {
-            Err(error) => match error.current_context() {
-                db_errors::DatabaseError::NoFieldsToUpdate => Ok(self),
-                _ => Err(error),
-            },
-            Ok(mut payout_links) => payout_links
+        .and_then(|mut payout_links| {
+            payout_links
                 .pop()
-                .ok_or(error_stack::report!(db_errors::DatabaseError::NotFound)),
-        }
+                .ok_or(error_stack::report!(db_errors::DatabaseError::NotFound))
+        })
+        .or_else(|error| match error.current_context() {
+            db_errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+            _ => Err(error),
+        })
     }
 }
 

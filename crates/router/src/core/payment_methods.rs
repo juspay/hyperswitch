@@ -209,7 +209,7 @@ pub async fn render_pm_collect_link(
     let link_data = pm_collect_link.link_data;
     let default_config = &state.conf.generic_link.payment_method_collect;
     let default_ui_config = default_config.ui_config.clone();
-    let ui_config_data = enums::GenericLinkUIConfigFormData {
+    let ui_config_data = common_utils::link_utils::GenericLinkUIConfigFormData {
         merchant_name: link_data
             .ui_config
             .merchant_name

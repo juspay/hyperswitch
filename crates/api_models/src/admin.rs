@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
-    pii,
+    link_utils, pii,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -1136,7 +1136,7 @@ pub struct BusinessCollectLinkConfig {
 
     /// List of payment methods shown on collect UI
     #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs", "sepa"]}]"#)]
-    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+    pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1151,8 +1151,8 @@ pub struct BusinessGenericLinkConfig {
     pub domain_name: Option<String>,
 
     #[serde(flatten)]
-    #[schema(value_type = GenericLinkUIConfig)]
-    pub ui_config: api_enums::GenericLinkUIConfig,
+    #[schema(value_type = GenericLinkUiConfig)]
+    pub ui_config: link_utils::GenericLinkUiConfig,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

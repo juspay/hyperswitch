@@ -217,12 +217,12 @@ pub struct GenericLink {
 pub struct GenericLinkEnvConfig {
     pub sdk_url: String,
     pub expiry: u32,
-    pub ui_config: GenericLinkEnvUIConfig,
-    pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
+    pub ui_config: GenericLinkEnvUiConfig,
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct GenericLinkEnvUIConfig {
+pub struct GenericLinkEnvUiConfig {
     pub logo: String,
     pub merchant_name: Secret<String>,
     pub theme: String,

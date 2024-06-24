@@ -1,6 +1,9 @@
 use common_utils::{
     consts, id_type,
-    link_utils::{GenericLinkStatus, PaymentMethodCollectStatus, PayoutLinkData, PayoutLinkStatus},
+    link_utils::{
+        EnabledPaymentMethod, GenericLinkStatus, GenericLinkUiConfig, PaymentMethodCollectStatus,
+        PayoutLinkData, PayoutLinkStatus,
+    },
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
@@ -143,8 +146,8 @@ pub struct PaymentMethodCollectLinkData {
     pub client_secret: Secret<String>,
     pub session_expiry: u32,
     #[serde(flatten)]
-    pub ui_config: storage_enums::GenericLinkUIConfig,
-    pub enabled_payment_methods: Option<Vec<storage_enums::EnabledPaymentMethod>>,
+    pub ui_config: GenericLinkUiConfig,
+    pub enabled_payment_methods: Option<Vec<EnabledPaymentMethod>>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]

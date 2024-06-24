@@ -4,12 +4,11 @@ use common_utils::errors::CustomResult;
 use common_utils::{
     ext_traits::ValueExt,
     id_type::CustomerId,
-    link_utils::{GenericLinkStatus, PayoutLinkData, PayoutLinkStatus},
+    link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     types::MinorUnit,
 };
 use diesel_models::{
     business_profile::BusinessProfile,
-    enums::GenericLinkUIConfig,
     generic_link::{GenericLinkNew, PayoutLink},
 };
 use error_stack::{report, ResultExt};
@@ -237,7 +236,7 @@ pub async fn create_payout_link(
         Some(config) => (config.logo, config.merchant_name, config.theme),
         _ => (None, None, None),
     };
-    let payout_link_config = GenericLinkUIConfig {
+    let payout_link_config = GenericLinkUiConfig {
         logo,
         merchant_name,
         theme,

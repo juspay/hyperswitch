@@ -1,3 +1,5 @@
+//! Common
+
 use std::primitive::i64;
 
 use common_enums::enums;
@@ -167,35 +169,57 @@ pub struct PayoutLinkData {
     pub session_expiry: u32,
     #[serde(flatten)]
     /// Payout link's UI configurations
-    pub ui_config: enums::GenericLinkUIConfig,
+    pub ui_config: GenericLinkUiConfig,
     /// List of enabled payment methods
-    pub enabled_payment_methods: Option<Vec<enums::EnabledPaymentMethod>>,
+    pub enabled_payment_methods: Option<Vec<EnabledPaymentMethod>>,
     /// Payout amount
     pub amount: MinorUnit,
     /// Payout currency
     pub currency: enums::Currency,
 }
 
-impl<DB: Backend> FromSql<Jsonb, DB> for PayoutLinkData
-where
-    serde_json::Value: FromSql<Jsonb, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_value(value)?)
-    }
+crate::impl_to_sql_from_sql_json!(PayoutLinkData);
+
+/// Object for GenericLinkUiConfig
+#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
+pub struct GenericLinkUiConfig {
+    /// Merchant's display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
+    pub logo: Option<String>,
+
+    /// Custom merchant name for the link
+    #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch")]
+    pub merchant_name: Option<Secret<String>>,
+
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4285F4")]
+    pub theme: Option<String>,
 }
 
-impl ToSql<Jsonb, diesel::pg::Pg> for PayoutLinkData
-where
-    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = serde_json::to_value(self)?;
+/// Object for GenericLinkUIConfigFormData
+#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
+pub struct GenericLinkUIConfigFormData {
+    /// Merchant's display logo
+    #[schema(value_type = String, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
+    pub logo: String,
 
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
+    /// Custom merchant name for the link
+    #[schema(value_type = String, max_length = 255, example = "Hyperswitch")]
+    pub merchant_name: Secret<String>,
+
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = String, max_length = 255, example = "#4285F4")]
+    pub theme: String,
+}
+
+/// Object for EnabledPaymentMethod
+#[derive(Clone, Debug, Serialize, serde::Deserialize, ToSchema)]
+pub struct EnabledPaymentMethod {
+    /// Payment method (banks, cards, wallets) enabled for the operation
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: enums::PaymentMethod,
+
+    /// An array of associated payment method types
+    #[schema(value_type = Vec<PaymentMethodType>)]
+    pub payment_method_types: Vec<enums::PaymentMethodType>,
 }

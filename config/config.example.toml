@@ -550,15 +550,10 @@ expiry = 900
 theme = "#1A1A1A"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
-[[generic_link.payment_method_collect.enabled_payment_methods]]
-payment_method = "card"
-payment_method_types = ["credit", "debit"]
-[[generic_link.payment_method_collect.enabled_payment_methods]]
-payment_method = "bank_transfer"
-payment_method_types = ["ach", "bacs", "sepa"]
-[[generic_link.payment_method_collect.enabled_payment_methods]]
-payment_method = "wallet"
-payment_method_types = ["paypal", "pix", "venmo"]
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -567,15 +562,10 @@ expiry = 900
 theme = "#1A1A1A"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
-[[generic_link.payout_link.enabled_payment_methods]]
-payment_method = "card"
-payment_method_types = ["credit", "debit"]
-[[generic_link.payout_link.enabled_payment_methods]]
-payment_method = "bank_transfer"
-payment_method_types = ["ach", "bacs", "sepa"]
-[[generic_link.payout_link.enabled_payment_methods]]
-payment_method = "wallet"
-payment_method_types = ["paypal", "pix", "venmo"]
+[generic_link.payout_link.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"

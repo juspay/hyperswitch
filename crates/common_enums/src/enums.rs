@@ -2780,45 +2780,6 @@ pub enum GenericLinkType {
     PayoutLink,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
-pub struct GenericLinkUIConfig {
-    /// Merchant's display logo
-    #[schema(value_type = Option<String>, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: Option<String>,
-
-    /// Custom merchant name for the link
-    #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch")]
-    pub merchant_name: Option<masking::Secret<String>>,
-
-    /// Primary color to be used in the form represented in hex format
-    #[schema(value_type = Option<String>, max_length = 255, example = "#4285F4")]
-    pub theme: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
-pub struct GenericLinkUIConfigFormData {
-    /// Merchant's display logo
-    #[schema(value_type = String, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: String,
-
-    /// Custom merchant name for the link
-    #[schema(value_type = String, max_length = 255, example = "Hyperswitch")]
-    pub merchant_name: masking::Secret<String>,
-
-    /// Primary color to be used in the form represented in hex format
-    #[schema(value_type = String, max_length = 255, example = "#4285F4")]
-    pub theme: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct EnabledPaymentMethod {
-    /// Payment method (banks, cards, wallets) enabled for the operation
-    pub payment_method: PaymentMethod,
-
-    /// An array of associated payment method types
-    pub payment_method_types: Vec<PaymentMethodType>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]

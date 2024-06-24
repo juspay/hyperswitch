@@ -6783,7 +6783,7 @@
       "BusinessGenericLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/GenericLinkUIConfig"
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
           },
           {
             "type": "object",
@@ -9037,6 +9037,7 @@
       },
       "EnabledPaymentMethod": {
         "type": "object",
+        "description": "Object for EnabledPaymentMethod",
         "required": [
           "payment_method",
           "payment_method_types"
@@ -9774,8 +9775,9 @@
       "GcashRedirection": {
         "type": "object"
       },
-      "GenericLinkUIConfig": {
+      "GenericLinkUiConfig": {
         "type": "object",
+        "description": "Object for GenericLinkUiConfig",
         "properties": {
           "logo": {
             "type": "string",
@@ -13387,7 +13389,12 @@
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/GenericLinkUIConfig"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
@@ -13436,7 +13443,7 @@
       "PaymentMethodCollectLinkResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/GenericLinkUIConfig"
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
           },
           {
             "type": "object",
@@ -16752,7 +16759,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/GenericLinkUIConfig"
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
               }
             ],
             "nullable": true

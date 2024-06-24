@@ -1,7 +1,7 @@
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
-    crypto, id_type,
+    crypto, id_type, link_utils,
     pii::{self, Email},
 };
 use masking::Secret;
@@ -174,12 +174,12 @@ pub struct PayoutCreatePayoutLinkConfig {
     pub payout_link_id: Option<String>,
 
     #[serde(flatten)]
-    #[schema(value_type = Option<GenericLinkUIConfig>)]
-    pub ui_config: Option<api_enums::GenericLinkUIConfig>,
+    #[schema(value_type = Option<GenericLinkUiConfig>)]
+    pub ui_config: Option<link_utils::GenericLinkUiConfig>,
 
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
-    pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
+    pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -721,8 +721,8 @@ pub struct PayoutLinkDetails {
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<String>,
     #[serde(flatten)]
-    pub ui_config: api_enums::GenericLinkUIConfigFormData,
-    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
     pub amount: String,
     pub currency: common_enums::Currency,
 }
@@ -739,5 +739,5 @@ pub struct PayoutLinkStatusDetails {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     #[serde(flatten)]
-    pub ui_config: api_enums::GenericLinkUIConfigFormData,
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
 }

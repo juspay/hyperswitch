@@ -1,6 +1,6 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::ext_traits::ValueExt;
-use diesel_models::{enums::GenericLinkUIConfig, generic_link::PaymentMethodCollectLinkData};
+use common_utils::{ext_traits::ValueExt, link_utils};
+use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -88,7 +88,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         Some(config) => (config.logo, config.merchant_name, config.theme),
         _ => (None, None, None),
     };
-    let pm_collect_link_config = GenericLinkUIConfig {
+    let pm_collect_link_config = link_utils::GenericLinkUiConfig {
         logo,
         merchant_name,
         theme,
@@ -109,7 +109,20 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
         (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),
         (None, Some(config)) => config.enabled_payment_methods.clone(),
-        _ => default_config.enabled_payment_methods.clone(),
+        _ => {
+            let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
+            for (payment_method, payment_method_types) in
+                default_config.enabled_payment_methods.clone().into_iter()
+            {
+                let enabled_payment_method = link_utils::EnabledPaymentMethod {
+                    payment_method,
+                    payment_method_types,
+                };
+                default_enabled_payout_methods.push(enabled_payment_method);
+            }
+
+            default_enabled_payout_methods
+        }
     };
 
     Ok(PaymentMethodCollectLinkData {

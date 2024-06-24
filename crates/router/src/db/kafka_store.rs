@@ -2904,13 +2904,13 @@ impl GenericLinkInterface for KafkaStore {
         self.diesel_store.insert_payout_link(pm_collect_link).await
     }
 
-    async fn update_payout_link_by_merchant_id_link_id(
+    async fn update_payout_link(
         &self,
         payout_link: storage::PayoutLink,
         payout_link_update: storage::PayoutLinkUpdate,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
         self.diesel_store
-            .update_payout_link_by_merchant_id_link_id(payout_link, payout_link_update)
+            .update_payout_link(payout_link, payout_link_update)
             .await
     }
 }
