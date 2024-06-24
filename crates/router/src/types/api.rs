@@ -128,6 +128,17 @@ pub trait ConnectorMandateRevokeV2:
 {
 }
 
+#[derive(Clone, Debug)]
+pub struct UpdateMandateDetails;
+
+pub trait ConnectorMandateUpdate:
+    ConnectorIntegration<
+    UpdateMandateDetails,
+    types::MandateDetailsUpdateData,
+    types::MandateDetailsUpdateResponeData,
+>
+{
+}
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
@@ -162,6 +173,7 @@ pub trait Connector:
     + FraudCheckV2
     + ConnectorMandateRevoke
     + ConnectorMandateRevokeV2
+    + ConnectorMandateUpdate
     + ExternalAuthentication
     + ExternalAuthenticationV2
 {
@@ -194,6 +206,7 @@ impl<
             + FraudCheckV2
             + ConnectorMandateRevoke
             + ConnectorMandateRevokeV2
+            + ConnectorMandateUpdate
             + ExternalAuthentication
             + ExternalAuthenticationV2,
     > Connector for T

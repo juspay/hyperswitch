@@ -1,6 +1,6 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::RequestSurchargeDetails;
+use api_models::{payment_methods::CardDetailUpdate, payments::RequestSurchargeDetails};
 use common_utils::{
     consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
 };
@@ -707,4 +707,10 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateDetailsUpdateData {
+    pub updation_obj: CardDetailUpdate,
+    pub connector_mandate_id: Option<String>,
 }

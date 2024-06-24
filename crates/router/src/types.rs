@@ -38,19 +38,20 @@ pub use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
-        DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        DestinationChargeRefund, DirectChargeRefund, MandateDetailsUpdateData,
+        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId, RetrieveFileRequestData,
         SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
-        MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
+        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse,
+        MandateDetailsUpdateResponeData, MandateReference, MandateRevokeResponseData,
+        PaymentsResponseData, PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, UploadFileResponse, VerifyWebhookSourceResponseData,
+        VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]
@@ -268,6 +269,12 @@ pub type DefendDisputeType = dyn services::ConnectorIntegration<
 
 pub type SetupMandateRouterData =
     RouterData<api::SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
+
+pub type UpdateMandateDetailsRouterData = RouterData<
+    api::UpdateMandateDetails,
+    MandateDetailsUpdateData,
+    MandateDetailsUpdateResponeData,
+>;
 
 pub type AcceptDisputeRouterData =
     RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;

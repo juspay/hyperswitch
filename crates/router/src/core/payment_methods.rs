@@ -2,6 +2,7 @@ pub mod cards;
 pub mod helpers;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+use common_utils::id_type;
 pub mod vault;
 use crate::{
     consts,
@@ -311,16 +312,17 @@ pub async fn update_payment_method_task(
     filter_mca: HashMap<String, storage::UpdateMandate>,
     card_updation_obj: &payment_methods::CardDetailUpdate,
     merchant_id: String,
-    // payment_mandate_data: storage::payment_method::PaymentsMandateReferenceRecord,
     modified_at: time::PrimitiveDateTime,
+    customer_id: id_type::CustomerId,
 ) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time =
         modified_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
-    let tracking_data = storage::PaymentMethodUpdateTrackingData {
+    let tracking_data = storage::PaymentMethodMandateUpdateTrackingData {
         merchant_id,
         list_mca_ids: filter_mca,
-        card_updation_obj: card_updation_obj.clone(), // payment_mandate_rec: payment_mandate_data,
+        card_updation_obj: card_updation_obj.clone(),
+        customer_id,
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodMandateDetailsUpdateWorkflow;
@@ -350,7 +352,7 @@ pub async fn update_payment_method_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_MANDATE_DETAILS_UPDATE reminder to process_tracker for payment_method_id: {}",
-            payment_method_id.to_string()
+            payment_method_id
             )
         })?;
 

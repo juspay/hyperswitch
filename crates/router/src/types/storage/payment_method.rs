@@ -1,4 +1,5 @@
 use api_models::{enums as api_enums, payment_methods};
+use common_utils::id_type;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
@@ -114,6 +115,7 @@ impl DerefMut for PaymentsMandateReference {
 pub struct UpdateMandate {
     pub connector_mandate_id: Option<String>,
     pub connector_variant: api_enums::Connector,
+    pub profile_id: String,
 }
 // impl PaymentsMandateReference {
 //     pub fn collect_connector_mandate_id(&self) -> String {
@@ -122,11 +124,11 @@ pub struct UpdateMandate {
 // }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct PaymentMethodUpdateTrackingData {
+pub struct PaymentMethodMandateUpdateTrackingData {
     pub merchant_id: String,
-    // pub payment_mandate_rec: PaymentsMandateReference,
     pub list_mca_ids: HashMap<String, UpdateMandate>,
     pub card_updation_obj: payment_methods::CardDetailUpdate,
+    pub customer_id: id_type::CustomerId,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodStatusTrackingData {

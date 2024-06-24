@@ -854,7 +854,7 @@ pub async fn update_customer_payment_method(
                 if let Some(connector_mandate_details) = connector_mandate_id {
                     // get the mca ids and then filter on the basis of configs
                     let conf = &state.conf.mandates.update_mandate_supported;
-                    let _k = update_connector_mandate_metadata(
+                    update_connector_mandate_metadata(
                         db,
                         connector_mandate_details,
                         &merchant_account.merchant_id,
@@ -1054,6 +1054,7 @@ pub fn validate_payment_method_update(
                     .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
             })
 }
+#[allow(clippy::too_many_arguments)]
 pub async fn update_connector_mandate_metadata(
     db: &dyn db::StorageInterface,
     payment_mandate_reference: storage::PaymentsMandateReference,
@@ -1067,7 +1068,7 @@ pub async fn update_connector_mandate_metadata(
     // check if connector name supports update and also if its a valid mca,ie, the mca is there in the hashmap
     let mca_ids = get_all_mcas(
         db,
-        &key_store,
+        key_store,
         merchant_id,
         Some(false),
         &payment_mandate_reference,
@@ -1086,46 +1087,21 @@ pub async fn update_connector_mandate_metadata(
         })
         .collect::<HashMap<_, _>>();
 
-    // let connector_data = ConnectorData::get_connector_by_name(
-    //     &state.conf.connectors,
-    //     //from cmid,
-    //     GetToken::Connector,
-    //     //fromcmid,,
-    // )?;
-    // let connector_integration: services::BoxedConnectorIntegration<
-    //     '_,
-    //     types::api::MandateRevoke,
-    //     types::MandateRevokeRequestData,
-    //     types::MandateRevokeResponseData,
-    // > = connector_data.connector.get_connector_integration();
-    let _a = update_payment_method_task(
+    update_payment_method_task(
         db,
         &pm.payment_method_id,
         filtered_mca_ids,
-        &card_updation_obj,
+        card_updation_obj,
         merchant_id.to_string(),
         modified_at_time,
+        pm.customer_id.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    // let router_data = utils::construct_mandate_revoke_router_data(
-    //     merchant_connector_account,
-    //     &merchant_account,
-    //     mandate.clone(),
-    // )
-    // .await?;
 
-    // let response = services::execute_connector_processing_step(
-    //     &state,
-    //     connector_integration,
-    //     &router_data,
-    //     CallConnectorAction::Trigger,
-    //     None,
-    // )
-    // .await
-    // .change_context(errors::ApiErrorResponse::InternalServerError)?;
     Ok(())
 }
+
 // Wrapper function to switch lockers
 
 #[cfg(feature = "payouts")]
@@ -3904,24 +3880,27 @@ pub async fn get_all_mcas(
         .collect::<Vec<_>>();
     let mut mca_ids = HashMap::new();
     for mca in mcas {
-        let connector_variant = api_enums::Connector::from_str(mca.connector_name.as_str())
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
-            })
-            .attach_printable_lazy(|| {
-                format!("unable to parse connector name: {}", mca.connector_name)
-            })?;
-        let connector_mandate_id = connector_mandate_details
-            .0
-            .get(&mca.merchant_connector_id)
-            .map(|pmr| pmr.connector_mandate_id.clone());
-        mca_ids.insert(
-            mca.merchant_connector_id,
-            storage::UpdateMandate {
-                connector_variant,
-                connector_mandate_id,
-            },
-        );
+        if let Some(profile_id) = mca.profile_id {
+            let connector_variant = api_enums::Connector::from_str(mca.connector_name.as_str())
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector",
+                })
+                .attach_printable_lazy(|| {
+                    format!("unable to parse connector name: {}", mca.connector_name)
+                })?;
+            let connector_mandate_id = connector_mandate_details
+                .0
+                .get(&mca.merchant_connector_id)
+                .map(|pmr| pmr.connector_mandate_id.clone());
+            mca_ids.insert(
+                mca.merchant_connector_id,
+                storage::UpdateMandate {
+                    connector_variant,
+                    connector_mandate_id,
+                    profile_id,
+                },
+            );
+        }
     }
     Ok(mca_ids)
 }

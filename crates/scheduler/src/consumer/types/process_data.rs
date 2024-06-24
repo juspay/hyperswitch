@@ -82,3 +82,10 @@ impl Default for OutgoingWebhookRetryProcessTrackerMapping {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodMandateUpdateRetryPTMapping {
+    pub default_mapping: RetryMapping,
+    // retry for every connector mandate update
+    pub connector_retry_mapping: HashMap<String, RetryMapping>,
+}

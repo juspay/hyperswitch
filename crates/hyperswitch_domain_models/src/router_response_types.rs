@@ -13,6 +13,11 @@ pub struct RefundsResponseData {
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
+#[derive(Clone, Debug)]
+pub struct MandateDetailsUpdateResponeData {
+    pub updated: bool,
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {

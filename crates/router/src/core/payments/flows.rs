@@ -2862,3 +2862,95 @@ default_imp_for_authorize_session_token!(
     connector::Zen,
     connector::Zsl
 );
+
+macro_rules! default_imp_for_updating_mandates {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::ConnectorMandateUpdate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::UpdateMandateDetails,
+    types::MandateDetailsUpdateData,
+    types::MandateDetailsUpdateResponeData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorMandateUpdate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::UpdateMandateDetails,
+        types::MandateDetailsUpdateData,
+        types::MandateDetailsUpdateResponeData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_updating_mandates!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
