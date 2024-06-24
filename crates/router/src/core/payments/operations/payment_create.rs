@@ -12,7 +12,8 @@ use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::{payment_attempt::PaymentAttempt, payment_intent::BillingAddressDetails}, type_encryption::{encrypt_optional, AsyncLift},
+    payments::{payment_attempt::PaymentAttempt, payment_intent::BillingAddressDetails},
+    type_encryption::{encrypt_optional, AsyncLift},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -1027,29 +1028,24 @@ impl PaymentCreate {
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
         let mut raw_billing_address_details = BillingAddressDetails::new();
-        let details_present = request.billing.clone()
-            .map(
-        |billing_details| billing_details.address.clone()
-            .map(
-                |address|
-                        {
-                            raw_billing_address_details.set_city(address.city);
-                            raw_billing_address_details.set_country(address.country);
-                            raw_billing_address_details.set_line1(address.line1);
-                            raw_billing_address_details.set_line2(address.line2);
-                            raw_billing_address_details.set_line3(address.line3);
-                            raw_billing_address_details.set_zip(address.zip);
-                            raw_billing_address_details.set_state(address.state);
-                            raw_billing_address_details.set_first_name(address.first_name);
-                            raw_billing_address_details.set_last_name(address.last_name);
-                            true
-                        }
-                    ));
+        let details_present = request.billing.clone().map(|billing_details| {
+            billing_details.address.clone().map(|address| {
+                raw_billing_address_details.set_city(address.city);
+                raw_billing_address_details.set_country(address.country);
+                raw_billing_address_details.set_line1(address.line1);
+                raw_billing_address_details.set_line2(address.line2);
+                raw_billing_address_details.set_line3(address.line3);
+                raw_billing_address_details.set_zip(address.zip);
+                raw_billing_address_details.set_state(address.state);
+                raw_billing_address_details.set_first_name(address.first_name);
+                raw_billing_address_details.set_last_name(address.last_name);
+                true
+            })
+        });
 
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let key = key_store.key.get_inner().peek();
-        let billing_address_details = if details_present
-            .is_some_and(|d| d.is_some_and(|d| d)) {
+        let billing_address_details = if details_present.is_some_and(|d| d.is_some_and(|d| d)) {
             Some(raw_billing_address_details)
                 .as_ref()
                 .map(Encode::encode_to_value)

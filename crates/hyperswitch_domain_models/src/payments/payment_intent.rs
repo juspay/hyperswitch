@@ -1,5 +1,5 @@
-use common_enums as storage_enums;
 use api_models::enums as api_enums;
+use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
@@ -544,7 +544,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-use diesel_models::{PaymentIntentUpdate as DieselPaymentIntentUpdate, encryption::Encryption};
+use diesel_models::{encryption::Encryption, PaymentIntentUpdate as DieselPaymentIntentUpdate};
 
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
