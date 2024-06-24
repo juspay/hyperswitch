@@ -69,6 +69,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         ) = &self.request.payment_method_data
         {
             if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
+                // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated or assurance_details.account_verified is false
                 if !assurance_details.card_holder_authenticated
                     || !assurance_details.account_verified
                 {
