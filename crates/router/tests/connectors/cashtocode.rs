@@ -12,12 +12,12 @@ impl ConnectorActions for CashtocodeTest {}
 impl utils::Connector for CashtocodeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Cashtocode;
-        types::api::ConnectorData {
-            connector: Box::new(&Cashtocode),
-            connector_name: types::Connector::Cashtocode,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Cashtocode),
+            types::Connector::Cashtocode,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
