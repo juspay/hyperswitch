@@ -1,5 +1,5 @@
 use common_utils::{errors, ext_traits::ValueExt, link_utils::GenericLinkStatus};
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 use error_stack::{report, Report, ResultExt};
 
 use super::generics;
@@ -114,9 +114,7 @@ impl PayoutLink {
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::link_id
-                .eq(self.link_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            dsl::link_id.eq(self.link_id.to_owned()),
             GenericLinkUpdateInternal::from(payout_link_update),
         )
         .await

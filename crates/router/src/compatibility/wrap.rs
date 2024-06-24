@@ -146,15 +146,7 @@ where
             {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html),
                 Err(_) => {
-                    let error_message = format!(
-                        r#"{{
-                        "error": {{
-                            "message": "Error while rendering {} HTML page"
-                        }}
-                    }}"#,
-                        link_type
-                    );
-                    api::http_response_err(error_message)
+                    api::http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
             }
         }
