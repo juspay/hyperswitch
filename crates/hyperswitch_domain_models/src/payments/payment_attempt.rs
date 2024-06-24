@@ -465,8 +465,8 @@ impl ForeignIDRef for PaymentAttempt {
 }
 
 use diesel_models::{
-    encryption::Encryption,
-    PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+    encryption::Encryption, PaymentIntent as DieselPaymentIntent,
+    PaymentIntentNew as DieselPaymentIntentNew,
 };
 
 #[async_trait::async_trait]
@@ -578,14 +578,15 @@ impl behaviour::Conversion for PaymentIntent {
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
                 billing_address_details: storage_model
-                                    .billing_address_details
-                                    .async_lift(inner_decrypt)
-                                    .await
-                                    .change_context(ValidationError::InvalidValue {
-                                        message: "Failed while decrypting".to_string(),
-                                    })?,
+                    .billing_address_details
+                    .async_lift(inner_decrypt)
+                    .await
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Failed while decrypting".to_string(),
+                    })?,
             })
-        }.await
+        }
+        .await
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {

@@ -4,7 +4,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_intent, encryption::Encryption};
+use crate::{encryption::Encryption, enums as storage_enums, schema::payment_intent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id))]
