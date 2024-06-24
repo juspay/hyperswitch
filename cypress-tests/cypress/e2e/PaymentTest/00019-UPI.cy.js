@@ -18,7 +18,7 @@ describe("UPI Payments - Hyperswitch", () => {
       });
     });
 
-    after("flush global state", () => {
+    afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 

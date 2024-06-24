@@ -16,12 +16,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     });
   });
 
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -30,6 +24,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Automatic CIT and MIT payment flow test",
     () => {
       let should_continue = true;
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Create No 3DS Payment Intent", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -80,6 +81,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Manual CIT and MIT payment flow test",
     () => {
       let should_continue = true;
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
 
       it("Create No 3DS Payment Intent", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -144,6 +151,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     () => {
       let should_continue = true;
 
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -179,6 +192,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
       let should_continue = true;
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
 
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
@@ -253,6 +272,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     () => {
       let should_continue = true;
 
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -293,6 +318,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow",
     () => {
       let should_continue = true;
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
 
       it("Confirm 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
