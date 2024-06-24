@@ -515,7 +515,7 @@ where
                         }
                     },
                     None => {
-                        let customer_saved_pm_option = if payment_method_type
+                        let customer_saved_pm_id_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
                             || payment_method_type
                                 == Some(api_models::enums::PaymentMethodType::GooglePay)
@@ -534,7 +534,7 @@ where
                                     .find(|payment_method| {
                                         payment_method.payment_method_type == payment_method_type
                                     })
-                                    .cloned()),
+                                    .map(|pm| pm.payment_method_id.clone())),
                                 Err(error) => {
                                     if error.current_context().is_db_not_found() {
                                         Ok(None)
@@ -553,18 +553,8 @@ where
                             Ok(None)
                         }?;
 
-                        if let Some(customer_saved_pm) = customer_saved_pm_option {
-                            payment_methods::cards::update_last_used_at(
-                                &customer_saved_pm,
-                                state,
-                                merchant_account.storage_scheme,
-                            )
-                            .await
-                            .map_err(|e| {
-                                logger::error!("Failed to update last used at: {:?}", e);
-                            })
-                            .ok();
-                            resp.payment_method_id = customer_saved_pm.payment_method_id;
+                        if let Some(customer_saved_pm_id) = customer_saved_pm_id_option {
+                            resp.payment_method_id = customer_saved_pm_id;
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;
