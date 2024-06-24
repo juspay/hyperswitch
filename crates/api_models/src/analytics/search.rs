@@ -30,7 +30,7 @@ pub struct GetSearchRequestWithIndex {
     pub search_req: GetSearchRequest,
 }
 
-#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy)]
+#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchIndex {
     PaymentAttempts,
@@ -39,12 +39,20 @@ pub enum SearchIndex {
     Disputes,
 }
 
+#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy)]
+pub enum SearchStatus {
+    Success,
+    Failure,
+    NoAccess,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSearchResponse {
     pub count: u64,
     pub index: SearchIndex,
     pub hits: Vec<Value>,
+    pub status: SearchStatus,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -74,7 +82,6 @@ pub struct OpensearchErrorDetails {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OpensearchSuccess {
-    pub status: u16,
     pub hits: OpensearchHits,
 }
 

@@ -195,6 +195,16 @@ pub struct UserFromToken {
     pub org_id: String,
 }
 
+
+#[derive(Clone)]
+pub struct UserWithPermissions {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub org_id: String,
+    pub permissions: Vec<Permission>,
+}
+
 pub struct UserIdFromAuth {
     pub user_id: String,
 }
@@ -619,6 +629,41 @@ where
                 merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
                 role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserWithPermissions, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserWithPermissions, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
+
+        Ok((
+            UserWithPermissions {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+                permissions,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,

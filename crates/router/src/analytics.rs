@@ -3,10 +3,7 @@ pub use analytics::*;
 pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core,
-        errors::AnalyticsError, lambda_utils::invoke_lambda,
-        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow,
+        api_event::api_events_core, connector_events::connector_events_core, errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError, outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core, AnalyticsFlow
     };
     use api_models::analytics::{
         search::{
@@ -25,7 +22,7 @@ pub mod routes {
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthenticationData},
+            authentication::{self as auth, AuthenticationData, UserWithPermissions},
             authorization::permissions::Permission,
             ApplicationResponse,
         },
@@ -653,11 +650,37 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            |state, auth: UserWithPermissions, req, _| async move {
+                let accessible_indexes: Vec<_> = vec![
+                    (
+                        SearchIndex::PaymentAttempts,
+                        vec![Permission::PaymentRead, Permission::PaymentWrite],
+                    ),
+                    (
+                        SearchIndex::PaymentIntents,
+                        vec![Permission::PaymentRead, Permission::PaymentWrite],
+                    ),
+                    (
+                        SearchIndex::Refunds,
+                        vec![Permission::RefundRead, Permission::RefundWrite],
+                    ),
+                    (
+                        SearchIndex::Disputes,
+                        vec![Permission::DisputeRead, Permission::DisputeWrite],
+                    ),
+                ]
+                .into_iter()
+                .filter(|(_, perm)| {
+                    perm.iter().any(|p| auth.permissions.contains(p))
+                })
+                .map(|i| i.0)
+                .collect();
+
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_id,
+                    accessible_indexes,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -674,21 +697,47 @@ pub mod routes {
         json_payload: web::Json<GetSearchRequest>,
         index: web::Path<SearchIndex>,
     ) -> impl Responder {
+        let index = index.into_inner();
         let flow = AnalyticsFlow::GetSearchResults;
         let indexed_req = GetSearchRequestWithIndex {
             search_req: json_payload.into_inner(),
-            index: index.into_inner(),
+            index,
         };
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             indexed_req,
-            |state, auth: AuthenticationData, req, _| async move {
+            |state, auth: UserWithPermissions, req, _| async move {
+            let _ = vec![
+                    (
+                        SearchIndex::PaymentAttempts,
+                        vec![Permission::PaymentRead, Permission::PaymentWrite],
+                    ),
+                    (
+                        SearchIndex::PaymentIntents,
+                        vec![Permission::PaymentRead, Permission::PaymentWrite],
+                    ),
+                    (
+                        SearchIndex::Refunds,
+                        vec![Permission::RefundRead, Permission::RefundWrite],
+                    ),
+                    (
+                        SearchIndex::Disputes,
+                        vec![Permission::DisputeRead, Permission::DisputeWrite],
+                    ),
+                ]
+                .into_iter()
+                .filter(|(ind, _)| {
+                    *ind == index
+                })
+                .filter(|i| i.1.iter().any(|p| auth.permissions.contains(p)))
+                .next()
+                .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
                 analytics::search::search_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_id,
                 )
                 .await
                 .map(ApplicationResponse::Json)
