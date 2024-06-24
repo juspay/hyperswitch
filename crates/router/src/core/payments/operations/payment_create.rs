@@ -654,7 +654,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "customer_details",
                 })
-                .attach_printable("Unable to convert guest customer details to a value")?
+                .attach_printable("Unable to convert customer details to a value")?
                 .map(Secret::new)
                 .async_lift(|inner| encrypt_optional(inner, key))
                 .await

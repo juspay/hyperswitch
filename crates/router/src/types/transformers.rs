@@ -1149,11 +1149,11 @@ impl
                 amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
                 email: customer_details
                     .clone()
-                    .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
+                    .and_then(|cust| cust.email),
                 phone: customer_details
                     .clone()
-                    .and_then(|cust| cust.phone.as_ref().map(|p| p.clone())),
-                name: customer_details.and_then(|cust| cust.name.as_ref().map(|n| n.clone())),
+                    .and_then(|cust| cust.phone),
+                name: customer_details.and_then(|cust| cust.name),
                 ..Self::default()
             }
         } else {

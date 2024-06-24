@@ -515,7 +515,7 @@ where
         if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
             let customer_details_encrypted =
                 serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
-            let mut response_cus_data = CustomerDetailsResponse::new();
+            let mut response_cus_data = CustomerDetailsResponse::default();
             if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
                 if let Some(customer_table_response) = customer_table_response {
                     customer_table_response

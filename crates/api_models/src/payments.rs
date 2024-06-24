@@ -201,7 +201,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -225,16 +225,6 @@ pub struct CustomerDetailsResponse {
 }
 
 impl CustomerDetailsResponse {
-    pub fn new() -> Self {
-        CustomerDetailsResponse {
-            id: None,
-            name: None,
-            email: None,
-            phone: None,
-            phone_country_code: None,
-        }
-    }
-
     pub fn set_id(&mut self, id: id_type::CustomerId) {
         self.id = Some(id);
     }
