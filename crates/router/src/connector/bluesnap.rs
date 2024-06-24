@@ -44,7 +44,7 @@ pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merc
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    apple_pay_google_pay_amount_converter:
+    session_amount_converter:
         &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
@@ -52,7 +52,7 @@ impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
+            session_amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -611,7 +611,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         let req_currency = data.request.currency;
 
         let apple_pay_amount = connector_utils::convert_amount(
-            self.apple_pay_google_pay_amount_converter,
+            self.session_amount_converter,
             req_amount,
             req_currency,
         )?;

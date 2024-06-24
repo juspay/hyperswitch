@@ -545,8 +545,6 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
-                // let amount = item.data.request.get_amount()?;
-                // let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
