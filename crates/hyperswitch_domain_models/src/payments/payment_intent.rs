@@ -1,9 +1,13 @@
 use common_enums as storage_enums;
+use api_models::enums as api_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    id_type, pii,
+    crypto::Encryptable,
+    id_type,
+    pii::{self, Email},
     types::MinorUnit,
 };
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -76,7 +80,99 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
+pub struct BillingAddressDetails {
+    /// The address city
+    pub city: Option<String>,
+
+    /// The two-letter ISO country code for the address
+    pub country: Option<api_enums::CountryAlpha2>,
+
+    /// The first line of the address
+    pub line1: Option<Secret<String>>,
+
+    /// The second line of the address
+    pub line2: Option<Secret<String>>,
+
+    /// The third line of the address
+    pub line3: Option<Secret<String>>,
+
+    /// The zip/postal code for the address
+    pub zip: Option<Secret<String>>,
+
+    /// The address state
+    pub state: Option<Secret<String>>,
+
+    /// The first name for the address
+    pub first_name: Option<Secret<String>>,
+
+    /// The last name for the address
+    pub last_name: Option<Secret<String>>,
+}
+
+impl BillingAddressDetails {
+    /// Null constructor
+    pub fn new() -> Self {
+        BillingAddressDetails {
+            city: None,
+            country: None,
+            line1: None,
+            line2: None,
+            line3: None,
+            zip: None,
+            state: None,
+            first_name: None,
+            last_name: None,
+        }
+    }
+
+    /// Setter for city
+    pub fn set_city(&mut self, city: Option<String>) {
+        self.city = city;
+    }
+
+    /// Setter for country
+    pub fn set_country(&mut self, country: Option<api_enums::CountryAlpha2>) {
+        self.country = country;
+    }
+
+    /// Setter for line1
+    pub fn set_line1(&mut self, line1: Option<Secret<String>>) {
+        self.line1 = line1;
+    }
+
+    /// Setter for line2
+    pub fn set_line2(&mut self, line2: Option<Secret<String>>) {
+        self.line2 = line2;
+    }
+
+    /// Setter for line3
+    pub fn set_line3(&mut self, line3: Option<Secret<String>>) {
+        self.line3 = line3;
+    }
+
+    /// Setter for zip
+    pub fn set_zip(&mut self, zip: Option<Secret<String>>) {
+        self.zip = zip;
+    }
+
+    /// Setter for state
+    pub fn set_state(&mut self, state: Option<Secret<String>>) {
+        self.state = state;
+    }
+
+    /// Setter for first_name
+    pub fn set_first_name(&mut self, first_name: Option<Secret<String>>) {
+        self.first_name = first_name;
+    }
+
+    /// Setter for last_name
+    pub fn set_last_name(&mut self, last_name: Option<Secret<String>>) {
+        self.last_name = last_name;
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -122,6 +218,7 @@ pub struct PaymentIntentNew {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
+    pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,6 +348,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -446,7 +544,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-use diesel_models::PaymentIntentUpdate as DieselPaymentIntentUpdate;
+use diesel_models::{PaymentIntentUpdate as DieselPaymentIntentUpdate, encryption::Encryption};
 
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
@@ -650,6 +748,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            billing_address_details,
         } = value;
 
         Self {
@@ -683,6 +782,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            billing_address_details: billing_address_details.map(Encryption::from),
         }
     }
 }

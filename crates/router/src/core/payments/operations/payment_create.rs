@@ -12,7 +12,7 @@ use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::payment_attempt::PaymentAttempt,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::BillingAddressDetails}, type_encryption::{encrypt_optional, AsyncLift},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -247,6 +247,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_intent_new = Self::make_payment_intent(
             &payment_id,
             merchant_account,
+            merchant_key_store,
             money,
             request,
             shipping_address
@@ -958,6 +959,7 @@ impl PaymentCreate {
     async fn make_payment_intent(
         payment_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -1023,6 +1025,48 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
+        // Derivation of directly supplied Billing Address data in our Payment Create Request
+        let mut raw_billing_address_details = BillingAddressDetails::new();
+        let details_present = request.billing.clone()
+            .map(
+        |billing_details| billing_details.address.clone()
+            .map(
+                |address|
+                        {
+                            raw_billing_address_details.set_city(address.city);
+                            raw_billing_address_details.set_country(address.country);
+                            raw_billing_address_details.set_line1(address.line1);
+                            raw_billing_address_details.set_line2(address.line2);
+                            raw_billing_address_details.set_line3(address.line3);
+                            raw_billing_address_details.set_zip(address.zip);
+                            raw_billing_address_details.set_state(address.state);
+                            raw_billing_address_details.set_first_name(address.first_name);
+                            raw_billing_address_details.set_last_name(address.last_name);
+                            true
+                        }
+                    ));
+
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let key = key_store.key.get_inner().peek();
+        let billing_address_details = if details_present
+            .is_some_and(|d| d.is_some_and(|d| d)) {
+            Some(raw_billing_address_details)
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "billing_address_details",
+                })
+                .attach_printable("Unable to convert billing address details to a value")?
+                .map(Secret::new)
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt guest customer details")?
+        } else {
+            None
+        };
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -1070,6 +1114,7 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
+            billing_address_details,
         })
     }
 
