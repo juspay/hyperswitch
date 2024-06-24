@@ -159,19 +159,25 @@ impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
 
 impl ApiEventMetric for PaymentMethodCollectLinkRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentMethodCollectLink)
+        self.pm_collect_link_id.as_ref().map(|id| ApiEventsType::PaymentMethodCollectLink {
+            pm_collect_link_id: id.clone(),
+        })
     }
 }
 
 impl ApiEventMetric for PaymentMethodCollectLinkRenderRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentMethodCollectLink)
+        Some(ApiEventsType::PaymentMethodCollectLink {
+            link_id: self.pm_collect_link_id.clone(),
+        })
     }
 }
 
 impl ApiEventMetric for PaymentMethodCollectLinkResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentMethodCollectLink)
+        Some(ApiEventsType::PaymentMethodCollectLink {
+            link_id: self.pm_collect_link_id.clone(),
+        })
     }
 }
 
