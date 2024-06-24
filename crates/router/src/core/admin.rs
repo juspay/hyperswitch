@@ -1914,6 +1914,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             ebanx::transformers::EbanxAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Euler => {
+        //     euler::transformers::EulerAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
             fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
