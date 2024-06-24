@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use tera::{Context, Tera};
 
 use super::{GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinks};
-use crate::{core::errors, logger};
+use crate::core::errors;
 
 pub fn build_generic_link_html(
     boxed_generic_link_data: GenericLinks,

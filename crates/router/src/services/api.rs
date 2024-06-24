@@ -1122,15 +1122,7 @@ where
             match build_generic_link_html(*boxed_generic_link_data) {
                 Ok(rendered_html) => http_response_html_data(rendered_html),
                 Err(_) => {
-                    let error_message = format!(
-                        r#"{{
-                        "error": {{
-                            "message": "Error while rendering {} HTML page"
-                        }}
-                    }}"#,
-                        link_type
-                    );
-                    http_response_err(error_message)
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
             }
         }
