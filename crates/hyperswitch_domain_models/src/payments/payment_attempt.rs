@@ -532,7 +532,8 @@ impl behaviour::Conversion for PaymentIntent {
     {
         async {
             let inner_decrypt = |inner| decrypt(inner, key.peek());
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>
+                (Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
                 status: storage_model.status,
@@ -580,13 +581,13 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_details: storage_model
                     .customer_details
                     .async_lift(inner_decrypt)
-                    .await
-                    .change_context(ValidationError::InvalidValue {
-                        message: "Failed while decrypting".to_string(),
-                    })?,
+                    .await?,
             })
         }
         .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment intent".to_string(),
+        })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {

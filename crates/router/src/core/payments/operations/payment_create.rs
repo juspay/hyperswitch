@@ -14,7 +14,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::{decrypt, encrypt_optional},
+    type_encryption::decrypt,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -29,14 +29,14 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils as core_utils, payment_methods::cards::create_encrypted_data,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
-        domain::{self, types::AsyncLift},
+        domain,
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -632,34 +632,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = if let Some(customer) = customer {
-            Some(CustomerData {
+        let raw_customer_details = customer.map(|customer|
+            CustomerData {
                 name: customer.name.map(|name| name.into_inner()).clone(),
                 email: customer.email.map(Email::from).clone(),
                 phone: customer.phone.map(|phone| phone.into_inner()).clone(),
                 phone_country_code: customer.phone_country_code.clone(),
-            })
-        } else {
-            None
-        };
+            }
+        );
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
-        let key = key_store.key.get_inner().peek();
         let customer_details = if raw_customer_details.is_some() {
-            raw_customer_details
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "customer_details",
-                })
-                .attach_printable("Unable to convert customer details to a value")?
-                .map(Secret::new)
-                .async_lift(|inner| encrypt_optional(inner, key))
+            create_encrypted_data(key_store, raw_customer_details)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt guest customer details")?
         } else {
             None
         };
@@ -1063,10 +1049,11 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.name.is_some()
+        let raw_customer_details = if request.customer_id.is_none()
+            && (request.name.is_some()
             || request.email.is_some()
             || request.phone.is_some()
-            || request.phone_country_code.is_some()
+            || request.phone_country_code.is_some())
         {
             Some(CustomerData {
                 name: request.name.clone(),
@@ -1079,21 +1066,9 @@ impl PaymentCreate {
         };
 
         // Encrypting our Customer Details to be stored in Payment Intent
-        let key = key_store.key.get_inner().peek();
         let customer_details = if raw_customer_details.is_some() {
-            raw_customer_details
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "customer_details",
-                })
-                .attach_printable("Unable to convert guest customer details to a value")?
-                .map(Secret::new)
-                .async_lift(|inner| encrypt_optional(inner, key))
+             create_encrypted_data(key_store, raw_customer_details)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt guest customer details")?
         } else {
             None
         };

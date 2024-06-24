@@ -1115,8 +1115,9 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
     }
 }
 
+
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,
         Option<&storage::PaymentIntent>,
         Option<&domain::Address>,
@@ -1124,7 +1125,9 @@ impl
         Option<&domain::Customer>,
     )> for payments::PaymentsRequest
 {
-    fn foreign_from(
+
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
         value: (
             Option<&storage::PaymentAttempt>,
             Option<&storage::PaymentIntent>,
@@ -1132,40 +1135,37 @@ impl
             Option<&domain::Address>,
             Option<&domain::Customer>,
         ),
-    ) -> Self {
+    ) -> Result<Self, Self::Error> {
         let (payment_attempt, payment_intent, shipping, billing, customer) = value;
         // Populating the dynamic fields directly, for the cases where we have customer details stored in
         // Payment Intent
-        if let Some(Ok(customer_details)) = payment_intent.map(|pi| {
-            pi.customer_details
-                .clone()
-                .map(|cd| serde_json::from_value::<CustomerData>(cd.into_inner().expose()))
-                .transpose()
-        }) {
-            Self {
-                currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
-                shipping: shipping.map(api_types::Address::from),
-                billing: billing.map(api_types::Address::from),
-                amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
-                email: customer_details.clone().and_then(|cust| cust.email),
-                phone: customer_details.clone().and_then(|cust| cust.phone),
-                name: customer_details.and_then(|cust| cust.name),
-                ..Self::default()
-            }
-        } else {
-            Self {
-                currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
-                shipping: shipping.map(api_types::Address::from),
-                billing: billing.map(api_types::Address::from),
-                amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
-                email: customer
-                    .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
-                phone: customer
-                    .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
-                name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
-                ..Self::default()
-            }
-        }
+        let customer_details_from_pi =  payment_intent
+            .and_then(|payment_intent| 
+            payment_intent.customer_details.clone())
+            .map(|customer_details| {
+            customer_details
+                    .into_inner()
+                    .peek().clone()
+                    .parse_value::<CustomerData>("CustomerData")
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer_details",
+                    })
+                    .attach_printable("Failed to parse customer_details")
+        })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "customer_details" })?;
+        Ok(Self {
+            currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
+            shipping: shipping.map(api_types::Address::from),
+            billing: billing.map(api_types::Address::from),
+            amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
+            email: customer
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))).or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+            phone: customer
+                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())).or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
+            name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())).or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
+            ..Self::default()
+        })
     }
 }
 

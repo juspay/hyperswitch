@@ -1255,6 +1255,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         session_expiry,
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
+                        customer_details: None,
                     },
                     &m_key_store,
                     storage_scheme,

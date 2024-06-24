@@ -201,7 +201,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq, Setter)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -222,28 +222,6 @@ pub struct CustomerDetailsResponse {
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
     pub phone_country_code: Option<String>,
-}
-
-impl CustomerDetailsResponse {
-    pub fn set_id(&mut self, id: id_type::CustomerId) {
-        self.id = Some(id);
-    }
-
-    pub fn set_name(&mut self, name: Secret<String>) {
-        self.name = Some(name);
-    }
-
-    pub fn set_email(&mut self, email: Email) {
-        self.email = Some(email);
-    }
-
-    pub fn set_phone(&mut self, phone: Secret<String>) {
-        self.phone = Some(phone);
-    }
-
-    pub fn set_phone_country_code(&mut self, phone_country_code: String) {
-        self.phone_country_code = Some(phone_country_code);
-    }
 }
 
 #[derive(

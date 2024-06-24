@@ -518,23 +518,13 @@ where
             let mut response_cus_data = CustomerDetailsResponse::default();
             if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
                 if let Some(customer_table_response) = customer_table_response {
-                    customer_table_response
-                        .id
-                        .map(|id| response_cus_data.set_id(id));
+                    response_cus_data.set_id(customer_table_response.id);
                 }
-                customer_details_encrypted_data
-                    .name
-                    .map(|name| response_cus_data.set_name(name));
-                customer_details_encrypted_data
-                    .phone
-                    .map(|phone| response_cus_data.set_phone(phone));
-                customer_details_encrypted_data
-                    .email
-                    .map(|email| response_cus_data.set_email(email));
-                customer_details_encrypted_data
-                    .phone_country_code
-                    .map(|pcc| response_cus_data.set_phone_country_code(pcc));
-                Some(response_cus_data)
+            response_cus_data.set_name(customer_details_encrypted_data.name);
+            response_cus_data.set_phone(customer_details_encrypted_data.phone);
+            response_cus_data.set_email(customer_details_encrypted_data.email);
+            response_cus_data.set_phone_country_code(customer_details_encrypted_data.phone_country_code);
+            Some(response_cus_data)
             } else {
                 customer_table_response
             }
