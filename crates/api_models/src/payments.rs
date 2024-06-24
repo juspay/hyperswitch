@@ -3229,7 +3229,16 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
+#[derive(
+    Setter,
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 
 pub struct PaymentsResponse {
