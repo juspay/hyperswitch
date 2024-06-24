@@ -59,8 +59,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             &add_attributes([("connector", connector.connector_name.to_string())]),
         );
 
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Void,
             types::PaymentsCancelData,
             types::PaymentsResponseData,
@@ -98,8 +97,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Void,
                     types::PaymentsCancelData,
                     types::PaymentsResponseData,
