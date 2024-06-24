@@ -111,7 +111,6 @@ pub async fn construct_fulfillment_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
-        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

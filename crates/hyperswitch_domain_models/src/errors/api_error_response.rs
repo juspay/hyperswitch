@@ -271,12 +271,6 @@ pub enum ApiErrorResponse {
     InvalidCookie,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
-    IntegrityCheckFailed {
-        reason: String,
-        field_names: String,
-        connector_transaction_id: Option<String>,
-    },
     #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
     MissingTenantId,
     #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
@@ -613,19 +607,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExtendedCardInfoNotFound => {
                 AER::NotFound(ApiError::new("IR", 27, "Extended card info does not exist", None))
             }
-            Self::IntegrityCheckFailed {
-                reason,
-                field_names,
-                connector_transaction_id
-            } => AER::InternalServerError(ApiError::new(
-                "IE",
-                0,
-                format!("{} as data mismatched for {}", reason, field_names),
-                Some(Extra {
-                    connector_transaction_id: connector_transaction_id.to_owned(),
-                    ..Default::default()
-                })
-            )),
             Self::MissingTenantId => {
                 AER::InternalServerError(ApiError::new("HE", 6, "Missing Tenant ID in the request".to_string(), None))
             }
