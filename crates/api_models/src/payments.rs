@@ -268,6 +268,7 @@ pub struct PaymentsRequest {
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825")]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub merchant_id: Option<String>,
 
     #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
@@ -293,6 +294,7 @@ pub struct PaymentsRequest {
     /// Providing this field will automatically set `capture` to true
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// Whether to confirm the payment (if applicable)
@@ -358,6 +360,7 @@ pub struct PaymentsRequest {
 
     /// This is used along with the payment_token field while collecting during saved card payments. This field will be deprecated soon, use the payment_method_data.card_token object instead
     #[schema(value_type = Option<String>, deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
@@ -444,6 +447,7 @@ pub struct PaymentsRequest {
 
     /// Denotes the retry action
     #[schema(value_type = Option<RetryAction>)]
+    #[remove_in(PaymentsCreateRequest)]
     pub retry_action: Option<api_enums::RetryAction>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -454,6 +458,7 @@ pub struct PaymentsRequest {
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to get the payment link (if applicable)
@@ -3413,9 +3418,11 @@ pub struct PaymentsResponse {
     pub error_message: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub unified_code: Option<String>,
 
     /// error message unified across the connectors is received here if there was an error while calling connector
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub unified_message: Option<String>,
 
     /// Payment Experience for the current payment
