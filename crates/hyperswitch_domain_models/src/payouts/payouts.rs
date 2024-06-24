@@ -171,6 +171,7 @@ pub enum PayoutsUpdate {
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
+        payout_type: Option<storage_enums::PayoutType>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -202,6 +203,7 @@ pub struct PayoutsUpdateInternal {
     pub status: Option<storage_enums::PayoutStatus>,
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
+    pub payout_type: Option<common_enums::PayoutType>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -220,6 +222,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -233,6 +236,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {

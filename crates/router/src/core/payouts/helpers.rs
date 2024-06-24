@@ -985,6 +985,10 @@ pub async fn update_payouts_and_payout_attempt(
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
         confirm: req.confirm.to_owned(),
+        payout_type: req
+            .payout_type
+            .to_owned()
+            .or(payouts.payout_type.to_owned()),
     };
     let db = &*state.store;
     payout_data.payouts = db
