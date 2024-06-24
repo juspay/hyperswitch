@@ -159,9 +159,11 @@ impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
 
 impl ApiEventMetric for PaymentMethodCollectLinkRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        self.pm_collect_link_id.as_ref().map(|id| ApiEventsType::PaymentMethodCollectLink {
-            pm_collect_link_id: id.clone(),
-        })
+        self.pm_collect_link_id
+            .as_ref()
+            .map(|id| ApiEventsType::PaymentMethodCollectLink {
+                link_id: id.clone(),
+            })
     }
 }
 
