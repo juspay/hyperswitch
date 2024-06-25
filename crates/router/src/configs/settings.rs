@@ -825,9 +825,9 @@ pub struct ServerTls {
     /// Use a different host (optional) (defaults to the host provided in [`Server`] config)
     pub host: Option<String>,
     /// private key file path associated with TLS (path to the private key file (`pem` format))
-    pub private_key: String,
+    pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
-    pub certificate: String,
+    pub certificate: PathBuf,
 }
 
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>

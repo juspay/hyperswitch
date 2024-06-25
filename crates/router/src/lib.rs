@@ -237,7 +237,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
             // exit if no keys could be parsed
             if keys.is_empty() {
                 return Err(errors::ApplicationError::InvalidConfigurationValueError(
-                    "Could not locate PKCS 8 private keys.".into(),
+                    "Could not locate PKCS8 private keys.".into(),
                 ));
             }
 
