@@ -20,7 +20,7 @@ impl utils::Connector for Worldpay {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Worldpay;
         types::api::ConnectorData {
-            connector: Box::new(&Worldpay),
+            connector: Box::new(Worldpay::new()),
             connector_name: types::Connector::Worldpay,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

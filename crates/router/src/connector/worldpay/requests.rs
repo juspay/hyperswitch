@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -181,7 +182,7 @@ pub struct CardExpiryDate {
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentValue {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
 }
 

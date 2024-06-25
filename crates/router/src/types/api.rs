@@ -373,7 +373,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => Ok(Box::new(connector::Stripe::new())),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
-                enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
+                enums::Connector::Worldpay => Ok(Box::new(connector::Worldpay::new())),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(connector::Paypal::new())),
