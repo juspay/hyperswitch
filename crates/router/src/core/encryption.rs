@@ -1,9 +1,7 @@
-use error_stack::ResultExt;
-
-use masking::ExposeInterface;
-
 use base64::Engine;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use masking::ExposeInterface;
 
 use crate::{
     consts::BASE64_ENGINE,
