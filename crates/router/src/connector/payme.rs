@@ -38,14 +38,15 @@ use crate::{
 #[derive(Clone)]
 pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    session_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    apple_pay_google_pay_amount_converter:
+        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Payme {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
-            session_amount_converter: &StringMajorUnitForConnector,
+            apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -354,7 +355,7 @@ impl
         let req_currency = data.request.get_currency()?;
 
         let apple_pay_amount = connector_utils::convert_amount(
-            self.session_amount_converter,
+            self.apple_pay_google_pay_amount_converter,
             req_amount,
             req_currency,
         )?;
