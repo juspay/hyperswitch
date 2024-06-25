@@ -106,6 +106,18 @@ pub enum CacheKind<'a> {
 }
 
 impl<'a> CacheKind<'a> {
+    pub fn get_inner(&self) -> String {
+        match self {
+            Self::Config(s) => s.to_string(),
+            Self::Accounts(s) => s.to_string(),
+            Self::Routing(s) => s.to_string(),
+            Self::DecisionManager(s) => s.to_string(),
+            Self::Surcharge(s) => s.to_string(),
+            Self::CGraph(s) => s.to_string(),
+            Self::All(s) => s.to_string(),
+        }
+    }
+
     pub fn from_redis_value(
         value: RedisValue,
     ) -> Result<Vec<Self>, Report<errors::ValidationError>> {
@@ -456,7 +468,7 @@ where
     let redis_keys_to_be_deleted = keys
         .clone()
         .into_iter()
-        .map(|val| val.to_string())
+        .map(|val| val.get_inner())
         .collect::<Vec<_>>();
 
     let no_of_keys_to_be_deleted = i64::try_from(redis_keys_to_be_deleted.len())
