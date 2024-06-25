@@ -3310,7 +3310,7 @@ pub struct PaymentsResponse {
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
 
-    /// List of refund that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order
+    /// List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order
     #[schema(value_type = Option<Vec<RefundResponse>>)]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
