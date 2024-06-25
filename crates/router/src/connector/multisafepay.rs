@@ -1,13 +1,15 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_enums::AttemptStatus;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as multisafepay;
 
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
     connector::utils::{is_mandate_supported, PaymentMethodDataType},
@@ -29,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Multisafepay;
+#[derive(Clone)]
+pub struct Multisafepay {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Multisafepay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Multisafepay
 where
@@ -308,12 +320,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::from((amount, req));
         let connector_req =
             multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -412,13 +424,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+        )?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::from((amount, req));
+        let connector_req =
+            multisafepay::MultisafepayRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

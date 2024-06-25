@@ -14,7 +14,7 @@ impl utils::Connector for MultisafepayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Multisafepay;
         types::api::ConnectorData {
-            connector: Box::new(&Multisafepay),
+            connector: Box::new(Multisafepay::new()),
             connector_name: types::Connector::Multisafepay,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
