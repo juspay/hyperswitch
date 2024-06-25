@@ -65,7 +65,7 @@ transforms:
     type: throttle
     inputs:
       - sdk_source
-    key_field: "{{ .payment_id }}"
+    key_field: "{{ .payment_id }}{{ .merchant_id }}"
     threshold: 1000
     window_secs: 60
 
