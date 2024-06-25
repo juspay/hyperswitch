@@ -69,6 +69,7 @@ async fn should_authorize_gpay_payment() {
                         info: domain::GooglePayPaymentMethodInfo {
                             card_network: "VISA".to_string(),
                             card_details: "1234".to_string(),
+                            assurance_details: None,
                         },
                         tokenization_data: domain::GpayTokenizationData {
                             token_type: "worldpay".to_string(),

@@ -9684,6 +9684,23 @@
       "GoPayRedirection": {
         "type": "object"
       },
+      "GooglePayAssuranceDetails": {
+        "type": "object",
+        "required": [
+          "card_holder_authenticated",
+          "account_verified"
+        ],
+        "properties": {
+          "card_holder_authenticated": {
+            "type": "boolean",
+            "description": "indicates that Cardholder possession validation has been performed"
+          },
+          "account_verified": {
+            "type": "boolean",
+            "description": "indicates that identification and verifications (ID&V) was performed"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -9698,6 +9715,14 @@
           "card_details": {
             "type": "string",
             "description": "The details of the card"
+          },
+          "assurance_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9844,6 +9869,11 @@
                 "$ref": "#/components/schemas/GpayBillingAddressParameters"
               }
             ],
+            "nullable": true
+          },
+          "assurance_details_required": {
+            "type": "boolean",
+            "description": "Whether assurance details are required",
             "nullable": true
           }
         }
