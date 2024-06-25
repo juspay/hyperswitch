@@ -69,15 +69,16 @@ impl WiseTest {
                 None,
                 None,
             )),
-            payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Bacs(
-                api::BacsBankTransfer {
+            payout_method_data: Some(api::PayoutMethodData::Bank(api::BankData {
+                bank_account_data: api::BankAccountData::Bacs {
                     bank_sort_code: "231470".to_string().into(),
                     bank_account_number: "28821822".to_string().into(),
-                    bank_name: Some("Deutsche Bank".to_string()),
-                    bank_country_code: Some(enums::CountryAlpha2::NL),
-                    bank_city: Some("Amsterdam".to_string()),
                 },
-            ))),
+                bank_name: Some("Deutsche Bank".to_string()),
+                bank_country_code: Some(enums::CountryAlpha2::NL),
+                bank_city: Some("Amsterdam".to_string()),
+                bank_branch: None,
+            })),
             ..Default::default()
         })
     }
