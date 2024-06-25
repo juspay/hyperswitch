@@ -1451,7 +1451,6 @@ impl
                 self, req, connectors,
             )?)
             .build();
-
         Ok(Some(request))
     }
 
@@ -1479,7 +1478,7 @@ impl
             .parse_struct("paypal PaypalSourceVerificationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_response=?response);   
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1534,9 +1533,9 @@ impl api::IncomingWebhook for Paypal {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::PaymentAttemptId(
                         resource
-                            .dispute_transactions
+                            .disputed_transactions
                             .first()
-                            .map(|transaction| transaction.reference_id.clone())
+                            .map(|transaction| transaction.seller_transaction_id.clone())
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1553,17 +1552,17 @@ impl api::IncomingWebhook for Paypal {
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let outcome = match payload.event_type {
-            PaypalWebhookEventType::CustomerDisputeCreated
-            | PaypalWebhookEventType::CustomerDisputeResolved
-            | PaypalWebhookEventType::CustomerDisputedUpdated
-            | PaypalWebhookEventType::RiskDisputeCreated => Some(
+            PaypalWebhookEventType:: CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
                     .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
                     .outcome_code,
             ),
-            PaypalWebhookEventType::PaymentAuthorizationCreated
+            PaypalWebhookEventType::CustomerDisputeCreated 
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureCompleted
@@ -1623,9 +1622,9 @@ impl api::IncomingWebhook for Paypal {
             ),
             connector_status: payload.status.to_string(),
             connector_dispute_id: payload.dispute_id,
-            connector_reason: payload.reason,
-            connector_reason_code: payload.external_reason_code,
-            challenge_required_by: payload.seller_response_due_date,
+            connector_reason: payload.reason.clone(),
+            connector_reason_code: payload.reason,
+            challenge_required_by: None,
             created_at: payload.create_time,
             updated_at: payload.update_time,
         })

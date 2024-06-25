@@ -2066,21 +2066,22 @@ pub enum PaypalResource {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
-    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub disputed_transactions: Vec<DisputeTransaction>,
     pub dispute_amount: OrderAmount,
-    pub dispute_outcome: DisputeOutcome,
+    pub dispute_outcome: Option<DisputeOutcome>,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
     pub seller_response_due_date: Option<PrimitiveDateTime>,
     pub update_time: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct DisputeTransaction {
-    pub reference_id: String,
+    pub seller_transaction_id: String,
 }
 
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
@@ -2144,7 +2145,7 @@ pub struct PaypalRedirectsWebhooks {
     pub purchase_units: Vec<PurchaseUnitItem>,
     pub links: Vec<PaypalLinks>,
     pub id: String,
-    pub intent: PaypalPaymentIntent,
+    pub intent: PaypalPaymentIntent, 
 }
 
 #[derive(Deserialize, Debug, Serialize)]
