@@ -3508,7 +3508,7 @@ pub struct PaymentsResponse {
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     pub merchant_connector_id: Option<String>,
 
-    /// If true incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
+    /// If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
     pub incremental_authorization_allowed: Option<bool>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
