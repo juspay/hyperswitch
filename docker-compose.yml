@@ -245,18 +245,6 @@ services:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
 
-  promtail:
-    image: grafana/promtail:latest
-    volumes:
-      - ./logs:/var/log/router
-      - ./config:/etc/promtail
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: -config.file=/etc/promtail/promtail.yaml
-    profiles:
-      - monitoring
-    networks:
-      - router_net
-
   loki:
     image: grafana/loki:latest
     ports:
@@ -387,21 +375,13 @@ services:
         soft: 262144
         hard: 262144
 
-  fluentd:
-    build: ./docker/fluentd
-    volumes:
-      - ./docker/fluentd/conf:/fluentd/etc
-    networks:
-      - router_net
-    profiles:
-      - olap
-
   opensearch:
-    image: public.ecr.aws/opensearchproject/opensearch:1.3.14
+    image: opensearchproject/opensearch:2
     container_name: opensearch
     hostname: opensearch
     environment:
       - "discovery.type=single-node"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=0penS3arc#
     profiles:
       - olap
     ports:
@@ -410,7 +390,7 @@ services:
       - router_net
 
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:1.3.14
+    image: opensearchproject/opensearch-dashboards:2
     ports:
       - 5601:5601
     profiles:
@@ -419,3 +399,18 @@ services:
       OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
     networks:
       - router_net
+
+  vector:
+    image: timberio/vector:latest-debian
+    ports:
+      - "8686"
+      - "9598"
+    profiles:
+      - olap
+    environment:
+      KAFKA_HOST: 'kafka0:29092'
+    networks:
+      - router_net
+    volumes:
+      - ./config/vector.yaml:/etc/vector/vector.yaml
+      - /var/run/docker.sock:/var/run/docker.sock

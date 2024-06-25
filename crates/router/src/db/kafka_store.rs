@@ -33,6 +33,7 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
@@ -2750,9 +2751,20 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         authentication: storage::AuthenticationNew,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
+        let auth = self
+            .diesel_store
             .insert_authentication(authentication)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_authentication(&auth, None, self.tenant_id.clone())
             .await
+        {
+            logger::error!(message="Failed to log analytics event for authentication {auth:?}", error_message=?er)
+        }
+
+        Ok(auth)
     }
 
     async fn find_authentication_by_merchant_id_authentication_id(
@@ -2783,12 +2795,23 @@ impl AuthenticationInterface for KafkaStore {
         previous_state: storage::Authentication,
         authentication_update: storage::AuthenticationUpdate,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
+        let auth = self
+            .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
-                previous_state,
+                previous_state.clone(),
                 authentication_update,
             )
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_authentication(&auth, Some(previous_state.clone()), self.tenant_id.clone())
             .await
+        {
+            logger::error!(message="Failed to log analytics event for authentication {auth:?}", error_message=?er)
+        }
+
+        Ok(auth)
     }
 }
 
@@ -2871,6 +2894,46 @@ impl UserKeyStoreInterface for KafkaStore {
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
             .get_user_key_store_by_user_id(user_id, key)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl UserAuthenticationMethodInterface for KafkaStore {
+    async fn insert_user_authentication_method(
+        &self,
+        user_authentication_method: storage::UserAuthenticationMethodNew,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .insert_user_authentication_method(user_authentication_method)
+            .await
+    }
+
+    async fn list_user_authentication_methods_for_auth_id(
+        &self,
+        auth_id: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
+        self.diesel_store
+            .list_user_authentication_methods_for_auth_id(auth_id)
+            .await
+    }
+
+    async fn list_user_authentication_methods_for_owner_id(
+        &self,
+        owner_id: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
+        self.diesel_store
+            .list_user_authentication_methods_for_owner_id(owner_id)
+            .await
+    }
+
+    async fn update_user_authentication_method(
+        &self,
+        id: &str,
+        user_authentication_method_update: storage::UserAuthenticationMethodUpdate,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .update_user_authentication_method(id, user_authentication_method_update)
             .await
     }
 }

@@ -123,6 +123,7 @@ pub struct Settings<S: SecretState> {
     pub unmasked_headers: UnmaskedHeaders,
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+    pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -613,6 +614,11 @@ pub struct ApplePayDecryptConifg {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UserAuthMethodSettings {
+    pub encryption_key: Secret<String>,
 }
 
 impl Settings<SecuredSecret> {
