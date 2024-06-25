@@ -676,7 +676,13 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
 
             )
             .build()?;
