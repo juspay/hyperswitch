@@ -12,7 +12,9 @@ pub trait ApiEventMetric {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
-    Payout,
+    Payout {
+        payout_id: String,
+    },
     Payment {
         payment_id: String,
     },
@@ -56,6 +58,9 @@ pub enum ApiEventsType {
     },
     Events {
         merchant_id_or_profile_id: String,
+    },
+    PaymentMethodCollectLink {
+        link_id: String,
     },
     Poll {
         poll_id: String,
