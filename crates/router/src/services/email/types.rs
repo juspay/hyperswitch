@@ -202,7 +202,7 @@ pub fn get_link_with_token(
 
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
 }
@@ -215,13 +215,13 @@ impl EmailData for VerifyEmail {
             self.recipient_email.clone(),
             None,
             domain::Origin::VerifyEmail,
-            &self.state.conf,
+            &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link = get_link_with_token(
-            &self.state.conf.email.base_url,
+            &self.settings.email.base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -242,7 +242,7 @@ impl EmailData for VerifyEmail {
 pub struct ResetPassword {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
 }
@@ -254,13 +254,13 @@ impl EmailData for ResetPassword {
             self.recipient_email.clone(),
             None,
             domain::Origin::ResetPassword,
-            &self.state.conf,
+            &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link = get_link_with_token(
-            &self.state.conf.email.base_url,
+            &self.settings.email.base_url,
             token,
             "set_password",
             &self.auth_id,
@@ -282,7 +282,7 @@ impl EmailData for ResetPassword {
 pub struct MagicLink {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
 }
@@ -294,13 +294,13 @@ impl EmailData for MagicLink {
             self.recipient_email.clone(),
             None,
             domain::Origin::MagicLink,
-            &self.state.conf,
+            &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login = get_link_with_token(
-            &self.state.conf.email.base_url,
+            &self.settings.email.base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -323,7 +323,7 @@ impl EmailData for MagicLink {
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
     pub auth_id: Option<String>,
@@ -336,13 +336,13 @@ impl EmailData for InviteUser {
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
             domain::Origin::ResetPassword,
-            &self.state.conf,
+            &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.state.conf.email.base_url,
+            &self.settings.email.base_url,
             token,
             "set_password",
             &self.auth_id,
@@ -364,7 +364,7 @@ impl EmailData for InviteUser {
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
     pub auth_id: Option<String>,
@@ -377,13 +377,13 @@ impl EmailData for InviteRegisteredUser {
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
             domain::Origin::AcceptInvitationFromEmail,
-            &self.state.conf,
+            &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.state.conf.email.base_url,
+            &self.settings.email.base_url,
             token,
             "accept_invite_from_email",
             &self.auth_id,
@@ -404,7 +404,7 @@ impl EmailData for InviteRegisteredUser {
 pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 

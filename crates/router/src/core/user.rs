@@ -63,7 +63,7 @@ pub async fn signup_with_merchant_id(
     let email_contents = email_types::ResetPassword {
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
-        state: state.clone(),
+        settings: state.conf.clone(),
         subject: "Get back to Hyperswitch - Reset Your Password Now",
         auth_id,
     };
@@ -253,7 +253,7 @@ pub async fn connect_account(
 
         let email_contents = email_types::MagicLink {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            state: state.clone(),
+            settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: "Unlock Hyperswitch: Use Your Magic Link to Sign In",
             auth_id,
@@ -305,7 +305,7 @@ pub async fn connect_account(
 
         let email_contents = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            state: state.clone(),
+            settings: state.conf.clone(),
             subject: "Welcome to the Hyperswitch community!",
             auth_id,
         };
@@ -425,7 +425,7 @@ pub async fn forgot_password(
 
     let email_contents = email_types::ResetPassword {
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-        state: state.clone(),
+        settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: "Get back to Hyperswitch - Reset Your Password Now",
         auth_id,
@@ -745,7 +745,7 @@ async fn handle_existing_user_invitation(
         let email_contents = email_types::InviteRegisteredUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
-            state: state.clone(),
+            settings: state.conf.clone(),
             subject: "You have been invited to join Hyperswitch Community!",
             merchant_id: user_from_token.merchant_id.clone(),
             auth_id: auth_id.clone(),
@@ -834,7 +834,7 @@ async fn handle_new_user_invitation(
             Box::new(email_types::InviteRegisteredUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
-                state: state.clone(),
+                settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
                 auth_id: auth_id.clone(),
@@ -843,7 +843,7 @@ async fn handle_new_user_invitation(
             Box::new(email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
-                state: state.clone(),
+                settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
                 auth_id: auth_id.clone(),
@@ -933,7 +933,7 @@ pub async fn resend_invite(
     let email_contents = email_types::InviteUser {
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
-        state: state.clone(),
+        settings: state.conf.clone(),
         subject: "You have been invited to join Hyperswitch Community!",
         merchant_id: user_from_token.merchant_id,
         auth_id,
@@ -1570,7 +1570,7 @@ pub async fn send_verification_mail(
 
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
-        state: state.clone(),
+        settings: state.conf.clone(),
         subject: "Welcome to the Hyperswitch community!",
         auth_id,
     };
