@@ -6,7 +6,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData,RouterData},
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     types::{
