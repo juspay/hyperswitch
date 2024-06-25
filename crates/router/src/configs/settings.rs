@@ -741,6 +741,8 @@ impl Settings<SecuredSecret> {
         self.secrets_management
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+        self.generic_link.payment_method_collect.validate()?;
+        self.generic_link.payout_link.validate()?;
         Ok(())
     }
 }
