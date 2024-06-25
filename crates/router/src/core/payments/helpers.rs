@@ -2052,7 +2052,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     let intent_fulfillment_time = business_profile
         .as_ref()
         .and_then(|b_profile| b_profile.intent_fulfillment_time)
-        .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
         key_for_hyperswitch_token
