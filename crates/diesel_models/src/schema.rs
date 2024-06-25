@@ -515,10 +515,8 @@ diesel::table! {
         #[max_length = 256]
         link_status -> Varchar,
         link_type -> GenericLinkType,
-        #[max_length = 256]
-        url -> Varchar,
-        #[max_length = 256]
-        return_url -> Nullable<Varchar>,
+        url -> Text,
+        return_url -> Nullable<Text>,
     }
 }
 
