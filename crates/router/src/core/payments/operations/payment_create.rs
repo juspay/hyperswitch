@@ -1029,7 +1029,7 @@ impl PaymentCreate {
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
         let mut raw_billing_address_details = AddressDetails::default();
-        let details_present = request.billing.clone().map(|billing_details| {
+        let billing_details_present = request.billing.clone().map(|billing_details| {
             billing_details.address.clone().map(|address| {
                 raw_billing_address_details.set_city(address.city);
                 raw_billing_address_details.set_country(address.country);
@@ -1046,7 +1046,7 @@ impl PaymentCreate {
 
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let key = key_store.key.get_inner().peek();
-        let billing_address_details = if details_present.is_some_and(|d| d.is_some_and(|d| d)) {
+        let billing_address_details = if billing_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
             Some(raw_billing_address_details)
                 .as_ref()
                 .map(Encode::encode_to_value)
@@ -1060,6 +1060,43 @@ impl PaymentCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt guest customer details")?
+        } else {
+            None
+        };
+
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        let mut raw_shipping_details = AddressDetails::default();
+        let shipping_details_present = request.shipping.clone().map(|shipping_details| {
+            shipping_details.address.clone().map(|address| {
+                raw_shipping_details.set_city(address.city);
+                raw_shipping_details.set_country(address.country);
+                raw_shipping_details.set_line1(address.line1);
+                raw_shipping_details.set_line2(address.line2);
+                raw_shipping_details.set_line3(address.line3);
+                raw_shipping_details.set_zip(address.zip);
+                raw_shipping_details.set_state(address.state);
+                raw_shipping_details.set_first_name(address.first_name);
+                raw_shipping_details.set_last_name(address.last_name);
+                true
+            })
+        });
+
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let key = key_store.key.get_inner().peek();
+        let shipping_address_details = if shipping_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
+            Some(raw_shipping_details)
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "shipping_address_details",
+                })
+                .attach_printable("Unable to convert shipping address details to a value")?
+                .map(Secret::new)
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt shipping address details")?
         } else {
             None
         };
@@ -1112,6 +1149,7 @@ impl PaymentCreate {
             charges,
             frm_metadata: request.frm_metadata.clone(),
             billing_address_details,
+            shipping_address_details,
         })
     }
 

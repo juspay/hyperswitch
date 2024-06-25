@@ -125,6 +125,7 @@ pub struct PaymentIntentNew {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub shipping_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -255,6 +256,7 @@ pub struct PaymentIntentUpdateInternal {
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub shipping_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -655,6 +657,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             request_external_three_ds_authentication,
             frm_metadata,
             billing_address_details,
+            shipping_address_details,
         } = value;
 
         Self {
@@ -689,6 +692,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             request_external_three_ds_authentication,
             frm_metadata,
             billing_address_details: billing_address_details.map(Encryption::from),
+            shipping_address_details: shipping_address_details.map(Encryption::from),
         }
     }
 }

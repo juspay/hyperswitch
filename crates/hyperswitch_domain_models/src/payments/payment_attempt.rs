@@ -520,6 +520,7 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             billing_address_details: self.billing_address_details.map(Encryption::from),
+            shipping_address_details: self.shipping_address_details.map(Encryption::from),
         })
     }
 
@@ -581,6 +582,10 @@ impl behaviour::Conversion for PaymentIntent {
                     .billing_address_details
                     .async_lift(inner_decrypt)
                     .await?,
+                shipping_address_details: storage_model
+                    .shipping_address_details
+                    .async_lift(inner_decrypt)
+                    .await?,
             })
         }
         .await
@@ -635,6 +640,7 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             billing_address_details: self.billing_address_details.map(Encryption::from),
+            shipping_address_details: self.shipping_address_details.map(Encryption::from),
         })
     }
 }

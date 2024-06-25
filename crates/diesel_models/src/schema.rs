@@ -864,6 +864,7 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
         billing_address_details -> Nullable<Bytea>,
+        shipping_address_details -> Nullable<Bytea>,
     }
 }
 
