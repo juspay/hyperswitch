@@ -54,7 +54,7 @@ pub async fn get_metrics(
                 .transpose()
                 .change_context(AnalyticsError::UnknownError)?
             {
-                logger::info!("Logging Result {:?}", data);
+                logger::info!("Logging metric: {metric} Result: {:?}", data);
                 for (id, value) in data? {
                     let metrics_builder = metrics_accumulator.entry(id).or_default();
                     match metric {
