@@ -26,9 +26,10 @@ pub use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
+use rustc_hash::FxHashMap;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -669,40 +670,45 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         merchant_id: String,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         let identifier = Identifier::Merchant(merchant_id);
-        let email_as_secret_string = self
-            .email
-            .clone()
-            .map(|email| Secret::new(email.expose().expose()));
-        let encrypted_data = batch_encrypt_optional(
-            state,
-            vec![
-                address_details.line1.clone(),
-                address_details.line2.clone(),
-                address_details.line3.clone(),
-                address_details.zip.clone(),
-                address_details.state.clone(),
-                address_details.first_name.clone(),
-                address_details.last_name.clone(),
-                self.phone.clone(),
-                email_as_secret_string.clone(),
-            ],
-            identifier.clone(),
-            key,
-        )
-        .await?;
-        let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
+        let mut map = FxHashMap::default();
+        map.insert("line1".to_string(), address_details.line1.clone());
+        map.insert("line2".to_string(), address_details.line2.clone());
+        map.insert("line3".to_string(), address_details.line3.clone());
+        map.insert("zip".to_string(), address_details.zip.clone());
+        map.insert("state".to_string(), address_details.state.clone());
+        map.insert("fn".to_string(), address_details.first_name.clone());
+        map.insert("ln".to_string(), address_details.last_name.clone());
+        map.insert("phone".to_string(), self.phone.clone());
+        let encrypted_data = batch_encrypt_optional(state, map, identifier.clone(), key).await?;
         async {
             Ok(storage::AddressUpdate::Update {
                 city: address_details.city,
                 country: address_details.country,
-                line1: address_details.line1.and_then(inner_encrypt),
-                line2: address_details.line2.and_then(inner_encrypt),
-                line3: address_details.line3.and_then(inner_encrypt),
-                zip: address_details.zip.and_then(inner_encrypt),
-                state: address_details.state.and_then(inner_encrypt),
-                first_name: address_details.first_name.and_then(inner_encrypt),
-                last_name: address_details.last_name.and_then(inner_encrypt),
-                phone_number: self.phone.clone().and_then(inner_encrypt),
+                line1: address_details
+                    .line1
+                    .and_then(|_| encrypted_data.get("line1").cloned()),
+                line2: address_details
+                    .line2
+                    .and_then(|_| encrypted_data.get("line2").cloned()),
+                line3: address_details
+                    .line3
+                    .and_then(|_| encrypted_data.get("line3").cloned()),
+                zip: address_details
+                    .zip
+                    .and_then(|_| encrypted_data.get("zip").cloned()),
+                state: address_details
+                    .state
+                    .and_then(|_| encrypted_data.get("state").cloned()),
+                first_name: address_details
+                    .first_name
+                    .and_then(|_| encrypted_data.get("fn").cloned()),
+                last_name: address_details
+                    .last_name
+                    .and_then(|_| encrypted_data.get("ln").cloned()),
+                phone_number: self
+                    .phone
+                    .clone()
+                    .and_then(|_| encrypted_data.get("phone").cloned()),
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
                 email: self
@@ -733,36 +739,47 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
         let identifier = Identifier::Merchant(merchant_id.to_string());
-        let encrypted_data = batch_encrypt_optional(
-            state,
-            vec![
-                address_details.line1.clone(),
-                address_details.line2.clone(),
-                address_details.line3.clone(),
-                address_details.zip.clone(),
-                address_details.state.clone(),
-                address_details.first_name.clone(),
-                address_details.last_name.clone(),
-                self.phone.clone(),
-            ],
-            identifier.clone(),
-            key,
-        )
-        .await?;
-        let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
+        let mut map = FxHashMap::default();
+        map.insert("line1".to_string(), address_details.line1.clone());
+        map.insert("line2".to_string(), address_details.line2.clone());
+        map.insert("line3".to_string(), address_details.line3.clone());
+        map.insert("zip".to_string(), address_details.zip.clone());
+        map.insert("state".to_string(), address_details.state.clone());
+        map.insert("fn".to_string(), address_details.first_name.clone());
+        map.insert("ln".to_string(), address_details.last_name.clone());
+        map.insert("phone".to_string(), self.phone.clone());
+        let encrypted_data = batch_encrypt_optional(state, map, identifier.clone(), key).await?;
         async {
             let address = domain::Address {
                 id: None,
                 city: address_details.city,
                 country: address_details.country,
-                line1: address_details.line1.and_then(inner_encrypt),
-                line2: address_details.line2.and_then(inner_encrypt),
-                line3: address_details.line3.and_then(inner_encrypt),
-                zip: address_details.zip.and_then(inner_encrypt),
-                state: address_details.state.clone().and_then(inner_encrypt),
-                first_name: address_details.first_name.and_then(inner_encrypt),
-                last_name: address_details.last_name.and_then(inner_encrypt),
-                phone_number: self.phone.clone().and_then(inner_encrypt),
+                line1: address_details
+                    .line1
+                    .and_then(|_| encrypted_data.get("line1").cloned()),
+                line2: address_details
+                    .line2
+                    .and_then(|_| encrypted_data.get("line2").cloned()),
+                line3: address_details
+                    .line3
+                    .and_then(|_| encrypted_data.get("line3").cloned()),
+                zip: address_details
+                    .zip
+                    .and_then(|_| encrypted_data.get("zip").cloned()),
+                state: address_details
+                    .state
+                    .clone()
+                    .and_then(|_| encrypted_data.get("state").cloned()),
+                first_name: address_details
+                    .first_name
+                    .and_then(|_| encrypted_data.get("fn").cloned()),
+                last_name: address_details
+                    .last_name
+                    .and_then(|_| encrypted_data.get("ln").cloned()),
+                phone_number: self
+                    .phone
+                    .clone()
+                    .and_then(|_| encrypted_data.get("phone").cloned()),
                 country_code: self.phone_country_code.clone(),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),

@@ -1,11 +1,11 @@
 use common_utils::crypto::OptionalEncryptableSecretString;
 use diesel_models::{
-    encryption::Encryption,
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
     events::EventUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 
 use super::Identifier;
 use crate::{
@@ -90,20 +90,14 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         let identifier = Identifier::Merchant(key_store_ref_id.clone());
-        let decrypted = types::batch_decrypt_optional(
-            state,
-            vec![item.request.clone(), item.response.clone()],
-            identifier,
-            key.peek(),
-        )
-        .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting event data".to_string(),
-        })?;
-        let inner_decrypt = |encryption: Encryption| {
-            let key = String::from_utf8_lossy(encryption.get_inner().peek()).to_string();
-            decrypted.get(&key).cloned()
-        };
+        let mut map = FxHashMap::default();
+        map.insert("request".to_string(), item.request.clone());
+        map.insert("response".to_string(), item.response.clone());
+        let decrypted = types::batch_decrypt_optional(state, map, identifier, key.peek())
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting event data".to_string(),
+            })?;
         Ok(Self {
             event_id: item.event_id,
             event_type: item.event_type,
@@ -117,8 +111,10 @@ impl super::behaviour::Conversion for Event {
             primary_object_created_at: item.primary_object_created_at,
             idempotent_event_id: item.idempotent_event_id,
             initial_attempt_id: item.initial_attempt_id,
-            request: item.request.and_then(inner_decrypt),
-            response: item.response.and_then(inner_decrypt),
+            request: item.request.and_then(|_| decrypted.get("request").cloned()),
+            response: item
+                .response
+                .and_then(|_| decrypted.get("response").cloned()),
             delivery_attempt: item.delivery_attempt,
         })
     }

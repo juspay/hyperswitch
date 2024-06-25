@@ -195,27 +195,17 @@ impl behaviour::Conversion for Address {
     ) -> CustomResult<Self, ValidationError> {
         async {
             let identifier = Identifier::Merchant(other.merchant_id.clone());
+            let mut map = FxHashMap::default();
+            map.insert("line1".to_string(), other.line1.clone());
+            map.insert("line2".to_string(), other.line2.clone());
+            map.insert("line3".to_string(), other.line3.clone());
+            map.insert("zip".to_string(), other.zip.clone());
+            map.insert("state".to_string(), other.state.clone());
+            map.insert("fn".to_string(), other.first_name.clone());
+            map.insert("ln".to_string(), other.last_name.clone());
+            map.insert("phone".to_string(), other.phone_number.clone());
             let decrypted: FxHashMap<String, Encryptable<Secret<String>>> =
-                types::batch_decrypt_optional(
-                    state,
-                    vec![
-                        other.line1.clone(),
-                        other.line2.clone(),
-                        other.line3.clone(),
-                        other.state.clone(),
-                        other.zip.clone(),
-                        other.first_name.clone(),
-                        other.last_name.clone(),
-                        other.phone_number.clone(),
-                    ],
-                    identifier.clone(),
-                    key.peek(),
-                )
-                .await?;
-            let inner_decrypt = |inner: Encryption| {
-                let key = String::from_utf8_lossy(inner.get_inner().peek()).to_string();
-                decrypted.get(&key).cloned()
-            };
+                types::batch_decrypt_optional(state, map, identifier.clone(), key.peek()).await?;
             let inner_decrypt_email =
                 |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
@@ -223,14 +213,16 @@ impl behaviour::Conversion for Address {
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other.line1.and_then(inner_decrypt),
-                line2: other.line2.and_then(inner_decrypt),
-                line3: other.line3.and_then(inner_decrypt),
-                state: other.state.and_then(inner_decrypt),
-                zip: other.zip.and_then(inner_decrypt),
-                first_name: other.first_name.and_then(inner_decrypt),
-                last_name: other.last_name.and_then(inner_decrypt),
-                phone_number: other.phone_number.and_then(inner_decrypt),
+                line1: other.line1.and_then(|_| decrypted.get("line1").cloned()),
+                line2: other.line2.and_then(|_| decrypted.get("line2").cloned()),
+                line3: other.line3.and_then(|_| decrypted.get("line3").cloned()),
+                state: other.state.and_then(|_| decrypted.get("state").cloned()),
+                zip: other.zip.and_then(|_| decrypted.get("zip").cloned()),
+                first_name: other.first_name.and_then(|_| decrypted.get("fn").cloned()),
+                last_name: other.last_name.and_then(|_| decrypted.get("ln").cloned()),
+                phone_number: other
+                    .phone_number
+                    .and_then(|_| decrypted.get("phone").cloned()),
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,

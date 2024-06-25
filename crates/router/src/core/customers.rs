@@ -6,6 +6,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
+use rustc_hash::FxHashMap;
 
 use crate::{
     core::{
@@ -100,21 +101,20 @@ pub async fn create_customer(
     };
 
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let encrypted_data = types::batch_encrypt_optional(
-        &state,
-        vec![customer_data.name.clone(), customer_data.phone.clone()],
-        identifier.clone(),
-        key,
-    )
-    .await
-    .switch()
-    .attach_printable("Failed while encrypting Customer")?;
-    let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
+    let mut map = FxHashMap::default();
+    map.insert("name".to_string(), customer_data.name.clone());
+    map.insert("phone".to_string(), customer_data.phone.clone());
+    let encrypted_data = types::batch_encrypt_optional(&state, map, identifier.clone(), key)
+        .await
+        .switch()
+        .attach_printable("Failed while encrypting Customer")?;
     let new_customer = async {
         Ok(domain::Customer {
             customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
-            name: customer_data.name.and_then(inner_encrypt),
+            name: customer_data
+                .name
+                .and_then(|_| encrypted_data.get("name").cloned()),
             email: customer_data
                 .email
                 .async_lift(|inner| {
@@ -126,7 +126,9 @@ pub async fn create_customer(
                     )
                 })
                 .await?,
-            phone: customer_data.phone.and_then(inner_encrypt),
+            phone: customer_data
+                .phone
+                .and_then(|_| encrypted_data.get("phone").cloned()),
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
             metadata: customer_data.metadata,
@@ -477,15 +479,12 @@ pub async fn update_customer(
     };
 
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let encrypted_data = types::batch_encrypt_optional(
-        &state,
-        vec![update_customer.name.clone(), update_customer.phone.clone()],
-        identifier.clone(),
-        key,
-    )
-    .await
-    .switch()?;
-    let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
+    let mut map = FxHashMap::default();
+    map.insert("name".to_string(), update_customer.name.clone());
+    map.insert("phone".to_string(), update_customer.phone.clone());
+    let encrypted_data = types::batch_encrypt_optional(&state, map, identifier.clone(), key)
+        .await
+        .switch()?;
     let response = db
         .update_customer_by_customer_id_merchant_id(
             &state,
@@ -494,7 +493,9 @@ pub async fn update_customer(
             customer,
             async {
                 Ok(storage::CustomerUpdate::Update {
-                    name: update_customer.name.and_then(inner_encrypt),
+                    name: update_customer
+                        .name
+                        .and_then(|_| encrypted_data.get("name").cloned()),
                     email: update_customer
                         .email
                         .async_lift(|inner| {
@@ -506,7 +507,11 @@ pub async fn update_customer(
                             )
                         })
                         .await?,
-                    phone: Box::new(update_customer.phone.and_then(inner_encrypt)),
+                    phone: Box::new(
+                        update_customer
+                            .phone
+                            .and_then(|_| encrypted_data.get("phone").cloned()),
+                    ),
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,

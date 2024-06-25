@@ -2,6 +2,7 @@ use common_utils::{crypto, date_time, id_type, pii};
 use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
 use super::{
@@ -68,20 +69,14 @@ impl super::behaviour::Conversion for Customer {
         Self: Sized,
     {
         let identifier = Identifier::Merchant(item.merchant_id.clone());
-        let decrypted = types::batch_decrypt_optional(
-            state,
-            vec![item.name.clone(), item.phone.clone()],
-            identifier.clone(),
-            key.peek(),
-        )
-        .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting customer data".to_string(),
-        })?;
-        let inner_decrypt = |inner: Encryption| {
-            let key = String::from_utf8_lossy(inner.get_inner().peek()).to_string();
-            decrypted.get(&key).cloned()
-        };
+        let mut map = FxHashMap::default();
+        map.insert("name".to_string(), item.name.clone());
+        map.insert("phone".to_string(), item.phone.clone());
+        let decrypted = types::batch_decrypt_optional(state, map, identifier.clone(), key.peek())
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
         async {
             let inner_decrypt_email =
                 |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
@@ -89,9 +84,9 @@ impl super::behaviour::Conversion for Customer {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,
-                name: item.name.and_then(inner_decrypt),
+                name: item.name.and_then(|_| decrypted.get("name").cloned()),
                 email: item.email.async_lift(inner_decrypt_email).await?,
-                phone: item.phone.and_then(inner_decrypt),
+                phone: item.phone.and_then(|_| decrypted.get("phone").cloned()),
                 phone_country_code: item.phone_country_code,
                 description: item.description,
                 created_at: item.created_at,

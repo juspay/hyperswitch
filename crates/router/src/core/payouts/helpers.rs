@@ -8,6 +8,7 @@ use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
+use rustc_hash::FxHashMap;
 
 use super::PayoutData;
 use crate::{
@@ -611,17 +612,13 @@ pub async fn get_or_create_customer_details(
         Some(customer) => Ok(Some(customer)),
         None => {
             let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let encrypted_data = domain_types::batch_encrypt_optional(
-                state,
-                vec![
-                    customer_details.name.clone(),
-                    customer_details.phone.clone(),
-                ],
-                identifier.clone(),
-                key,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let mut map = FxHashMap::default();
+            map.insert("name".to_string(), customer_details.name.clone());
+            map.insert("phone".to_string(), customer_details.phone.clone());
+            let encrypted_data =
+                domain_types::batch_encrypt_optional(state, map, identifier.clone(), key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
             let customer = domain::Customer {
                 customer_id,

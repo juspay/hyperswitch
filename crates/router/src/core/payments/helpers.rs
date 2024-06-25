@@ -27,6 +27,7 @@ use openssl::{
     symm::{decrypt_aead, Cipher},
 };
 use router_env::{instrument, logger, tracing};
+use rustc_hash::FxHashMap;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -138,33 +139,31 @@ pub async fn create_or_update_address_for_payment_by_request(
             Some(address) => {
                 let identifier = Identifier::Merchant(merchant_key_store.merchant_id.clone());
                 let address_details = address.address.as_ref();
-                let line1 = address_details.and_then(|ad| ad.line1.clone());
-                let line2 = address_details.and_then(|ad| ad.line2.clone());
-                let line3 = address_details.and_then(|ad| ad.line3.clone());
-                let zip = address_details.and_then(|ad| ad.zip.clone());
-                let state = address_details.and_then(|ad| ad.state.clone());
-                let first_name = address_details.and_then(|ad| ad.first_name.clone());
-                let last_name = address_details.and_then(|ad| ad.last_name.clone());
-                let encrypted_data = types::batch_encrypt_optional(
-                    session_state,
-                    vec![
-                        line1.clone(),
-                        line2.clone(),
-                        line3.clone(),
-                        zip.clone(),
-                        state.clone(),
-                        first_name.clone(),
-                        last_name.clone(),
-                        address.phone.clone().and_then(|phone| phone.number),
-                    ],
-                    identifier.clone(),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while encrypting address")?;
-                let inner_encrypt =
-                    |inner: masking::Secret<String>| encrypted_data.get(inner.peek()).cloned();
+                let mut map = FxHashMap::default();
+                let line1 = address_details.and_then(|ad| ad.line1.as_ref());
+                map.insert("line1".to_string(), line1.cloned());
+                let line2 = address_details.and_then(|ad| ad.line2.as_ref());
+                map.insert("line2".to_string(), line2.cloned());
+                let line3 = address_details.and_then(|ad| ad.line3.as_ref());
+                map.insert("line3".to_string(), line3.cloned());
+                let zip = address_details.and_then(|ad| ad.zip.as_ref());
+                map.insert("zip".to_string(), zip.cloned());
+                let state = address_details.and_then(|ad| ad.state.as_ref());
+                map.insert("state".to_string(), state.cloned());
+                let first_name = address_details.and_then(|ad| ad.first_name.as_ref());
+                map.insert("fn".to_string(), first_name.cloned());
+                let last_name = address_details.and_then(|ad| ad.last_name.as_ref());
+                map.insert("ln".to_string(), last_name.cloned());
+                let phone = address
+                    .phone
+                    .as_ref()
+                    .and_then(|phone| phone.number.as_ref());
+                map.insert("phone".to_string(), phone.cloned());
+                let encrypted_data =
+                    types::batch_encrypt_optional(session_state, map, identifier.clone(), key)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while encrypting address")?;
                 let address_update = async {
                     Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                         storage::AddressUpdate::Update {
@@ -173,17 +172,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.city.clone()),
                             country: address.address.as_ref().and_then(|value| value.country),
-                            line1: line1.and_then(inner_encrypt),
-                            line2: line2.and_then(inner_encrypt),
-                            line3: line3.and_then(inner_encrypt),
-                            state: state.and_then(inner_encrypt),
-                            zip: zip.and_then(inner_encrypt),
-                            first_name: first_name.and_then(inner_encrypt),
-                            last_name: last_name.and_then(inner_encrypt),
-                            phone_number: address
-                                .phone
-                                .clone()
-                                .and_then(|phone| phone.number.and_then(inner_encrypt)),
+                            line1: line1.and_then(|_| encrypted_data.get("line1").cloned()),
+                            line2: line2.and_then(|_| encrypted_data.get("line2").cloned()),
+                            line3: line3.and_then(|_| encrypted_data.get("line3").cloned()),
+                            state: state.and_then(|_| encrypted_data.get("state").cloned()),
+                            zip: zip.and_then(|_| encrypted_data.get("zip").cloned()),
+                            first_name: first_name.and_then(|_| encrypted_data.get("fn").cloned()),
+                            last_name: last_name.and_then(|_| encrypted_data.get("ln").cloned()),
+                            phone_number: phone.and_then(|_| encrypted_data.get("phone").cloned()),
                             country_code: address
                                 .phone
                                 .as_ref()
@@ -354,57 +350,46 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = &address.address.as_ref();
-        let line1 = address_details.and_then(|ad| ad.line1.clone());
-        let line2 = address_details.and_then(|ad| ad.line2.clone());
-        let line3 = address_details.and_then(|ad| ad.line3.clone());
-        let zip = address_details.and_then(|ad| ad.zip.clone());
-        let state = address_details.and_then(|ad| ad.state.clone());
-        let first_name = address_details.and_then(|ad| ad.first_name.clone());
-        let last_name = address_details.and_then(|ad| ad.last_name.clone());
-        let phone_number = address
+        let mut map = FxHashMap::default();
+        let line1 = address_details.and_then(|ad| ad.line1.as_ref());
+        map.insert("line1".to_string(), line1.cloned());
+        let line2 = address_details.and_then(|ad| ad.line2.as_ref());
+        map.insert("line2".to_string(), line2.cloned());
+        let line3 = address_details.and_then(|ad| ad.line3.as_ref());
+        map.insert("line3".to_string(), line3.cloned());
+        let zip = address_details.and_then(|ad| ad.zip.as_ref());
+        map.insert("zip".to_string(), zip.cloned());
+        let state = address_details.and_then(|ad| ad.state.as_ref());
+        map.insert("state".to_string(), state.cloned());
+        let first_name = address_details.and_then(|ad| ad.first_name.as_ref());
+        map.insert("fn".to_string(), first_name.cloned());
+        let last_name = address_details.and_then(|ad| ad.last_name.as_ref());
+        map.insert("ln".to_string(), last_name.cloned());
+        let phone = address
             .phone
             .as_ref()
-            .and_then(|phone| phone.number.clone());
+            .and_then(|phone| phone.number.as_ref());
+        map.insert("phone".to_string(), phone.cloned());
         let identifier = Identifier::Merchant(merchant_id.to_string());
-        let encrypted_data = types::batch_encrypt_optional(
-            session_state,
-            vec![
-                line1.clone(),
-                line2.clone(),
-                line3.clone(),
-                zip.clone(),
-                state.clone(),
-                first_name.clone(),
-                last_name.clone(),
-                phone_number.clone(),
-            ],
-            identifier.clone(),
-            key,
-        )
-        .await?;
-        let inner_encrypt =
-            |inner: masking::Secret<String>| encrypted_data.get(inner.peek()).cloned();
+        let encrypted_data =
+            types::batch_encrypt_optional(session_state, map, identifier.clone(), key).await?;
         Ok(domain::Address {
             id: None,
-            phone_number: phone_number.and_then(|number| {
-                encrypted_data
-                    .get(number.peek())
-                    .map(|encryptable| encryptable.to_owned())
-            }),
+            phone_number: phone.and_then(|_| encrypted_data.get("phone").cloned()),
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
             country: address_details.and_then(|address_details| address_details.country),
-            line1: line1.and_then(inner_encrypt),
-            line2: line2.and_then(inner_encrypt),
-            line3: line3.and_then(inner_encrypt),
-            state: state.and_then(inner_encrypt),
+            line1: line1.and_then(|_| encrypted_data.get("line1").cloned()),
+            line2: line2.and_then(|_| encrypted_data.get("line2").cloned()),
+            line3: line3.and_then(|_| encrypted_data.get("line3").cloned()),
+            state: state.and_then(|_| encrypted_data.get("state").cloned()),
             created_at: common_utils::date_time::now(),
-            first_name: first_name.and_then(inner_encrypt),
-            last_name: last_name.and_then(inner_encrypt),
+            first_name: first_name.and_then(|_| encrypted_data.get("fn").cloned()),
+            last_name: last_name.and_then(|_| encrypted_data.get("ln").cloned()),
             modified_at: common_utils::date_time::now(),
-            zip: zip.and_then(inner_encrypt),
+            zip: zip.and_then(|_| encrypted_data.get("zip").cloned()),
             updated_by: storage_scheme.to_string(),
             email: address
                 .email
@@ -1562,20 +1547,13 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
             let key = key_store.key.get_inner().peek();
             let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let encrypted_data = types::batch_encrypt_optional(
-                state,
-                vec![
-                    request_customer_details.name.clone(),
-                    request_customer_details.phone.clone(),
-                ],
-                identifier.clone(),
-                key,
-            )
-            .await
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed while encrypting Customer while Update")?;
-            let inner_encrypt =
-                |inner: masking::Secret<String>| encrypted_data.get(inner.peek()).cloned();
+            let mut map = FxHashMap::default();
+            map.insert("name".to_string(), request_customer_details.name.clone());
+            map.insert("phone".to_string(), request_customer_details.phone.clone());
+            let encrypted_data = types::batch_encrypt_optional(state, map, identifier.clone(), key)
+                .await
+                .change_context(errors::StorageError::SerializationFailed)
+                .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
                     // Update the customer data if new data is passed in the request
@@ -1587,7 +1565,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         let customer_update = async {
                             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                                 Update {
-                                    name: request_customer_details.name.and_then(inner_encrypt),
+                                    name: request_customer_details
+                                        .name
+                                        .and_then(|_| encrypted_data.get("name").cloned()),
                                     email: request_customer_details
                                         .email
                                         .clone()
@@ -1601,7 +1581,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                         })
                                         .await?,
                                     phone: Box::new(
-                                        request_customer_details.phone.and_then(inner_encrypt),
+                                        request_customer_details
+                                            .phone
+                                            .and_then(|_| encrypted_data.get("phone").cloned()),
                                     ),
                                     phone_country_code: request_customer_details.phone_country_code,
                                     description: None,
