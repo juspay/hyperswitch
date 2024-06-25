@@ -2910,7 +2910,7 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, Setter, PartialEq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
@@ -2951,51 +2951,6 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
-    /// Setter for city
-    pub fn set_city(&mut self, city: Option<String>) {
-        self.city = city;
-    }
-
-    /// Setter for country
-    pub fn set_country(&mut self, country: Option<api_enums::CountryAlpha2>) {
-        self.country = country;
-    }
-
-    /// Setter for line1
-    pub fn set_line1(&mut self, line1: Option<Secret<String>>) {
-        self.line1 = line1;
-    }
-
-    /// Setter for line2
-    pub fn set_line2(&mut self, line2: Option<Secret<String>>) {
-        self.line2 = line2;
-    }
-
-    /// Setter for line3
-    pub fn set_line3(&mut self, line3: Option<Secret<String>>) {
-        self.line3 = line3;
-    }
-
-    /// Setter for zip
-    pub fn set_zip(&mut self, zip: Option<Secret<String>>) {
-        self.zip = zip;
-    }
-
-    /// Setter for state
-    pub fn set_state(&mut self, state: Option<Secret<String>>) {
-        self.state = state;
-    }
-
-    /// Setter for first_name
-    pub fn set_first_name(&mut self, first_name: Option<Secret<String>>) {
-        self.first_name = first_name;
-    }
-
-    /// Setter for last_name
-    pub fn set_last_name(&mut self, last_name: Option<Secret<String>>) {
-        self.last_name = last_name;
-    }
-
     pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
