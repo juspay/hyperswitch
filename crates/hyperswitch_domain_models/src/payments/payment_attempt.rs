@@ -584,9 +584,9 @@ impl behaviour::Conversion for PaymentIntent {
             })
         }
         .await
-            .change_context(ValidationError::InvalidValue {
+        .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting payment intent".to_string(),
-            })
+        })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
