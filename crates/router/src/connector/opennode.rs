@@ -1,12 +1,15 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{crypto, request::RequestContent};
+use common_utils::{
+    crypto,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use transformers as opennode;
 
 use self::opennode::OpennodeWebhookDetails;
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
     consts,
@@ -26,8 +29,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Opennode;
+#[derive(Clone)]
+pub struct Opennode {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Opennode {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Opennode {}
 impl api::PaymentSession for Opennode {}
@@ -195,12 +208,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = opennode::OpennodeRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = opennode::OpennodeRouterData::from((amount, req));
         let connector_req = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

@@ -13,7 +13,7 @@ impl utils::Connector for OpennodeTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Opennode;
         api::ConnectorData {
-            connector: Box::new(&Opennode),
+            connector: Box::new(Opennode::new()),
             connector_name: types::Connector::Opennode,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,

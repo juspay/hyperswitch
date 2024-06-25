@@ -358,7 +358,7 @@ impl ConnectorData {
                 enums::Connector::Nmi => Ok(Box::new(connector::Nmi::new())),
                 enums::Connector::Noon => Ok(Box::new(connector::Noon::new())),
                 enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
-                enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
+                enums::Connector::Opennode => Ok(Box::new(connector::Opennode::new())),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(connector::Payme::new())),
                 enums::Connector::Payone => Ok(Box::new(&connector::Payone)),
