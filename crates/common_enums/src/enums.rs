@@ -2482,7 +2482,7 @@ pub enum RoleScope {
     Organization,
 }
 
-/// Indicates the trans status
+/// Indicates the transaction status
 #[derive(
     Clone,
     Default,
