@@ -455,12 +455,12 @@ pub enum PaymentAttemptUpdate {
     },
     ManualUpdate {
         status: Option<storage_enums::AttemptStatus>,
-        error_code: Option<Option<String>>,
-        error_message: Option<Option<String>>,
-        error_reason: Option<Option<String>>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
         updated_by: String,
-        unified_code: Option<Option<String>>,
-        unified_message: Option<Option<String>>,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 

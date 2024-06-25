@@ -352,12 +352,12 @@ pub enum PaymentAttemptUpdate {
     },
     ManualUpdate {
         status: Option<storage_enums::AttemptStatus>,
-        error_code: Option<Option<String>>,
-        error_message: Option<Option<String>>,
-        error_reason: Option<Option<String>>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
         updated_by: String,
-        unified_code: Option<Option<String>>,
-        unified_message: Option<Option<String>>,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 
@@ -900,12 +900,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
             } => Self {
                 status,
-                error_code,
-                error_message,
-                error_reason,
+                error_code: error_code.map(Some),
+                error_message: error_message.map(Some),
+                error_reason: error_reason.map(Some),
                 updated_by,
-                unified_code,
-                unified_message,
+                unified_code: unified_code.map(Some),
+                unified_message: unified_message.map(Some),
                 ..Default::default()
             },
         }

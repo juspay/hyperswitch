@@ -4203,12 +4203,12 @@ pub async fn payments_manual_update(
     // Update the payment_attempt
     let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
         status: attempt_status,
-        error_code: error_code.map(Some),
-        error_message: error_message.map(Some),
-        error_reason: error_reason.map(Some),
+        error_code,
+        error_message,
+        error_reason,
         updated_by: merchant_account.storage_scheme.to_string(),
-        unified_code: option_gsm.as_ref().map(|gsm| gsm.unified_code.clone()),
-        unified_message: option_gsm.map(|gsm| gsm.unified_message),
+        unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
+        unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
     };
     let updated_payment_attempt = state
         .store
@@ -4223,10 +4223,9 @@ pub async fn payments_manual_update(
     // If the payment_attempt is active attempt for an intent, update the intent status
     if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
         let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
-        let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: intent_status,
+        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+            status: Some(intent_status),
             updated_by: merchant_account.storage_scheme.to_string(),
-            incremental_authorization_allowed: None,
         };
         state
             .store
