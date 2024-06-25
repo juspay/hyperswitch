@@ -54,7 +54,12 @@ pub trait PayoutsInterface {
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
-        Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>,
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            diesel_models::Customer,
+            Option<diesel_models::Address>,
+        )>,
         errors::StorageError,
     >;
 

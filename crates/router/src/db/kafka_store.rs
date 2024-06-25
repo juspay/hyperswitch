@@ -1755,6 +1755,7 @@ impl PayoutsInterface for KafkaStore {
             storage::Payouts,
             storage::PayoutAttempt,
             diesel_models::Customer,
+            Option<diesel_models::Address>,
         )>,
         errors::DataStorageError,
     > {
