@@ -632,15 +632,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer.map(|customer| 
-            CustomerData::try_from(customer.clone())
-        ).transpose()?;
+        let raw_customer_details = customer
+            .map(|customer| CustomerData::try_from(customer.clone()))
+            .transpose()?;
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
-        let customer_details = raw_customer_details.clone().async_and_then(|_| async {
-            create_encrypted_data(key_store, raw_customer_details).await
-        }).await;
+        let customer_details = raw_customer_details
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, raw_customer_details).await
+            })
+            .await;
 
         payment_data.payment_intent = state
             .store

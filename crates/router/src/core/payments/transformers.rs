@@ -7,7 +7,7 @@ use api_models::payments::{
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit, pii::Email};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -518,10 +518,27 @@ where
             if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
                 Some(CustomerDetailsResponse {
                     id: customer_table_response.and_then(|customer_data| customer_data.id),
-                    name: customer_details_encrypted_data.name.or(customer.as_ref().and_then(|customer| customer.name.as_ref().map(|name| name.clone().into_inner()))),
-                    email: customer_details_encrypted_data.email.or(customer.as_ref().and_then(|customer| customer.email.clone().map(Email::from))),
-                    phone: customer_details_encrypted_data.phone.or(customer.as_ref().and_then(|customer| customer.phone.as_ref().map(|phone| phone.clone().into_inner()))),
-                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(customer.as_ref().and_then(|customer| customer.phone_country_code.clone())),
+                    name: customer_details_encrypted_data
+                        .name
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer.name.as_ref().map(|name| name.clone().into_inner())
+                        })),
+                    email: customer_details_encrypted_data.email.or(customer
+                        .as_ref()
+                        .and_then(|customer| customer.email.clone().map(Email::from))),
+                    phone: customer_details_encrypted_data
+                        .phone
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer
+                                .phone
+                                .as_ref()
+                                .map(|phone| phone.clone().into_inner())
+                        })),
+                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(
+                        customer
+                            .as_ref()
+                            .and_then(|customer| customer.phone_country_code.clone()),
+                    ),
                 })
             } else {
                 customer_table_response
