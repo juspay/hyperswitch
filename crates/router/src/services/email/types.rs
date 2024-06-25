@@ -430,7 +430,7 @@ pub struct BizEmailProd {
     pub legal_business_name: String,
     pub business_location: String,
     pub business_website: String,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -440,7 +440,7 @@ impl BizEmailProd {
             recipient_email: (domain::UserEmail::new(
                 consts::user::BUSINESS_EMAIL.to_string().into(),
             ))?,
-            state: state.clone(),
+            settings: state.conf.clone(),
             subject: "New Prod Intent",
             user_name: data.poc_name.unwrap_or_default().into(),
             poc_email: data.poc_email.unwrap_or_default().into(),
@@ -478,7 +478,7 @@ pub struct ProFeatureRequest {
     pub feature_name: String,
     pub merchant_id: String,
     pub user_name: domain::UserName,
-    pub state: SessionState,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,
 }
 
