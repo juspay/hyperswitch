@@ -3328,7 +3328,7 @@ pub struct PaymentsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub captures: Option<Vec<CaptureResponse>>,
 
-    /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, in case of setting up recurring payments
+    /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
     pub mandate_id: Option<String>,
 
