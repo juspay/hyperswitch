@@ -4110,6 +4110,7 @@ pub struct GpayAllowedMethodsParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
     /// Whether assurance details are required
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub assurance_details_required: Option<bool>,
 }
 
