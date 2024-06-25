@@ -39,6 +39,7 @@ pub mod sample_data;
 pub async fn signup_with_merchant_id(
     state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
@@ -62,8 +63,9 @@ pub async fn signup_with_merchant_id(
     let email_contents = email_types::ResetPassword {
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
-        settings: state.conf.clone(),
+        state: state.clone(),
         subject: "Get back to Hyperswitch - Reset Your Password Now",
+        auth_id,
     };
 
     let send_email_result = state
@@ -241,6 +243,7 @@ pub async fn signin_token_only_flow(
 pub async fn connect_account(
     state: SessionState,
     request: user_api::ConnectAccountRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state.global_store.find_user_by_email(&request.email).await;
 
@@ -250,9 +253,10 @@ pub async fn connect_account(
 
         let email_contents = email_types::MagicLink {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            settings: state.conf.clone(),
+            state: state.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: "Unlock Hyperswitch: Use Your Magic Link to Sign In",
+            auth_id,
         };
 
         let send_email_result = state
@@ -301,8 +305,9 @@ pub async fn connect_account(
 
         let email_contents = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            settings: state.conf.clone(),
+            state: state.clone(),
             subject: "Welcome to the Hyperswitch community!",
+            auth_id,
         };
 
         let send_email_result = state
@@ -401,6 +406,7 @@ pub async fn change_password(
 pub async fn forgot_password(
     state: SessionState,
     request: user_api::ForgotPasswordRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
@@ -419,9 +425,10 @@ pub async fn forgot_password(
 
     let email_contents = email_types::ResetPassword {
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-        settings: state.conf.clone(),
+        state: state.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: "Get back to Hyperswitch - Reset Your Password Now",
+        auth_id,
     };
 
     state
@@ -596,6 +603,7 @@ pub async fn invite_multiple_user(
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
     is_token_only: Option<bool>,
+    auth_id: Option<String>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -603,7 +611,15 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request, &req_state, is_token_only).await
+        match handle_invitation(
+            &state,
+            &user_from_token,
+            request,
+            &req_state,
+            is_token_only,
+            &auth_id,
+        )
+        .await
         {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
@@ -625,6 +641,7 @@ async fn handle_invitation(
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
     is_token_only: Option<bool>,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -656,7 +673,14 @@ async fn handle_invitation(
         .await;
 
     if let Ok(invitee_user) = invitee_user {
-        handle_existing_user_invitation(state, user_from_token, request, invitee_user.into()).await
+        handle_existing_user_invitation(
+            state,
+            user_from_token,
+            request,
+            invitee_user.into(),
+            auth_id,
+        )
+        .await
     } else if invitee_user
         .as_ref()
         .map_err(|e| e.current_context().is_db_not_found())
@@ -669,6 +693,7 @@ async fn handle_invitation(
             request,
             req_state.clone(),
             is_token_only,
+            auth_id,
         )
         .await
     } else {
@@ -682,6 +707,7 @@ async fn handle_existing_user_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
     state
@@ -719,9 +745,10 @@ async fn handle_existing_user_invitation(
         let email_contents = email_types::InviteRegisteredUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
-            settings: state.conf.clone(),
+            state: state.clone(),
             subject: "You have been invited to join Hyperswitch Community!",
             merchant_id: user_from_token.merchant_id.clone(),
+            auth_id: auth_id.clone(),
         };
 
         is_email_sent = state
@@ -754,6 +781,7 @@ async fn handle_new_user_invitation(
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
     is_token_only: Option<bool>,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -806,17 +834,19 @@ async fn handle_new_user_invitation(
             Box::new(email_types::InviteRegisteredUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
-                settings: state.conf.clone(),
+                state: state.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
+                auth_id: auth_id.clone(),
             })
         } else {
             Box::new(email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
-                settings: state.conf.clone(),
+                state: state.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
+                auth_id: auth_id.clone(),
             })
         };
         let send_email_result = state
@@ -862,7 +892,7 @@ pub async fn resend_invite(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
-    _req_state: ReqState,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
@@ -903,9 +933,10 @@ pub async fn resend_invite(
     let email_contents = email_types::InviteUser {
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
-        settings: state.conf.clone(),
+        state: state.clone(),
         subject: "You have been invited to join Hyperswitch Community!",
         merchant_id: user_from_token.merchant_id,
+        auth_id,
     };
     state
         .email_client
@@ -1518,6 +1549,7 @@ pub async fn verify_email_token_only_flow(
 pub async fn send_verification_mail(
     state: SessionState,
     req: user_api::SendVerifyEmailRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
@@ -1538,8 +1570,9 @@ pub async fn send_verification_mail(
 
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
-        settings: state.conf.clone(),
+        state: state.clone(),
         subject: "Welcome to the Hyperswitch community!",
+        auth_id,
     };
 
     state

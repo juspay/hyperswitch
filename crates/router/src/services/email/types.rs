@@ -190,14 +190,21 @@ pub fn get_link_with_token(
     base_url: impl std::fmt::Display,
     token: impl std::fmt::Display,
     action: impl std::fmt::Display,
+    auth_id: &Option<impl std::fmt::Display>,
 ) -> String {
-    format!("{base_url}/user/{action}?token={token}")
+    let email_url = format!("{base_url}/user/{action}?token={token}");
+    if let Some(auth_id) = auth_id {
+        format!("{email_url}&auth_id={auth_id}")
+    } else {
+        email_url
+    }
 }
 
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 /// Currently only HTML is supported
@@ -208,13 +215,17 @@ impl EmailData for VerifyEmail {
             self.recipient_email.clone(),
             None,
             domain::Origin::VerifyEmail,
-            &self.settings,
+            &self.state.conf,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let verify_email_link =
-            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+        let verify_email_link = get_link_with_token(
+            &self.state.conf.email.base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
@@ -231,8 +242,9 @@ impl EmailData for VerifyEmail {
 pub struct ResetPassword {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -242,13 +254,17 @@ impl EmailData for ResetPassword {
             self.recipient_email.clone(),
             None,
             domain::Origin::ResetPassword,
-            &self.settings,
+            &self.state.conf,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let reset_password_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+        let reset_password_link = get_link_with_token(
+            &self.state.conf.email.base_url,
+            token,
+            "set_password",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
@@ -266,8 +282,9 @@ impl EmailData for ResetPassword {
 pub struct MagicLink {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -277,13 +294,17 @@ impl EmailData for MagicLink {
             self.recipient_email.clone(),
             None,
             domain::Origin::MagicLink,
-            &self.settings,
+            &self.state.conf,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login =
-            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+        let magic_link_login = get_link_with_token(
+            &self.state.conf.email.base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
@@ -302,9 +323,10 @@ impl EmailData for MagicLink {
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
     pub merchant_id: String,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -314,13 +336,17 @@ impl EmailData for InviteUser {
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
             domain::Origin::ResetPassword,
-            &self.settings,
+            &self.state.conf,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+        let invite_user_link = get_link_with_token(
+            &self.state.conf.email.base_url,
+            token,
+            "set_password",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
@@ -338,9 +364,10 @@ impl EmailData for InviteUser {
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
     pub merchant_id: String,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -350,15 +377,16 @@ impl EmailData for InviteRegisteredUser {
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
             domain::Origin::AcceptInvitationFromEmail,
-            &self.settings,
+            &self.state.conf,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.state.conf.email.base_url,
             token,
             "accept_invite_from_email",
+            &self.auth_id,
         );
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
@@ -376,7 +404,7 @@ impl EmailData for InviteRegisteredUser {
 pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
 }
 
@@ -402,7 +430,7 @@ pub struct BizEmailProd {
     pub legal_business_name: String,
     pub business_location: String,
     pub business_website: String,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: &'static str,
 }
 
@@ -412,7 +440,7 @@ impl BizEmailProd {
             recipient_email: (domain::UserEmail::new(
                 consts::user::BUSINESS_EMAIL.to_string().into(),
             ))?,
-            settings: state.conf.clone(),
+            state: state.clone(),
             subject: "New Prod Intent",
             user_name: data.poc_name.unwrap_or_default().into(),
             poc_email: data.poc_email.unwrap_or_default().into(),
@@ -450,7 +478,7 @@ pub struct ProFeatureRequest {
     pub feature_name: String,
     pub merchant_id: String,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
+    pub state: SessionState,
     pub subject: String,
 }
 
