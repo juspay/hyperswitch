@@ -522,10 +522,8 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
-        let is_billing_details_required = business_profile
-            .collect_billing_details_from_wallet_connector
-            .unwrap_or(false)
-            .then_some({
+        let is_billing_details_required =
+            if business_profile.collect_billing_details_from_wallet_connector == Some(true) {
                 let billing_variants = enums::FieldType::get_billing_variants();
 
                 is_dynamic_fields_required(
@@ -535,8 +533,9 @@ fn create_gpay_session_token(
                     &connector.connector_name,
                     billing_variants,
                 )
-            })
-            .unwrap_or(false);
+            } else {
+                false
+            };
 
         let billing_address_parameters =
             is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
@@ -577,10 +576,8 @@ fn create_gpay_session_token(
                 })?,
         };
 
-        let required_shipping_contact_fields = business_profile
-            .collect_shipping_details_from_wallet_connector
-            .unwrap_or(false)
-            .then_some({
+        let required_shipping_contact_fields =
+            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
                 let shipping_variants = enums::FieldType::get_shipping_variants();
 
                 is_dynamic_fields_required(
@@ -590,8 +587,9 @@ fn create_gpay_session_token(
                     &connector.connector_name,
                     shipping_variants,
                 )
-            })
-            .unwrap_or(false);
+            } else {
+                false
+            };
 
         Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
