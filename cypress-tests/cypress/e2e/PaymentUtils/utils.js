@@ -1,7 +1,10 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
-import { connectorDetails as CommonConnectorDetails, updateDefaultStatusCode } from "./Commons.js";
+import {
+  connectorDetails as CommonConnectorDetails,
+  updateDefaultStatusCode,
+} from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
@@ -86,7 +89,8 @@ export const should_continue_further = (res_data) => {
 };
 
 export function defaultErrorHandler(response, response_data) {
-  if (response.status === 400) response_data = updateDefaultStatusCode();
+  if (response.status === 400 && response.body.message === "Payment method type not supported")
+    response_data = updateDefaultStatusCode();
 
   expect(response.body).to.have.property("error");
   for (const key in response_data.body.error) {

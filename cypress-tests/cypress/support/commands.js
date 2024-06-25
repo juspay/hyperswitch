@@ -25,7 +25,11 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import { defaultErrorHandler, logRequestId, getValueByKey } from "../e2e/PaymentUtils/utils";
+import {
+  defaultErrorHandler,
+  getValueByKey,
+  logRequestId,
+} from "../e2e/PaymentUtils/utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
@@ -318,11 +322,11 @@ Cypress.Commands.add(
   "confirmCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    confirmBody.payment_method_data.card = req_data.card;
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
-    confirmBody.customer_acceptance = req_data.customer_acceptance;
-
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -546,9 +550,7 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         if (
@@ -592,14 +594,12 @@ Cypress.Commands.add(
     capture_method,
     globalState
   ) => {
-    createConfirmPaymentBody.payment_method_data.card = req_data.card;
     createConfirmPaymentBody.authentication_type = authentication_type;
-    createConfirmPaymentBody.currency = req_data.currency;
     createConfirmPaymentBody.capture_method = capture_method;
-    createConfirmPaymentBody.customer_acceptance = req_data.customer_acceptance;
-    createConfirmPaymentBody.setup_future_usage = req_data.setup_future_usage;
     createConfirmPaymentBody.customer_id = globalState.get("customerId");
-
+    for (const key in req_data) {
+      createConfirmPaymentBody[key] = req_data[key];
+    }
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -611,9 +611,7 @@ Cypress.Commands.add(
       body: createConfirmPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         if (response.body.capture_method === "automatic") {
@@ -667,7 +665,7 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    saveCardConfirmBody.card_cvc = req_data.card.card_cvc;
+    saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     cy.request({
@@ -732,7 +730,6 @@ Cypress.Commands.add(
   (requestBody, req_data, res_data, amount_to_capture, globalState) => {
     const payment_id = globalState.get("paymentID");
     requestBody.amount_to_capture = amount_to_capture;
-    let amount = globalState.get("paymentAmount");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
@@ -825,7 +822,7 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         globalState.set("refundId", response.body.refund_id);
@@ -896,7 +893,6 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      
       if (response.status === 200) {
         globalState.set("paymentID", response.body.payment_id);
         expect(res_data.status).to.equal(response.status);
@@ -1175,7 +1171,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-
     expect(response.headers["content-type"]).to.include("application/json");
     if (response.body.customer_payment_methods[0]?.payment_token) {
       const paymentToken =
@@ -1234,9 +1229,8 @@ Cypress.Commands.add(
       body: createConfirmPayoutBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
@@ -1283,9 +1277,8 @@ Cypress.Commands.add(
       body: createConfirmPayoutBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
@@ -1319,9 +1312,8 @@ Cypress.Commands.add(
       body: payoutFulfillBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         for (const key in res_data.body) {
@@ -1354,9 +1346,8 @@ Cypress.Commands.add(
       body: payoutConfirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         for (const key in res_data.body) {
@@ -1407,9 +1398,8 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
     body: jwt_body,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-
     expect(response.headers["content-type"]).to.include("application/json");
-    
+
     if (response.status === 200) {
       expect(res_data.status).to.equal(response.status);
       expect(response.body).to.have.property("token");
@@ -1480,9 +1470,8 @@ Cypress.Commands.add(
       body: routingBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         expect(response.body).to.have.property("id");
@@ -1515,9 +1504,8 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         expect(response.body.id).to.equal(routing_config_id);
@@ -1549,9 +1537,8 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       expect(response.headers["content-type"]).to.include("application/json");
-      
+
       if (response.status === 200) {
         expect(res_data.status).to.equal(response.status);
         expect(response.body.id).to.equal(routing_config_id);
