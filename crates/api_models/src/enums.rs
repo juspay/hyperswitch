@@ -44,6 +44,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    Razorpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -250,6 +251,7 @@ impl Connector {
             | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
+            | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
             // | Self::Datatrans

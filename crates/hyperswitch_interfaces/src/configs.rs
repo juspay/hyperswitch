@@ -62,6 +62,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub razorpay: ConnectorParams,
     pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,

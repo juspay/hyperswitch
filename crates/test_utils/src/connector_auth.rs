@@ -61,6 +61,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
+    pub razorpay: Option<HeaderKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
