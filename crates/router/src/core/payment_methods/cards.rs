@@ -3674,11 +3674,7 @@ pub async fn list_customer_payment_method(
 
         let intent_fulfillment_time = business_profile
             .as_ref()
-            .map(|b_profile| {
-                b_profile
-                    .intent_fulfillment_time
-                    .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME)
-            })
+            .and_then(|b_profile| b_profile.intent_fulfillment_time)
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         ParentPaymentMethodToken::create_key_for_token((
@@ -3686,7 +3682,7 @@ pub async fn list_customer_payment_method(
             pma.payment_method,
         ))
         .insert(
-            intent_fulfillment_time.clone(),
+            intent_fulfillment_time,
             payment_method_retrieval_context.hyperswitch_token_data,
             state,
         )
