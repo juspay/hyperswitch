@@ -2073,7 +2073,9 @@ pub struct PaypalDisputeWebhooks {
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub seller_response_due_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub update_time: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
