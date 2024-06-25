@@ -112,7 +112,7 @@ impl<'a> CacheKind<'a> {
         let value = value
             .as_string()
             .ok_or(errors::ValidationError::InvalidValue {
-                message: "Redis value not found in published message".into(),
+                message: "Failed to convert Redis value of published message to String".into(),
             })?;
 
         let deserialized_keys: Vec<String> =

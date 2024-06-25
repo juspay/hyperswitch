@@ -43,7 +43,7 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
-    #[error("Type Conversion error")]
+    #[error("Type conversion error")]
     TypeConversionError,
 }
 
