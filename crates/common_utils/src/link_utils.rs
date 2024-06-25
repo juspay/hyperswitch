@@ -53,7 +53,6 @@ where
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
-        // let a = serde_json::from_str(&value)?;
         Ok(serde_json::from_str(&value)?)
     }
 }
@@ -141,6 +140,9 @@ impl ToSql<sql_types::Text, diesel::pg::Pg> for PayoutLinkStatus
 where
     String: ToSql<sql_types::Text, diesel::pg::Pg>,
 {
+    // This wraps PayoutLinkStatus with GenericLinkStatus
+    // Required for storing the status in required format in DB (GenericLinkStatus)
+    // This type is used in PayoutLink (a variant of GenericLink, used in the application for avoiding conversion of data and status)
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
         let value = GenericLinkStatus::PayoutLink(*self).encode_to_string_of_json()?;
 
