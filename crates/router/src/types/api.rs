@@ -319,7 +319,7 @@ impl ConnectorData {
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
-                enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
+                enums::Connector::Bitpay => Ok(Box::new(connector::Bitpay::new())),
                 enums::Connector::Bluesnap => Ok(Box::new(connector::Bluesnap::new())),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),

@@ -13,7 +13,7 @@ impl utils::Connector for BitpayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Bitpay;
         api::ConnectorData {
-            connector: Box::new(&Bitpay),
+            connector: Box::new(Bitpay::new()),
             connector_name: types::Connector::Bitpay,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,
