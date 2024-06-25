@@ -367,6 +367,9 @@ pub struct PaymentsCancelData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // This metadata is used to store the metadata shared during the payment intent request.
+
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]

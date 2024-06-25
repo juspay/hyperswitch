@@ -34,6 +34,7 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     Payout,
     Consolidated,
+    Authentication,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

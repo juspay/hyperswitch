@@ -5,7 +5,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::{date_time, id_type};
+use common_utils::date_time;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -124,6 +124,7 @@ impl AuthenticationType {
 pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
 }
 
 #[cfg(feature = "olap")]
@@ -132,6 +133,7 @@ pub struct SinglePurposeToken {
     pub user_id: String,
     pub purpose: TokenPurpose,
     pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
     pub exp: u64,
 }
 
@@ -142,6 +144,7 @@ impl SinglePurposeToken {
         purpose: TokenPurpose,
         origin: domain::Origin,
         settings: &Settings,
+        path: Vec<TokenPurpose>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -151,6 +154,7 @@ impl SinglePurposeToken {
             purpose,
             origin,
             exp,
+            path,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -356,6 +360,7 @@ where
             UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
+                path: payload.path,
             },
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -440,7 +445,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct EphemeralKeyAuth(pub id_type::CustomerId);
+pub struct EphemeralKeyAuth;
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
@@ -460,9 +465,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-        if ephemeral_key.customer_id.ne(&self.0) {
-            return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
-        }
         MerchantIdAuth(ephemeral_key.merchant_id)
             .authenticate_and_fetch(request_headers, state)
             .await
@@ -1046,16 +1048,43 @@ where
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
+pub async fn get_ephemeral_or_other_auth<T>(
+    headers: &HeaderMap,
+    is_merchant_flow: bool,
+    payload: Option<&impl ClientSecretFetch>,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+    bool,
+)>
+where
+    T: SessionStateInfo,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    let api_key = get_api_key(headers)?;
+
+    if api_key.starts_with("epk") {
+        Ok((Box::new(EphemeralKeyAuth), api::AuthFlow::Client, true))
+    } else if is_merchant_flow {
+        Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant, false))
+    } else {
+        let payload = payload.get_required_value("ClientSecretFetch")?;
+        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload)?;
+        Ok((auth, auth_flow, false))
+    }
+}
+
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync>(
     headers: &HeaderMap,
-    customer_id: &id_type::CustomerId,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
         Ok(Box::new(ApiKeyAuth))
     } else {
-        Ok(Box::new(EphemeralKeyAuth(customer_id.to_owned())))
+        Ok(Box::new(EphemeralKeyAuth))
     }
 }
 

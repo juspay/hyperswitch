@@ -6,6 +6,7 @@ use api_models::{
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
 use common_utils::ext_traits::{StringExt, ValueExt};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::tracing::{self, instrument};
@@ -101,6 +102,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             request: initial_event.request,
             response: None,
             delivery_attempt: Some(delivery_attempt),
+            metadata: initial_event.metadata,
         };
 
         let event = db
@@ -197,7 +199,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         db.as_scheduler()
                             .finish_process_with_business_status(
                                 process.clone(),
-                                "RESOURCE_STATUS_MISMATCH".to_string(),
+                                business_status::RESOURCE_STATUS_MISMATCH,
                             )
                             .await?;
                     }
@@ -309,7 +311,7 @@ pub(crate) async fn retry_webhook_delivery_task(
         }
         None => {
             db.as_scheduler()
-                .finish_process_with_business_status(process, "RETRIES_EXCEEDED".to_string())
+                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
                 .await
         }
     }

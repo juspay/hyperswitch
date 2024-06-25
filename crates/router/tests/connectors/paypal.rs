@@ -13,12 +13,12 @@ impl ConnectorActions for PaypalTest {}
 impl Connector for PaypalTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Paypal;
-        types::api::ConnectorData {
-            connector: Box::new(&Paypal),
-            connector_name: types::Connector::Paypal,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Paypal),
+            types::Connector::Paypal,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {

@@ -115,10 +115,10 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 128]
         merchant_connector_id -> Varchar,
-        #[max_length = 64]
-        ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
         directory_server_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        ds_trans_id -> Nullable<Varchar>,
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
     }
@@ -399,6 +399,7 @@ diesel::table! {
         request -> Nullable<Bytea>,
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -712,8 +713,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_attempt (id) {
-        id -> Int4,
+    payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -790,11 +790,11 @@ diesel::table! {
         #[max_length = 64]
         payment_method_billing_address_id -> Nullable<Varchar>,
         #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
-        #[max_length = 64]
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
+        #[max_length = 64]
+        charge_id -> Nullable<Varchar>,
     }
 }
 
@@ -802,8 +802,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_intent (id) {
-        id -> Int4,
+    payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -863,8 +862,8 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         request_external_three_ds_authentication -> Nullable<Bool>,
-        charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
+        charges -> Nullable<Jsonb>,
     }
 }
 
@@ -1178,6 +1177,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    user_authentication_methods (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        auth_id -> Varchar,
+        #[max_length = 64]
+        owner_id -> Varchar,
+        #[max_length = 64]
+        owner_type -> Varchar,
+        #[max_length = 64]
+        auth_type -> Varchar,
+        private_config -> Nullable<Bytea>,
+        public_config -> Nullable<Jsonb>,
+        allow_signup -> Bool,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     user_key_store (user_id) {
         #[max_length = 64]
         user_id -> Varchar,
@@ -1272,6 +1294,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    user_authentication_methods,
     user_key_store,
     user_roles,
     users,

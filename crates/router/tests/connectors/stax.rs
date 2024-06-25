@@ -12,12 +12,12 @@ impl ConnectorActions for StaxTest {}
 impl utils::Connector for StaxTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Stax;
-        types::api::ConnectorData {
-            connector: Box::new(&Stax),
-            connector_name: types::Connector::Stax,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Stax),
+            types::Connector::Stax,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -51,7 +51,6 @@ fn get_default_payment_info(
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
-        country: None,
     })
 }
 
