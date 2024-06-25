@@ -59,7 +59,9 @@ pub struct GetSearchResponse {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OpenMsearchOutput {
+    #[serde(default)]
     pub responses: Vec<OpensearchOutput>,
+    pub error: Option<OpensearchErrorDetails>,
 }
 
 #[derive(Debug, serde::Deserialize)]

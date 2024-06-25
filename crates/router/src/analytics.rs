@@ -20,6 +20,7 @@ pub mod routes {
     use error_stack::ResultExt;
 
     use crate::{
+        consts::opensearch::OPENSEARCH_INDEX_PERMISSIONS,
         core::{api_locking, errors::user::UserErrors},
         db::user::UserInterface,
         routes::AppState,
@@ -661,28 +662,11 @@ pub mod routes {
                         .change_context(UserErrors::InternalServerError)
                         .change_context(OpenSearchError::UnknownError)?;
                 let permissions = role_info.get_permissions_set();
-                let accessible_indexes: Vec<_> = vec![
-                    (
-                        SearchIndex::PaymentAttempts,
-                        vec![Permission::PaymentRead, Permission::PaymentWrite],
-                    ),
-                    (
-                        SearchIndex::PaymentIntents,
-                        vec![Permission::PaymentRead, Permission::PaymentWrite],
-                    ),
-                    (
-                        SearchIndex::Refunds,
-                        vec![Permission::RefundRead, Permission::RefundWrite],
-                    ),
-                    (
-                        SearchIndex::Disputes,
-                        vec![Permission::DisputeRead, Permission::DisputeWrite],
-                    ),
-                ]
-                .into_iter()
-                .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
-                .map(|i| i.0)
-                .collect();
+                let accessible_indexes: Vec<_> = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
+                    .map(|(i, _)| *i)
+                    .collect();
 
                 analytics::search::msearch_results(
                     &state.opensearch_client,
@@ -724,28 +708,11 @@ pub mod routes {
                         .change_context(UserErrors::InternalServerError)
                         .change_context(OpenSearchError::UnknownError)?;
                 let permissions = role_info.get_permissions_set();
-                let _ = vec![
-                    (
-                        SearchIndex::PaymentAttempts,
-                        vec![Permission::PaymentRead, Permission::PaymentWrite],
-                    ),
-                    (
-                        SearchIndex::PaymentIntents,
-                        vec![Permission::PaymentRead, Permission::PaymentWrite],
-                    ),
-                    (
-                        SearchIndex::Refunds,
-                        vec![Permission::RefundRead, Permission::RefundWrite],
-                    ),
-                    (
-                        SearchIndex::Disputes,
-                        vec![Permission::DisputeRead, Permission::DisputeWrite],
-                    ),
-                ]
-                .into_iter()
-                .filter(|(ind, _)| *ind == index)
-                .find(|i| i.1.iter().any(|p| permissions.contains(p)))
-                .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
+                let _ = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(ind, _)| *ind == index)
+                    .find(|i| i.1.iter().any(|p| permissions.contains(p)))
+                    .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
                 analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
