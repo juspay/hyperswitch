@@ -37,20 +37,17 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         Ok(_) => Ok(()),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                let message = format!(
-                    "customer [{}] not found for merchant [{}]",
-                    customer_id.get_string_repr(),
-                    merchant_id
-                );
-                Err(err)
-                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: message.clone(),
-                    })
-                    .attach_printable(message)
+                Err(err).change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "customer [{}] not found for merchant [{}]",
+                        customer_id.get_string_repr(),
+                        merchant_id
+                    ),
+                })
             } else {
                 Err(err)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("databaser error while finding customer")
+                    .attach_printable("database error while finding customer")
             }
         }
     }?;

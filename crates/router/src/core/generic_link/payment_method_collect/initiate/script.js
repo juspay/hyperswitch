@@ -3,7 +3,7 @@
 var widgets = null;
 var paymentMethodCollect = null;
 // @ts-ignore
-var pub_key = window.__PM_COLLECT_DETAILS.pub_key;
+var publishableKey = window.__PM_COLLECT_DETAILS.publishable_key;
 var hyper = null;
 
 /**
@@ -50,7 +50,7 @@ function initializeCollectSDK() {
   };
   // Instantiate
   // @ts-ignore
-  hyper = window.Hyper(pub_key, {
+  hyper = window.Hyper(publishableKey, {
     isPreloadEnabled: false,
   });
   widgets = hyper.widgets({

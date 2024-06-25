@@ -335,7 +335,7 @@ pub async fn payouts_create_core(
     )
     .await?;
 
-    if payout_data.payouts.confirm == Some(true) {
+    if let Some(true) = payout_data.payouts.confirm {
         payouts_core(
             &state,
             &merchant_account,

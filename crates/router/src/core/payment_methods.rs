@@ -262,10 +262,10 @@ pub async fn render_pm_collect_link(
                     ))?;
 
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    pub_key: merchant_account
+                    publishable_key: merchant_account
                         .publishable_key
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "pub_key",
+                            field_name: "publishable_key",
                         })?
                         .into(),
                     client_secret: link_data.client_secret.clone(),
@@ -277,7 +277,7 @@ pub async fn render_pm_collect_link(
                     enabled_payment_methods: link_data.enabled_payment_methods,
                 };
 
-                let serialized_css_content = "".to_string();
+                let serialized_css_content = String::new();
 
                 let serialized_js_content =
                     format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
@@ -286,7 +286,7 @@ pub async fn render_pm_collect_link(
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
                     sdk_url: default_config.sdk_url.clone(),
-                    html_meta_tags: "".to_string(),
+                    html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks::PaymentMethodCollect(generic_form_data),
@@ -305,7 +305,7 @@ pub async fn render_pm_collect_link(
                 status,
             };
 
-            let serialized_css_content = "".to_string();
+            let serialized_css_content = String::new();
 
             let serialized_js_content =
                 format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);

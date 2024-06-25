@@ -1018,7 +1018,7 @@ pub struct PaymentMethodCollectLinkRenderRequest {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodCollectLinkDetails {
-    pub pub_key: masking::Secret<String>,
+    pub publishable_key: masking::Secret<String>,
     pub client_secret: masking::Secret<String>,
     pub pm_collect_link_id: String,
     pub customer_id: id_type::CustomerId,

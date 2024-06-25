@@ -3,7 +3,7 @@
 var widgets = null;
 var payoutWidget = null;
 // @ts-ignore
-var pub_key = window.__PAYOUT_DETAILS.pub_key;
+var publishableKey = window.__PAYOUT_DETAILS.publishable_key;
 var hyper = null;
 
 /**
@@ -120,7 +120,7 @@ function initializePayoutSDK() {
   };
   // Instantiate
   // @ts-ignore
-  hyper = window.Hyper(pub_key, {
+  hyper = window.Hyper(publishableKey, {
     isPreloadEnabled: false,
   });
   widgets = hyper.widgets({

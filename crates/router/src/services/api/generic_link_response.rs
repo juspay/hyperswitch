@@ -40,7 +40,7 @@ pub fn build_generic_expired_link_html(
 
     tera.render("generic_expired_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render expired link HTML template")
+        .attach_printable("Failed to render expired link HTML template")
 }
 
 pub fn build_payout_link_html(
@@ -61,7 +61,7 @@ pub fn build_payout_link_html(
         .render("payout_link_styles", &context)
         .map(|css| format!("<style>{}</style>", css))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link's CSS template")?;
+        .attach_printable("Failed to render payout link's CSS template")?;
 
     // Insert dynamic context in JS
     let js_dynamic_context = "{{ payout_link_context }}";
@@ -75,7 +75,7 @@ pub fn build_payout_link_html(
         .render("payout_link_script", &context)
         .map(|js| format!("<script>{}</script>", js))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link's JS template")?;
+        .attach_printable("Failed to render payout link's JS template")?;
 
     // Build HTML
     let html_template =
@@ -93,7 +93,7 @@ pub fn build_payout_link_html(
 
     tera.render("payout_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link's HTML template")
+        .attach_printable("Failed to render payout link's HTML template")
 }
 
 pub fn build_pm_collect_link_html(
@@ -115,7 +115,7 @@ pub fn build_pm_collect_link_html(
         .render("pm_collect_link_styles", &context)
         .map(|css| format!("<style>{}</style>", css))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payment method collect link's CSS template")?;
+        .attach_printable("Failed to render payment method collect link's CSS template")?;
 
     // Insert dynamic context in JS
     let js_dynamic_context = "{{ collect_link_context }}";
@@ -130,7 +130,7 @@ pub fn build_pm_collect_link_html(
         .render("pm_collect_link_script", &context)
         .map(|js| format!("<script>{}</script>", js))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payment method collect link's JS template")?;
+        .attach_printable("Failed to render payment method collect link's JS template")?;
 
     // Build HTML
     let html_template =
@@ -149,7 +149,7 @@ pub fn build_pm_collect_link_html(
 
     tera.render("payment_method_collect_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payment method collect link's HTML template")
+        .attach_printable("Failed to render payment method collect link's HTML template")
 }
 
 pub fn build_payout_link_status_html(
@@ -170,7 +170,7 @@ pub fn build_payout_link_status_html(
         .render("payout_link_status_styles", &context)
         .map(|css| format!("<style>{}</style>", css))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link status CSS template")?;
+        .attach_printable("Failed to render payout link status CSS template")?;
 
     // Insert dynamic context in JS
     let js_dynamic_context = "{{ collect_link_status_context }}";
@@ -184,7 +184,7 @@ pub fn build_payout_link_status_html(
         .render("payout_link_status_script", &context)
         .map(|js| format!("<script>{}</script>", js))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link status JS template")?;
+        .attach_printable("Failed to render payout link status JS template")?;
 
     // Build HTML
     let html_template =
@@ -195,7 +195,7 @@ pub fn build_payout_link_status_html(
 
     tera.render("payout_status_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to render payout link status HTML template")
+        .attach_printable("Failed to render payout link status HTML template")
 }
 
 pub fn build_pm_collect_link_status_html(
@@ -217,9 +217,7 @@ pub fn build_pm_collect_link_status_html(
         .render("pm_collect_link_status_styles", &context)
         .map(|css| format!("<style>{}</style>", css))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            "Failed to render payment method collect link status CSS template"
-        })?;
+        .attach_printable("Failed to render payment method collect link status CSS template")?;
 
     // Insert dynamic context in JS
     let js_dynamic_context = "{{ collect_link_status_context }}";
@@ -233,9 +231,7 @@ pub fn build_pm_collect_link_status_html(
         .render("pm_collect_link_status_script", &context)
         .map(|js| format!("<script>{}</script>", js))
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            "Failed to render payment method collect link status JS template"
-        })?;
+        .attach_printable("Failed to render payment method collect link status JS template")?;
 
     // Build HTML
     let html_template =
@@ -247,7 +243,5 @@ pub fn build_pm_collect_link_status_html(
 
     tera.render("payment_method_collect_status_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            "Failed to render payment method collect link status HTML template"
-        })
+        .attach_printable("Failed to render payment method collect link status HTML template")
 }

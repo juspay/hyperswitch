@@ -20,9 +20,7 @@ impl GenericLinkNew {
             .and_then(|res: GenericLink| {
                 GenericLinkState::try_from(res)
                     .change_context(db_errors::DatabaseError::Others)
-                    .attach_printable(
-                        "failed to parse generic link data from DB for id - {link_id}",
-                    )
+                    .attach_printable("failed to parse generic link data from DB")
             })
     }
 
@@ -34,10 +32,8 @@ impl GenericLinkNew {
             .await
             .and_then(|res: GenericLink| {
                 PaymentMethodCollectLink::try_from(res)
-            .change_context(db_errors::DatabaseError::Others)
-            .attach_printable(
-                "failed to parse payment method collect link data from DB for id - {link_id}",
-            )
+                    .change_context(db_errors::DatabaseError::Others)
+                    .attach_printable("failed to parse payment method collect link data from DB")
             })
     }
 
@@ -47,7 +43,7 @@ impl GenericLinkNew {
             .and_then(|res: GenericLink| {
                 PayoutLink::try_from(res)
                     .change_context(db_errors::DatabaseError::Others)
-                    .attach_printable("failed to parse payout link data from DB for id - {link_id}")
+                    .attach_printable("failed to parse payout link data from DB")
             })
     }
 }
@@ -65,7 +61,7 @@ impl GenericLink {
         .and_then(|res: Self| {
             GenericLinkState::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
-                .attach_printable("failed to parse generic link data from DB for id - {link_id}")
+                .attach_printable("failed to parse generic link data from DB")
         })
     }
 
@@ -81,9 +77,7 @@ impl GenericLink {
         .and_then(|res: Self| {
             PaymentMethodCollectLink::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
-                .attach_printable(
-                    "failed to parse payment method collect link data from DB for id - {link_id}",
-                )
+                .attach_printable("failed to parse payment method collect link data from DB")
         })
     }
 
@@ -99,9 +93,7 @@ impl GenericLink {
         .and_then(|res: Self| {
             PayoutLink::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
-                .attach_printable(
-                    "failed to parse payment method collect link data from DB for id - {link_id}",
-                )
+                .attach_printable("failed to parse payout link data from DB")
         })
     }
 }
@@ -175,17 +167,21 @@ impl TryFrom<GenericLink> for PaymentMethodCollectLink {
                     _ => Err(report!(errors::ParsingError::EnumParseFailure(
                         "GenericLinkStatus"
                     )))
-                    .attach_printable(format!(
-                        "Invalid status for PaymentMethodCollectLink - {:?}",
-                        db_val.link_status
-                    )),
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Invalid status for PaymentMethodCollectLink - {:?}",
+                            db_val.link_status
+                        )
+                    }),
                 }?;
                 (link_data, link_status)
             }
-            _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable(format!(
-                "Invalid link_type for PaymentMethodCollectLink - {}",
-                db_val.link_type
-            ))?,
+            _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable_lazy(|| {
+                format!(
+                    "Invalid link_type for PaymentMethodCollectLink - {}",
+                    db_val.link_type
+                )
+            })?,
         };
 
         Ok(Self {
@@ -215,17 +211,15 @@ impl TryFrom<GenericLink> for PayoutLink {
                     _ => Err(report!(errors::ParsingError::EnumParseFailure(
                         "GenericLinkStatus"
                     )))
-                    .attach_printable(format!(
-                        "Invalid status for PayoutLink - {:?}",
-                        db_val.link_status
-                    )),
+                    .attach_printable_lazy(|| {
+                        format!("Invalid status for PayoutLink - {:?}", db_val.link_status)
+                    }),
                 }?;
                 (link_data, link_status)
             }
-            _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable(format!(
-                "Invalid link_type for PayoutLink - {}",
-                db_val.link_type
-            ))?,
+            _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable_lazy(|| {
+                format!("Invalid link_type for PayoutLink - {}", db_val.link_type)
+            })?,
         };
 
         Ok(Self {

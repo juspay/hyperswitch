@@ -712,7 +712,7 @@ pub struct PayoutLinkInitiateRequest {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PayoutLinkDetails {
-    pub pub_key: Secret<String>,
+    pub publishable_key: Secret<String>,
     pub client_secret: Secret<String>,
     pub payout_link_id: String,
     pub payout_id: String,

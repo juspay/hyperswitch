@@ -118,10 +118,9 @@ pub async fn initiate_payout_link(
                         payout_link.primary_reference, payout_link.link_id
                     ),
                 })
-                .attach_printable(format!(
-                    "customer [{}] not found",
-                    payout_link.primary_reference
-                ))?;
+                .attach_printable_lazy(|| {
+                    format!("customer [{}] not found", payout_link.primary_reference)
+                })?;
             let enabled_payout_methods =
                 filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
@@ -147,10 +146,10 @@ pub async fn initiate_payout_link(
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
 
             let js_data = payouts::PayoutLinkDetails {
-                pub_key: merchant_account
+                publishable_key: merchant_account
                     .publishable_key
                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "pub_key",
+                        field_name: "publishable_key",
                     })?
                     .into(),
                 client_secret: link_data.client_secret.clone(),
@@ -165,7 +164,7 @@ pub async fn initiate_payout_link(
                 currency: payout.destination_currency,
             };
 
-            let serialized_css_content = "".to_string();
+            let serialized_css_content = String::new();
 
             let serialized_js_content =
                 format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
@@ -174,7 +173,7 @@ pub async fn initiate_payout_link(
                 js_data: serialized_js_content,
                 css_data: serialized_css_content,
                 sdk_url: default_config.sdk_url.clone(),
-                html_meta_tags: "".to_string(),
+                html_meta_tags: String::new(),
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks::PayoutLink(generic_form_data),
@@ -195,7 +194,7 @@ pub async fn initiate_payout_link(
                 ui_config: ui_config_data,
             };
 
-            let serialized_css_content = "".to_string();
+            let serialized_css_content = String::new();
 
             let serialized_js_content =
                 format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
@@ -216,10 +215,7 @@ where
 {
     serde_json::to_string(data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "Failed to serialize {}",
-            std::any::type_name::<D>()
-        ))
+        .attach_printable_lazy(|| format!("Failed to serialize {}", std::any::type_name::<D>()))
 }
 
 #[cfg(feature = "payouts")]
