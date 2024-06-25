@@ -1,7 +1,7 @@
+pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-pub mod opensearch;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;

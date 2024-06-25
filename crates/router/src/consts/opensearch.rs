@@ -1,5 +1,6 @@
-use crate::services::authorization::permissions::Permission;
 use api_models::analytics::search::SearchIndex;
+
+use crate::services::authorization::permissions::Permission;
 
 pub const OPENSEARCH_INDEX_PERMISSIONS: &[(SearchIndex, &[Permission])] = &[
     (
