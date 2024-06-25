@@ -79,6 +79,8 @@ pub enum OpenSearchError {
     DeserialisationError,
     #[error("Opensearch index access not present error: {0:?}")]
     IndexAccessNotPermittedError(SearchIndex),
+    #[error("Opensearch unknown error")]
+    UnknownError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -128,6 +130,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                     None,
                 ))
             }
+            Self::UnknownError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                4,
+                "Unknown error",
+                None,
+            )),
         }
     }
 }

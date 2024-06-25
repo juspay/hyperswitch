@@ -20,13 +20,13 @@ pub mod routes {
     use error_stack::ResultExt;
 
     use crate::{
-        core::api_locking,
+        core::{api_locking, errors::user::UserErrors},
         db::user::UserInterface,
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthenticationData, UserWithPermissions},
-            authorization::permissions::Permission,
+            authentication::{self as auth, AuthenticationData, UserFromToken},
+            authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
         types::domain::UserEmail,
@@ -653,7 +653,13 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: UserWithPermissions, req, _| async move {
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info = RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
                 let accessible_indexes: Vec<_> = vec![
                     (
                         SearchIndex::PaymentAttempts,
@@ -673,7 +679,7 @@ pub mod routes {
                     ),
                 ]
                 .into_iter()
-                .filter(|(_, perm)| perm.iter().any(|p| auth.permissions.contains(p)))
+                .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
                 .map(|i| i.0)
                 .collect();
 
@@ -709,7 +715,13 @@ pub mod routes {
             state.clone(),
             &req,
             indexed_req,
-            |state, auth: UserWithPermissions, req, _| async move {
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info = RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
                 let _ = vec![
                     (
                         SearchIndex::PaymentAttempts,
@@ -730,7 +742,7 @@ pub mod routes {
                 ]
                 .into_iter()
                 .filter(|(ind, _)| *ind == index)
-                .find(|i| i.1.iter().any(|p| auth.permissions.contains(p)))
+                .find(|i| i.1.iter().any(|p| permissions.contains(p)))
                 .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
                 analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
                     .await
