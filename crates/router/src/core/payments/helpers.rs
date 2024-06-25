@@ -46,6 +46,7 @@ use crate::{
         payment_methods::{self, cards, vault},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
@@ -2038,14 +2039,29 @@ pub async fn store_in_vault_and_generate_ppmt(
             payment_method,
         ))
     });
+
+    let db = &*state.store;
+
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        payment_intent.profile_id.as_ref(),
+        &payment_intent.merchant_id,
+    )
+    .await?;
+
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-        key_for_hyperswitch_token
-            .insert(
-                Some(payment_intent.created_at),
-                storage::PaymentTokenData::temporary_generic(router_token),
-                state,
-            )
-            .await?;
+        business_profile
+            .async_map(|b_profile| async move {
+                key_for_hyperswitch_token
+                    .insert(
+                        b_profile.intent_fulfillment_time,
+                        storage::PaymentTokenData::temporary_generic(router_token),
+                        state,
+                    )
+                    .await
+            })
+            .await
+            .transpose()?;
     };
     Ok(parent_payment_method_token)
 }
