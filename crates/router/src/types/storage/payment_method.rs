@@ -83,7 +83,7 @@ pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
     pub hyperswitch_token_data: PaymentTokenData,
     #[cfg(feature = "payouts")]
-    pub bank_transfer_details: Option<api::BankPayout>,
+    pub bank_transfer_details: Option<api::BankData>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

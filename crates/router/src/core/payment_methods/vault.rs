@@ -732,6 +732,184 @@ impl Vaultable for api::BankPayout {
 }
 
 #[cfg(feature = "payouts")]
+impl Vaultable for api::BankData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let bank_sensitive_data = match &self.bank_account_data {
+            api::BankAccountData::Ach {
+                bank_routing_number,
+                bank_account_number,
+            } => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_account_number.clone()),
+                bank_routing_number: Some(bank_routing_number.to_owned()),
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+            },
+            api::BankAccountData::Bacs {
+                bank_sort_code,
+                bank_account_number,
+            } => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_account_number.to_owned()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: Some(bank_sort_code.to_owned()),
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+            },
+            api::BankAccountData::Sepa { iban, bic } => TokenizedBankSensitiveValues {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: bic.to_owned(),
+                bank_sort_code: None,
+                iban: Some(iban.to_owned()),
+                pix_key: None,
+                tax_id: None,
+            },
+            api::BankAccountData::Pix {
+                pix_key,
+                tax_id,
+                bank_account_number,
+            } => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_account_number.to_owned()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: Some(pix_key.to_owned()),
+                tax_id: tax_id.to_owned(),
+            },
+        };
+
+        bank_sensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode data - bank_sensitive_data")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let bank_insensitive_data = match self.bank_account_data {
+            api::BankAccountData::Ach { .. } => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: self.bank_name.to_owned(),
+                bank_country_code: self.bank_country_code.to_owned(),
+                bank_city: self.bank_city.to_owned(),
+                bank_branch: None,
+            },
+            api::BankAccountData::Bacs { .. } => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: self.bank_name.to_owned(),
+                bank_country_code: self.bank_country_code.to_owned(),
+                bank_city: self.bank_city.to_owned(),
+                bank_branch: None,
+            },
+            api::BankAccountData::Sepa { .. } => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: self.bank_name.to_owned(),
+                bank_country_code: self.bank_country_code.to_owned(),
+                bank_city: self.bank_city.to_owned(),
+                bank_branch: None,
+            },
+            api::BankAccountData::Pix { .. } => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: self.bank_name.to_owned(),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: self.bank_branch.to_owned(),
+            },
+        };
+
+        bank_insensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data bank_insensitive_data")
+    }
+
+    fn from_values(
+        bank_sensitive_data: String,
+        bank_insensitive_data: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let bank_sensitive_data: TokenizedBankSensitiveValues = bank_sensitive_data
+            .parse_struct("TokenizedBankValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank data bank_sensitive_data")?;
+
+        let bank_insensitive_data: TokenizedBankInsensitiveValues = bank_insensitive_data
+            .parse_struct("TokenizedBankValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data bank_insensitive_data")?;
+
+        let bank = match (
+            // ACH + BACS + PIX
+            bank_sensitive_data.bank_account_number.to_owned(),
+            bank_sensitive_data.bank_routing_number.to_owned(), // ACH
+            bank_sensitive_data.bank_sort_code.to_owned(),      // BACS
+            // SEPA
+            bank_sensitive_data.iban.to_owned(),
+            bank_sensitive_data.bic,
+            // PIX
+            bank_sensitive_data.pix_key,
+            bank_sensitive_data.tax_id,
+        ) {
+            (Some(ban), Some(brn), None, None, None, None, None) => Self {
+                bank_account_data: api::BankAccountData::Ach {
+                    bank_account_number: ban,
+                    bank_routing_number: brn,
+                },
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+                bank_branch: None,
+            },
+            (Some(ban), None, Some(bsc), None, None, None, None) => Self {
+                bank_account_data: api::BankAccountData::Bacs {
+                    bank_account_number: ban,
+                    bank_sort_code: bsc,
+                },
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+                bank_branch: None,
+            },
+            (None, None, None, Some(iban), bic, None, None) => Self {
+                bank_account_data: api::BankAccountData::Sepa { iban, bic },
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+                bank_branch: None,
+            },
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id) => Self {
+                bank_city: None,
+                bank_country_code: None,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_account_data: api::BankAccountData::Pix {
+                    pix_key,
+                    tax_id,
+                    bank_account_number: ban,
+                },
+            },
+            _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: bank_insensitive_data.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank, supp_data))
+    }
+}
+
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPayoutMethod {
@@ -794,7 +972,7 @@ impl Vaultable for api::PayoutMethodData {
                 Ok((Self::Card(card), supp_data))
             }
             (VaultPayoutMethod::Bank(mvalue1), VaultPayoutMethod::Bank(mvalue2)) => {
-                let (bank, supp_data) = api::BankPayout::from_values(mvalue1, mvalue2)?;
+                let (bank, supp_data) = api::BankData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Bank(bank), supp_data))
             }
             (VaultPayoutMethod::Wallet(mvalue1), VaultPayoutMethod::Wallet(mvalue2)) => {

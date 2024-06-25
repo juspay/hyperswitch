@@ -1,6 +1,6 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
-use api_models::{enums, payments, webhooks};
+use api_models::{enums, payment_methods, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{ext_traits::Encode, id_type, pii};
 use error_stack::{report, ResultExt};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 #[cfg(feature = "payouts")]
-use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
+use crate::{connector::utils::PayoutsData, utils::OptionExt};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
@@ -4655,28 +4655,34 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                 connector: "Adyen",
             })?,
             PayoutMethodData::Bank(bd) => {
-                let bank_details = match bd {
-                    payouts::BankPayout::Sepa(b) => PayoutBankDetails {
-                        bank_name: b.bank_name,
-                        country_code: b.bank_country_code,
-                        bank_city: b.bank_city,
+                let bank_details = match &bd.bank_account_data {
+                    payment_methods::BankAccountData::Sepa { bic, iban } => PayoutBankDetails {
+                        bank_name: bd.bank_name.clone(),
+                        country_code: bd.bank_country_code,
+                        bank_city: bd.bank_city.clone(),
                         owner_name,
-                        bic: b.bic,
-                        iban: b.iban,
+                        bic: bic.clone(),
+                        iban: iban.clone(),
                         tax_id: None,
                     },
-                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyen",
-                    })?,
-                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyen",
-                    })?,
-                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyen",
-                    })?,
+                    payment_methods::BankAccountData::Ach { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via ACH is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
+                    payment_methods::BankAccountData::Bacs { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Bacs is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
+                    payment_methods::BankAccountData::Pix { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Pix is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;

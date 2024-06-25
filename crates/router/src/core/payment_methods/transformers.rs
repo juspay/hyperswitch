@@ -310,7 +310,7 @@ pub async fn mk_add_locker_request_hs<'a>(
 
 #[cfg(feature = "payouts")]
 pub fn mk_add_bank_response_hs(
-    bank: api::BankPayout,
+    bank: api::BankData,
     bank_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
