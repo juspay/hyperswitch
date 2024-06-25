@@ -102,7 +102,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         state: &SessionState,
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>> {
+        is_retry_payment: bool,
+        should_continue_payment: bool,
+    ) -> RouterResult<(Option<String>, bool)> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
             let request = self.request.clone();
@@ -112,10 +114,12 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 &payments::TokenizationAction::TokenizeInConnector,
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
+                is_retry_payment,
+                should_continue_payment,
             )
             .await
         } else {
-            Ok(None)
+            Ok((None, should_continue_payment))
         }
     }
 

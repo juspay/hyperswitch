@@ -767,7 +767,9 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     tokenization_action: &payments::TokenizationAction,
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
-) -> RouterResult<Option<String>> {
+    is_retry_payment: bool,
+    should_continue_payment: bool,
+) -> RouterResult<(Option<String>, bool)> {
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
         | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
@@ -810,19 +812,27 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 ]),
             );
 
-            let pm_token = match resp.response {
+            let (pm_token, should_continue_further) = match resp.response {
                 Ok(response) => match response {
-                    types::PaymentsResponseData::TokenizationResponse { token } => Some(token),
-                    _ => None,
+                    types::PaymentsResponseData::TokenizationResponse { token } => {
+                        (Some(token), should_continue_payment)
+                    }
+                    _ => (None, should_continue_payment),
                 },
                 Err(err) => {
-                    logger::debug!(payment_method_tokenization_error=?err);
-                    None
+                    if is_retry_payment {
+                        router_data.response = Err(err);
+
+                        (None, false)
+                    } else {
+                        logger::debug!(payment_method_tokenization_error=?err);
+                        (None, should_continue_payment)
+                    }
                 }
             };
-            Ok(pm_token)
+            Ok((pm_token, should_continue_further))
         }
-        _ => Ok(None),
+        _ => Ok((None, should_continue_payment)),
     }
 }
 

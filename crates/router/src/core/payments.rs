@@ -302,6 +302,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -373,6 +374,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -1393,6 +1395,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
+    is_retry_payment: bool,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -1475,7 +1478,7 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -1525,8 +1528,14 @@ where
         _ => (),
     };
 
-    let pm_token = router_data
-        .add_payment_method_token(state, &connector, &tokenization_action)
+    let (pm_token, mut should_continue_further) = router_data
+        .add_payment_method_token(
+            state,
+            &connector,
+            &tokenization_action,
+            is_retry_payment,
+            should_continue_further,
+        )
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(
