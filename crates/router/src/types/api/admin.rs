@@ -159,7 +159,8 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             intent_fulfillment_time: request
                 .intent_fulfillment_time
                 .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time),
+                .or(merchant_account.intent_fulfillment_time)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
             frm_routing_algorithm: request
                 .frm_routing_algorithm
                 .or(merchant_account.frm_routing_algorithm),
