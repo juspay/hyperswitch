@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
@@ -421,10 +421,11 @@ impl ParentPaymentMethodToken {
     }
     pub async fn insert(
         &self,
-        fulfillment_time: Option<i64>,
+        fulfillment_time: i64,
         token: PaymentTokenData,
         state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        println!("sahkal token{:?}", fulfillment_time);
         let token_json_str = token
             .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -435,11 +436,7 @@ impl ParentPaymentMethodToken {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         redis_conn
-            .set_key_with_expiry(
-                &self.key_for_token,
-                token_json_str,
-                fulfillment_time.unwrap_or(TOKEN_TTL),
-            )
+            .set_key_with_expiry(&self.key_for_token, token_json_str, fulfillment_time)
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)

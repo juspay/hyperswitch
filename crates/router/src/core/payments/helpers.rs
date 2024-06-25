@@ -1884,6 +1884,7 @@ pub async fn retrieve_payment_token_data(
         payment_method.get_required_value("payment_method")?
     );
 
+    println!("sahkal key{:?}", key);
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key)
         .await
@@ -2049,19 +2050,22 @@ pub async fn store_in_vault_and_generate_ppmt(
     )
     .await?;
 
+    let intent_fulfillment_time = business_profile
+        .map(|b_profile| {
+            b_profile
+                .intent_fulfillment_time
+                .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME)
+        })
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-        business_profile
-            .async_map(|b_profile| async move {
-                key_for_hyperswitch_token
-                    .insert(
-                        b_profile.intent_fulfillment_time,
-                        storage::PaymentTokenData::temporary_generic(router_token),
-                        state,
-                    )
-                    .await
-            })
-            .await
-            .transpose()?;
+        key_for_hyperswitch_token
+            .insert(
+                intent_fulfillment_time,
+                storage::PaymentTokenData::temporary_generic(router_token),
+                state,
+            )
+            .await?;
     };
     Ok(parent_payment_method_token)
 }

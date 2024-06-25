@@ -3672,22 +3672,25 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        business_profile
+        let intent_fulfillment_time = business_profile
             .as_ref()
-            .async_map(|b_profile| async {
-                ParentPaymentMethodToken::create_key_for_token((
-                    &parent_payment_method_token,
-                    pma.payment_method,
-                ))
-                .insert(
-                    b_profile.intent_fulfillment_time,
-                    payment_method_retrieval_context.hyperswitch_token_data,
-                    state,
-                )
-                .await
+            .map(|b_profile| {
+                b_profile
+                    .intent_fulfillment_time
+                    .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME)
             })
-            .await
-            .transpose()?;
+            .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+        ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            pma.payment_method,
+        ))
+        .insert(
+            intent_fulfillment_time.clone(),
+            payment_method_retrieval_context.hyperswitch_token_data,
+            state,
+        )
+        .await?;
 
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
@@ -3703,21 +3706,9 @@ pub async fn list_customer_payment_method(
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
 
-                business_profile
-                    .as_ref()
-                    .async_map(|b_profile| async {
-                        redis_conn
-                            .set_key_with_expiry(
-                                &key,
-                                pm_metadata.1,
-                                b_profile
-                                    .intent_fulfillment_time
-                                    .unwrap_or(consts::TOKEN_TTL),
-                            )
-                            .await
-                    })
+                redis_conn
+                    .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
                     .await
-                    .transpose()
                     .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to add data in redis")?;
