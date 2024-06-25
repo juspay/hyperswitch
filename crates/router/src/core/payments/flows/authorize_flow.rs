@@ -246,6 +246,20 @@ pub trait RouterDataAuthorize {
 
 impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
+        if let hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(google_pay_data),
+        ) = &self.request.payment_method_data
+        {
+            if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
+                // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated or assurance_details.account_verified is false
+                if !assurance_details.card_holder_authenticated
+                    || !assurance_details.account_verified
+                {
+                    logger::info!("Googlepay transaction stepped up to 3DS");
+                    self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
+                }
+            }
+        }
         if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
         {

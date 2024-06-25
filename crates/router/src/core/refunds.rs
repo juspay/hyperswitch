@@ -447,7 +447,7 @@ pub async fn sync_refund_with_gateway(
         &state.conf.connectors,
         &connector_id,
         api::GetToken::Connector,
-        payment_attempt.connector.clone(),
+        payment_attempt.merchant_connector_id.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
