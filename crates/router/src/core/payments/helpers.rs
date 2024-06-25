@@ -4497,6 +4497,22 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     }
 }
 
+// This function validates the intent fulfillment time expiry set by the merchant in the request
+pub fn validate_intent_fulfillment_expiry(
+    intent_fulfillment_time: u32,
+) -> Result<(), errors::ApiErrorResponse> {
+    if !(consts::MIN_INTENT_FULFILLMENT_EXPIRY..=consts::MAX_INTENT_FULFILLMENT_EXPIRY)
+        .contains(&intent_fulfillment_time)
+    {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "intent_fulfillment_time should be between 60(1 min) to 1800(30 mins)."
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
 pub fn add_connector_response_to_additional_payment_data(
     additional_payment_data: api_models::payments::AdditionalPaymentData,
     connector_response_payment_method_data: AdditionalPaymentMethodConnectorResponse,
