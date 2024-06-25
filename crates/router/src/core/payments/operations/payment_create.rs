@@ -1046,23 +1046,24 @@ impl PaymentCreate {
 
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let key = key_store.key.get_inner().peek();
-        let billing_address_details = if billing_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
-            Some(raw_billing_address_details)
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "billing_address_details",
-                })
-                .attach_printable("Unable to convert billing address details to a value")?
-                .map(Secret::new)
-                .async_lift(|inner| encrypt_optional(inner, key))
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt guest customer details")?
-        } else {
-            None
-        };
+        let billing_address_details =
+            if billing_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
+                Some(raw_billing_address_details)
+                    .as_ref()
+                    .map(Encode::encode_to_value)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "billing_address_details",
+                    })
+                    .attach_printable("Unable to convert billing address details to a value")?
+                    .map(Secret::new)
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt guest customer details")?
+            } else {
+                None
+            };
 
         // Derivation of directly supplied Shipping Address data in our Payment Create Request
         let mut raw_shipping_details = AddressDetails::default();
@@ -1083,23 +1084,24 @@ impl PaymentCreate {
 
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let key = key_store.key.get_inner().peek();
-        let shipping_address_details = if shipping_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
-            Some(raw_shipping_details)
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "shipping_address_details",
-                })
-                .attach_printable("Unable to convert shipping address details to a value")?
-                .map(Secret::new)
-                .async_lift(|inner| encrypt_optional(inner, key))
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt shipping address details")?
-        } else {
-            None
-        };
+        let shipping_address_details =
+            if shipping_details_present.is_some_and(|d| d.is_some_and(|d| d)) {
+                Some(raw_shipping_details)
+                    .as_ref()
+                    .map(Encode::encode_to_value)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "shipping_address_details",
+                    })
+                    .attach_printable("Unable to convert shipping address details to a value")?
+                    .map(Secret::new)
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt shipping address details")?
+            } else {
+                None
+            };
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
