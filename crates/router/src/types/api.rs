@@ -379,7 +379,7 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(connector::Paypal::new())),
                 enums::Connector::Trustpay => Ok(Box::new(connector::Trustpay::new())),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
-                enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
+                enums::Connector::Volt => Ok(Box::new(connector::Volt::new())),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Zsl => Ok(Box::new(&connector::Zsl)),
                 enums::Connector::Signifyd
