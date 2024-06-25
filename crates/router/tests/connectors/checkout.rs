@@ -11,12 +11,12 @@ impl ConnectorActions for CheckoutTest {}
 impl utils::Connector for CheckoutTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Checkout;
-        types::api::ConnectorData {
-            connector: Box::new(&Checkout),
-            connector_name: types::Connector::Checkout,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Checkout),
+            types::Connector::Checkout,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

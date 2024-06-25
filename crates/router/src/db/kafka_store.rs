@@ -2751,9 +2751,20 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         authentication: storage::AuthenticationNew,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
+        let auth = self
+            .diesel_store
             .insert_authentication(authentication)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_authentication(&auth, None, self.tenant_id.clone())
             .await
+        {
+            logger::error!(message="Failed to log analytics event for authentication {auth:?}", error_message=?er)
+        }
+
+        Ok(auth)
     }
 
     async fn find_authentication_by_merchant_id_authentication_id(
@@ -2784,12 +2795,23 @@ impl AuthenticationInterface for KafkaStore {
         previous_state: storage::Authentication,
         authentication_update: storage::AuthenticationUpdate,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
+        let auth = self
+            .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
-                previous_state,
+                previous_state.clone(),
                 authentication_update,
             )
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_authentication(&auth, Some(previous_state.clone()), self.tenant_id.clone())
             .await
+        {
+            logger::error!(message="Failed to log analytics event for authentication {auth:?}", error_message=?er)
+        }
+
+        Ok(auth)
     }
 }
 

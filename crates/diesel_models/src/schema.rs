@@ -399,6 +399,7 @@ diesel::table! {
         request -> Nullable<Bytea>,
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 

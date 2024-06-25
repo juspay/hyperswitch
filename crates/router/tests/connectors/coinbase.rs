@@ -13,12 +13,12 @@ impl ConnectorActions for CoinbaseTest {}
 impl utils::Connector for CoinbaseTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Coinbase;
-        api::ConnectorData {
-            connector: Box::new(&Coinbase),
-            connector_name: types::Connector::Coinbase,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Coinbase),
+            types::Connector::Coinbase,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

@@ -493,6 +493,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
         api_models::payments::ExtendedCardInfoResponse,
+        api_models::payments::GooglePayAssuranceDetails,
         api_models::routing::RoutingConfigRequest,
         api_models::routing::RoutingDictionaryRecord,
         api_models::routing::RoutingKind,

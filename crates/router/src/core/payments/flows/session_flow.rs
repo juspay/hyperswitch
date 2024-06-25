@@ -706,8 +706,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                 create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::Connector => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,

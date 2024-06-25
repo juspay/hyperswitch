@@ -598,6 +598,7 @@ dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
+authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"

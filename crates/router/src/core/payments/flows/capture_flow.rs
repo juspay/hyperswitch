@@ -53,8 +53,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
@@ -92,8 +91,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Capture,
                     types::PaymentsCaptureData,
                     types::PaymentsResponseData,
