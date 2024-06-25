@@ -3721,13 +3721,6 @@ pub async fn list_customer_payment_method(
                     .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to add data in redis")?;
-                // redis_conn
-                //     .set_key_with_expiry(
-                //         &key,
-                //         pm_metadata.1,
-                //         b_profile.intent_fulfillment_time.unwrap_or(consts::TOKEN_TTL)
-                //     )
-                //     .await
             }
         }
     }
@@ -3752,29 +3745,6 @@ pub async fn list_customer_payment_method(
         })
         .await
         .transpose()?;
-
-    // let profile_id = payment_intent
-    //     .as_ref()
-    //     .async_map(|payment_intent| async {
-    //         crate::core::utils::get_profile_id_from_business_details(
-    //             payment_intent.business_country,
-    //             payment_intent.business_label.as_ref(),
-    //             &merchant_account,
-    //             payment_intent.profile_id.as_ref(),
-    //             db,
-    //             false,
-    //         )
-    //         .await
-    //         .attach_printable("Could not find profile id from business details")
-    //     })
-    //     .await
-    //     .transpose()?;
-    // let business_profile = core_utils::validate_and_get_business_profile(
-    //     db,
-    //     profile_id.as_ref(),
-    //     &merchant_account.merchant_id,
-    // )
-    // .await?;
 
     if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
         .zip(payment_intent)
