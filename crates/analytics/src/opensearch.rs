@@ -130,12 +130,9 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                     None,
                 ))
             }
-            Self::UnknownError => ApiErrorResponse::InternalServerError(ApiError::new(
-                "IR",
-                4,
-                "Unknown error",
-                None,
-            )),
+            Self::UnknownError => {
+                ApiErrorResponse::InternalServerError(ApiError::new("IR", 4, "Unknown error", None))
+            }
         }
     }
 }

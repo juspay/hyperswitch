@@ -655,10 +655,11 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
-                .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
                 let permissions = role_info.get_permissions_set();
                 let accessible_indexes: Vec<_> = vec![
                     (
@@ -717,10 +718,11 @@ pub mod routes {
             indexed_req,
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
                 let permissions = role_info.get_permissions_set();
                 let _ = vec![
                     (
