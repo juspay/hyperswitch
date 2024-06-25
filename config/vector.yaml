@@ -157,3 +157,4 @@ sinks:
       - "sdk_transformed"
     bootstrap_servers: kafka0:29092
     topic: hyper-sdk-logs
+    key_field: "{{ .merchant_id }}{{ .payment_id }}"
