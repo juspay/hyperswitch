@@ -512,8 +512,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         expiry -> Timestamp,
         link_data -> Jsonb,
-        #[max_length = 256]
-        link_status -> Varchar,
+        link_status -> Jsonb,
         link_type -> GenericLinkType,
         url -> Text,
         return_url -> Nullable<Text>,

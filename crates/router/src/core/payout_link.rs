@@ -56,7 +56,7 @@ pub async fn initiate_payout_link(
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
-    let status = payout_link.link_status;
+    let status = payout_link.link_status.clone();
     let link_data = payout_link.link_data.clone();
     let default_config = &state.conf.generic_link.payout_link;
     let default_ui_config = default_config.ui_config.clone();
@@ -72,9 +72,9 @@ pub async fn initiate_payout_link(
             .clone()
             .unwrap_or(default_ui_config.theme.clone()),
     };
-    match (has_expired, status) {
+    match (has_expired, &status) {
         // Send back generic expired page
-        (true, _) | (_, link_utils::PayoutLinkStatus::Invalidated) => {
+        (true, _) | (_, &link_utils::PayoutLinkStatus::Invalidated) => {
             let expired_link_data = services::GenericExpiredLinkData {
                 title: "Payout Expired".to_string(),
                 message: "This payout link has expired.".to_string(),

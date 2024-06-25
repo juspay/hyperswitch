@@ -8,7 +8,6 @@ use diesel::{
     deserialize,
     deserialize::FromSql,
     serialize::{Output, ToSql},
-    sql_types,
     sql_types::Jsonb,
     AsExpression, FromSqlRow,
 };
@@ -17,22 +16,13 @@ use masking::Secret;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::{errors::ParsingError, ext_traits::Encode, id_type, types::MinorUnit};
+use crate::{errors::ParsingError, id_type, types::MinorUnit};
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::VariantNames,
-    FromSqlRow,
-    AsExpression,
+    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
-#[diesel(sql_type = sql_types::Text)]
+#[diesel(sql_type = Jsonb)]
 /// Link status enum
 pub enum GenericLinkStatus {
     /// Status variants for payment method collect link
@@ -47,43 +37,13 @@ impl Default for GenericLinkStatus {
     }
 }
 
-impl<DB: Backend> FromSql<sql_types::Text, DB> for GenericLinkStatus
-where
-    String: FromSql<sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_str(&value)?)
-    }
-}
-
-impl ToSql<sql_types::Text, diesel::pg::Pg> for GenericLinkStatus
-where
-    String: ToSql<sql_types::Text, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = self.encode_to_string_of_json()?;
-
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
-}
+crate::impl_to_sql_from_sql_json!(GenericLinkStatus);
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    strum::Display,
-    serde::Serialize,
-    strum::VariantNames,
-    ToSchema,
+    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
+#[diesel(sql_type = Jsonb)]
 /// Status variants for payment method collect links
 pub enum PaymentMethodCollectStatus {
     /// Link was initialized
@@ -94,21 +54,45 @@ pub enum PaymentMethodCollectStatus {
     Submitted,
 }
 
+impl<DB: Backend> FromSql<Jsonb, DB> for PaymentMethodCollectStatus
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        let generic_status: GenericLinkStatus = serde_json::from_value(value)?;
+        match generic_status {
+            GenericLinkStatus::PaymentMethodCollect(status) => Ok(status),
+            GenericLinkStatus::PayoutLink(_) => Err(report!(ParsingError::EnumParseFailure(
+                "PaymentMethodCollectStatus"
+            )))
+            .attach_printable("Invalid status for PaymentMethodCollect")?,
+        }
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for PaymentMethodCollectStatus
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    // This wraps PaymentMethodCollectStatus with GenericLinkStatus
+    // Required for storing the status in required format in DB (GenericLinkStatus)
+    // This type is used in PaymentMethodCollectLink (a variant of GenericLink, used in the application for avoiding conversion of data and status)
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(GenericLinkStatus::PaymentMethodCollect(self.clone()))?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    strum::Display,
-    serde::Serialize,
-    strum::VariantNames,
-    FromSqlRow,
-    AsExpression,
+    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[diesel(sql_type = sql_types::Text)]
+#[diesel(sql_type = Jsonb)]
 /// Status variants for payout links
 pub enum PayoutLinkStatus {
     /// Link was initialized
@@ -119,13 +103,13 @@ pub enum PayoutLinkStatus {
     Submitted,
 }
 
-impl<DB: Backend> FromSql<sql_types::Text, DB> for PayoutLinkStatus
+impl<DB: Backend> FromSql<Jsonb, DB> for PayoutLinkStatus
 where
-    String: FromSql<sql_types::Text, DB>,
+    serde_json::Value: FromSql<Jsonb, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
-        let generic_status: GenericLinkStatus = serde_json::from_str(&value)?;
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        let generic_status: GenericLinkStatus = serde_json::from_value(value)?;
         match generic_status {
             GenericLinkStatus::PayoutLink(status) => Ok(status),
             GenericLinkStatus::PaymentMethodCollect(_) => {
@@ -136,20 +120,20 @@ where
     }
 }
 
-impl ToSql<sql_types::Text, diesel::pg::Pg> for PayoutLinkStatus
+impl ToSql<Jsonb, diesel::pg::Pg> for PayoutLinkStatus
 where
-    String: ToSql<sql_types::Text, diesel::pg::Pg>,
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {
     // This wraps PayoutLinkStatus with GenericLinkStatus
     // Required for storing the status in required format in DB (GenericLinkStatus)
     // This type is used in PayoutLink (a variant of GenericLink, used in the application for avoiding conversion of data and status)
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = GenericLinkStatus::PayoutLink(*self).encode_to_string_of_json()?;
+        let value = serde_json::to_value(GenericLinkStatus::PayoutLink(self.clone()))?;
 
         // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
         // please refer to the diesel migration blog:
         // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
     }
 }
 

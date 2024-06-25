@@ -11,7 +11,7 @@ CREATE TABLE generic_link (
   last_modified_at timestamp NOT NULL DEFAULT NOW():: timestamp,
   expiry timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '15 minutes'):: timestamp,
   link_data JSONB NOT NULL,
-  link_status VARCHAR (256) NOT NULL,
+  link_status JSONB NOT NULL,
   link_type "GenericLinkType" NOT NULL,
   url TEXT NOT NULL,
   return_url TEXT NULL
