@@ -6,7 +6,6 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    pii::Email,
     types::MinorUnit,
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
@@ -633,20 +632,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer.map(|customer| CustomerData {
-            name: customer.name.map(|name| name.into_inner()).clone(),
-            email: customer.email.map(Email::from).clone(),
-            phone: customer.phone.map(|phone| phone.into_inner()).clone(),
-            phone_country_code: customer.phone_country_code.clone(),
-        });
+        let raw_customer_details = customer.map(|customer| 
+            CustomerData::try_from(customer.clone())
+        ).transpose()?;
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
-        let customer_details = if raw_customer_details.is_some() {
+        let customer_details = raw_customer_details.clone().async_and_then(|_| async {
             create_encrypted_data(key_store, raw_customer_details).await
-        } else {
-            None
-        };
+        }).await;
 
         payment_data.payment_intent = state
             .store

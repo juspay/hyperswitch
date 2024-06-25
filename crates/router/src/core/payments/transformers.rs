@@ -7,7 +7,7 @@ use api_models::payments::{
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit, pii::Email};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -515,17 +515,14 @@ where
         if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
             let customer_details_encrypted =
                 serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
-            let mut response_cus_data = CustomerDetailsResponse::default();
             if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
-                if let Some(customer_table_response) = customer_table_response {
-                    response_cus_data.set_id(customer_table_response.id);
-                }
-                response_cus_data.set_name(customer_details_encrypted_data.name);
-                response_cus_data.set_phone(customer_details_encrypted_data.phone);
-                response_cus_data.set_email(customer_details_encrypted_data.email);
-                response_cus_data
-                    .set_phone_country_code(customer_details_encrypted_data.phone_country_code);
-                Some(response_cus_data)
+                Some(CustomerDetailsResponse {
+                    id: customer_table_response.and_then(|customer_data| customer_data.id),
+                    name: customer_details_encrypted_data.name.or(customer.as_ref().and_then(|customer| customer.name.as_ref().map(|name| name.clone().into_inner()))),
+                    email: customer_details_encrypted_data.email.or(customer.as_ref().and_then(|customer| customer.email.clone().map(Email::from))),
+                    phone: customer_details_encrypted_data.phone.or(customer.as_ref().and_then(|customer| customer.phone.as_ref().map(|phone| phone.clone().into_inner()))),
+                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(customer.as_ref().and_then(|customer| customer.phone_country_code.clone())),
+                })
             } else {
                 customer_table_response
             }
