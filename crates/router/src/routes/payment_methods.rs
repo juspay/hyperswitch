@@ -425,7 +425,6 @@ impl ParentPaymentMethodToken {
         token: PaymentTokenData,
         state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        println!("sahkal token{:?}", fulfillment_time);
         let token_json_str = token
             .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)

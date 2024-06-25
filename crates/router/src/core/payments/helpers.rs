@@ -1884,7 +1884,6 @@ pub async fn retrieve_payment_token_data(
         payment_method.get_required_value("payment_method")?
     );
 
-    println!("sahkal key{:?}", key);
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key)
         .await
