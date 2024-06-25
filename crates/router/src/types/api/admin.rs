@@ -193,9 +193,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: request
-                .collect_shipping_details_from_wallet_connector,
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
             collect_billing_details_from_wallet_connector: request
-                .collect_billing_details_from_wallet_connector,
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
         })
     }
 }
