@@ -34,21 +34,13 @@ impl ExtractedPayload {
     pub fn from_headers(headers: &HeaderMap) -> RouterResult<Self> {
         let merchant_id = headers
             .get(HEADER_MERCHANT_ID)
-            .map(|value| value.to_str())
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
-            })?
+            .and_then(|value| value.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
                 message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
             })?;
         let auth_type: PayloadType = headers
             .get(HEADER_AUTH_TYPE)
-            .map(|inner| inner.to_str())
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
-            })?
+            .and_then(|inner| inner.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
                 message: format!("`{}` header not present", HEADER_AUTH_TYPE),
             })?
