@@ -1389,6 +1389,9 @@ impl User {
                 )
                 .service(
                     web::resource("/url").route(web::get().to(get_sso_auth_url)),
+                )
+                .service(
+                    web::resource("/oidc").route(web::post().to(sso_sign)),
                 ),
         );
 

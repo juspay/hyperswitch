@@ -29,7 +29,7 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, okta, ApplicationResponse},
+    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
@@ -2175,46 +2175,23 @@ pub async fn get_sso_auth_url(
 ) -> UserResponse<()> {
     let user_authentication_method = state
         .store
-        .get_user_authentication_method_by_id(request.auth_id.as_str())
+        .get_user_authentication_method_by_id(request.id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let redirect_url = format!("localhost:8080/health?id={}", request.auth_id);
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
 
-    let user_auth_encryption_key = hex::decode(
-        state
-            .conf
-            .user_auth_methods
-            .get_inner()
-            .encryption_key
-            .clone()
-            .expose(),
-    )
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to decode DEK")?;
+    let oidc_state = Secret::new(nanoid::nanoid!());
+    utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
 
-    let encrypted_private_config = user_authentication_method.private_config;
+    let redirect_url = utils::user::get_oidc_sso_redirect_url();
 
-    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
-        encrypted_private_config,
-        &user_auth_encryption_key,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to decrypt private config")?
-    .ok_or(UserErrors::InternalServerError)
-    .attach_printable("Private config not found")?
-    .into_inner()
-    .expose();
-
-    let open_id_private_config: user_api::OpenIdConnectPrivateConfig = private_config
-        .parse_value("OpenIdConnectPrivateConfig")
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse generic data value")?;
-
-    okta::get_authorization_url(
+    openidconnect::get_authorization_url(
         state,
         redirect_url,
+        oidc_state,
         open_id_private_config.base_url.into(),
         open_id_private_config.client_id,
     )
@@ -2230,6 +2207,55 @@ pub async fn get_sso_auth_url(
     })
 }
 
-// pub async fn sso_sign(state: SessionState, code: String, state_query: String) -> UserResponse<()> {
-//     crate::services::okta::authorize_code(state, code, state_query).await;
-//     Ok(ApplicationResponse::StatusOk)
+pub async fn sso_sign(
+    state: SessionState,
+    request: user_api::SsoSignInRequest,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<user_api::TokenResponse> {
+    let authentication_method_id =
+        utils::user::get_sso_id_from_redis(&state, request.state.clone()).await?;
+
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(&authentication_method_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
+
+    let redirect_url = utils::user::get_oidc_sso_redirect_url();
+    let email = openidconnect::get_user_email_from_oidc_provider(
+        &state,
+        redirect_url,
+        request.state,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id.into(),
+        request.code,
+        open_id_private_config.client_secret.into(),
+    )
+    .await?;
+
+    // TODO: Use config to handle not found error
+    let user_from_db = state
+        .global_store
+        .find_user_by_email(&email.into_inner())
+        .await
+        .map(Into::into)
+        .to_not_found_response(UserErrors::UserNotFound)?;
+
+    // let user_token = user_token.unwrap();
+
+    let current_flow =
+        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
+    let next_flow = current_flow.next(user_from_db, &state).await?;
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    };
+
+    auth::cookies::set_cookie_response(response, token)
+}

@@ -1,12 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
-use common_utils::errors::CustomResult;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use common_utils::{ext_traits::ValueExt,errors::CustomResult};
+use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
 use crate::{
+    consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
@@ -212,4 +214,75 @@ impl ForeignFrom<user_api::AuthConfig> for common_enums::UserAuthType {
             user_api::AuthConfig::MagicLink => Self::MagicLink,
         }
     }
+}
+
+pub async fn decrypt_oidc_private_config(
+    state: &SessionState,
+    encrpted_config: Option<Encryption>,
+) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
+    let user_auth_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
+        encrpted_config,
+        &user_auth_key,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decrypt private config")?
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable("Private config not found")?
+    .into_inner()
+    .expose();
+
+    private_config
+        .parse_value("OpenIdConnectPrivateConfig")
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("unable to parse generic data value")
+}
+
+pub async fn set_sso_id_in_redis(
+    state: &SessionState,
+    oidc_state: Secret<String>,
+    sso_id: String,
+) -> UserResult<()> {
+    let connection = get_redis_connection(state)?;
+    let key = get_oidc_key(&oidc_state.expose());
+    connection
+        .set_key_with_expiry(&key, sso_id, REDIS_SSO_TTL)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to set sso id in redis")
+}
+
+pub async fn get_sso_id_from_redis(
+    state: &SessionState,
+    oidc_state: Secret<String>,
+) -> UserResult<String> {
+    let connection = get_redis_connection(state)?;
+    let key = get_oidc_key(&oidc_state.expose());
+    connection
+        .get_key::<Option<String>>(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get sso id from redis")?
+        .ok_or(UserErrors::SSOFailed)
+        .attach_printable("Cannot find oidc state in redis. Oidc state invalid or expired")
+}
+
+fn get_oidc_key(oidc_state: &str) -> String {
+    format!("{}{oidc_state}", REDIS_SSO_PREFIX)
+}
+
+pub fn get_oidc_sso_redirect_url() -> String {
+    format!("http://localhost:8080/health")
 }

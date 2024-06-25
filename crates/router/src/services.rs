@@ -12,7 +12,7 @@ pub mod recon;
 
 #[cfg(feature = "email")]
 pub mod email;
-pub mod okta;
+pub mod openidconnect;
 
 use std::sync::Arc;
 

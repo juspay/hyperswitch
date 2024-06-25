@@ -13,33 +13,29 @@ use crate::{
     types::domain::user::UserEmail,
 };
 
-pub struct ControlCentreRedirectURL {
-    base_url: &'static str,
-    sso_id: String,
-}
-
 pub async fn get_authorization_url(
     state: SessionState,
     redirect_url: String,
+    redirect_state: Secret<String>,
     base_url: Secret<String>,
     client_id: Secret<String>,
 ) -> UserResult<url::Url> {
     let discovery_document = get_discovery_document(base_url, &state).await?;
-    let (csrf, nounce) = get_csrf_and_nounce(&state, None).await?;
 
     let (auth_url, csrf_token, nonce) =
         get_oidc_core_client(discovery_document, client_id, None, redirect_url)?
             .authorize_url(
                 oidc_core::CoreAuthenticationFlow::AuthorizationCode,
-                || csrf,
-                || nounce,
+                || oidc::CsrfToken::new(redirect_state.expose()),
+                oidc::Nonce::new_random,
             )
+            .add_scope(oidc::Scope::new("email".to_string()))
             .url();
 
     // Save csrf & nounce as key value respectively
-    let key = get_csrf_redis_prefix(csrf_token.secret());
+    let key = get_oidc_redis_key(csrf_token.secret());
     get_redis_connection(&state)?
-        .set_key_with_expiry(&key, nonce.secret(), 500)
+        .set_key_with_expiry(&key, nonce.secret(), consts::user::REDIS_SSO_TTL)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to save csrf-nounce in redis")?;
@@ -48,15 +44,15 @@ pub async fn get_authorization_url(
 }
 
 pub async fn get_user_email_from_oidc_provider(
-    state: SessionState,
+    state: &SessionState,
     redirect_url: String,
+    redirect_state: Secret<String>,
     base_url: Secret<String>,
     client_id: Secret<String>,
     authorization_code: Secret<String>,
-    csrf: Secret<String>,
     client_secret: Secret<String>,
 ) -> UserResult<UserEmail> {
-    let (csrf, nounce) = get_csrf_and_nounce(&state, Some(csrf)).await?;
+    let nounce = get_nounce_from_redis(&state, &redirect_state).await?;
     let discovery_document = get_discovery_document(base_url, &state).await?;
     let client = get_oidc_core_client(
         discovery_document,
@@ -68,9 +64,9 @@ pub async fn get_user_email_from_oidc_provider(
     let nounce_clone = nounce.clone();
     client.authorize_url(
         oidc_core::CoreAuthenticationFlow::AuthorizationCode,
-        || csrf,
+        || oidc::CsrfToken::new(redirect_state.expose()),
         || nounce_clone,
-    );
+    ).add_scope(oidc::Scope::new("email".to_string()));
 
     // Send request to OpenId provider with authorization code
     let token_response = client
@@ -101,7 +97,7 @@ pub async fn get_user_email_from_oidc_provider(
 
     UserEmail::new(Secret::new(email_from_token))
         .change_context(UserErrors::InternalServerError)
-        .attach("Failed to create email type")
+        .attach_printable("Failed to create email type")
 }
 
 // TODO: Cache Discovery Document
@@ -136,30 +132,21 @@ fn get_oidc_core_client(
     )
 }
 
-async fn get_csrf_and_nounce(
+async fn get_nounce_from_redis(
     state: &SessionState,
-    redirect_state: Option<Secret<String>>,
-) -> UserResult<(oidc::CsrfToken, oidc::Nonce)> {
+    redirect_state: &Secret<String>,
+) -> UserResult<oidc::Nonce> {
     let redis_connection = get_redis_connection(&state)?;
-    if let Some(redirect_state) = redirect_state {
-        let redirect_state = redirect_state.expose();
-        let key = get_csrf_redis_prefix(&redirect_state);
-        redis_connection
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error Fetching CSRF from redis")?
-            .map(|nounce| {
-                (
-                    oidc::CsrfToken::new(redirect_state),
-                    oidc::Nonce::new(nounce),
-                )
-            })
-            .ok_or(UserErrors::SSOFailed)
-            .attach_printable("Cannot find csrf in redis. Csrf invalid or expired")
-    } else {
-        Ok((oidc::CsrfToken::new_random(), oidc::Nonce::new_random()))
-    }
+    let redirect_state = redirect_state.clone().expose();
+    let key = get_oidc_redis_key(&redirect_state);
+    redis_connection
+        .get_key::<Option<String>>(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error Fetching CSRF from redis")?
+        .map(oidc::Nonce::new)
+        .ok_or(UserErrors::SSOFailed)
+        .attach_printable("Cannot find csrf in redis. Csrf invalid or expired")
 }
 
 async fn get_oidc_reqwest_client(
@@ -185,8 +172,8 @@ async fn get_oidc_reqwest_client(
     })
 }
 
-fn get_csrf_redis_prefix(csrf: &str) -> String {
-    format!("{}OKTA_{:?}", consts::user::REDIS_SSO_PREFIX, csrf)
+fn get_oidc_redis_key(csrf: &str) -> String {
+    format!("{}OIDC_{}", consts::user::REDIS_SSO_PREFIX, csrf)
 }
 
 fn get_redis_connection(state: &SessionState) -> UserResult<std::sync::Arc<RedisConnectionPool>> {

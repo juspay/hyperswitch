@@ -358,5 +358,11 @@ pub struct AuthMethodDetails {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetSsoAuthUrlRequest {
-    pub auth_id: String,
+    pub id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SsoSignInRequest {
+    pub state: Secret<String>,
+    pub code: Secret<String>
 }
