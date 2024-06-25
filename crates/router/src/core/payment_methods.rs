@@ -6,7 +6,7 @@ pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
-use common_utils::id_type::CustomerId;
+use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -279,8 +279,13 @@ pub async fn render_pm_collect_link(
 
                 let serialized_css_content = String::new();
 
-                let serialized_js_content =
-                    format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
+                let serialized_js_content = format!(
+                    "window.__PM_COLLECT_DETAILS = {}",
+                    js_data
+                        .encode_to_string_of_json()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?
+                );
 
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
@@ -307,8 +312,15 @@ pub async fn render_pm_collect_link(
 
             let serialized_css_content = String::new();
 
-            let serialized_js_content =
-                format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
+            let serialized_js_content = format!(
+                "window.__PM_COLLECT_DETAILS = {}",
+                js_data
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to serialize PaymentMethodCollectLinkStatusDetails"
+                    )?
+            );
 
             let generic_status_data = services::GenericLinkStatusData {
                 js_data: serialized_js_content,
@@ -319,18 +331,6 @@ pub async fn render_pm_collect_link(
             )))
         }
     }
-}
-
-fn serialize<D>(data: &D) -> RouterResult<String>
-where
-    D: serde::Serialize,
-{
-    serde_json::to_string(data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "Failed to serialize {}",
-            std::any::type_name::<D>()
-        ))
 }
 
 fn generate_task_id_for_payment_method_status_update_workflow(

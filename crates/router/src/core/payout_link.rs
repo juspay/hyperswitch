@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::payouts;
-use common_utils::{ext_traits::OptionExt, link_utils};
+use common_utils::{
+    ext_traits::{Encode, OptionExt},
+    link_utils,
+};
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
 
@@ -166,8 +169,13 @@ pub async fn initiate_payout_link(
 
             let serialized_css_content = String::new();
 
-            let serialized_js_content =
-                format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
+            let serialized_js_content = format!(
+                "window.__PAYOUT_DETAILS = {}",
+                js_data
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?
+            );
 
             let generic_form_data = services::GenericLinkFormData {
                 js_data: serialized_js_content,
@@ -196,8 +204,13 @@ pub async fn initiate_payout_link(
 
             let serialized_css_content = String::new();
 
-            let serialized_js_content =
-                format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
+            let serialized_js_content = format!(
+                "window.__PAYOUT_DETAILS = {}",
+                js_data
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?
+            );
 
             let generic_status_data = services::GenericLinkStatusData {
                 js_data: serialized_js_content,
@@ -208,14 +221,6 @@ pub async fn initiate_payout_link(
             )))
         }
     }
-}
-fn serialize<D>(data: &D) -> errors::RouterResult<String>
-where
-    D: serde::Serialize,
-{
-    serde_json::to_string(data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to serialize {}", std::any::type_name::<D>()))
 }
 
 #[cfg(feature = "payouts")]
