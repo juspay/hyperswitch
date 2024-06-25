@@ -1,7 +1,7 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
-import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as CommonConnectorDetails, updateDefaultStatusCode } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
@@ -62,7 +62,7 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
@@ -84,3 +84,20 @@ export const should_continue_further = (res_data) => {
     return true;
   }
 };
+
+export function defaultErrorHandler(response, response_data) {
+  if (response.status === 400) response_data = updateDefaultStatusCode();
+
+  expect(response.body).to.have.property("error");
+  for (const key in response_data.body.error) {
+    expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+  }
+}
+
+export function logRequestId(xRequestId) {
+  if (xRequestId) {
+    cy.task("cli_log", "x-request-id -> " + xRequestId);
+  } else {
+    cy.task("cli_log", "x-request-id is not available in the response headers");
+  }
+}

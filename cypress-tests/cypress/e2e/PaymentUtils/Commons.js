@@ -64,6 +64,22 @@ const getDefaultExchange = () => ({
   },
 });
 
+const getUnsupportedExchange = () => ({
+  Request: {
+    currency: "EUR",
+  },
+  Response: {
+    status: 400,
+    body: {
+      error: {
+        type: "invalid_request",
+        message: `Payment method type not supported`,
+        code: "HE_03",
+      },
+    },
+  },
+});
+
 // Const to get PaymentExchange with overridden properties
 export const getCustomExchange = (overrides) => {
   const defaultExchange = getDefaultExchange();
@@ -79,6 +95,11 @@ export const getCustomExchange = (overrides) => {
       ...(overrides.Response || {}),
     },
   };
+};
+
+// Function to update the default status code
+export const updateDefaultStatusCode = () => {
+  return getUnsupportedExchange().Response;
 };
 
 export const payment_methods_enabled = [
