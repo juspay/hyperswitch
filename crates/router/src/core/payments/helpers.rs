@@ -5,6 +5,7 @@ use api_models::{
     payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
 use base64::Engine;
+use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
@@ -117,6 +118,16 @@ pub fn filter_mca_based_on_business_profile(
     } else {
         merchant_connector_accounts
     }
+}
+
+pub fn filter_mca_based_on_connector_type(
+    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    connector_type: ConnectorType,
+) -> Vec<domain::MerchantConnectorAccount> {
+    merchant_connector_accounts
+        .into_iter()
+        .filter(|mca| mca.connector_type == connector_type)
+        .collect::<Vec<_>>()
 }
 
 #[instrument(skip_all)]
