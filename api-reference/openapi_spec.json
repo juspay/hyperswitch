@@ -14834,7 +14834,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refund that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
+            "description": "List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
             "nullable": true
           },
           "disputes": {
@@ -14863,7 +14863,7 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, in case of setting up recurring payments",
+            "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -15165,7 +15165,7 @@
           },
           "incremental_authorization_allowed": {
             "type": "boolean",
-            "description": "If true incremental authorization can be performed on this payment, in case the funds authorized initially fall short.",
+            "description": "If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.",
             "nullable": true
           },
           "authorization_count": {
@@ -15883,7 +15883,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refund that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
+            "description": "List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
             "nullable": true
           },
           "disputes": {
@@ -15912,7 +15912,7 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, in case of setting up recurring payments",
+            "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -16224,7 +16224,7 @@
           },
           "incremental_authorization_allowed": {
             "type": "boolean",
-            "description": "If true incremental authorization can be performed on this payment, in case the funds authorized initially fall short.",
+            "description": "If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.",
             "nullable": true
           },
           "authorization_count": {
@@ -19486,7 +19486,7 @@
       },
       "TransactionStatus": {
         "type": "string",
-        "description": "Indicates the trans status",
+        "description": "Indicates the transaction status",
         "enum": [
           "Y",
           "N",
