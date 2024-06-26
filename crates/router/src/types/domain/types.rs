@@ -6,13 +6,14 @@ pub use hyperswitch_domain_models::type_encryption::{
 
 impl From<&crate::SessionState> for KeyManagerState {
     fn from(state: &crate::SessionState) -> Self {
+        let conf = state.conf.key_manager.get_inner();
         Self {
-            url: state.conf.key_manager.url.clone(),
+            url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
             #[cfg(feature = "keymanager_mtls")]
-            cert: state.conf.key_manager.cert.clone(),
+            cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
-            ca: state.conf.key_manager.ca.clone(),
+            ca: conf.ca.clone(),
         }
     }
 }

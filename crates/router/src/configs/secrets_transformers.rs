@@ -198,6 +198,34 @@ impl SecretsHandler for settings::PaymentMethodAuth {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::KeyManagerConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let keyconfig = value.get_inner();
+
+        #[cfg(feature = "keymanager_mtls")]
+        let ca = secret_management_client
+            .get_secret(keyconfig.ca.clone())
+            .await?;
+
+        #[cfg(feature = "keymanager_mtls")]
+        let cert = secret_management_client
+            .get_secret(keyconfig.cert.clone())
+            .await?;
+
+        Ok(value.transition_state(|keyconfig| Self {
+            #[cfg(feature = "keymanager_mtls")]
+            ca,
+            #[cfg(feature = "keymanager_mtls")]
+            cert,
+            ..keyconfig
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::Secrets {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -302,6 +330,14 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt payment method auth configs");
 
+    #[allow(clippy::expect_used)]
+    let key_manager = settings::KeyManagerConfig::convert_to_raw_secret(
+        conf.key_manager,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt keymanager configs");
+
     Settings {
         server: conf.server,
         master_database,
@@ -313,7 +349,7 @@ pub(crate) async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         env: conf.env,
-        key_manager: conf.key_manager,
+        key_manager,
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
