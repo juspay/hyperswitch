@@ -46,7 +46,8 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
-            add_payment_method_status_update_task, transformers as payment_methods, vault,
+            add_payment_method_status_update_task, delete_payment_method_task,
+            transformers as payment_methods, vault,
         },
         payments::{
             helpers,
@@ -3762,35 +3763,72 @@ pub async fn get_mca_status(
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
 ) -> errors::RouterResult<bool> {
     if let Some(connector_mandate_details) = connector_mandate_details {
-        let mcas = state
-            .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_id,
-                true,
-                key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_id.to_string(),
-            })?;
-
-        let mut mca_ids = HashSet::new();
-        let mcas = mcas
-            .into_iter()
-            .filter(|mca| mca.disabled == Some(true))
-            .collect::<Vec<_>>();
-
-        for mca in mcas {
-            mca_ids.insert(mca.merchant_connector_id);
-        }
+        let mca_ids = get_all_mcas(
+            state.store.as_ref(),
+            key_store,
+            merchant_id,
+            Some(true),
+            &connector_mandate_details,
+        )
+        .await?;
 
         for mca_id in connector_mandate_details.keys() {
-            if !mca_ids.contains(mca_id) {
+            if !mca_ids.contains_key(mca_id) {
                 return Ok(true);
             }
         }
     }
     Ok(false)
+}
+pub async fn get_all_mcas(
+    db: &dyn db::StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    value: Option<bool>,
+    connector_mandate_details: &storage::PaymentsMandateReference,
+) -> errors::RouterResult<HashMap<String, storage::UpdateMandate>> {
+    let mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_id.to_string(),
+        })?;
+
+    let mcas = mcas
+        .into_iter()
+        .filter(|mca| mca.disabled == value)
+        .collect::<Vec<_>>();
+    let mut mca_ids = HashMap::new();
+    for mca in mcas {
+        if let Some(profile_id) = mca.profile_id {
+            let connector_variant = api_enums::Connector::from_str(mca.connector_name.as_str())
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector",
+                })
+                .attach_printable_lazy(|| {
+                    format!("unable to parse connector name: {}", mca.connector_name)
+                })?;
+            let connector_mandate_id = connector_mandate_details
+                .0
+                .get(&mca.merchant_connector_id)
+                .map(|pmr| pmr.connector_mandate_id.clone());
+            connector_mandate_id.map(|connector_mandate_id| {
+                mca_ids.insert(
+                    mca.merchant_connector_id,
+                    storage::UpdateMandate {
+                        connector_variant,
+                        connector_mandate_id,
+                        profile_id,
+                    },
+                )
+            });
+        }
+    }
+    Ok(mca_ids)
 }
 pub async fn decrypt_generic_data<T>(
     data: Option<Encryption>,
@@ -4291,17 +4329,25 @@ pub async fn delete_payment_method(
     key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
-    let key = db
+    let pm = db
         .find_payment_method(
             pm_id.payment_method_id.as_str(),
             merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    utils::when(
+        &pm.status == &storage_enums::PaymentMethodStatus::Inactive,
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "The payment method has already been disabled".to_string(),
+            })
+        },
+    )?;
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &key.customer_id,
+            &pm.customer_id,
             &merchant_account.merchant_id,
             &key_store,
             merchant_account.storage_scheme,
@@ -4310,12 +4356,12 @@ pub async fn delete_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
-    if key.payment_method == Some(enums::PaymentMethod::Card) {
+    if pm.payment_method == Some(enums::PaymentMethod::Card) {
         let response = delete_card_from_locker(
             &state,
-            &key.customer_id,
-            &key.merchant_id,
-            key.locker_id.as_ref().unwrap_or(&key.payment_method_id),
+            &pm.customer_id,
+            &pm.merchant_id,
+            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
         )
         .await?;
 
@@ -4326,13 +4372,12 @@ pub async fn delete_payment_method(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
-
-    db.delete_payment_method_by_merchant_id_payment_method_id(
-        &merchant_account.merchant_id,
-        pm_id.payment_method_id.as_str(),
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let pm_update = payment_method::PaymentMethodUpdate::StatusUpdate {
+        status: Some(storage_enums::PaymentMethodStatus::Inactive),
+    };
+    db.update_payment_method(pm.clone(), pm_update, merchant_account.storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
@@ -4340,8 +4385,8 @@ pub async fn delete_payment_method(
         };
 
         db.update_customer_by_customer_id_merchant_id(
-            key.customer_id,
-            key.merchant_id,
+            pm.customer_id.clone(),
+            pm.merchant_id.clone(),
             customer,
             customer_update,
             &key_store,
@@ -4351,10 +4396,34 @@ pub async fn delete_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
     };
+    //process_tracker_workflow
+    let connector_mandate_id = pm
+        .connector_mandate_details
+        .clone()
+        .map(|val| {
+            val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize the mandate reference")
+        })
+        .transpose()?;
+
+    if let Some(connector_mandate_details) = connector_mandate_id {
+        // get the mca ids and then filter on the basis of configs
+
+        delete_connector_mandate_metadata(
+            db,
+            connector_mandate_details,
+            &merchant_account.merchant_id,
+            &pm,
+            &key_store,
+            common_utils::date_time::now(),
+        )
+        .await?;
+    }
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodDeleteResponse {
-            payment_method_id: key.payment_method_id,
+            payment_method_id: pm.payment_method_id,
             deleted: true,
         },
     ))
@@ -4447,4 +4516,39 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
             })
             .collect(),
     }
+}
+pub async fn delete_connector_mandate_metadata(
+    db: &dyn db::StorageInterface,
+    payment_mandate_reference: storage::PaymentsMandateReference,
+    merchant_id: &str,
+    pm: &diesel_models::PaymentMethod,
+    key_store: &domain::MerchantKeyStore,
+    deleted_at_time: time::PrimitiveDateTime,
+) -> errors::RouterResult<()> {
+    // check if connector name supports update and also if its a valid mca,ie, the mca is there in the hashmap
+    let mca_ids = get_all_mcas(
+        db,
+        key_store,
+        merchant_id,
+        Some(false),
+        &payment_mandate_reference,
+    )
+    .await?;
+    let filtered_mca_ids = mca_ids
+        .into_iter()
+        .filter(|(mca_id, _)| payment_mandate_reference.contains_key(mca_id))
+        .collect::<HashMap<_, _>>();
+
+    delete_payment_method_task(
+        db,
+        &pm.payment_method_id,
+        filtered_mca_ids,
+        merchant_id.to_string(),
+        deleted_at_time,
+        pm.customer_id.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(())
 }

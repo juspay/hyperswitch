@@ -674,7 +674,6 @@ pub struct VerifyWebhookSourceRequestData {
 
 #[derive(Debug, Clone)]
 pub struct MandateRevokeRequestData {
-    pub mandate_id: String,
     pub connector_mandate_id: Option<String>,
 }
 

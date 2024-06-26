@@ -3,14 +3,14 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use api_models::payment_methods;
+use crate::types::api::{self, payments};
+use api_models::{enums as api_enums, payment_methods};
+use common_utils::id_type;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
-
-use crate::types::api::{self, payments};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -117,4 +117,20 @@ pub struct PaymentMethodStatusTrackingData {
     pub prev_status: enums::PaymentMethodStatus,
     pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: String,
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateMandate {
+    pub connector_mandate_id: String,
+    pub connector_variant: api_enums::Connector,
+    pub profile_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodMandateRevokeTrackingData {
+    pub merchant_id: String,
+    pub customer_id: id_type::CustomerId,
+    pub merchant_connector_id: String,
+    pub connector: api_enums::Connector,
+    pub connector_mandate_id: String,
+    pub profile_id: String,
 }
