@@ -426,6 +426,10 @@ pub enum Flow {
     UpdateUserAuthenticationMethod,
     // List user authentication methods
     ListUserAuthenticationMethods,
+    /// Get sso auth url
+    GetSsoAuthUrl,
+    /// Signin with SSO
+    SigninWithSso,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

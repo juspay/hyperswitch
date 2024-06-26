@@ -2209,7 +2209,7 @@ pub async fn get_sso_auth_url(
 pub async fn sso_sign(
     state: SessionState,
     request: user_api::SsoSignInRequest,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_from_single_purpose_token: Option<auth::UserFromSinglePurposeToken>,
 ) -> UserResponse<user_api::TokenResponse> {
     let authentication_method_id =
         utils::user::get_sso_id_from_redis(&state, request.state.clone()).await?;
@@ -2230,9 +2230,9 @@ pub async fn sso_sign(
         redirect_url,
         request.state,
         open_id_private_config.base_url.into(),
-        open_id_private_config.client_id.into(),
+        open_id_private_config.client_id,
         request.code,
-        open_id_private_config.client_secret.into(),
+        open_id_private_config.client_secret,
     )
     .await?;
 
@@ -2244,13 +2244,15 @@ pub async fn sso_sign(
         .map(Into::into)
         .to_not_found_response(UserErrors::UserNotFound)?;
 
-    // let user_token = user_token.unwrap();
+    let next_flow = if let Some(user_from_single_purpose_token) = user_from_single_purpose_token {
+        let current_flow =
+            domain::CurrentFlow::new(user_from_single_purpose_token, domain::SPTFlow::SSO.into())?;
+        current_flow.next(user_from_db, &state).await?
+    } else {
+        domain::NextFlow::from_origin(domain::Origin::SignInWithSSO, user_from_db, &state).await?
+    };
 
-    let current_flow =
-        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
-    let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
-
     let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),

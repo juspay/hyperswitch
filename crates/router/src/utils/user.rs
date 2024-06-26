@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
-use common_utils::{ext_traits::ValueExt,errors::CustomResult};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -80,7 +80,7 @@ pub async fn generate_jwt_auth_token(
     state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
-) -> UserResult<masking::Secret<String>> {
+) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         user_role.merchant_id.clone(),
@@ -89,7 +89,7 @@ pub async fn generate_jwt_auth_token(
         user_role.org_id.clone(),
     )
     .await?;
-    Ok(masking::Secret::new(token))
+    Ok(Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
@@ -98,7 +98,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: String,
     org_id: String,
     role_id: String,
-) -> UserResult<masking::Secret<String>> {
+) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
@@ -107,14 +107,14 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         org_id,
     )
     .await?;
-    Ok(masking::Secret::new(token))
+    Ok(Secret::new(token))
 }
 
 pub fn get_dashboard_entry_response(
     state: &SessionState,
     user: UserFromStorage,
     user_role: UserRole,
-    token: masking::Secret<String>,
+    token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
@@ -191,7 +191,7 @@ pub async fn get_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> masking::Secret<String> {
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
     match resp {
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),

@@ -1323,6 +1323,8 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            // signin/signup with sso using openidconnect
+            .service(web::resource("/oidc").route(web::post().to(sso_sign)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1389,9 +1391,6 @@ impl User {
                 )
                 .service(
                     web::resource("/url").route(web::get().to(get_sso_auth_url)),
-                )
-                .service(
-                    web::resource("/oidc").route(web::post().to(sso_sign)),
                 ),
         );
 

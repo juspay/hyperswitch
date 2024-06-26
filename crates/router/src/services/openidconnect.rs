@@ -4,6 +4,7 @@ use openidconnect::{self as oidc, core as oidc_core};
 
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
+use storage_impl::errors::ApiClientError;
 
 use crate::{
     consts,
@@ -52,8 +53,8 @@ pub async fn get_user_email_from_oidc_provider(
     authorization_code: Secret<String>,
     client_secret: Secret<String>,
 ) -> UserResult<UserEmail> {
-    let nounce = get_nounce_from_redis(&state, &redirect_state).await?;
-    let discovery_document = get_discovery_document(base_url, &state).await?;
+    let nounce = get_nounce_from_redis(state, &redirect_state).await?;
+    let discovery_document = get_discovery_document(base_url, state).await?;
     let client = get_oidc_core_client(
         discovery_document,
         client_id,
@@ -62,16 +63,18 @@ pub async fn get_user_email_from_oidc_provider(
     )?;
 
     let nounce_clone = nounce.clone();
-    client.authorize_url(
-        oidc_core::CoreAuthenticationFlow::AuthorizationCode,
-        || oidc::CsrfToken::new(redirect_state.expose()),
-        || nounce_clone,
-    ).add_scope(oidc::Scope::new("email".to_string()));
+    client
+        .authorize_url(
+            oidc_core::CoreAuthenticationFlow::AuthorizationCode,
+            || oidc::CsrfToken::new(redirect_state.expose()),
+            || nounce_clone,
+        )
+        .add_scope(oidc::Scope::new("email".to_string()));
 
     // Send request to OpenId provider with authorization code
     let token_response = client
         .exchange_code(oidc::AuthorizationCode::new(authorization_code.expose()))
-        .request_async(|req| get_oidc_reqwest_client(&state, req))
+        .request_async(|req| get_oidc_reqwest_client(state, req))
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to exhange code and fetch oidc token")?;
@@ -108,7 +111,7 @@ async fn get_discovery_document(
     let issuer_url =
         oidc::IssuerUrl::new(base_url.expose()).change_context(UserErrors::InternalServerError)?;
     oidc_core::CoreProviderMetadata::discover_async(issuer_url, |req| {
-        get_oidc_reqwest_client(&state, req)
+        get_oidc_reqwest_client(state, req)
     })
     .await
     .change_context(UserErrors::InternalServerError)
@@ -136,7 +139,7 @@ async fn get_nounce_from_redis(
     state: &SessionState,
     redirect_state: &Secret<String>,
 ) -> UserResult<oidc::Nonce> {
-    let redis_connection = get_redis_connection(&state)?;
+    let redis_connection = get_redis_connection(state)?;
     let redirect_state = redirect_state.clone().expose();
     let key = get_oidc_redis_key(&redirect_state);
     redis_connection
@@ -152,8 +155,9 @@ async fn get_nounce_from_redis(
 async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
-) -> Result<oidc::HttpResponse, reqwest::Error> {
-    let client = client::create_client(&state.conf.proxy, false, None, None).unwrap();
+) -> Result<oidc::HttpResponse, ApiClientError> {
+    let client = client::create_client(&state.conf.proxy, false, None, None)
+        .map_err(|e| e.current_context().to_owned())?;
 
     let mut request_builder = client
         .request(request.method, request.url)
@@ -162,13 +166,22 @@ async fn get_oidc_reqwest_client(
         request_builder = request_builder.header(name.as_str(), value.as_bytes());
     }
 
-    let request = request_builder.build()?;
-    let response = client.execute(request).await?;
+    let request = request_builder
+        .build()
+        .map_err(|_| ApiClientError::ClientConstructionFailed)?;
+    let response = client
+        .execute(request)
+        .await
+        .map_err(|_| ApiClientError::RequestNotSent("OpenIDConnect".to_string()))?;
 
     Ok(oidc::HttpResponse {
         status_code: response.status(),
         headers: response.headers().to_owned(),
-        body: response.bytes().await?.to_vec(),
+        body: response
+            .bytes()
+            .await
+            .map_err(|_| ApiClientError::ResponseDecodingFailed)?
+            .to_vec(),
     })
 }
 

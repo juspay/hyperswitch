@@ -68,7 +68,7 @@ pub async fn user_signup(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| async move {
+        |state, _: (), req_body, _| async move {
             if let Some(true) = is_token_only {
                 user_core::signup_token_only_flow(state, req_body).await
             } else {
@@ -95,7 +95,7 @@ pub async fn user_signin(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| async move {
+        |state, _: (), req_body, _| async move {
             if let Some(true) = is_token_only {
                 user_core::signin_token_only_flow(state, req_body).await
             } else {
@@ -121,7 +121,7 @@ pub async fn user_connect_account(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::connect_account(state, req_body),
+        |state, _: (), req_body, _| user_core::connect_account(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -389,7 +389,7 @@ pub async fn forgot_password(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload, _| user_core::forgot_password(state, payload),
+        |state, _: (), payload, _| user_core::forgot_password(state, payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -424,7 +424,7 @@ pub async fn reset_password(
             state.clone(),
             &req,
             payload.into_inner(),
-            |state, _, payload, _| user_core::reset_password(state, payload),
+            |state, _: (), payload, _| user_core::reset_password(state, payload),
             &auth::NoAuth,
             api_locking::LockAction::NotApplicable,
         ))
@@ -500,7 +500,7 @@ pub async fn accept_invite_from_email(
             state.clone(),
             &req,
             payload.into_inner(),
-            |state, _, request_payload, _| {
+            |state, _: (), request_payload, _| {
                 user_core::accept_invite_from_email(state, request_payload)
             },
             &auth::NoAuth,
@@ -538,7 +538,7 @@ pub async fn verify_email(
             state,
             &http_req,
             json_payload.into_inner(),
-            |state, _, req_payload, _| user_core::verify_email(state, req_payload),
+            |state, _: (), req_payload, _| user_core::verify_email(state, req_payload),
             &auth::NoAuth,
             api_locking::LockAction::NotApplicable,
         ))
@@ -558,7 +558,7 @@ pub async fn verify_email_request(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_body, _| user_core::send_verification_mail(state, req_body),
+        |state, _: (), req_body, _| user_core::send_verification_mail(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -755,14 +755,14 @@ pub async fn get_sso_auth_url(
     req: HttpRequest,
     query: web::Query<user_api::GetSsoAuthUrlRequest>,
 ) -> HttpResponse {
-    let flow = Flow::TwoFactorAuthStatus;
+    let flow = Flow::GetSsoAuthUrl;
     let payload = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload,
-        |state, _, req, _| user_core::get_sso_auth_url(state, req),
+        |state, _: (), req, _| user_core::get_sso_auth_url(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -774,15 +774,21 @@ pub async fn sso_sign(
     req: HttpRequest,
     json_payload: web::Json<user_api::SsoSignInRequest>,
 ) -> HttpResponse {
-    let flow = Flow::TwoFactorAuthStatus;
+    let flow = Flow::SigninWithSso;
     let payload = json_payload.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload,
-        |state, user, payload, _| user_core::sso_sign(state, payload, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::UserInfo),
+        |state, user: Option<auth::UserFromSinglePurposeToken>, payload, _| {
+            user_core::sso_sign(state, payload, user)
+        },
+        auth::auth_type(
+            &auth::NoAuth,
+            &auth::SinglePurposeJWTAuth(TokenPurpose::SSO),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -838,7 +844,7 @@ pub async fn list_user_authentication_methods(
         state.clone(),
         &req,
         query.into_inner(),
-        |state, _, req, _| user_core::list_user_authentication_methods(state, req),
+        |state, _: (), req, _| user_core::list_user_authentication_methods(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
