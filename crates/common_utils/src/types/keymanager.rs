@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
 
-use serde::{Deserialize, Serialize};
-
 #[cfg(feature = "keymanager_mtls")]
 use masking::Secret;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct KeyManagerState {

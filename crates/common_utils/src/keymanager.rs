@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+#[cfg(feature = "keymanager_mtls")]
+use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
 use crate::{
@@ -12,9 +14,6 @@ use crate::{
         DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
     },
 };
-
-#[cfg(feature = "keymanager_mtls")]
-use masking::PeekInterface;
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();

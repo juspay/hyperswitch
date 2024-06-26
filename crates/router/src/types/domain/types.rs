@@ -1,5 +1,4 @@
 use common_utils::types::keymanager::KeyManagerState;
-
 pub use hyperswitch_domain_models::type_encryption::{
     decrypt, encrypt, encrypt_optional, AsyncLift, Lift, TypeEncryption,
 };
