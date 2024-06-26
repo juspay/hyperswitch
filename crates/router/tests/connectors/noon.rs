@@ -14,12 +14,12 @@ impl ConnectorActions for NoonTest {}
 impl utils::Connector for NoonTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Noon;
-        types::api::ConnectorData {
-            connector: Box::new(Noon::new()),
-            connector_name: types::Connector::Noon,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Noon::new()),
+            types::Connector::Noon,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

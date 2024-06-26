@@ -121,6 +121,8 @@ pub enum Flow {
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
+    /// Payment method create collect link flow.
+    PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -164,6 +166,8 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts update flow.
     PayoutsUpdate,
+    /// Payouts confirm flow.
+    PayoutsConfirm,
     #[cfg(feature = "payouts")]
     /// Payouts cancel flow.
     PayoutsCancel,
@@ -178,7 +182,9 @@ pub enum Flow {
     PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
-    /// Payments Redirect flow.
+    /// Payout link initiate flow
+    PayoutLinkInitiate,
+    /// Payments Redirect flow
     PaymentsRedirect,
     /// Payemnts Complete Authorize Flow
     PaymentsCompleteAuthorize,
