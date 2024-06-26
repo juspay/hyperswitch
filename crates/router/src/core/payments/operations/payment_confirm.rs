@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -26,7 +27,7 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        utils as core_utils,
+        utils as core_utils, payment_methods::cards::create_encrypted_data,
     },
     db::StorageInterface,
     events::audit_events::{AuditEvent, AuditEventType},
@@ -249,6 +250,59 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
             .in_current_span(),
         );
+
+        let temp_customer_details = Some(CustomerData {
+            name: request.name.clone(),
+            phone: request.phone.clone(),
+            email: request.email.clone(),
+            phone_country_code: request.phone_country_code.clone(),
+        });
+
+        let raw_customer_details = if request.customer_id.is_none()
+            && (request.name.is_some()
+                || request.email.is_some()
+                || request.phone.is_some()
+                || request.phone_country_code.is_some())
+        {
+            if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
+                let customer_details_encrypted = serde_json::from_value::<CustomerData>(
+                    customer_details_raw.into_inner().expose(),
+                );
+                if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                    Some(CustomerData {
+                        name: request
+                            .name
+                            .clone()
+                            .or(customer_details_encrypted_data.name.clone()),
+                        email: request
+                            .email
+                            .clone()
+                            .or(customer_details_encrypted_data.email.clone()),
+                        phone: request
+                            .phone
+                            .clone()
+                            .or(customer_details_encrypted_data.phone.clone()),
+                        phone_country_code: request
+                            .phone_country_code
+                            .clone()
+                            .or(customer_details_encrypted_data.phone_country_code.clone()),
+                    })
+                } else {
+                    temp_customer_details
+                }
+            } else {
+                temp_customer_details
+            }
+        } else {
+            None
+        };
+
+        payment_intent.customer_details = raw_customer_details
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, raw_customer_details).await
+            })
+            .await;
 
         // Based on whether a retry can be performed or not, fetch relevant entities
         let (mut payment_attempt, shipping_address, billing_address, business_profile) =
@@ -1084,6 +1138,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None
         };
 
+        let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
@@ -1255,7 +1310,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         session_expiry,
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
-                        customer_details: None,
+                        customer_details,
                     },
                     &m_key_store,
                     storage_scheme,
