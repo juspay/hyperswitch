@@ -371,7 +371,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Braintree)))
                 }
                 enums::Connector::Cashtocode => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cashtocode)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Checkout)))
