@@ -12,7 +12,11 @@ pub mod routes {
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-GenerateReportRequest,GetActivePaymentsMetricRequest,GetApiEventFiltersRequest,GetApiEventMetricRequest,GetAuthEventMetricRequest,GetDisputeMetricRequest,GetFrmFilterRequest,GetFrmMetricRequest,GetPaymentFiltersRequest,GetPaymentMetricRequest,GetRefundFilterRequest,GetRefundMetricRequest,GetSdkEventFiltersRequest,GetSdkEventMetricRequest,ReportRequest,
+        GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
+        GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
+        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
