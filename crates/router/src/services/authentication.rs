@@ -262,7 +262,7 @@ where
 }
 
 #[async_trait]
-impl<A,T> AuthenticateAndFetch<Option<T>, A> for NoAuth
+impl<A, T> AuthenticateAndFetch<Option<T>, A> for NoAuth
 where
     A: SessionStateInfo + Sync,
 {

@@ -1,8 +1,7 @@
 use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
-
-use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 use storage_impl::errors::ApiClientError;
 

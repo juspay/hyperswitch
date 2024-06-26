@@ -1413,9 +1413,7 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_user_authentication_methods)),
                 )
-                .service(
-                    web::resource("/url").route(web::get().to(get_sso_auth_url)),
-                ),
+                .service(web::resource("/url").route(web::get().to(get_sso_auth_url))),
         );
 
         #[cfg(feature = "email")]

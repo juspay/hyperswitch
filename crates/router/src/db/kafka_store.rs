@@ -2975,7 +2975,9 @@ impl UserAuthenticationMethodInterface for KafkaStore {
         &self,
         id: &str,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
-        self.diesel_store.get_user_authentication_method_by_id(id).await
+        self.diesel_store
+            .get_user_authentication_method_by_id(id)
+            .await
     }
 
     async fn list_user_authentication_methods_for_auth_id(

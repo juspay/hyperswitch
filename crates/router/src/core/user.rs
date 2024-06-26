@@ -2210,7 +2210,7 @@ pub async fn get_sso_auth_url(
         .store
         .get_user_authentication_method_by_id(request.id.as_str())
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
 
     let open_id_private_config =
         utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)

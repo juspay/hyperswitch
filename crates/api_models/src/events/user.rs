@@ -12,14 +12,14 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
     ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest, GetSsoAuthUrlRequest, SsoSignInRequest
+    DashboardEntryResponse, ForgotPasswordRequest, GetSsoAuthUrlRequest,
+    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
+    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
+    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {

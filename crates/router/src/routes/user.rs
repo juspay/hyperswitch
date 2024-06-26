@@ -582,7 +582,9 @@ pub async fn verify_email_request(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _: (), req_body, _| user_core::send_verification_mail(state, req_body, auth_id.clone()),
+        |state, _: (), req_body, _| {
+            user_core::send_verification_mail(state, req_body, auth_id.clone())
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
