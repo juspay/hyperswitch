@@ -14,6 +14,7 @@ use time::PrimitiveDateTime;
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
+    get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     routes::SessionState,
     services,
     types::{
@@ -409,72 +410,26 @@ pub fn get_payment_link_config_based_on_priority(
     } else {
         (default_domain_name, None)
     };
+
     let business_config = business_theme_configs.and_then(|theme_map| {
-        let sahkal = payment_link_config_id
+        payment_link_config_id
             .and_then(|id| theme_map.get(&id).cloned())
-            .or_else(|| theme_map.get("default").cloned());
-        sahkal
+            .or_else(|| theme_map.get("default").cloned())
     });
 
-    let theme = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.theme.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.theme.clone())
-        })
-        .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
-
-    let logo = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.logo.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.logo.clone())
-        })
-        .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
-
-    let seller_name = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.seller_name.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.seller_name.clone())
-        })
-        .unwrap_or(merchant_name.clone());
-
-    let sdk_layout = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.sdk_layout.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.sdk_layout.clone())
-        })
-        .unwrap_or(DEFAULT_SDK_LAYOUT.to_owned());
-
-    let display_sdk_only = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.display_sdk_only.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.display_sdk_only.clone())
-        })
-        .unwrap_or(DEFAULT_DISPLAY_SDK_ONLY);
-
-    let enabled_saved_payment_method = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.theme_config.enabled_saved_payment_method.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.enabled_saved_payment_method.clone())
-        })
-        .unwrap_or(DEFAULT_ENABLE_SAVED_PAYMENT_METHOD);
+    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+        payment_create_link_config,
+        business_config,
+        (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
+        (logo, DEFAULT_MERCHANT_LOGO.to_string()),
+        (seller_name, merchant_name.clone()),
+        (sdk_layout, DEFAULT_SDK_LAYOUT.to_owned()),
+        (display_sdk_only, DEFAULT_DISPLAY_SDK_ONLY),
+        (
+            enabled_saved_payment_method,
+            DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
+        )
+    );
 
     let payment_link_config = admin_types::PaymentLinkConfig {
         theme,
