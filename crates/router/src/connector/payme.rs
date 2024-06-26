@@ -31,7 +31,6 @@ use crate::{
         transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
-    // transformers::{ForeignFrom, ForeignTryFrom},
     utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
@@ -865,7 +864,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "currency",
                 })?;
         let amount =
             connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
