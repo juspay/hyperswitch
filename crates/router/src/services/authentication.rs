@@ -1,4 +1,6 @@
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "payouts")]
+use api_models::payouts;
 use api_models::{
     payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
     payments,
@@ -946,6 +948,12 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
+#[cfg(feature = "payouts")]
+impl ClientSecretFetch for payouts::PayoutCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
 
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1028,7 +1036,6 @@ where
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
