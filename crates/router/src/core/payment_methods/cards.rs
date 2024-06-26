@@ -3708,10 +3708,7 @@ pub async fn list_customer_payment_method(
             ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
                 .insert(intent_created, hyperswitch_token_data, state)
                 .await?;
-        }
 
-        // Check this block in review
-        if let Some(token) = parent_payment_method_token {
             if let Some(metadata) = pma.metadata {
                 let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
                     .parse_value("PaymentMethodMetadata")
