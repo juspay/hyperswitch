@@ -6799,20 +6799,24 @@
         ]
       },
       "BusinessPaymentLinkConfig": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+        "type": "object",
+        "required": [
+          "theme_configs"
+        ],
+        "properties": {
+          "domain_name": {
+            "type": "string",
+            "description": "Custom domain name to be used for hosting the link in your own domain",
+            "nullable": true
           },
-          {
+          "theme_configs": {
             "type": "object",
-            "properties": {
-              "domain_name": {
-                "type": "string",
-                "nullable": true
-              }
+            "description": "list of configs for multi theme setup",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PaymentLinkConfigRequest"
             }
           }
-        ]
+        }
       },
       "BusinessPayoutLinkConfig": {
         "allOf": [
@@ -14693,6 +14697,11 @@
             ],
             "nullable": true
           },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile",
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -15060,6 +15069,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile",
             "nullable": true
           },
           "profile_id": {
@@ -15581,6 +15595,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile",
             "nullable": true
           },
           "profile_id": {
@@ -16617,6 +16636,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile",
             "nullable": true
           },
           "surcharge_details": {
