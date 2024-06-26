@@ -566,19 +566,19 @@ merchant_name = "HyperSwitch"
 card = ["credit", "debit"]
 
 [payout_filters.adyen]
-sepa = {currency = "EUR"}
-bacs = {currency = "GBP,USD,EUR,CAD,AUD,NZD,SGD,SEK,NOK,DKK,PLN,HKD,CHF,CZK,JPY,HUF,BGN"}
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
+bacs = { country = "GB", currency = "GBP" }
 
 [payout_filters.adyenplatform]
-sepa = {currency = "EUR"}
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
 
 [payout_filters.stripe]
-ach = {currency = "USD"}
+ach = { country = "US", currency = "USD" }
 
 [payout_filters.wise]
-ach = {currency = "USD"}
-bacs = {currency = "GBP,USD,EUR,CAD,AUD,NZD,SGD,SEK,NOK,DKK,PLN,HKD,CHF,CZK,JPY,HUF,BGN"}
-sepa = {currency = "EUR"}
+ach = { country = "US", currency = "USD" }
+bacs = { country = "GB", currency = "GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
