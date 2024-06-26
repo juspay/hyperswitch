@@ -8087,20 +8087,48 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Mifinity,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
                                             (
-                                                "billing.first_name".to_string(),
+                                                "payment_method_data.wallet.mifinity.date_of_birth".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.first_name".to_string(),
+                                                    required_field: "payment_method_data.wallet.mifinity.date_of_birth".to_string(),
+                                                    display_name: "date_of_birth".to_string(),
+                                                    field_type: enums::FieldType::UserDateOfBirth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.line1".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.address.line1".to_string(),
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.city".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.address.city".to_string(),
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.first_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "first_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
                                                     value: None,
                                                 }
                                             ),
                                             (
-                                                "billing.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.last_name".to_string(),
+                                                    required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "last_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
                                                     value: None,
@@ -8125,9 +8153,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "billing.country".to_string(),
+                                                "billing.address.country".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.country".to_string(),
+                                                    required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "nationality".to_string(),
                                                     field_type: enums::FieldType::UserCountry{
                                                         options: vec![
@@ -8193,7 +8221,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                         ]),
-                                        common: HashMap::new(),
                                     }
                                 ),
                             ]),

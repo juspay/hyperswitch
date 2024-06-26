@@ -74,6 +74,7 @@ impl
             connector_meta_data: None,
             connector_wallets_details: None,
             amount_captured: None,
+            minor_amount_captured: None,
             request: FraudCheckTransactionData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
@@ -147,8 +148,7 @@ pub async fn decide_frm_flow<'a, 'b>(
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmTransactionRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Transaction,
         FraudCheckTransactionData,
         FraudCheckResponseData,
