@@ -306,7 +306,7 @@ pub struct OpenIdConnectPublicConfig {
     pub name: OpenIdProvider,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone,strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum OpenIdProvider {
     Okta,

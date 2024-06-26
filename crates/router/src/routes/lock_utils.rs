@@ -229,7 +229,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TwoFactorAuthStatus
             | Flow::CreateUserAuthenticationMethod
             | Flow::UpdateUserAuthenticationMethod
-            | Flow::ListUserAuthenticationMethods => Self::User,
+            | Flow::ListUserAuthenticationMethods
+            | Flow::GetSsoAuthUrl
+            | Flow::SigninWithSso => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

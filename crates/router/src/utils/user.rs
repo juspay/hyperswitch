@@ -283,6 +283,6 @@ fn get_oidc_key(oidc_state: &str) -> String {
     format!("{}{oidc_state}", REDIS_SSO_PREFIX)
 }
 
-pub fn get_oidc_sso_redirect_url() -> String {
-    format!("http://localhost:8080/health")
+pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String {
+    format!("{}/oidc/{}",state.conf.user.base_url,provider)
 }
