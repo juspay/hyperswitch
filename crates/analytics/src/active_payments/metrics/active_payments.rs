@@ -52,6 +52,18 @@ where
             .switch()?;
 
         query_builder
+            .add_negative_filter_clause("payment_id", "")
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause(
+                "flow_type",
+                "'sdk', 'payment', 'payment_redirection_response'",
+                FilterTypes::In,
+            )
+            .switch()?;
+
+        query_builder
             .execute_query::<ActivePaymentsMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
