@@ -485,28 +485,30 @@ pub async fn payouts_retrieve_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
+    let status = payout_attempt.status;
 
-    // Form connector data
-    let connector_call_type = get_connector_choice(
-        &state,
-        &merchant_account,
-        &key_store,
-        payout_attempt.connector.clone(),
-        None,
-        &mut payout_data,
-        None,
-    )
-    .await?;
+    if matches!(req.force_sync, Some(true)) && helpers::should_call_retrieve(status) {
+        // Form connector data
+        let connector_call_type = get_connector_choice(
+            &state,
+            &merchant_account,
+            &key_store,
+            payout_attempt.connector.clone(),
+            None,
+            &mut payout_data,
+            None,
+        )
+        .await?;
 
-    complete_payout_retrieve(
-        &state,
-        &merchant_account,
-        &key_store,
-        &req,
-        connector_call_type,
-        &mut payout_data,
-    )
-    .await?;
+        complete_payout_retrieve(
+            &state,
+            &merchant_account,
+            &key_store,
+            connector_call_type,
+            &mut payout_data,
+        )
+        .await?;
+    }
 
     response_handler(&merchant_account, &payout_data).await
 }
@@ -1539,26 +1541,20 @@ pub async fn complete_payout_retrieve(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutRetrieveRequest,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            let payout_attempt = &payout_data.payout_attempt.to_owned();
-            let status = payout_attempt.status;
-
-            if matches!(req.force_sync, Some(true)) && helpers::should_call_retrieve(status) {
-                create_payout_retrieve(
-                    state,
-                    merchant_account,
-                    key_store,
-                    &connector_data,
-                    payout_data,
-                )
-                .await
-                .attach_printable("Payout retrieval failed for given Payout request")?;
-            }
+            create_payout_retrieve(
+                state,
+                merchant_account,
+                key_store,
+                &connector_data,
+                payout_data,
+            )
+            .await
+            .attach_printable("Payout retrieval failed for given Payout request")?;
         }
         api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)?
