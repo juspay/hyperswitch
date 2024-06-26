@@ -23,6 +23,8 @@ use super::blocklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
+use super::payout_link::*;
+#[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
@@ -889,6 +891,7 @@ impl Payouts {
                     .route(web::get().to(payouts_retrieve))
                     .route(web::put().to(payouts_update)),
             )
+            .service(web::resource("/{payout_id}/confirm").route(web::post().to(payouts_confirm)))
             .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
             .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
         route
@@ -915,6 +918,13 @@ impl PaymentMethods {
                     web::resource("")
                         .route(web::post().to(create_payment_method_api))
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
+                )
+                .service(
+                    web::resource("/collect/{merchant_id}/{collect_id}")
+                        .route(web::get().to(render_pm_collect_link)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")
@@ -1245,6 +1255,20 @@ impl PaymentLink {
                 web::resource("status/{merchant_id}/{payment_id}")
                     .route(web::get().to(payment_link_status)),
             )
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub struct PayoutLink;
+
+#[cfg(feature = "payouts")]
+impl PayoutLink {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
+        );
+        route
     }
 }
 

@@ -4172,6 +4172,57 @@
         ]
       }
     },
+    "/payouts/{payout_id}/confirm": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Confirm",
+        "description": "Payouts - Confirm",
+        "operationId": "Confirm a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -6706,6 +6757,46 @@
           }
         }
       },
+      "BusinessCollectLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "enabled_payment_methods"
+            ],
+            "properties": {
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\", \"sepa\"]}]"
+              }
+            }
+          }
+        ]
+      },
+      "BusinessGenericLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "domain_name": {
+                "type": "string",
+                "description": "Custom domain name to be used for hosting the link",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "BusinessPaymentLinkConfig": {
         "allOf": [
           {
@@ -6719,6 +6810,16 @@
                 "nullable": true
               }
             }
+          }
+        ]
+      },
+      "BusinessPayoutLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object"
           }
         ]
       },
@@ -6841,6 +6942,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         },
@@ -6982,6 +7091,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8918,6 +9035,26 @@
           }
         }
       },
+      "EnabledPaymentMethod": {
+        "type": "object",
+        "description": "Object for EnabledPaymentMethod",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "An array of associated payment method types"
+          }
+        }
+      },
       "EphemeralKeyCreateResponse": {
         "type": "object",
         "required": [
@@ -9637,6 +9774,33 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GenericLinkUiConfig": {
+        "type": "object",
+        "description": "Object for GenericLinkUiConfig",
+        "properties": {
+          "logo": {
+            "type": "string",
+            "description": "Merchant's display logo",
+            "example": "https://hyperswitch.io/favicon.ico",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for the link",
+            "example": "Hyperswitch",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "theme": {
+            "type": "string",
+            "description": "Primary color to be used in the form represented in hex format",
+            "example": "#4285F4",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
       },
       "GiftCardData": {
         "oneOf": [
@@ -10905,6 +11069,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11071,6 +11243,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11191,6 +11371,14 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13226,6 +13414,114 @@
           "upi",
           "voucher",
           "gift_card"
+        ]
+      },
+      "PaymentMethodCollectLinkRequest": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "customer_id"
+            ],
+            "properties": {
+              "pm_collect_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The unique identifier of the customer.",
+                "example": "cus_92dnwed8s32bV9D8Snbiasd8v"
+              },
+              "session_expiry": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+                "example": 900,
+                "nullable": true,
+                "minimum": 0
+              },
+              "return_url": {
+                "type": "string",
+                "description": "Redirect to this URL post completion",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodCollectLinkResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "pm_collect_link_id",
+              "customer_id",
+              "expiry",
+              "link"
+            ],
+            "properties": {
+              "pm_collect_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1"
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The unique identifier of the customer.",
+                "example": "cus_92dnwed8s32bV9D8Snbiasd8v"
+              },
+              "expiry": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Time when this link will be expired in ISO8601 format",
+                "example": "2025-01-18T11:04:09.922Z"
+              },
+              "link": {
+                "type": "string",
+                "description": "URL to the form's link generated for collecting payment method details.",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1"
+              },
+              "return_url": {
+                "type": "string",
+                "description": "Redirect to this URL post completion",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
         ]
       },
       "PaymentMethodCreate": {
@@ -16488,6 +16784,38 @@
           "wise"
         ]
       },
+      "PayoutCreatePayoutLinkConfig": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payout_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payout methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
@@ -16650,17 +16978,40 @@
           },
           "payout_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payment method",
+            "description": "Provide a reference to a stored payout method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "description": "The business profile to use for this payout, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           },
           "priority": {
             "$ref": "#/components/schemas/PayoutSendPriority"
+          },
+          "payout_link": {
+            "type": "boolean",
+            "description": "Whether to get the payout link (if applicable)",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutCreatePayoutLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -16819,7 +17170,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment"
+            "description": "The business profile that is associated with this payout"
           },
           "created": {
             "type": "string",
@@ -16849,6 +17200,14 @@
             },
             "description": "List of attempts",
             "nullable": true
+          },
+          "payout_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutLinkResponse"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16864,6 +17223,36 @@
           "lowercase",
           "Personal"
         ]
+      },
+      "PayoutLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payout_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payout_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PayoutLinkResponse": {
+        "type": "object",
+        "required": [
+          "payout_link_id",
+          "link"
+        ],
+        "properties": {
+          "payout_link_id": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        }
       },
       "PayoutListConstraints": {
         "allOf": [
@@ -17151,7 +17540,7 @@
           "fast",
           "regular",
           "wire",
-          "crossBorder",
+          "cross_border",
           "internal"
         ]
       },
@@ -17167,6 +17556,7 @@
           "pending",
           "ineligible",
           "requires_creation",
+          "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
           "requires_vendor_account_creation"

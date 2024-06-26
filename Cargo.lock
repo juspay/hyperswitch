@@ -1964,6 +1964,7 @@ dependencies = [
  "regex",
  "reqwest",
  "ring 0.17.8",
+ "router_derive",
  "router_env",
  "rust_decimal",
  "rustc-hash",

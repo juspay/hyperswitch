@@ -197,6 +197,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
+        payout_link_config -> Nullable<Jsonb>,
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
@@ -500,6 +501,28 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    generic_link (link_id) {
+        #[max_length = 64]
+        link_id -> Varchar,
+        #[max_length = 64]
+        primary_reference -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+        expiry -> Timestamp,
+        link_data -> Jsonb,
+        link_status -> Jsonb,
+        link_type -> GenericLinkType,
+        url -> Text,
+        return_url -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -644,6 +667,7 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
+        pm_collect_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -1025,6 +1049,10 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
+        #[max_length = 255]
+        payout_link_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
         #[max_length = 32]
         priority -> Nullable<Varchar>,
     }
@@ -1276,6 +1304,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     file_metadata,
     fraud_check,
     gateway_status_map,
+    generic_link,
     incremental_authorization,
     locker_mock_up,
     mandate,
