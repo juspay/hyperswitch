@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use api_models::{
+    payments::RedirectionResponse,
+    user::{self as user_api, InviteMultipleUserResponse},
+};
 use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -13,7 +16,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use external_services::email::EmailData;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
@@ -26,7 +29,7 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, ApplicationResponse},
+    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
@@ -2197,4 +2200,115 @@ pub async fn list_user_authentication_methods(
             })
             .collect::<UserResult<_>>()?,
     ))
+}
+
+pub async fn get_sso_auth_url(
+    state: SessionState,
+    request: user_api::GetSsoAuthUrlRequest,
+) -> UserResponse<()> {
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(request.id.as_str())
+        .await
+        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
+
+    let open_id_public_config: user_api::OpenIdConnectPublicConfig = user_authentication_method
+        .public_config
+        .ok_or(UserErrors::InternalServerError)
+        .attach_printable("Public config not present")?
+        .parse_value("OpenIdConnectPublicConfig")
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+
+    let oidc_state = Secret::new(nanoid::nanoid!());
+    utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
+
+    let redirect_url =
+        utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
+
+    openidconnect::get_authorization_url(
+        state,
+        redirect_url,
+        oidc_state,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id,
+    )
+    .await
+    .map(|url| {
+        ApplicationResponse::JsonForRedirection(RedirectionResponse {
+            headers: Vec::with_capacity(0),
+            return_url: String::new(),
+            http_method: String::new(),
+            params: Vec::with_capacity(0),
+            return_url_with_query_params: url.to_string(),
+        })
+    })
+}
+
+pub async fn sso_sign(
+    state: SessionState,
+    request: user_api::SsoSignInRequest,
+    user_from_single_purpose_token: Option<auth::UserFromSinglePurposeToken>,
+) -> UserResponse<user_api::TokenResponse> {
+    let authentication_method_id =
+        utils::user::get_sso_id_from_redis(&state, request.state.clone()).await?;
+
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(&authentication_method_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
+
+    let open_id_public_config: user_api::OpenIdConnectPublicConfig = user_authentication_method
+        .public_config
+        .ok_or(UserErrors::InternalServerError)
+        .attach_printable("Public config not present")?
+        .parse_value("OpenIdConnectPublicConfig")
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+
+    let redirect_url =
+        utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
+    let email = openidconnect::get_user_email_from_oidc_provider(
+        &state,
+        redirect_url,
+        request.state,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id,
+        request.code,
+        open_id_private_config.client_secret,
+    )
+    .await?;
+
+    // TODO: Use config to handle not found error
+    let user_from_db = state
+        .global_store
+        .find_user_by_email(&email.into_inner())
+        .await
+        .map(Into::into)
+        .to_not_found_response(UserErrors::UserNotFound)?;
+
+    let next_flow = if let Some(user_from_single_purpose_token) = user_from_single_purpose_token {
+        let current_flow =
+            domain::CurrentFlow::new(user_from_single_purpose_token, domain::SPTFlow::SSO.into())?;
+        current_flow.next(user_from_db, &state).await?
+    } else {
+        domain::NextFlow::from_origin(domain::Origin::SignInWithSSO, user_from_db, &state).await?
+    };
+
+    let token = next_flow.get_token(&state).await?;
+    let response = user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    };
+
+    auth::cookies::set_cookie_response(response, token)
 }

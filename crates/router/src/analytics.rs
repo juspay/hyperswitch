@@ -130,7 +130,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain: analytics::AnalyticsDomain, _| async {
+            |_, _: (), domain: analytics::AnalyticsDomain, _| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)

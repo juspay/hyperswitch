@@ -1,12 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
-use common_utils::errors::CustomResult;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
 use crate::{
+    consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
@@ -78,7 +80,7 @@ pub async fn generate_jwt_auth_token(
     state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
-) -> UserResult<masking::Secret<String>> {
+) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         user_role.merchant_id.clone(),
@@ -87,7 +89,7 @@ pub async fn generate_jwt_auth_token(
         user_role.org_id.clone(),
     )
     .await?;
-    Ok(masking::Secret::new(token))
+    Ok(Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
@@ -96,7 +98,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: String,
     org_id: String,
     role_id: String,
-) -> UserResult<masking::Secret<String>> {
+) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
@@ -105,14 +107,14 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         org_id,
     )
     .await?;
-    Ok(masking::Secret::new(token))
+    Ok(Secret::new(token))
 }
 
 pub fn get_dashboard_entry_response(
     state: &SessionState,
     user: UserFromStorage,
     user_role: UserRole,
-    token: masking::Secret<String>,
+    token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
@@ -189,7 +191,7 @@ pub async fn get_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> masking::Secret<String> {
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
     match resp {
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
@@ -212,4 +214,75 @@ impl ForeignFrom<user_api::AuthConfig> for common_enums::UserAuthType {
             user_api::AuthConfig::MagicLink => Self::MagicLink,
         }
     }
+}
+
+pub async fn decrypt_oidc_private_config(
+    state: &SessionState,
+    encrypted_config: Option<Encryption>,
+) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
+    let user_auth_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
+        encrypted_config,
+        &user_auth_key,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decrypt private config")?
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable("Private config not found")?
+    .into_inner()
+    .expose();
+
+    private_config
+        .parse_value("OpenIdConnectPrivateConfig")
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("unable to parse OpenIdConnectPrivateConfig")
+}
+
+pub async fn set_sso_id_in_redis(
+    state: &SessionState,
+    oidc_state: Secret<String>,
+    sso_id: String,
+) -> UserResult<()> {
+    let connection = get_redis_connection(state)?;
+    let key = get_oidc_key(&oidc_state.expose());
+    connection
+        .set_key_with_expiry(&key, sso_id, REDIS_SSO_TTL)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to set sso id in redis")
+}
+
+pub async fn get_sso_id_from_redis(
+    state: &SessionState,
+    oidc_state: Secret<String>,
+) -> UserResult<String> {
+    let connection = get_redis_connection(state)?;
+    let key = get_oidc_key(&oidc_state.expose());
+    connection
+        .get_key::<Option<String>>(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get sso id from redis")?
+        .ok_or(UserErrors::SSOFailed)
+        .attach_printable("Cannot find oidc state in redis. Oidc state invalid or expired")
+}
+
+fn get_oidc_key(oidc_state: &str) -> String {
+    format!("{}{oidc_state}", REDIS_SSO_PREFIX)
+}
+
+pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String {
+    format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
