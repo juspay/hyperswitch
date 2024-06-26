@@ -351,6 +351,7 @@ impl GsmValidation for PayoutData {
     fn should_call_gsm(&self) -> bool {
         match self.payout_attempt.status {
             common_enums::PayoutStatus::Success
+            | common_enums::PayoutStatus::RequiresConfirmation
             | common_enums::PayoutStatus::Cancelled
             | common_enums::PayoutStatus::Pending
             | common_enums::PayoutStatus::Initiated

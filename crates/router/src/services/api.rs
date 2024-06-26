@@ -1,9 +1,10 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Display},
     future::Future,
     str,
     sync::Arc,
@@ -24,6 +25,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_interfaces::{
     api::{
@@ -40,7 +42,10 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::AuthenticateAndFetch;
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
 use crate::{
     configs::Settings,
     consts,
@@ -58,12 +63,39 @@ use crate::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
     },
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
         ErrorResponse,
     },
 };
+
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::RefundFlowData, Req, Resp>;
+#[cfg(feature = "frm")]
+pub type BoxedFrmConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FrmFlowData, Req, Resp>;
+pub type BoxedDisputeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputesFlowData, Req, Resp>;
+pub type BoxedMandateRevokeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::MandateRevokeFlowData, Req, Resp>;
+#[cfg(feature = "payouts")]
+pub type BoxedPayoutConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PayoutFlowData, Req, Resp>;
+pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
+pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
+pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
 pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
@@ -128,11 +160,12 @@ pub async fn execute_connector_processing_step<
     'b,
     'a,
     T,
+    ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     state: &'b SessionState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
@@ -690,6 +723,53 @@ pub enum ApplicationResponse<R> {
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
+    GenericLinkForm(Box<GenericLinks>),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinks {
+    ExpiredLink(GenericExpiredLinkData),
+    PaymentMethodCollect(GenericLinkFormData),
+    PayoutLink(GenericLinkFormData),
+    PayoutLinkStatus(GenericLinkStatusData),
+    PaymentMethodCollectStatus(GenericLinkStatusData),
+}
+
+impl Display for Box<GenericLinks> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match **self {
+                GenericLinks::ExpiredLink(_) => "ExpiredLink",
+                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
+                GenericLinks::PayoutLink(_) => "PayoutLink",
+                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
+                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+            }
+        )
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkFormData {
+    pub js_data: String,
+    pub css_data: String,
+    pub sdk_url: String,
+    pub html_meta_tags: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericExpiredLinkData {
+    pub title: String,
+    pub message: String,
+    pub theme: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkStatusData {
+    pub js_data: String,
+    pub css_data: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1035,6 +1115,16 @@ where
             )
             .respond_to(request)
             .map_into_boxed_body()
+        }
+
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).to_string();
+            match build_generic_link_html(*boxed_generic_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => {
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {

@@ -1,4 +1,6 @@
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "payouts")]
+use api_models::payouts;
 use api_models::{
     payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
     payments,
@@ -124,6 +126,7 @@ impl AuthenticationType {
 pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
 }
 
 #[cfg(feature = "olap")]
@@ -132,6 +135,7 @@ pub struct SinglePurposeToken {
     pub user_id: String,
     pub purpose: TokenPurpose,
     pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
     pub exp: u64,
 }
 
@@ -142,6 +146,7 @@ impl SinglePurposeToken {
         purpose: TokenPurpose,
         origin: domain::Origin,
         settings: &Settings,
+        path: Vec<TokenPurpose>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -151,6 +156,7 @@ impl SinglePurposeToken {
             purpose,
             origin,
             exp,
+            path,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -356,6 +362,7 @@ where
             UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
+                path: payload.path,
             },
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -941,6 +948,12 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
+#[cfg(feature = "payouts")]
+impl ClientSecretFetch for payouts::PayoutCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
 
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1023,7 +1036,6 @@ where
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
