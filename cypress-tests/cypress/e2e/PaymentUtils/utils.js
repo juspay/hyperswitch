@@ -103,11 +103,3 @@ export function defaultErrorHandler(response, response_data) {
     expect(response_data.body.error[key]).to.equal(response.body.error[key]);
   }
 }
-
-export function logRequestId(xRequestId) {
-  if (xRequestId) {
-    cy.task("cli_log", "x-request-id -> " + xRequestId);
-  } else {
-    cy.task("cli_log", "x-request-id is not available in the response headers");
-  }
-}

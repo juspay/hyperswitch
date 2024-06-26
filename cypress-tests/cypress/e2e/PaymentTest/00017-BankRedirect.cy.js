@@ -16,10 +16,6 @@ describe("Bank Redirect tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   context("Blik Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 

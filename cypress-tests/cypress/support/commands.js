@@ -28,10 +28,17 @@
 import {
   defaultErrorHandler,
   getValueByKey,
-  logRequestId,
 } from "../e2e/PaymentUtils/utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
+
+export function logRequestId(xRequestId) {
+  if (xRequestId) {
+    cy.task("cli_log", "x-request-id -> " + xRequestId);
+  } else {
+    cy.task("cli_log", "x-request-id is not available in the response headers");
+  }
+}
 
 Cypress.Commands.add(
   "merchantCreateCallTest",
