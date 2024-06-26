@@ -550,7 +550,7 @@ impl StringMajorUnit {
     }
 
     /// Get string amount from struct to be removed in future
-    pub fn get_amount_as_string243(&self) -> String {
+    pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
 }

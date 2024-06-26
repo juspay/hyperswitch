@@ -14,7 +14,7 @@ pub use super::disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, Submit
 
 #[derive(Default, Debug)]
 pub struct DisputePayload {
-    pub amount: StringMinorUnit,
+    pub amount: String,
     pub currency: String,
     pub dispute_stage: api_models::enums::DisputeStage,
     pub connector_status: String,
