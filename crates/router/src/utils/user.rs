@@ -218,7 +218,7 @@ impl ForeignFrom<user_api::AuthConfig> for common_enums::UserAuthType {
 
 pub async fn decrypt_oidc_private_config(
     state: &SessionState,
-    encrpted_config: Option<Encryption>,
+    encrypted_config: Option<Encryption>,
 ) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
     let user_auth_key = hex::decode(
         state
@@ -233,7 +233,7 @@ pub async fn decrypt_oidc_private_config(
     .attach_printable("Failed to decode DEK")?;
 
     let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
-        encrpted_config,
+        encrypted_config,
         &user_auth_key,
     )
     .await

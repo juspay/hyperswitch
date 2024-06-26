@@ -76,7 +76,7 @@ pub async fn get_user_email_from_oidc_provider(
         .request_async(|req| get_oidc_reqwest_client(state, req))
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to exhange code and fetch oidc token")?;
+        .attach_printable("Failed to exchange code and fetch oidc token")?;
 
     // Fetch id token from response
     let id_token = token_response
@@ -88,7 +88,7 @@ pub async fn get_user_email_from_oidc_provider(
     let id_token_claims = id_token
         .claims(&client.id_token_verifier(), &nounce)
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to verfiy id token")?;
+        .attach_printable("Failed to verify id token")?;
 
     // Get email from token
     let email_from_token = id_token_claims
