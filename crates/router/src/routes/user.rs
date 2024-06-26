@@ -876,3 +876,22 @@ pub async fn list_user_authentication_methods(
     ))
     .await
 }
+
+pub async fn terminate_auth_select(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::AuthSelectRequest>,
+) -> HttpResponse {
+    let flow = Flow::AuthSelect;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req, _| user_core::terminate_auth_select(state, user, req),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AuthSelect),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
