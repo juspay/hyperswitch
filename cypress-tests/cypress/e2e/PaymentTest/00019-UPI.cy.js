@@ -92,7 +92,8 @@ describe("UPI Payments - Hyperswitch", () => {
     });
   });
 
-  context("[Payment] [UPI - UPI Intent] Create & Confirm", () => {
+  // Skipping UPI Intent intentionally as connector is throwing 5xx during redirection
+  context.skip("[Payment] [UPI - UPI Intent] Create & Confirm", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
@@ -165,7 +166,7 @@ describe("UPI Payments - Hyperswitch", () => {
 });
 
 // TODO: This test is incomplete. Above has to be replicated here with changes to support SCL
-describe("UPI Payments -- Hyperswitch Stripe Compatibility Layer", () => {
+describe.skip("UPI Payments -- Hyperswitch Stripe Compatibility Layer", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
