@@ -10,8 +10,9 @@ use error_stack::ResultExt;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
+    configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
     core::payments::helpers,
-    errors,
+    errors, logger,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::{api::enums, domain},
@@ -23,7 +24,7 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
 ) -> RouterResponse<services::GenericLinkFormData> {
-    let db: &dyn StorageInterface = &*state.store;
+    let db: &dyn StorageInterface = &*state.store.clone();
     let merchant_id = &merchant_account.merchant_id;
     // Fetch payout
     let payout = db
@@ -61,7 +62,7 @@ pub async fn initiate_payout_link(
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
     let status = payout_link.link_status.clone();
     let link_data = payout_link.link_data.clone();
-    let default_config = &state.conf.generic_link.payout_link;
+    let default_config = &state.conf.generic_link.payout_link.clone();
     let default_ui_config = default_config.ui_config.clone();
     let ui_config_data = link_utils::GenericLinkUIConfigFormData {
         merchant_name: link_data
@@ -125,7 +126,7 @@ pub async fn initiate_payout_link(
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
             let enabled_payout_methods =
-                filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
+                filter_payout_methods(state, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
             let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
             for (payment_method, payment_method_types) in
@@ -147,7 +148,7 @@ pub async fn initiate_payout_link(
             let enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
-
+            logger::debug!("enabled_payment_methods : {:?}", enabled_payment_methods);
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: merchant_account
                     .publishable_key
@@ -225,11 +226,12 @@ pub async fn initiate_payout_link(
 
 #[cfg(feature = "payouts")]
 pub async fn filter_payout_methods(
-    db: &dyn StorageInterface,
+    state: SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
+    let db: &dyn StorageInterface = &*state.store;
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -256,6 +258,7 @@ pub async fn filter_payout_methods(
     let mut bank_transfer_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut card_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let payout_filter_config = &state.conf.clone().payout_filters;
     for mca in &filtered_mca {
         let payment_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -271,16 +274,23 @@ pub async fn filter_payout_methods(
                     Some(pmt) => pmt,
                     None => continue,
                 };
+                let connector = mca.connector_name.clone();
+                let payout_filter = payout_filter_config.0.get(&connector);
                 for pmts in &payment_method_types {
-                    if payment_method == common_enums::PaymentMethod::Card {
-                        card_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, card_hs.clone());
-                    } else if payment_method == common_enums::PaymentMethod::Wallet {
-                        wallet_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, wallet_hs.clone());
-                    } else if payment_method == common_enums::PaymentMethod::BankTransfer {
-                        bank_transfer_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, bank_transfer_hs.clone());
+                    let currency_country_filter =
+                        check_currency_country_filters(payout_filter, pmts, payout, key_store, db)
+                            .await?;
+                    if currency_country_filter != Some(false) {
+                        if payment_method == common_enums::PaymentMethod::Card {
+                            card_hs.insert(pmts.payment_method_type);
+                            payment_method_list_hm.insert(payment_method, card_hs.clone());
+                        } else if payment_method == common_enums::PaymentMethod::Wallet {
+                            wallet_hs.insert(pmts.payment_method_type);
+                            payment_method_list_hm.insert(payment_method, wallet_hs.clone());
+                        } else if payment_method == common_enums::PaymentMethod::BankTransfer {
+                            bank_transfer_hs.insert(pmts.payment_method_type);
+                            payment_method_list_hm.insert(payment_method, bank_transfer_hs.clone());
+                        }
                     }
                 }
             }
@@ -298,4 +308,50 @@ pub async fn filter_payout_methods(
         }
     }
     Ok(response)
+}
+
+pub async fn check_currency_country_filters(
+    payout_filter: Option<&PaymentMethodFilters>,
+    pmts: &api_models::payment_methods::RequestPaymentMethodTypes,
+    payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn StorageInterface,
+) -> errors::RouterResult<Option<bool>> {
+    if matches!(
+        pmts.payment_method_type,
+        common_enums::PaymentMethodType::Credit | common_enums::PaymentMethodType::Debit
+    ) {
+        Ok(Some(true))
+    } else {
+        let pmt_filter = payout_filter.and_then(|pmf| {
+            pmf.0.get(&PaymentMethodFilterKey::PaymentMethodType(
+                pmts.payment_method_type,
+            ))
+        });
+        let address = db
+            .find_address_by_address_id(&payout.address_id.clone(), key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while fetching address with address id {}",
+                    payout.address_id.clone()
+                )
+            })?;
+        let country_filter = address.country.and_then(|country| {
+            pmt_filter.and_then(|pmt_filter_hm| {
+                pmt_filter_hm
+                    .country
+                    .as_ref()
+                    .map(|pmt_filter_hs| pmt_filter_hs.contains(&country))
+            })
+        });
+        let currency_filter = pmt_filter.and_then(|pmt_filter_hm| {
+            pmt_filter_hm
+                .currency
+                .as_ref()
+                .map(|pmt_filter_hs| pmt_filter_hs.contains(&payout.destination_currency.clone()))
+        });
+        Ok(currency_filter.or(country_filter))
+    }
 }

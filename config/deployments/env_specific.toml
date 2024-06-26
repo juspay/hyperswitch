@@ -179,8 +179,21 @@ logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
 card = ["credit", "debit"]
-bank_transfer = ["ach", "bacs", "sepa"]
-wallet = ["paypal", "pix", "venmo"]
+
+[payout_filters.adyen]
+sepa = {currency = "EUR"}
+bacs = {currency = "GBP,USD,EUR,CAD,AUD,NZD,SGD,SEK,NOK,DKK,PLN,HKD,CHF,CZK,JPY,HUF,BGN"}
+
+[payout_filters.adyenplatform]
+sepa = {currency = "EUR"}
+
+[payout_filters.stripe]
+ach = {currency = "USD"}
+
+[payout_filters.wise]
+ach = {currency = "USD"}
+bacs = {currency = "GBP,USD,EUR,CAD,AUD,NZD,SGD,SEK,NOK,DKK,PLN,HKD,CHF,CZK,JPY,HUF,BGN"}
+sepa = {currency = "EUR"}
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
