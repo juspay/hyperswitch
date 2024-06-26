@@ -25,9 +25,7 @@ where
         .set_body(RequestContent::Json(Box::new(request_body)))
         .build();
 
-    let res = services::call_connector_api(state, encryption_req, "EncryptionServiceRequest").await;
-    println!("res: {:?}", res);
-    res
+    services::call_connector_api(state, encryption_req, "EncryptionServiceRequest").await
 }
 
 pub async fn create_key_in_key_manager(

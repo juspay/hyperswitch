@@ -139,26 +139,47 @@ pub async fn create_or_update_address_for_payment_by_request(
             Some(address) => {
                 let identifier = Identifier::Merchant(merchant_key_store.merchant_id.clone());
                 let address_details = address.address.as_ref();
-                let mut map = FxHashMap::default();
-                let line1 = address_details.and_then(|ad| ad.line1.as_ref());
-                map.insert("line1".to_string(), line1.cloned());
-                let line2 = address_details.and_then(|ad| ad.line2.as_ref());
-                map.insert("line2".to_string(), line2.cloned());
-                let line3 = address_details.and_then(|ad| ad.line3.as_ref());
-                map.insert("line3".to_string(), line3.cloned());
-                let zip = address_details.and_then(|ad| ad.zip.as_ref());
-                map.insert("zip".to_string(), zip.cloned());
-                let state = address_details.and_then(|ad| ad.state.as_ref());
-                map.insert("state".to_string(), state.cloned());
-                let first_name = address_details.and_then(|ad| ad.first_name.as_ref());
-                map.insert("fn".to_string(), first_name.cloned());
-                let last_name = address_details.and_then(|ad| ad.last_name.as_ref());
-                map.insert("ln".to_string(), last_name.cloned());
-                let phone = address
-                    .phone
-                    .as_ref()
-                    .and_then(|phone| phone.number.as_ref());
-                map.insert("phone".to_string(), phone.cloned());
+                let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
+                map.insert(
+                    "line1".to_string(),
+                    address_details.and_then(|ad| ad.line1.as_ref()).cloned(),
+                );
+                map.insert(
+                    "line2".to_string(),
+                    address_details.and_then(|ad| ad.line2.as_ref()).cloned(),
+                );
+                map.insert(
+                    "line3".to_string(),
+                    address_details.and_then(|ad| ad.line3.as_ref()).cloned(),
+                );
+                map.insert(
+                    "zip".to_string(),
+                    address_details.and_then(|ad| ad.zip.as_ref()).cloned(),
+                );
+                map.insert(
+                    "state".to_string(),
+                    address_details.and_then(|ad| ad.state.as_ref()).cloned(),
+                );
+                map.insert(
+                    "fn".to_string(),
+                    address_details
+                        .and_then(|ad| ad.first_name.as_ref())
+                        .cloned(),
+                );
+                map.insert(
+                    "ln".to_string(),
+                    address_details
+                        .and_then(|ad| ad.last_name.as_ref())
+                        .cloned(),
+                );
+                map.insert(
+                    "phone".to_string(),
+                    address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.as_ref())
+                        .cloned(),
+                );
                 let encrypted_data =
                     types::batch_encrypt_optional(session_state, map, identifier.clone(), key)
                         .await
@@ -172,14 +193,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.city.clone()),
                             country: address.address.as_ref().and_then(|value| value.country),
-                            line1: line1.and_then(|_| encrypted_data.get("line1").cloned()),
-                            line2: line2.and_then(|_| encrypted_data.get("line2").cloned()),
-                            line3: line3.and_then(|_| encrypted_data.get("line3").cloned()),
-                            state: state.and_then(|_| encrypted_data.get("state").cloned()),
-                            zip: zip.and_then(|_| encrypted_data.get("zip").cloned()),
-                            first_name: first_name.and_then(|_| encrypted_data.get("fn").cloned()),
-                            last_name: last_name.and_then(|_| encrypted_data.get("ln").cloned()),
-                            phone_number: phone.and_then(|_| encrypted_data.get("phone").cloned()),
+                            line1: encrypted_data.get("line1").cloned(),
+                            line2: encrypted_data.get("line2").cloned(),
+                            line3: encrypted_data.get("line3").cloned(),
+                            state: encrypted_data.get("state").cloned(),
+                            zip: encrypted_data.get("zip").cloned(),
+                            first_name: encrypted_data.get("fn").cloned(),
+                            last_name: encrypted_data.get("ln").cloned(),
+                            phone_number: encrypted_data.get("phone").cloned(),
                             country_code: address
                                 .phone
                                 .as_ref()
@@ -350,46 +371,67 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = &address.address.as_ref();
-        let mut map = FxHashMap::default();
-        let line1 = address_details.and_then(|ad| ad.line1.as_ref());
-        map.insert("line1".to_string(), line1.cloned());
-        let line2 = address_details.and_then(|ad| ad.line2.as_ref());
-        map.insert("line2".to_string(), line2.cloned());
-        let line3 = address_details.and_then(|ad| ad.line3.as_ref());
-        map.insert("line3".to_string(), line3.cloned());
-        let zip = address_details.and_then(|ad| ad.zip.as_ref());
-        map.insert("zip".to_string(), zip.cloned());
-        let state = address_details.and_then(|ad| ad.state.as_ref());
-        map.insert("state".to_string(), state.cloned());
-        let first_name = address_details.and_then(|ad| ad.first_name.as_ref());
-        map.insert("fn".to_string(), first_name.cloned());
-        let last_name = address_details.and_then(|ad| ad.last_name.as_ref());
-        map.insert("ln".to_string(), last_name.cloned());
-        let phone = address
-            .phone
-            .as_ref()
-            .and_then(|phone| phone.number.as_ref());
-        map.insert("phone".to_string(), phone.cloned());
+        let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
+        map.insert(
+            "line1".to_string(),
+            address_details.and_then(|ad| ad.line1.as_ref()).cloned(),
+        );
+        map.insert(
+            "line2".to_string(),
+            address_details.and_then(|ad| ad.line2.as_ref()).cloned(),
+        );
+        map.insert(
+            "line3".to_string(),
+            address_details.and_then(|ad| ad.line3.as_ref()).cloned(),
+        );
+        map.insert(
+            "zip".to_string(),
+            address_details.and_then(|ad| ad.zip.as_ref()).cloned(),
+        );
+        map.insert(
+            "state".to_string(),
+            address_details.and_then(|ad| ad.state.as_ref()).cloned(),
+        );
+        map.insert(
+            "fn".to_string(),
+            address_details
+                .and_then(|ad| ad.first_name.as_ref())
+                .cloned(),
+        );
+        map.insert(
+            "ln".to_string(),
+            address_details
+                .and_then(|ad| ad.last_name.as_ref())
+                .cloned(),
+        );
+        map.insert(
+            "phone".to_string(),
+            address
+                .phone
+                .as_ref()
+                .and_then(|phone| phone.number.as_ref())
+                .cloned(),
+        );
         let identifier = Identifier::Merchant(merchant_id.to_string());
         let encrypted_data =
             types::batch_encrypt_optional(session_state, map, identifier.clone(), key).await?;
         Ok(domain::Address {
             id: None,
-            phone_number: phone.and_then(|_| encrypted_data.get("phone").cloned()),
+            phone_number: encrypted_data.get("phone").cloned(),
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
             country: address_details.and_then(|address_details| address_details.country),
-            line1: line1.and_then(|_| encrypted_data.get("line1").cloned()),
-            line2: line2.and_then(|_| encrypted_data.get("line2").cloned()),
-            line3: line3.and_then(|_| encrypted_data.get("line3").cloned()),
-            state: state.and_then(|_| encrypted_data.get("state").cloned()),
+            line1: encrypted_data.get("line1").cloned(),
+            line2: encrypted_data.get("line2").cloned(),
+            line3: encrypted_data.get("line3").cloned(),
+            state: encrypted_data.get("state").cloned(),
             created_at: common_utils::date_time::now(),
-            first_name: first_name.and_then(|_| encrypted_data.get("fn").cloned()),
-            last_name: last_name.and_then(|_| encrypted_data.get("ln").cloned()),
+            first_name: encrypted_data.get("fn").cloned(),
+            last_name: encrypted_data.get("ln").cloned(),
             modified_at: common_utils::date_time::now(),
-            zip: zip.and_then(|_| encrypted_data.get("zip").cloned()),
+            zip: encrypted_data.get("zip").cloned(),
             updated_by: storage_scheme.to_string(),
             email: address
                 .email
@@ -1547,7 +1589,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
             let key = key_store.key.get_inner().peek();
             let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let mut map = FxHashMap::default();
+            let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
             map.insert("name".to_string(), request_customer_details.name.clone());
             map.insert("phone".to_string(), request_customer_details.phone.clone());
             let encrypted_data = types::batch_encrypt_optional(state, map, identifier.clone(), key)
@@ -1565,9 +1607,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         let customer_update = async {
                             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                                 Update {
-                                    name: request_customer_details
-                                        .name
-                                        .and_then(|_| encrypted_data.get("name").cloned()),
+                                    name: encrypted_data.get("name").cloned(),
                                     email: request_customer_details
                                         .email
                                         .clone()
@@ -1580,11 +1620,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                             )
                                         })
                                         .await?,
-                                    phone: Box::new(
-                                        request_customer_details
-                                            .phone
-                                            .and_then(|_| encrypted_data.get("phone").cloned()),
-                                    ),
+                                    phone: Box::new(encrypted_data.get("phone").cloned()),
                                     phone_country_code: request_customer_details.phone_country_code,
                                     description: None,
                                     connector_customer: None,
@@ -1617,11 +1653,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                             domain::Customer {
                                 customer_id,
                                 merchant_id: merchant_id.to_string(),
-                                name: request_customer_details.name.and_then(|name| {
-                                    encrypted_data
-                                        .get(name.peek())
-                                        .map(|encryptable| encryptable.to_owned())
-                                }),
+                                name: encrypted_data.get("name").cloned(),
                                 email: request_customer_details
                                     .email
                                     .clone()
@@ -1634,11 +1666,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                         )
                                     })
                                     .await?,
-                                phone: request_customer_details.phone.and_then(|phone| {
-                                    encrypted_data
-                                        .get(phone.peek())
-                                        .map(|encryptable| encryptable.to_owned())
-                                }),
+                                phone: encrypted_data.get("phone").cloned(),
                                 phone_country_code: request_customer_details
                                     .phone_country_code
                                     .clone(),

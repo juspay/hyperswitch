@@ -612,18 +612,17 @@ pub async fn get_or_create_customer_details(
         Some(customer) => Ok(Some(customer)),
         None => {
             let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let mut map = FxHashMap::default();
+            let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
             map.insert("name".to_string(), customer_details.name.clone());
             map.insert("phone".to_string(), customer_details.phone.clone());
             let encrypted_data =
                 domain_types::batch_encrypt_optional(state, map, identifier.clone(), key)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let inner_encrypt = |inner: Secret<String>| encrypted_data.get(inner.peek()).cloned();
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: customer_details.name.clone().and_then(inner_encrypt),
+                name: encrypted_data.get("name").cloned(),
                 email: domain_types::encrypt_optional(
                     state,
                     customer_details.email.to_owned().map(|e| e.expose()),
@@ -632,7 +631,7 @@ pub async fn get_or_create_customer_details(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: customer_details.phone.clone().and_then(inner_encrypt),
+                phone: encrypted_data.get("phone").cloned(),
                 description: None,
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,

@@ -101,7 +101,7 @@ pub async fn create_customer(
     };
 
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let mut map = FxHashMap::default();
+    let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
     map.insert("name".to_string(), customer_data.name.clone());
     map.insert("phone".to_string(), customer_data.phone.clone());
     let encrypted_data = types::batch_encrypt_optional(&state, map, identifier.clone(), key)
@@ -112,9 +112,7 @@ pub async fn create_customer(
         Ok(domain::Customer {
             customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
-            name: customer_data
-                .name
-                .and_then(|_| encrypted_data.get("name").cloned()),
+            name: encrypted_data.get("name").cloned(),
             email: customer_data
                 .email
                 .async_lift(|inner| {
@@ -126,9 +124,7 @@ pub async fn create_customer(
                     )
                 })
                 .await?,
-            phone: customer_data
-                .phone
-                .and_then(|_| encrypted_data.get("phone").cloned()),
+            phone: encrypted_data.get("phone").cloned(),
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
             metadata: customer_data.metadata,
@@ -479,7 +475,7 @@ pub async fn update_customer(
     };
 
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let mut map = FxHashMap::default();
+    let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
     map.insert("name".to_string(), update_customer.name.clone());
     map.insert("phone".to_string(), update_customer.phone.clone());
     let encrypted_data = types::batch_encrypt_optional(&state, map, identifier.clone(), key)
@@ -493,9 +489,7 @@ pub async fn update_customer(
             customer,
             async {
                 Ok(storage::CustomerUpdate::Update {
-                    name: update_customer
-                        .name
-                        .and_then(|_| encrypted_data.get("name").cloned()),
+                    name: encrypted_data.get("name").cloned(),
                     email: update_customer
                         .email
                         .async_lift(|inner| {
@@ -507,11 +501,7 @@ pub async fn update_customer(
                             )
                         })
                         .await?,
-                    phone: Box::new(
-                        update_customer
-                            .phone
-                            .and_then(|_| encrypted_data.get("phone").cloned()),
-                    ),
+                    phone: Box::new(encrypted_data.get("phone").cloned()),
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,

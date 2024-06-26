@@ -69,7 +69,7 @@ impl super::behaviour::Conversion for Customer {
         Self: Sized,
     {
         let identifier = Identifier::Merchant(item.merchant_id.clone());
-        let mut map = FxHashMap::default();
+        let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
         map.insert("name".to_string(), item.name.clone());
         map.insert("phone".to_string(), item.phone.clone());
         let decrypted = types::batch_decrypt_optional(state, map, identifier.clone(), key.peek())
@@ -84,9 +84,9 @@ impl super::behaviour::Conversion for Customer {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,
-                name: item.name.and_then(|_| decrypted.get("name").cloned()),
+                name: decrypted.get("name").cloned(),
                 email: item.email.async_lift(inner_decrypt_email).await?,
-                phone: item.phone.and_then(|_| decrypted.get("phone").cloned()),
+                phone: decrypted.get("phone").cloned(),
                 phone_country_code: item.phone_country_code,
                 description: item.description,
                 created_at: item.created_at,

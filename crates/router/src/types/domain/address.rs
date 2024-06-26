@@ -195,7 +195,7 @@ impl behaviour::Conversion for Address {
     ) -> CustomResult<Self, ValidationError> {
         async {
             let identifier = Identifier::Merchant(other.merchant_id.clone());
-            let mut map = FxHashMap::default();
+            let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
             map.insert("line1".to_string(), other.line1.clone());
             map.insert("line2".to_string(), other.line2.clone());
             map.insert("line3".to_string(), other.line3.clone());
@@ -213,16 +213,14 @@ impl behaviour::Conversion for Address {
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other.line1.and_then(|_| decrypted.get("line1").cloned()),
-                line2: other.line2.and_then(|_| decrypted.get("line2").cloned()),
-                line3: other.line3.and_then(|_| decrypted.get("line3").cloned()),
-                state: other.state.and_then(|_| decrypted.get("state").cloned()),
-                zip: other.zip.and_then(|_| decrypted.get("zip").cloned()),
-                first_name: other.first_name.and_then(|_| decrypted.get("fn").cloned()),
-                last_name: other.last_name.and_then(|_| decrypted.get("ln").cloned()),
-                phone_number: other
-                    .phone_number
-                    .and_then(|_| decrypted.get("phone").cloned()),
+                line1: decrypted.get("line1").cloned(),
+                line2: decrypted.get("line2").cloned(),
+                line3: decrypted.get("line3").cloned(),
+                state: decrypted.get("state").cloned(),
+                zip: decrypted.get("zip").cloned(),
+                first_name: decrypted.get("fn").cloned(),
+                last_name: decrypted.get("ln").cloned(),
+                phone_number: decrypted.get("phone").cloned(),
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,

@@ -10,7 +10,9 @@ use error_stack::ResultExt;
 #[allow(unused_imports)]
 use masking::{ExposeInterface, StrongSecret};
 use masking::{PeekInterface, Secret};
+#[allow(unused_imports)]
 use rdkafka::message::ToBytes;
+#[allow(unused_imports)]
 use router_env::{instrument, logger, tracing};
 use rustc_hash::FxHashMap;
 
@@ -220,6 +222,7 @@ impl<
         Ok(Self::new(value.into(), encrypted))
     }
 
+    #[allow(unused_variables)]
     async fn batch_encrypt_via_api(
         state: &SessionState,
         masked_data: FxHashMap<String, Secret<String, S>>,
@@ -273,6 +276,7 @@ impl<
         }
     }
 
+    #[allow(unused_variables)]
     async fn batch_decrypt_via_api(
         state: &SessionState,
         encrypted_data: FxHashMap<String, Encryption>,
@@ -493,6 +497,7 @@ impl<
         Ok(Self::new(value.into(), encrypted))
     }
 
+    #[allow(unused_variables)]
     async fn batch_encrypt_via_api(
         state: &SessionState,
         masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
@@ -548,6 +553,7 @@ impl<
         }
     }
 
+    #[allow(unused_variables)]
     async fn batch_decrypt_via_api(
         state: &SessionState,
         encrypted_data: FxHashMap<String, Encryption>,
@@ -761,6 +767,7 @@ impl<
         Ok(Self::new(data.into(), encrypted))
     }
 
+    #[allow(unused_variables)]
     async fn batch_encrypt_via_api(
         state: &SessionState,
         masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
@@ -817,6 +824,7 @@ impl<
         }
     }
 
+    #[allow(unused_variables)]
     async fn batch_decrypt_via_api(
         state: &SessionState,
         encrypted_data: FxHashMap<String, Encryption>,

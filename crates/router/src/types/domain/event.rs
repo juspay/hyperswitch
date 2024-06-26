@@ -90,7 +90,7 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         let identifier = Identifier::Merchant(key_store_ref_id.clone());
-        let mut map = FxHashMap::default();
+        let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
         map.insert("request".to_string(), item.request.clone());
         map.insert("response".to_string(), item.response.clone());
         let decrypted = types::batch_decrypt_optional(state, map, identifier, key.peek())
@@ -111,10 +111,8 @@ impl super::behaviour::Conversion for Event {
             primary_object_created_at: item.primary_object_created_at,
             idempotent_event_id: item.idempotent_event_id,
             initial_attempt_id: item.initial_attempt_id,
-            request: item.request.and_then(|_| decrypted.get("request").cloned()),
-            response: item
-                .response
-                .and_then(|_| decrypted.get("response").cloned()),
+            request: decrypted.get("request").cloned(),
+            response: decrypted.get("response").cloned(),
             delivery_attempt: item.delivery_attempt,
         })
     }
