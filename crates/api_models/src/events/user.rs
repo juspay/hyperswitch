@@ -12,14 +12,14 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
     ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetSsoAuthUrlRequest,
+    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
+    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
+    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -81,7 +81,9 @@ common_utils::impl_misc_api_event_type!(
     RecoveryCodes,
     GetUserAuthenticationMethodsRequest,
     CreateUserAuthenticationMethodRequest,
-    UpdateUserAuthenticationMethodRequest
+    UpdateUserAuthenticationMethodRequest,
+    GetSsoAuthUrlRequest,
+    SsoSignInRequest
 );
 
 #[cfg(feature = "dummy_connector")]

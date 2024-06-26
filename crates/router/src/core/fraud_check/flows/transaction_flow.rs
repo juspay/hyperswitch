@@ -148,8 +148,7 @@ pub async fn decide_frm_flow<'a, 'b>(
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmTransactionRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Transaction,
         FraudCheckTransactionData,
         FraudCheckResponseData,

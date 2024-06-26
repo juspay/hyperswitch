@@ -39,15 +39,19 @@ pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignUpWithMerchantIdRequest>,
+    query: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignUpWithMerchantId;
     let req_payload = json_payload.into_inner();
+    let auth_id = query.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::signup_with_merchant_id(state, req_body),
+        |state, _, req_body, _| {
+            user_core::signup_with_merchant_id(state, req_body, auth_id.clone())
+        },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -68,7 +72,7 @@ pub async fn user_signup(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| async move {
+        |state, _: (), req_body, _| async move {
             if let Some(true) = is_token_only {
                 user_core::signup_token_only_flow(state, req_body).await
             } else {
@@ -95,7 +99,7 @@ pub async fn user_signin(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| async move {
+        |state, _: (), req_body, _| async move {
             if let Some(true) = is_token_only {
                 user_core::signin_token_only_flow(state, req_body).await
             } else {
@@ -113,15 +117,17 @@ pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::ConnectAccountRequest>,
+    query: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserConnectAccount;
     let req_payload = json_payload.into_inner();
+    let auth_id = query.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::connect_account(state, req_body),
+        |state, _: (), req_body, _| user_core::connect_account(state, req_body, auth_id.clone()),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -382,14 +388,16 @@ pub async fn forgot_password(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ForgotPasswordRequest>,
+    query: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ForgotPassword;
+    let auth_id = query.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload, _| user_core::forgot_password(state, payload),
+        |state, _: (), payload, _| user_core::forgot_password(state, payload, auth_id.clone()),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -424,28 +432,38 @@ pub async fn reset_password(
             state.clone(),
             &req,
             payload.into_inner(),
-            |state, _, payload, _| user_core::reset_password(state, payload),
+            |state, _: (), payload, _| user_core::reset_password(state, payload),
             &auth::NoAuth,
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 }
+
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
-    query: web::Query<user_api::TokenOnlyQueryParam>,
+    token_only_query_param: web::Query<user_api::TokenOnlyQueryParam>,
+    auth_id_query_param: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
-    let is_token_only = query.into_inner().token_only;
+    let is_token_only = token_only_query_param.into_inner().token_only;
+    let auth_id = auth_id_query_param.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
         |state, user, payload, req_state| {
-            user_core::invite_multiple_user(state, user, payload, req_state, is_token_only)
+            user_core::invite_multiple_user(
+                state,
+                user,
+                payload,
+                req_state,
+                is_token_only,
+                auth_id.clone(),
+            )
         },
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
@@ -458,14 +476,18 @@ pub async fn resend_invite(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ReInviteUserRequest>,
+    query: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ReInviteUser;
+    let auth_id = query.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        user_core::resend_invite,
+        |state, user, req_payload, _| {
+            user_core::resend_invite(state, user, req_payload, auth_id.clone())
+        },
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -500,7 +522,7 @@ pub async fn accept_invite_from_email(
             state.clone(),
             &req,
             payload.into_inner(),
-            |state, _, request_payload, _| {
+            |state, _: (), request_payload, _| {
                 user_core::accept_invite_from_email(state, request_payload)
             },
             &auth::NoAuth,
@@ -538,7 +560,7 @@ pub async fn verify_email(
             state,
             &http_req,
             json_payload.into_inner(),
-            |state, _, req_payload, _| user_core::verify_email(state, req_payload),
+            |state, _: (), req_payload, _| user_core::verify_email(state, req_payload),
             &auth::NoAuth,
             api_locking::LockAction::NotApplicable,
         ))
@@ -551,14 +573,18 @@ pub async fn verify_email_request(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SendVerifyEmailRequest>,
+    query: web::Query<user_api::AuthIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::VerifyEmailRequest;
+    let auth_id = query.into_inner().auth_id;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_body, _| user_core::send_verification_mail(state, req_body),
+        |state, _: (), req_body, _| {
+            user_core::send_verification_mail(state, req_body, auth_id.clone())
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -750,6 +776,50 @@ pub async fn check_two_factor_auth_status(
     .await
 }
 
+pub async fn get_sso_auth_url(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::GetSsoAuthUrlRequest>,
+) -> HttpResponse {
+    let flow = Flow::GetSsoAuthUrl;
+    let payload = query.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _: (), req, _| user_core::get_sso_auth_url(state, req),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn sso_sign(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::SsoSignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::SignInWithSso;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user: Option<auth::UserFromSinglePurposeToken>, payload, _| {
+            user_core::sso_sign(state, payload, user)
+        },
+        auth::auth_type(
+            &auth::NoAuth,
+            &auth::SinglePurposeJWTAuth(TokenPurpose::SSO),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn create_user_authentication_method(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -800,7 +870,7 @@ pub async fn list_user_authentication_methods(
         state.clone(),
         &req,
         query.into_inner(),
-        |state, _, req, _| user_core::list_user_authentication_methods(state, req),
+        |state, _: (), req, _| user_core::list_user_authentication_methods(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))

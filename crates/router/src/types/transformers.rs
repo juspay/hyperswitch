@@ -578,7 +578,8 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             | storage_enums::PayoutStatus::RequiresCreation
             | storage_enums::PayoutStatus::RequiresFulfillment
             | storage_enums::PayoutStatus::RequiresPayoutMethodData
-            | storage_enums::PayoutStatus::RequiresVendorAccountCreation => None,
+            | storage_enums::PayoutStatus::RequiresVendorAccountCreation
+            | storage_enums::PayoutStatus::RequiresConfirmation => None,
         }
     }
 }
