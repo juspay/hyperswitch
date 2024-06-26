@@ -1216,6 +1216,7 @@ default_imp_for_payouts_retrieve!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,

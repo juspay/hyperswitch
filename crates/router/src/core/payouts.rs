@@ -1602,8 +1602,7 @@ pub async fn create_payout_retrieve(
     .await?;
 
     // 3. Fetch connector integration details
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoSync,
         types::PayoutsData,
         types::PayoutsResponseData,
