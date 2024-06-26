@@ -16,6 +16,7 @@ pub mod dispute;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod generic_link;
 pub mod generics;
 pub mod gsm;
 pub mod locker_mock_up;

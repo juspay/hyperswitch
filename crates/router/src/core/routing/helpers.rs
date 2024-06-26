@@ -216,6 +216,7 @@ pub async fn update_merchant_active_algorithm_ref(
         payout_routing_algorithm: None,
         default_profile: None,
         payment_link_config: None,
+        pm_collect_link_config: None,
     };
 
     db.update_specific_fields_in_merchant(
@@ -280,6 +281,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         payment_link_config: None,
         session_expiry: None,
         authentication_connector_details: None,
+        payout_link_config: None,
         extended_card_info_config: None,
         use_billing_as_payment_method_billing: None,
         collect_shipping_details_from_wallet_connector: None,
