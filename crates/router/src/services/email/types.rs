@@ -221,7 +221,7 @@ impl EmailData for VerifyEmail {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -260,7 +260,7 @@ impl EmailData for ResetPassword {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "set_password",
             &self.auth_id,
@@ -300,7 +300,7 @@ impl EmailData for MagicLink {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -342,7 +342,7 @@ impl EmailData for InviteUser {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "set_password",
             &self.auth_id,
@@ -383,7 +383,7 @@ impl EmailData for InviteRegisteredUser {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "accept_invite_from_email",
             &self.auth_id,
