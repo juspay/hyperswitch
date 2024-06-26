@@ -8,7 +8,7 @@ use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
 use masking::PeekInterface;
-use router_env::{env, instrument, tracing, types, Flow};
+use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 use crate::{
@@ -596,7 +596,8 @@ pub async fn payments_connector_session(
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
-            return api::log_and_return_error_response(err);
+            logger::error!(?err, "Failed to get headers in payments_connector_session");
+            HeaderPayload::default()
         }
     };
 

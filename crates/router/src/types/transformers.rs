@@ -1109,7 +1109,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
         let browser_name_str =
             get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
 
-        let browser_name = browser_name_str.map(|browser_name| {
+        let browser_name: Option<api_enums::BrowserName> = browser_name_str.map(|browser_name| {
             browser_name
                 .parse_enum("BrowserName")
                 .unwrap_or(api_enums::BrowserName::Unknown)

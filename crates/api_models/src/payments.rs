@@ -4304,7 +4304,7 @@ pub struct SessionTokenInfo {
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Display)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepayInitiative {
     Web,

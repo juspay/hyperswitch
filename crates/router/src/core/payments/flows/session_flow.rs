@@ -233,7 +233,7 @@ async fn create_applepay_session_token(
 
                     (
                         payment_request_data,
-                        Some(apple_pay_session_request),
+                        Ok(apple_pay_session_request),
                         apple_pay_merchant_cert,
                         apple_pay_merchant_cert_key,
                         merchant_identifier,
@@ -246,12 +246,8 @@ async fn create_applepay_session_token(
                 } => {
                     logger::info!("Apple pay manual flow");
 
-                    let apple_pay_session_request = match header_payload.browser_name {
-                        Some(common_enums::BrowserName::Safari) | None => Some(
-                            get_session_request_for_manual_apple_pay(session_token_data.clone())?,
-                        ),
-                        Some(_) => None,
-                    };
+                    let apple_pay_session_request =
+                        get_session_request_for_manual_apple_pay(session_token_data.clone());
 
                     let merchant_business_country = session_token_data.merchant_business_country;
 
@@ -268,14 +264,9 @@ async fn create_applepay_session_token(
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
                 logger::info!("Apple pay manual flow");
 
-                let apple_pay_session_request = match header_payload.browser_name {
-                    Some(common_enums::BrowserName::Safari) | None => {
-                        Some(get_session_request_for_manual_apple_pay(
-                            apple_pay_metadata.session_token_data.clone(),
-                        )?)
-                    }
-                    Some(_) => None,
-                };
+                let apple_pay_session_request = get_session_request_for_manual_apple_pay(
+                    apple_pay_metadata.session_token_data.clone(),
+                );
 
                 let merchant_business_country = apple_pay_metadata
                     .session_token_data
@@ -347,7 +338,7 @@ async fn create_applepay_session_token(
         let apple_pay_session_response = match header_payload.browser_name {
             Some(common_enums::BrowserName::Safari) | None => {
                 let apple_pay_session_request = apple_pay_session_request_optional
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .attach_printable("Failed to obtain apple pay session request")?;
                 let applepay_session_request = build_apple_pay_session_request(
                     state,
                     apple_pay_session_request,
