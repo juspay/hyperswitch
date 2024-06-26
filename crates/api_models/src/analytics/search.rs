@@ -45,7 +45,6 @@ pub enum SearchIndex {
 pub enum SearchStatus {
     Success,
     Failure,
-    NoAccess,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
