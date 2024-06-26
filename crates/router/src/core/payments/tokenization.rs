@@ -269,20 +269,15 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
-                                    if let Some(metadata) = pm_metadata {
-                                        payment_methods::cards::update_payment_method(
-                                            db,
-                                            pm.clone(),
-                                            metadata,
-                                            merchant_account.storage_scheme,
-                                        )
-                                        .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Failed to add payment method in db")?;
-                                    };
-                                    // update if its a off-session mit payment
+                                    payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                        db,
+                                        pm.clone(),
+                                        pm_metadata,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to add payment method in db")?;
                                     if check_for_mit_mandates {
                                         let connector_mandate_details =
                                             update_connector_mandate_details_in_payment_method(
@@ -498,14 +493,10 @@ where
                                     )
                                     .await;
 
-                                let pm_update =
-                                    storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                                        payment_method_data: pm_data_encrypted,
-                                    };
-
-                                db.update_payment_method(
+                                payment_methods::cards::update_payment_method_and_last_used(
+                                    db,
                                     existing_pm,
-                                    pm_update,
+                                    pm_data_encrypted,
                                     merchant_account.storage_scheme,
                                 )
                                 .await
