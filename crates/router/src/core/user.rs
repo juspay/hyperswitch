@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     user as storage_user,
+    user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
     user_role::UserRoleNew,
 };
 use error_stack::{report, ResultExt};
@@ -37,6 +39,7 @@ pub mod sample_data;
 pub async fn signup_with_merchant_id(
     state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
@@ -62,6 +65,7 @@ pub async fn signup_with_merchant_id(
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
         subject: "Get back to Hyperswitch - Reset Your Password Now",
+        auth_id,
     };
 
     let send_email_result = state
@@ -239,6 +243,7 @@ pub async fn signin_token_only_flow(
 pub async fn connect_account(
     state: SessionState,
     request: user_api::ConnectAccountRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state.global_store.find_user_by_email(&request.email).await;
 
@@ -251,6 +256,7 @@ pub async fn connect_account(
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: "Unlock Hyperswitch: Use Your Magic Link to Sign In",
+            auth_id,
         };
 
         let send_email_result = state
@@ -301,6 +307,7 @@ pub async fn connect_account(
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: "Welcome to the Hyperswitch community!",
+            auth_id,
         };
 
         let send_email_result = state
@@ -399,6 +406,7 @@ pub async fn change_password(
 pub async fn forgot_password(
     state: SessionState,
     request: user_api::ForgotPasswordRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
@@ -420,6 +428,7 @@ pub async fn forgot_password(
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: "Get back to Hyperswitch - Reset Your Password Now",
+        auth_id,
     };
 
     state
@@ -594,6 +603,7 @@ pub async fn invite_multiple_user(
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
     is_token_only: Option<bool>,
+    auth_id: Option<String>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -601,7 +611,15 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request, &req_state, is_token_only).await
+        match handle_invitation(
+            &state,
+            &user_from_token,
+            request,
+            &req_state,
+            is_token_only,
+            &auth_id,
+        )
+        .await
         {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
@@ -623,6 +641,7 @@ async fn handle_invitation(
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
     is_token_only: Option<bool>,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -654,7 +673,14 @@ async fn handle_invitation(
         .await;
 
     if let Ok(invitee_user) = invitee_user {
-        handle_existing_user_invitation(state, user_from_token, request, invitee_user.into()).await
+        handle_existing_user_invitation(
+            state,
+            user_from_token,
+            request,
+            invitee_user.into(),
+            auth_id,
+        )
+        .await
     } else if invitee_user
         .as_ref()
         .map_err(|e| e.current_context().is_db_not_found())
@@ -667,6 +693,7 @@ async fn handle_invitation(
             request,
             req_state.clone(),
             is_token_only,
+            auth_id,
         )
         .await
     } else {
@@ -674,12 +701,13 @@ async fn handle_invitation(
     }
 }
 
-//TODO: send email
+#[allow(unused_variables)]
 async fn handle_existing_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
     state
@@ -720,6 +748,7 @@ async fn handle_existing_user_invitation(
             settings: state.conf.clone(),
             subject: "You have been invited to join Hyperswitch Community!",
             merchant_id: user_from_token.merchant_id.clone(),
+            auth_id: auth_id.clone(),
         };
 
         is_email_sent = state
@@ -746,12 +775,14 @@ async fn handle_existing_user_invitation(
     })
 }
 
+#[allow(unused_variables)]
 async fn handle_new_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
     is_token_only: Option<bool>,
+    auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -807,6 +838,7 @@ async fn handle_new_user_invitation(
                 settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
+                auth_id: auth_id.clone(),
             })
         } else {
             Box::new(email_types::InviteUser {
@@ -815,6 +847,7 @@ async fn handle_new_user_invitation(
                 settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
                 merchant_id: user_from_token.merchant_id.clone(),
+                auth_id: auth_id.clone(),
             })
         };
         let send_email_result = state
@@ -860,7 +893,7 @@ pub async fn resend_invite(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
-    _req_state: ReqState,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
@@ -884,7 +917,7 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and org_id = {} is not found",
+                        "User role with user_id = {} and merchant_id = {} is not found",
                         user.get_user_id(),
                         user_from_token.merchant_id
                     ))
@@ -904,6 +937,7 @@ pub async fn resend_invite(
         settings: state.conf.clone(),
         subject: "You have been invited to join Hyperswitch Community!",
         merchant_id: user_from_token.merchant_id,
+        auth_id,
     };
     state
         .email_client
@@ -1046,7 +1080,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         .map_err(|e| logger::error!(?e));
 
     let current_flow = domain::CurrentFlow::new(
-        user_token.origin,
+        user_token,
         domain::SPTFlow::AcceptInvitationFromEmail.into(),
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
@@ -1500,8 +1534,7 @@ pub async fn verify_email_token_only_flow(
         .await
         .map_err(|e| logger::error!(?e));
 
-    let current_flow =
-        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
@@ -1517,6 +1550,7 @@ pub async fn verify_email_token_only_flow(
 pub async fn send_verification_mail(
     state: SessionState,
     req: user_api::SendVerifyEmailRequest,
+    auth_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
@@ -1539,6 +1573,7 @@ pub async fn send_verification_mail(
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
         subject: "Welcome to the Hyperswitch community!",
+        auth_id,
     };
 
     state
@@ -1957,7 +1992,7 @@ pub async fn terminate_two_factor_auth(
         }
     }
 
-    let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::TOTP.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
@@ -1980,5 +2015,186 @@ pub async fn check_two_factor_auth_status(
             recovery_code: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id)
                 .await?,
         },
+    ))
+}
+
+pub async fn create_user_authentication_method(
+    state: SessionState,
+    req: user_api::CreateUserAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
+
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
+
+    let auth_methods = state
+        .store
+        .list_user_authentication_methods_for_owner_id(&req.owner_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get list of auth methods for the owner id")?;
+
+    let auth_id = auth_methods
+        .first()
+        .map(|auth_method| auth_method.auth_id.clone())
+        .unwrap_or(uuid::Uuid::new_v4().to_string());
+
+    let now = common_utils::date_time::now();
+    state
+        .store
+        .insert_user_authentication_method(UserAuthenticationMethodNew {
+            id: uuid::Uuid::new_v4().to_string(),
+            auth_id,
+            owner_id: req.owner_id,
+            owner_type: req.owner_type,
+            auth_type: req.auth_method.foreign_into(),
+            private_config,
+            public_config,
+            allow_signup: req.allow_signup,
+            created_at: now,
+            last_modified_at: now,
+        })
+        .await
+        .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn update_user_authentication_method(
+    state: SessionState,
+    req: user_api::UpdateUserAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let (private_config, public_config) = match req.auth_method {
+        user_api::AuthConfig::OpenIdConnect {
+            ref private_config,
+            ref public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
+
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok::<_, error_stack::Report<UserErrors>>((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }?;
+
+    state
+        .store
+        .update_user_authentication_method(
+            &req.id,
+            UserAuthenticationMethodUpdate::UpdateConfig {
+                private_config,
+                public_config,
+            },
+        )
+        .await
+        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_user_authentication_methods(
+    state: SessionState,
+    req: user_api::GetUserAuthenticationMethodsRequest,
+) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
+    let user_authentication_methods = state
+        .store
+        .list_user_authentication_methods_for_auth_id(&req.auth_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(
+        user_authentication_methods
+            .into_iter()
+            .map(|auth_method| {
+                let auth_name = match (auth_method.auth_type, auth_method.public_config) {
+                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
+                        let open_id_public_config: user_api::OpenIdConnectPublicConfig = config
+                            .parse_value("OpenIdConnectPublicConfig")
+                            .change_context(UserErrors::InternalServerError)
+                            .attach_printable("unable to parse generic data value")?;
+
+                        Ok(Some(open_id_public_config.name))
+                    }
+                    (common_enums::UserAuthType::OpenIdConnect, None) => {
+                        Err(UserErrors::InternalServerError)
+                            .attach_printable("No config found for open_id_connect auth_method")
+                    }
+                    _ => Ok(None),
+                }?;
+
+                Ok(user_api::UserAuthenticationMethodResponse {
+                    id: auth_method.id,
+                    auth_id: auth_method.auth_id,
+                    auth_method: user_api::AuthMethodDetails {
+                        name: auth_name,
+                        auth_type: auth_method.auth_type,
+                    },
+                    allow_signup: auth_method.allow_signup,
+                })
+            })
+            .collect::<UserResult<_>>()?,
     ))
 }

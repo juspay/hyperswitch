@@ -208,6 +208,7 @@ pub enum ProcessTrackerRunner {
     ApiKeyExpiryWorkflow,
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
+    PaymentMethodStatusUpdateWorkflow,
 }
 
 #[cfg(test)]

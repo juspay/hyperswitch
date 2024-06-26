@@ -12,10 +12,10 @@ pub mod routes {
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-        GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
+        GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
+        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
@@ -69,6 +69,10 @@ pub mod routes {
                     .service(
                         web::resource("metrics/sdk_events")
                             .route(web::post().to(get_sdk_event_metrics)),
+                    )
+                    .service(
+                        web::resource("metrics/active_payments")
+                            .route(web::post().to(get_active_payments_metrics)),
                     )
                     .service(
                         web::resource("filters/sdk_events")
@@ -234,6 +238,43 @@ pub mod routes {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.publishable_key.as_ref(),
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetActivePaymentsMetricRequest` element.
+    pub async fn get_active_payments_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetActivePaymentsMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetActivePaymentsMetricRequest");
+        let flow = AnalyticsFlow::GetActivePaymentsMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::active_payments::get_metrics(
+                    &state.pool,
+                    auth.merchant_account.publishable_key.as_ref(),
+                    Some(&auth.merchant_account.merchant_id),
                     req,
                 )
                 .await

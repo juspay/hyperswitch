@@ -173,6 +173,14 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
     },
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkResponse>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaSdkResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
