@@ -89,11 +89,17 @@ export const should_continue_further = (res_data) => {
 };
 
 export function defaultErrorHandler(response, response_data) {
-  if (response.status === 400 && response.body.message === "Payment method type not supported")
+  if (
+    response.status === 400 &&
+    response.body.error.message === "Payment method type not supported"
+  ) {
     response_data = updateDefaultStatusCode();
+  }
 
   expect(response.body).to.have.property("error");
+  expect(response_data.status).to.equal(response.status);
   for (const key in response_data.body.error) {
+    console.log(response, key, response.body.error[key]);
     expect(response_data.body.error[key]).to.equal(response.body.error[key]);
   }
 }

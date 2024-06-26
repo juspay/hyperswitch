@@ -690,33 +690,6 @@ export const connectorDetails = {
         },
       },
     },
-    przelewy24: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "przelewy24",
-        payment_method_data: {
-          bank_redirect: {
-            przelewy24: {
-              bank_name: "citi",
-              billing_details: {
-                email: "guest@juspay.in",
-              },
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "automatic for przelewy24 is not supported by adyen",
-          },
-        },
-      },
-    },
     blik: {
       Request: {
         payment_method: "bank_redirect",
@@ -748,66 +721,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-        },
-      },
-    },
-  },
-
-  upi_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "INR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    UpiCollect: {
-      Request: {
-        payment_method: "upi",
-        payment_method_type: "upi_collect",
-        payment_method_data: {
-          upi: {
-            upi_collect: {
-              vpa_id: "successtest@iata",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "automatic for upi_collect is not supported by adyen",
-          },
-        },
-      },
-    },
-    UpiIntent: {
-      Request: {
-        payment_method: "upi",
-        payment_method_type: "upi_intent",
-        payment_method_data: {
-          upi: {
-            upi_intent: {},
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "automatic for upi_intent is not supported by adyen",
-          },
         },
       },
     },
