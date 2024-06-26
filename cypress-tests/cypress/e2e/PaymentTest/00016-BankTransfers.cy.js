@@ -37,7 +37,7 @@ describe("Bank Transfers", () => {
         res_data,
         "three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -58,7 +58,7 @@ describe("Bank Transfers", () => {
         req_data,
         res_data,
         true,
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -70,7 +70,7 @@ describe("Bank Transfers", () => {
       cy.handleBankTransferRedirection(
         globalState,
         payment_method_type,
-        expected_redirection,
+        expected_redirection
       );
     });
   });

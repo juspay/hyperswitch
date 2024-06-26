@@ -14,6 +14,40 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -167,14 +201,11 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -190,14 +221,11 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -213,14 +241,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -236,14 +261,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -259,14 +281,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -282,14 +301,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -305,14 +321,11 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -328,14 +341,11 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSManualCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -351,14 +361,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+         payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData
       },
       Response: {
         status: 501,
@@ -410,6 +417,119 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "debit mandate payment is not supported by nmi",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "debit mandate payment is not supported by nmi",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "debit mandate payment is not supported by nmi",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "debit mandate payment is not supported by nmi",
+          },
         },
       },
     },

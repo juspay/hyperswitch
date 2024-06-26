@@ -41,7 +41,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           res_data,
           "three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -108,7 +108,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           res_data,
           "three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -164,7 +164,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             res_data,
             "three_ds",
             "manual",
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -185,7 +185,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             req_data,
             res_data,
             true,
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -237,7 +237,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             res_data,
             "three_ds",
             "manual",
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -267,6 +267,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           cy.retrievePaymentCallTest(globalState);
         });
       });
-    },
+    }
   );
 });
