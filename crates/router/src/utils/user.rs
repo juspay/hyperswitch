@@ -284,5 +284,5 @@ fn get_oidc_key(oidc_state: &str) -> String {
 }
 
 pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String {
-    format!("{}/oidc/{}", state.conf.user.base_url, provider)
+    format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
