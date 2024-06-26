@@ -12,12 +12,12 @@ impl ConnectorActions for SquareTest {}
 impl Connector for SquareTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Square;
-        types::api::ConnectorData {
-            connector: Box::new(&Square),
-            connector_name: types::Connector::Square,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Square),
+            types::Connector::Square,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -48,7 +48,6 @@ fn get_default_payment_info(payment_method_token: Option<String>) -> Option<util
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
-        country: None,
     })
 }
 

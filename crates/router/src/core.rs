@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod apple_pay_certificates_migration;
 pub mod authentication;
 pub mod blocklist;
 pub mod cache;
@@ -25,6 +26,8 @@ pub mod metrics;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payout_link;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;

@@ -20,7 +20,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
-use time::PrimitiveDateTime;
+use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
@@ -1437,6 +1437,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::BankDebit(_)
                     | PaymentMethodData::BankRedirect(_)
                     | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::Crypto(_)
                     | PaymentMethodData::GiftCard(_)
@@ -1485,6 +1486,8 @@ pub enum PaymentMethodData {
     BankDebit(BankDebitData),
     #[schema(title = "BankTransfer")]
     BankTransfer(Box<BankTransferData>),
+    #[schema(title = "RealTimePayment")]
+    RealTimePayment(Box<RealTimePaymentData>),
     #[schema(title = "Crypto")]
     Crypto(CryptoData),
     #[schema(title = "MandatePayment")]
@@ -1518,6 +1521,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
+            | Self::RealTimePayment(_)
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
@@ -1552,6 +1556,7 @@ impl PaymentMethodData {
             Self::BankRedirect(_) => Some(api_enums::PaymentMethod::BankRedirect),
             Self::BankDebit(_) => Some(api_enums::PaymentMethod::BankDebit),
             Self::BankTransfer(_) => Some(api_enums::PaymentMethod::BankTransfer),
+            Self::RealTimePayment(_) => Some(api_enums::PaymentMethod::RealTimePayment),
             Self::Crypto(_) => Some(api_enums::PaymentMethod::Crypto),
             Self::Reward => Some(api_enums::PaymentMethod::Reward),
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
@@ -1605,6 +1610,7 @@ impl GetPaymentMethodType for WalletData {
             }
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
+            Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
         }
     }
 }
@@ -1650,6 +1656,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
+            Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
         }
     }
 }
@@ -1689,6 +1696,17 @@ impl GetPaymentMethodType for BankTransferData {
 impl GetPaymentMethodType for CryptoData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         api_enums::PaymentMethodType::CryptoCurrency
+    }
+}
+
+impl GetPaymentMethodType for RealTimePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Fps {} => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+        }
     }
 }
 
@@ -1796,17 +1814,26 @@ pub enum AdditionalPaymentData {
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
     },
-    PayLater {},
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkPaymentMethod>,
+    },
     BankTransfer {},
     Crypto {},
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     GiftCard {},
     Voucher {},
     CardRedirect {},
     CardToken {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaSdkPaymentMethod {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1947,6 +1974,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: common_enums::BankNames,
     },
+    LocalBankRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2056,6 +2084,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             } => get_billing_address_inner(Some(billing_details), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
+            | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
             | Self::Bizum {}
             | Self::OnlineBankingPoland { .. }
@@ -2265,6 +2294,15 @@ pub enum BankTransferData {
     },
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RealTimePaymentData {
+    Fps {},
+    DuitNow {},
+    PromptPay {},
+    VietQr {},
+}
+
 impl GetAddressFromPaymentMethodData for BankTransferData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
@@ -2416,6 +2454,8 @@ pub enum WalletData {
     CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),
+    // The wallet data for Mifinity Ewallet
+    Mifinity(MifinityData),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -2442,7 +2482,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     phone: None,
                 })
             }
-            Self::AliPayQr(_)
+            Self::Mifinity(_)
+            | Self::AliPayQr(_)
             | Self::AliPayRedirect(_)
             | Self::AliPayHkRedirect(_)
             | Self::MomoRedirect(_)
@@ -2560,6 +2601,17 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
+    //assurance_details of the card
+    pub assurance_details: Option<GooglePayAssuranceDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GooglePayAssuranceDetails {
+    ///indicates that Cardholder possession validation has been performed
+    pub card_holder_authenticated: bool,
+    /// indicates that identification and verifications (ID&V) was performed
+    pub account_verified: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2573,6 +2625,12 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MifinityData {
+    #[schema(value_type = Date)]
+    pub date_of_birth: Secret<Date>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -2722,8 +2780,9 @@ where
                 | PaymentMethodDataResponse::Crypto {}
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard {}
-                | PaymentMethodDataResponse::PayLater {}
+                | PaymentMethodDataResponse::PayLater(_)
                 | PaymentMethodDataResponse::Paypal {}
+                | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
@@ -2747,18 +2806,30 @@ pub enum PaymentMethodDataResponse {
     Card(Box<CardResponse>),
     BankTransfer {},
     Wallet {},
-    PayLater {},
+    PayLater(Box<PaylaterResponse>),
     Paypal {},
     BankRedirect {},
     Crypto {},
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     Voucher {},
     GiftCard {},
     CardRedirect {},
     CardToken {},
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaylaterResponse {
+    klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaSdkPaymentMethodResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2905,7 +2976,11 @@ impl AddressDetails {
 
     pub fn unify_address_details(self, other: Option<&Self>) -> Self {
         if let Some(other) = other {
-            let (first_name, last_name) = if self.first_name.is_some() {
+            let (first_name, last_name) = if self
+                .first_name
+                .as_ref()
+                .is_some_and(|first_name| !first_name.is_empty_after_trim())
+            {
                 (self.first_name, self.last_name)
             } else {
                 (other.first_name.clone(), other.last_name.clone())
@@ -3855,17 +3930,31 @@ impl From<AdditionalCardInfo> for CardResponse {
     }
 }
 
+impl From<KlarnaSdkPaymentMethod> for PaylaterResponse {
+    fn from(klarna_sdk: KlarnaSdkPaymentMethod) -> Self {
+        Self {
+            klarna_sdk: Some(KlarnaSdkPaymentMethodResponse {
+                payment_type: klarna_sdk.payment_type,
+            }),
+        }
+    }
+}
+
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {} => Self::PayLater {},
+            AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
+                Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+                None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
+            },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
             AdditionalPaymentData::Upi {} => Self::Upi {},
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
             AdditionalPaymentData::Voucher {} => Self::Voucher {},
@@ -4020,6 +4109,9 @@ pub struct GpayAllowedMethodsParameters {
     /// Billing address parameters
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+    /// Whether assurance details are required
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assurance_details_required: Option<bool>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4207,6 +4299,23 @@ pub struct SessionTokenInfo {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "payment_processing_details_at")]
+pub enum PaymentProcessingDetailsAt {
+    Hyperswitch(PaymentProcessingDetails),
+    Connector,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentProcessingDetails {
+    #[schema(value_type = String)]
+    pub payment_processing_certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub payment_processing_certificate_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4595,6 +4704,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub three_dsserver_trans_id: Option<String>,
     /// Contains the JWS object created by the ACS for the ARes message
     pub acs_signed_content: Option<String>,
+    /// Three DS Requestor URL
+    pub three_ds_requestor_url: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

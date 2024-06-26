@@ -31,7 +31,6 @@ use crate::{
         transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
-    // transformers::{ForeignFrom, ForeignTryFrom},
     utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
@@ -50,7 +49,6 @@ impl Payme {
         }
     }
 }
-
 impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
 impl api::PaymentsCompleteAuthorize for Payme {}
@@ -132,7 +130,7 @@ impl ConnectorCommon for Payme {
             Err(error_msg) => {
                 event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 router_env::logger::error!(deserialization_error =? error_msg);
-                handle_json_response_deserialization_failure(res, "payme".to_owned())
+                handle_json_response_deserialization_failure(res, "payme")
             }
         }
     }
@@ -866,7 +864,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "currency",
                 })?;
         let amount =
             connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;

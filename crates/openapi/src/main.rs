@@ -2,7 +2,7 @@ mod openapi;
 mod routes;
 
 fn main() {
-    let file_path = "openapi/openapi_spec.json";
+    let file_path = "api-reference/openapi_spec.json";
     #[allow(clippy::expect_used)]
     std::fs::write(
         file_path,

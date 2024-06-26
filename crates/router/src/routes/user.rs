@@ -318,24 +318,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
         &req,
         (),
         |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_merchants_for_user_with_spt(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let flow = Flow::UserMerchantAccountList;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -674,7 +657,7 @@ pub async fn totp_verify(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -692,7 +675,7 @@ pub async fn verify_recovery_code(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::verify_recovery_code(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -710,7 +693,7 @@ pub async fn totp_update(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::update_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -724,7 +707,7 @@ pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpReques
         &req,
         (),
         |state, user, _, _| user_core::generate_recovery_codes(state, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -762,6 +745,63 @@ pub async fn check_two_factor_auth_status(
         (),
         |state, user, _, _| user_core::check_two_factor_auth_status(state, user),
         &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn create_user_authentication_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::CreateUserAuthenticationMethodRequest>,
+) -> HttpResponse {
+    let flow = Flow::CreateUserAuthenticationMethod;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _, req_body, _| user_core::create_user_authentication_method(state, req_body),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn update_user_authentication_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UpdateUserAuthenticationMethodRequest>,
+) -> HttpResponse {
+    let flow = Flow::UpdateUserAuthenticationMethod;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _, req_body, _| user_core::update_user_authentication_method(state, req_body),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_user_authentication_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::GetUserAuthenticationMethodsRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListUserAuthenticationMethods;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, _, req, _| user_core::list_user_authentication_methods(state, req),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
