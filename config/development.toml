@@ -565,6 +565,31 @@ apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]
+
 [payment_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"
 

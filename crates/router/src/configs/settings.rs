@@ -106,6 +106,7 @@ pub struct Settings<S: SecretState> {
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub generic_link: GenericLink,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
@@ -204,6 +205,27 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLink {
+    pub payment_method_collect: GenericLinkEnvConfig,
+    pub payout_link: GenericLinkEnvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLinkEnvConfig {
+    pub sdk_url: String,
+    pub expiry: u32,
+    pub ui_config: GenericLinkEnvUiConfig,
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLinkEnvUiConfig {
+    pub logo: String,
+    pub merchant_name: Secret<String>,
+    pub theme: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -654,7 +676,13 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
 
             )
             .build()?;
@@ -719,6 +747,8 @@ impl Settings<SecuredSecret> {
         self.secrets_management
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+        self.generic_link.payment_method_collect.validate()?;
+        self.generic_link.payout_link.validate()?;
         Ok(())
     }
 }
