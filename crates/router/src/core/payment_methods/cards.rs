@@ -761,7 +761,7 @@ pub async fn add_payment_method(
             Box::pin(add_card_to_locker(
                 &state,
                 req.clone(),
-                &card,
+                card,
                 &customer_id,
                 merchant_account,
                 None,
@@ -4731,10 +4731,10 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
         let (resp, duplication_check) = match &pmd {
             #[cfg(feature = "payouts")]
             api::PaymentMethodCreateData::BankTransfer(bank) => add_bank_to_locker(
-                &state,
+                state,
                 req.clone(),
-                &merchant_account,
-                &key_store,
+                merchant_account,
+                key_store,
                 bank,
                 &customer.customer_id,
             )
@@ -4744,11 +4744,11 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             api::PaymentMethodCreateData::Card(card) => {
                 helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
                 Box::pin(add_card_to_locker(
-                    &state,
+                    state,
                     req.clone(),
                     card,
                     &customer.customer_id,
-                    &merchant_account,
+                    merchant_account,
                     None,
                 ))
                 .await
@@ -4756,7 +4756,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 .attach_printable("Add Card Failed")
             }
             _ => Ok(store_default_payment_method(
-                &req,
+                req,
                 &customer.customer_id,
                 &merchant_account.merchant_id,
             )),
@@ -4805,9 +4805,9 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     db,
                     req.clone(),
                     &mut pm_resp,
-                    &merchant_account,
+                    merchant_account,
                     &customer.customer_id,
-                    &key_store,
+                    key_store,
                 )
                 .await?;
 
@@ -4832,9 +4832,9 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     db,
                     req.clone(),
                     &mut pm_resp,
-                    &merchant_account,
+                    merchant_account,
                     &customer.customer_id,
-                    &key_store,
+                    key_store,
                 )
                 .await?;
 
@@ -4842,7 +4842,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
 
                 if let Some(card) = req_card {
                     delete_card_from_locker(
-                        &state,
+                        state,
                         &customer.customer_id,
                         &merchant_account.merchant_id,
                         existing_pm
@@ -4853,11 +4853,11 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     .await?;
 
                     let add_card_resp = add_card_hs(
-                        &state,
+                        state,
                         req.clone(),
                         &card,
                         &customer.customer_id,
-                        &merchant_account,
+                        merchant_account,
                         api::enums::LockerChoice::HyperswitchCardVault,
                         Some(
                             existing_pm
@@ -4902,7 +4902,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd).await;
+                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd).await;
 
                     let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                         payment_method_data: pm_data_encrypted,
@@ -4956,7 +4956,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     };
 
                     let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                    create_encrypted_data(&key_store, updated_pmd).await
+                    create_encrypted_data(key_store, updated_pmd).await
                 } else {
                     None
                 };
@@ -5058,7 +5058,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
         let (resp, duplication_check) = match &pmd {
             #[cfg(feature = "payouts")]
             api::PaymentMethodCreateData::BankTransfer(bank) => add_bank_to_locker(
-                &state,
+                state,
                 req.clone(),
                 merchant_account,
                 key_store,
@@ -5071,9 +5071,9 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             api::PaymentMethodCreateData::Card(card) => {
                 helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
                 Box::pin(add_card_to_locker(
-                    &state,
+                    state,
                     req.clone(),
-                    &card,
+                    card,
                     &customer.customer_id,
                     merchant_account,
                     None,
@@ -5083,7 +5083,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 .attach_printable("Add Card Failed")
             }
             _ => Ok(store_default_payment_method(
-                &req,
+                req,
                 &customer.customer_id,
                 &merchant_account.merchant_id,
             )),
@@ -5115,13 +5115,13 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             .get_required_value("payment_method_data")?;
 
         let pm = match &data.duplication_check {
-            Some(duplication_check) => match duplication_check {
-                &payment_methods::DataDuplicationCheck::Duplicated => {
+            Some(duplication_check) => match *duplication_check {
+                payment_methods::DataDuplicationCheck::Duplicated => {
                     let existing_pm = get_or_insert_payment_method(
                         db,
                         req.clone(),
                         &mut resp,
-                        &merchant_account,
+                        merchant_account,
                         &customer.customer_id,
                         key_store,
                     )
@@ -5130,7 +5130,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     resp.client_secret = existing_pm.client_secret;
                     None
                 }
-                &payment_methods::DataDuplicationCheck::MetaDataChanged => {
+                payment_methods::DataDuplicationCheck::MetaDataChanged => {
                     let req_card = match &pmd {
                         api::PaymentMethodCreateData::Card(card) => Some(card.clone()),
                         _ => None,
@@ -5141,7 +5141,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                             db,
                             req.clone(),
                             &mut resp,
-                            &merchant_account,
+                            merchant_account,
                             &customer.customer_id,
                             key_store,
                         )
@@ -5150,7 +5150,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                         let client_secret = existing_pm.client_secret.clone();
 
                         delete_card_from_locker(
-                            &state,
+                            state,
                             &customer.customer_id,
                             &merchant_account.merchant_id,
                             existing_pm
@@ -5161,11 +5161,11 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                         .await?;
 
                         let add_card_resp = add_card_hs(
-                            &state,
+                            state,
                             req.clone(),
                             &card,
                             &customer.customer_id,
-                            &merchant_account,
+                            merchant_account,
                             api::enums::LockerChoice::HyperswitchCardVault,
                             Some(
                                 existing_pm
@@ -5248,7 +5248,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     db,
                     &resp,
                     req.clone(),
-                    &key_store,
+                    key_store,
                     &merchant_account.merchant_id,
                     &customer.customer_id,
                     pm_metadata.cloned(),

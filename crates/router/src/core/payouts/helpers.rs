@@ -467,10 +467,8 @@ pub async fn save_payout_data_to_locker(
                     client_secret: None,
                     payment_method_data: if let Some(bank) = bank_details {
                         Some(api::PaymentMethodCreateData::BankTransfer(bank))
-                    } else if let Some(wallet) = wallet_details {
-                        Some(api::PaymentMethodCreateData::Wallet(wallet))
                     } else {
-                        None
+                        wallet_details.map(api::PaymentMethodCreateData::Wallet)
                     },
                 },
             )
