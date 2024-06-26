@@ -113,6 +113,32 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum KeyManagerClientError {
+    #[error("Failed to send the request to Keymanager")]
+    RequestSendFailed,
+    #[error("Internal Server Error Receied {0:?}")]
+    InternalServerError(bytes::Bytes),
+    #[error("Bad request received {0:?}")]
+    BadRequest(bytes::Bytes),
+    #[error("Unexpected Error occured while calling the KeyManager")]
+    Unexpected(bytes::Bytes),
+    #[error("Response Decoding failed")]
+    ResponseDecodingFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KeyManagerError {
+    #[error("Failed to add key to the KeyManager")]
+    KeyAddFailed,
+    #[error("Failed to transfer the key to the KeyManager")]
+    KeyTransferFailed,
+    #[error("Failed to Encrypt the data in the KeyManager")]
+    EncryptionFailed,
+    #[error("Failed to Decrypt the data in the KeyManager")]
+    DecryptionFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum HealthCheckOutGoing {
     #[error("Outgoing call failed with error: {message}")]
     OutGoingFailed { message: String },

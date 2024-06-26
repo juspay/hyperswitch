@@ -19,3 +19,10 @@ pub struct EncryptionTransferRequest {
     pub identifier: Identifier,
     pub key: String,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct DataKeyCreateResponse {
+    #[serde(flatten)]
+    pub identifier: Identifier,
+    pub key_version: String,
+}

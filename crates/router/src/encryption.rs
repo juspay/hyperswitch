@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
 use error_stack::ResultExt;
-use http::{HeaderMap, HeaderName, HeaderValue};
+use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    errors, headers, logger,
-    types::domain::{EncryptionCreateRequest, EncryptionTransferRequest},
+    errors, headers,
+    types::domain::{DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest},
     SessionState,
 };
 
@@ -88,17 +88,18 @@ where
         ))
 }
 
-pub async fn call_encryption_service<T>(
+pub async fn call_encryption_service<T, R>(
     state: &SessionState,
     endpoint: &str,
     request_body: T,
-) -> errors::CustomResult<reqwest::Response, errors::ApiClientError>
+) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
     T: serde::Serialize + Send + Sync + 'static,
+    R: serde::de::DeserializeOwned,
 {
     let url = format!("{}/{}", &state.conf.key_manager.url, endpoint);
 
-    send_encryption_request(
+    let response = send_encryption_request(
         state,
         vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -108,24 +109,53 @@ where
         request_body,
     )
     .await
+    .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
+
+    match response.status() {
+        StatusCode::OK => response
+            .json::<R>()
+            .await
+            .change_context(errors::KeyManagerClientError::ResponseDecodingFailed),
+        StatusCode::INTERNAL_SERVER_ERROR => {
+            Err(errors::KeyManagerClientError::InternalServerError(
+                response
+                    .bytes()
+                    .await
+                    .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
+            )
+            .into())
+        }
+        StatusCode::BAD_REQUEST => Err(errors::KeyManagerClientError::BadRequest(
+            response
+                .bytes()
+                .await
+                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
+        )
+        .into()),
+        _ => Err(errors::KeyManagerClientError::Unexpected(
+            response
+                .bytes()
+                .await
+                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
+        )
+        .into()),
+    }
 }
 
 pub async fn create_key_in_key_manager(
     state: &SessionState,
     request_body: EncryptionCreateRequest,
-) -> errors::CustomResult<(), errors::ApiClientError> {
-    let _ = call_encryption_service(state, "key/create", request_body).await?;
-
-    Ok(())
+) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
+    call_encryption_service(state, "key/create", request_body)
+        .await
+        .change_context(errors::KeyManagerError::KeyAddFailed)
 }
 
 pub async fn transfer_key_to_key_manager(
     state: &SessionState,
     request_body: EncryptionTransferRequest,
-) -> errors::CustomResult<(), errors::ApiClientError> {
-    let resp = call_encryption_service(state, "key/transfer", request_body).await?;
-
-    logger::debug!(keymanager_resp=?resp);
-
-    Ok(())
+) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
+    call_encryption_service(state, "key/transfer", request_body)
+        .await
+        .change_context(errors::KeyManagerError::KeyTransferFailed)
 }
