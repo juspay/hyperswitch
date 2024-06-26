@@ -461,6 +461,7 @@ where
                         &customer,
                         session_surcharge_details,
                         &business_profile,
+                        header_payload.clone(),
                     ))
                     .await?
                 }
@@ -1610,6 +1611,7 @@ where
                 call_connector_action,
                 connector_request,
                 business_profile,
+                header_payload.clone(),
             )
             .await
     } else {
@@ -1673,6 +1675,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     customer: &Option<domain::Customer>,
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
     business_profile: &storage::business_profile::BusinessProfile,
+    header_payload: HeaderPayload,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -1736,6 +1739,7 @@ where
             CallConnectorAction::Trigger,
             None,
             business_profile,
+            header_payload.clone(),
         );
 
         join_handlers.push(res);

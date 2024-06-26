@@ -593,6 +593,13 @@ pub async fn payments_connector_session(
     let flow = Flow::PaymentsSessionToken;
     let payload = json_payload.into_inner();
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     tracing::Span::current().record("payment_id", &payload.payment_id);
 
     let locking_action = payload.get_locking_input(flow.clone());
@@ -619,7 +626,7 @@ pub async fn payments_connector_session(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         &auth::PublishableKeyAuth,
