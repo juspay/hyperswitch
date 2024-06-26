@@ -5052,7 +5052,8 @@
           },
           "amount": {
             "type": "string",
-            "description": "The total amount for the payment"
+            "description": "The total amount for the payment in majot unit string (Ex: 38.02)",
+            "example": "38.02"
           }
         }
       },
@@ -10203,7 +10204,8 @@
           },
           "total_price": {
             "type": "string",
-            "description": "The total price"
+            "description": "The total price",
+            "example": "38.02"
           }
         }
       },

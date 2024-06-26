@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode},
     id_type,
     pii::{self, Email},
-    types::MinorUnit,
+    types::{MinorUnit, StringMajorUnit},
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -4175,7 +4175,8 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: String,
+    #[schema(value_type = String, example = "38.02")]
+    pub total_price: StringMajorUnit,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4547,8 +4548,9 @@ pub struct AmountInfo {
     /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
     pub total_type: Option<String>,
-    /// The total amount for the payment
-    pub amount: String,
+    /// The total amount for the payment in majot unit string (Ex: 38.02)
+    #[schema(value_type = String, example = "38.02")]
+    pub amount: StringMajorUnit,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

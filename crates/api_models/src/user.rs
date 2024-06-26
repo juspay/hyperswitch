@@ -366,3 +366,8 @@ pub struct SsoSignInRequest {
     pub state: Secret<String>,
     pub code: Secret<String>
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthIdQueryParam {
+    pub auth_id: Option<String>,
+}
