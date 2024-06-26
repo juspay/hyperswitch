@@ -33,7 +33,6 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    unimplemented_payment_method,
     utils::OptionExt,
 };
 
