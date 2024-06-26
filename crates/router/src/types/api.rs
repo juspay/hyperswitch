@@ -317,6 +317,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Bamboraapac => Ok(Box::new(connector::Bamboraapac::new())),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),

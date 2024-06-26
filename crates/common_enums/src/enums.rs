@@ -120,7 +120,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bluesnap,
     Boku,
     Braintree,
