@@ -550,7 +550,7 @@ pub async fn add_payment_method_data(
                 )
                 .await?;
 
-                pm_resp.client_secret = existing_pm.client_secret.clone();
+                pm_resp.client_secret.clone_from(&existing_pm.client_secret);
 
                 if let Some(card) = req_card {
                     delete_card_from_locker(
@@ -4838,7 +4838,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 )
                 .await?;
 
-                pm_resp.client_secret = existing_pm.client_secret.clone();
+                pm_resp.client_secret.clone_from(&existing_pm.client_secret);
 
                 if let Some(card) = req_card {
                     delete_card_from_locker(
@@ -4923,7 +4923,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             None => {
                 let locker_id = pm_resp.payment_method_id.clone();
                 pm_resp.payment_method_id.clone_from(&pm_id);
-                pm_resp.client_secret = req.client_secret.clone();
+                pm_resp.client_secret.clone_from(&req.client_secret);
 
                 let req_card = match &pmd {
                     api::PaymentMethodCreateData::Card(card) => Some(card.clone()),
@@ -5261,7 +5261,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 )
                 .await?;
 
-                resp.client_secret = pm.client_secret.clone();
+                resp.client_secret.clone_from(&pm.client_secret);
                 Some(pm)
             }
         };
