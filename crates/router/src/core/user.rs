@@ -701,7 +701,7 @@ async fn handle_invitation(
     }
 }
 
-//TODO: send email
+#[allow(unused_variables)]
 async fn handle_existing_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
@@ -775,6 +775,7 @@ async fn handle_existing_user_invitation(
     })
 }
 
+#[allow(unused_variables)]
 async fn handle_new_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
