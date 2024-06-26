@@ -1034,6 +1034,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
+            payout_link: None,
         }
     }
 }
