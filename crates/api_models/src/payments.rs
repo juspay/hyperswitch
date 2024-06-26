@@ -4654,6 +4654,25 @@ pub struct PaymentsExternalAuthenticationRequest {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualUpdateRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// Merchant ID
+    pub merchant_id: String,
+    /// The status of the attempt
+    pub attempt_status: Option<enums::AttemptStatus>,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// Error reason of the connector
+    pub error_reason: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed
     #[serde(rename = "Y")]
