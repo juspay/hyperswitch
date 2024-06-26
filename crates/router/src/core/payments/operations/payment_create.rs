@@ -8,7 +8,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     types::MinorUnit,
 };
-use diesel_models::{ephemeral_key, PaymentMethod};
+use diesel_models::{encryption::Encryption, ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
@@ -408,6 +408,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = payment_attempt.get_total_amount().into();
 
+        let payment_method_info_billing = decrypt_generic_data::<api_models::payments::Address>(
+            payment_method_info
+                .clone()
+                .and_then(|pm_info| pm_info.payment_method_billing_address)
+                .clone(),
+            merchant_key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt payment method billing address details")?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -423,7 +434,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             address: PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
-                payment_method_billing_address.as_ref().map(From::from),
+                payment_method_billing_address
+                    .as_ref()
+                    .map(From::from)
+                    .or(payment_method_info_billing),
                 business_profile.use_billing_as_payment_method_billing,
             ),
             token_data: None,
@@ -463,6 +477,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         Ok(get_trackers_response)
     }
+}
+
+pub async fn decrypt_generic_data<T>(
+    data: Option<Encryption>,
+    key: &[u8],
+) -> RouterResult<Option<T>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let decrypted_data = domain::types::decrypt::<serde_json::Value, masking::WithType>(data, key)
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
+
+    decrypted_data
+        .map(|decrypted_data| decrypted_data.into_inner().expose())
+        .map(|decrypted_value| decrypted_value.parse_value("generic_data"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse generic data value")
 }
 
 #[async_trait]

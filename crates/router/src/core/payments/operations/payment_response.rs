@@ -635,6 +635,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
 
+        let payment_method_billing_address = payment_data.address.get_payment_method_billing();
+
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let connector_name = payment_data
@@ -661,7 +663,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 resp.request.amount,
                 Some(resp.request.currency),
                 billing_name,
-                None,
+                payment_method_billing_address,
                 business_profile,
             ))
             .await?;
