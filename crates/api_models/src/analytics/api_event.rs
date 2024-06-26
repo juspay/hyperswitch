@@ -89,7 +89,6 @@ pub enum ApiEventMetrics {
     Latency,
     ApiCount,
     StatusCodeCount,
-    Payment { payment_id: String },
 }
 
 impl From<ApiEventMetrics> for NameDescription {

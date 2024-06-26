@@ -125,3 +125,9 @@ impl<T> ApiEventMetric for MetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+
+impl<T> ApiEventMetric for PaymentsSessionResponse{
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment { payment_id: self.payment_id.clone() })
+    }
+}
