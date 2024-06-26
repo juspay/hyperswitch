@@ -770,69 +770,76 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     is_retry_payment: bool,
     should_continue_payment: bool,
 ) -> RouterResult<(Option<String>, bool)> {
-    match tokenization_action {
-        payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
-            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::PaymentMethodToken,
-                types::PaymentMethodTokenizationData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
+    if should_continue_payment {
+        match tokenization_action {
+            payments::TokenizationAction::TokenizeInConnector
+            | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                    api::PaymentMethodToken,
+                    types::PaymentMethodTokenizationData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
 
-            let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-                Err(types::ErrorResponse::default());
+                let pm_token_response_data: Result<
+                    types::PaymentsResponseData,
+                    types::ErrorResponse,
+                > = Err(types::ErrorResponse::default());
 
-            let pm_token_router_data =
-                helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
-                    router_data.clone(),
-                    pm_token_request_data,
-                    pm_token_response_data,
+                let pm_token_router_data =
+                    helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+                        router_data.clone(),
+                        pm_token_request_data,
+                        pm_token_response_data,
+                    );
+
+                router_data
+                    .request
+                    .set_session_token(pm_token_router_data.session_token.clone());
+
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    &pm_token_router_data,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                )
+                .await
+                .to_payment_failed_response()?;
+
+                metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([
+                        ("connector", connector.connector_name.to_string()),
+                        ("payment_method", router_data.payment_method.to_string()),
+                    ]),
                 );
 
-            router_data
-                .request
-                .set_session_token(pm_token_router_data.session_token.clone());
-
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &pm_token_router_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await
-            .to_payment_failed_response()?;
-
-            metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([
-                    ("connector", connector.connector_name.to_string()),
-                    ("payment_method", router_data.payment_method.to_string()),
-                ]),
-            );
-
-            let (pm_token, should_continue_further) = match resp.response {
-                Ok(response) => match response {
-                    types::PaymentsResponseData::TokenizationResponse { token } => {
-                        (Some(token), should_continue_payment)
+                let (pm_token, should_continue_further) = match resp.response {
+                    Ok(response) => match response {
+                        types::PaymentsResponseData::TokenizationResponse { token } => {
+                            (Some(token), should_continue_payment)
+                        }
+                        _ => (None, should_continue_payment),
+                    },
+                    Err(err) => {
+                        if is_retry_payment {
+                            router_data.response = Err(err);
+                            println!("failed connector tokenization");
+                            (None, false)
+                        } else {
+                            logger::debug!(payment_method_tokenization_error=?err);
+                            (None, should_continue_payment)
+                        }
                     }
-                    _ => (None, should_continue_payment),
-                },
-                Err(err) => {
-                    if is_retry_payment {
-                        router_data.response = Err(err);
-
-                        (None, false)
-                    } else {
-                        logger::debug!(payment_method_tokenization_error=?err);
-                        (None, should_continue_payment)
-                    }
-                }
-            };
-            Ok((pm_token, should_continue_further))
+                };
+                Ok((pm_token, should_continue_further))
+            }
+            _ => Ok((None, should_continue_payment)),
         }
-        _ => Ok((None, should_continue_payment)),
+    } else {
+        logger::debug!("Skipping connector tokenization based on should_continue_payment flag");
+        Ok((None, should_continue_payment))
     }
 }
 
