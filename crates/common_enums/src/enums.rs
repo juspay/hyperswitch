@@ -2258,7 +2258,7 @@ pub enum PaymentSource {
     ExternalAuthenticator,
 }
 
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum BrowserName {
     #[default]
     Safari,
