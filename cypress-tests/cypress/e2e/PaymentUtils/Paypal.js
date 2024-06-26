@@ -1,21 +1,4 @@
 import { getCustomExchange } from "./Commons";
-const billingDetails = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
-    city: "San Fransico",
-    state: "California",
-    zip: "94122",
-    country: "DE",
-    first_name: "joseph",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "8056594427",
-    country_code: "+91",
-  },
-};
 
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",

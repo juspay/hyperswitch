@@ -25,14 +25,11 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import {
-  defaultErrorHandler,
-  getValueByKey,
-} from "../e2e/PaymentUtils/utils";
+import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
-export function logRequestId(xRequestId) {
+function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id -> " + xRequestId);
   } else {
@@ -470,6 +467,8 @@ Cypress.Commands.add(
           default:
             defaultErrorHandler(response, res_data);
         }
+      } else {
+        defaultErrorHandler(response, res_data);
       }
     });
   }
