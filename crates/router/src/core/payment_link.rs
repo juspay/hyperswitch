@@ -386,9 +386,11 @@ pub fn get_payment_link_config_based_on_priority(
     business_link_config: Option<serde_json::Value>,
     merchant_name: String,
     default_domain_name: String,
+    payment_link_config_id: Option<String>,
 ) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
 {
-    let (domain_name, business_config) = if let Some(business_config) = business_link_config {
+    let (domain_name, business_theme_configs) = if let Some(business_config) = business_link_config
+    {
         let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
             .parse_value("BusinessPaymentLinkConfig")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -402,15 +404,21 @@ pub fn get_payment_link_config_based_on_priority(
                 .clone()
                 .map(|d_name| format!("https://{}", d_name))
                 .unwrap_or_else(|| default_domain_name.clone()),
-            Some(extracted_value.config),
+            Some(extracted_value.theme_configs),
         )
     } else {
         (default_domain_name, None)
     };
+    let business_config = business_theme_configs.and_then(|theme_map| {
+        let sahkal = payment_link_config_id
+            .and_then(|id| theme_map.get(&id).cloned())
+            .or_else(|| theme_map.get("default").cloned());
+        sahkal
+    });
 
     let theme = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| pc_config.config.theme.clone())
+        .and_then(|pc_config| pc_config.theme_config.theme.clone())
         .or_else(|| {
             business_config
                 .as_ref()
@@ -420,7 +428,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let logo = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| pc_config.config.logo.clone())
+        .and_then(|pc_config| pc_config.theme_config.logo.clone())
         .or_else(|| {
             business_config
                 .as_ref()
@@ -430,7 +438,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let seller_name = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| pc_config.config.seller_name.clone())
+        .and_then(|pc_config| pc_config.theme_config.seller_name.clone())
         .or_else(|| {
             business_config
                 .as_ref()
@@ -440,7 +448,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let sdk_layout = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| pc_config.config.sdk_layout.clone())
+        .and_then(|pc_config| pc_config.theme_config.sdk_layout.clone())
         .or_else(|| {
             business_config
                 .as_ref()
@@ -450,23 +458,21 @@ pub fn get_payment_link_config_based_on_priority(
 
     let display_sdk_only = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| {
-            pc_config.config.display_sdk_only.or_else(|| {
-                business_config
-                    .as_ref()
-                    .and_then(|business_config| business_config.display_sdk_only)
-            })
+        .and_then(|pc_config| pc_config.theme_config.display_sdk_only.clone())
+        .or_else(|| {
+            business_config
+                .as_ref()
+                .and_then(|business_config| business_config.display_sdk_only.clone())
         })
         .unwrap_or(DEFAULT_DISPLAY_SDK_ONLY);
 
     let enabled_saved_payment_method = payment_create_link_config
         .as_ref()
-        .and_then(|pc_config| {
-            pc_config.config.enabled_saved_payment_method.or_else(|| {
-                business_config
-                    .as_ref()
-                    .and_then(|business_config| business_config.enabled_saved_payment_method)
-            })
+        .and_then(|pc_config| pc_config.theme_config.enabled_saved_payment_method.clone())
+        .or_else(|| {
+            business_config
+                .as_ref()
+                .and_then(|business_config| business_config.enabled_saved_payment_method.clone())
         })
         .unwrap_or(DEFAULT_ENABLE_SAVED_PAYMENT_METHOD);
 

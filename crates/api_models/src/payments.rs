@@ -467,6 +467,9 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
+    /// custom payment link config id set at business profile
+    pub payment_link_config_id: Option<String>,
+
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
@@ -5059,7 +5062,8 @@ pub struct PaymentLinkListResponse {
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentLinkConfigRequest>)]
-    pub config: admin::PaymentLinkConfigRequest,
+    /// Theme config for the particular payment
+    pub theme_config: admin::PaymentLinkConfigRequest,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
