@@ -40,6 +40,11 @@ pub trait MerchantKeyStoreInterface {
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
+
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -163,6 +168,26 @@ impl MerchantKeyStoreInterface for Store {
         }))
         .await
     }
+
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let fetch_func = || async {
+            diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(&conn)
+                .await
+                .map_err(|err| report!(errors::StorageError::from(err)))
+        };
+
+        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            key_store
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -249,6 +274,21 @@ impl MerchantKeyStoreInterface for MockDb {
                         .change_context(errors::StorageError::DecryptionError)
                 }),
         )
+        .await
+    }
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let merchant_key_stores = self.merchant_key_store.lock().await;
+
+        futures::future::try_join_all(merchant_key_stores.iter().map(|merchant_key| async {
+            merchant_key
+                .to_owned()
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
         .await
     }
 }
