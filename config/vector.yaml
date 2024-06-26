@@ -29,6 +29,11 @@ sources:
   node_metrics:
     type: host_metrics
 
+  sdk_source:
+    type: http_server
+    address: 0.0.0.0:3103
+    encoding: json
+
 transforms:
   plus_1_events:
     type: filter
@@ -55,6 +60,14 @@ transforms:
       - plus_1_events
     source: |-
       .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
+
+  sdk_transformed:
+    type: throttle
+    inputs:
+      - sdk_source
+    key_field: "{{ .payment_id }}{{ .merchant_id }}"
+    threshold: 1000
+    window_secs: 60
 
 sinks:
   opensearch_events:
@@ -132,3 +145,16 @@ sinks:
     inputs:
       - vector_metrics
       - node_metrics
+
+  sdk_sink:
+    type: kafka
+    encoding:
+      codec: json
+      except_fields:
+        - "path"
+        - "source_type"
+    inputs:
+      - "sdk_transformed"
+    bootstrap_servers: kafka0:29092
+    topic: hyper-sdk-logs
+    key_field: ".merchant_id"
