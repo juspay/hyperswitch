@@ -11,7 +11,7 @@ license.workspace = true
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
 email = ["external_services/email", "scheduler/email", "olap"]
-frm = ["api_models/frm"]
+frm = ["api_models/frm", "hyperswitch_domain_models/frm"]
 stripe = ["dep:serde_qs"]
 release = ["stripe", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
@@ -66,12 +66,13 @@ mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
+openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.64"
 qrcode = "0.14.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 regex = "1.10.4"
-reqwest = { version = "0.11.27", features = ["json", "native-tls","__rustls", "gzip", "multipart"] }
+reqwest = { version = "0.11.27", features = ["json", "native-tls", "__rustls", "gzip", "multipart"] }
 ring = "0.17.8"
 roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
@@ -87,7 +88,7 @@ sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-to
 strum = { version = "0.26", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.58"
-time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.11.0"
 url = { version = "2.5.0", features = ["serde"] }
@@ -102,7 +103,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 analytics = { version = "0.1.0", path = "../analytics", optional = true }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
@@ -126,7 +127,7 @@ isocountry = "0.3.2"
 iso_currency = "0.4.4"
 actix-http = "3.6.0"
 events = { version = "0.1.0", path = "../events" }
-totp-rs = { version = "5.5.1", features = ["gen_secret", "otpauth"]}
+totp-rs = { version = "5.5.1", features = ["gen_secret", "otpauth"] }
 serde_repr = "0.1.19"
 unidecode = "0.3.0"
 

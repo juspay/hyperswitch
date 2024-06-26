@@ -101,6 +101,12 @@ impl From<error_stack::Report<RedisError>> for StorageError {
     }
 }
 
+impl From<diesel::result::Error> for StorageError {
+    fn from(err: diesel::result::Error) -> Self {
+        Self::from(error_stack::report!(DatabaseError::from(err)))
+    }
+}
+
 impl From<error_stack::Report<DatabaseError>> for StorageError {
     fn from(err: error_stack::Report<DatabaseError>) -> Self {
         Self::DatabaseError(err)

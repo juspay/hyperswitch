@@ -253,6 +253,10 @@ pub enum Aggregate<R> {
         alias: Option<&'static str>,
         percentile: Option<&'static u8>,
     },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
@@ -317,6 +321,7 @@ impl std::fmt::Display for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,

@@ -1,3 +1,4 @@
+pub mod apple_pay_certificates_migration;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
@@ -85,6 +86,7 @@ impl_misc_api_event_type!(
     GetInfoResponse,
     GetPaymentMetricRequest,
     GetRefundMetricRequest,
+    GetActivePaymentsMetricRequest,
     GetSdkEventMetricRequest,
     GetAuthEventMetricRequest,
     GetPaymentFiltersRequest,

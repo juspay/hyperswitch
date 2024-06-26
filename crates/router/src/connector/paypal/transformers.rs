@@ -353,7 +353,8 @@ fn get_payment_source(
         | domain::BankRedirectData::OpenBankingUk { .. }
         | domain::BankRedirectData::Trustly { .. }
         | domain::BankRedirectData::OnlineBankingFpx { .. }
-        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+        | domain::BankRedirectData::OnlineBankingThailand { .. }
+        | domain::BankRedirectData::LocalBankRedirect {} => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?
@@ -502,7 +503,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
@@ -546,6 +548,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 .into())
             }
             domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
@@ -1689,7 +1692,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::foreign_from(
                     item.response.batch_header.batch_status,
                 )),
-                connector_payout_id: item.response.batch_header.payout_batch_id,
+                connector_payout_id: Some(item.response.batch_header.payout_batch_id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

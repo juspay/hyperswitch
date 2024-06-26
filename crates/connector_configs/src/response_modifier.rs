@@ -15,6 +15,7 @@ impl ConnectorApiIntegrationPayload {
         let mut crypto_details: Vec<Provider> = Vec::new();
         let mut bank_debit_details: Vec<Provider> = Vec::new();
         let mut reward_details: Vec<Provider> = Vec::new();
+        let mut real_time_payment_details: Vec<Provider> = Vec::new();
         let mut upi_details: Vec<Provider> = Vec::new();
         let mut voucher_details: Vec<Provider> = Vec::new();
         let mut gift_card_details: Vec<Provider> = Vec::new();
@@ -71,6 +72,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -82,6 +84,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -93,6 +96,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -104,6 +108,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -115,6 +120,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -126,6 +132,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -137,6 +144,19 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
+                                })
+                            }
+                        }
+                    }
+                    api_models::enums::PaymentMethod::RealTimePayment => {
+                        if let Some(payment_method_types) = methods.payment_method_types {
+                            for method_type in payment_method_types {
+                                real_time_payment_details.push(Provider {
+                                    payment_method_type: method_type.payment_method_type,
+                                    accepted_currencies: method_type.accepted_currencies.clone(),
+                                    accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -148,6 +168,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -159,6 +180,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -170,6 +192,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -181,6 +204,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
                                 })
                             }
                         }
@@ -214,6 +238,13 @@ impl ConnectorApiIntegrationPayload {
             payment_method: api_models::enums::PaymentMethod::Reward,
             payment_method_type: api_models::enums::PaymentMethod::Reward.to_string(),
             provider: Some(reward_details),
+            card_provider: None,
+        };
+
+        let real_time_payment = DashboardPaymentMethodPayload {
+            payment_method: api_models::enums::PaymentMethod::RealTimePayment,
+            payment_method_type: api_models::enums::PaymentMethod::RealTimePayment.to_string(),
+            provider: Some(real_time_payment_details),
             card_provider: None,
         };
 
@@ -284,6 +315,7 @@ impl ConnectorApiIntegrationPayload {
                 upi,
                 voucher,
                 reward,
+                real_time_payment,
                 wallet,
                 bank_redirect,
                 bank_debit,
@@ -318,11 +350,15 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             merchant_name: api_model.merchant_name,
             acquirer_bin: api_model.acquirer_bin,
             acquirer_merchant_id: api_model.acquirer_merchant_id,
+            acquirer_country_code: api_model.acquirer_country_code,
             three_ds_requestor_name: api_model.three_ds_requestor_name,
             three_ds_requestor_id: api_model.three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled: api_model
                 .pull_mechanism_for_external_3ds_enabled,
             klarna_region: api_model.klarna_region,
+            source_balance_account: api_model.source_balance_account,
+            brand_id: api_model.brand_id,
+            destination_account_number: api_model.destination_account_number,
         }
     }
 }

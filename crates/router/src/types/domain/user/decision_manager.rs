@@ -5,7 +5,7 @@ use masking::Secret;
 use super::UserFromStorage;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::authentication as auth,
     utils,
 };
@@ -17,9 +17,14 @@ pub enum UserFlow {
 }
 
 impl UserFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        path: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, path, state).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -27,6 +32,8 @@ impl UserFlow {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum SPTFlow {
+    AuthSelect,
+    SSO,
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
@@ -36,15 +43,26 @@ pub enum SPTFlow {
 }
 
 impl SPTFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        path: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
+            // Auth
+            // AuthSelect and SSO flow are not enabled, once the terminate SSO API is ready, we can enable these flows
+            Self::AuthSelect => Ok(false),
+            Self::SSO => Ok(false),
             // TOTP
-            Self::TOTP => Ok(true),
+            Self::TOTP => Ok(!path.contains(&TokenPurpose::SSO)),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(!user.0.is_verified),
+            Self::VerifyEmail => Ok(true),
             // Final Checks
-            Self::ForceSetPassword => user.is_password_rotate_required(state),
+            Self::ForceSetPassword => user
+                .is_password_rotate_required(state)
+                .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
             Self::MerchantSelect => user
                 .get_roles_from_db(state)
                 .await
@@ -54,7 +72,7 @@ impl SPTFlow {
 
     pub async fn generate_spt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
     ) -> UserResult<Secret<String>> {
         auth::SinglePurposeToken::new_token(
@@ -62,6 +80,7 @@ impl SPTFlow {
             self.into(),
             next_flow.origin.clone(),
             &state.conf,
+            next_flow.path.to_vec(),
         )
         .await
         .map(|token| token.into())
@@ -74,13 +93,17 @@ pub enum JWTFlow {
 }
 
 impl JWTFlow {
-    async fn is_required(&self, _user: &UserFromStorage, _state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        _user: &UserFromStorage,
+        _state: &SessionState,
+    ) -> UserResult<bool> {
         Ok(true)
     }
 
     pub async fn generate_jwt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
@@ -99,6 +122,8 @@ impl JWTFlow {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Origin {
+    #[serde(rename = "sign_in_with_sso")]
+    SignInWithSSO,
     SignIn,
     SignUp,
     MagicLink,
@@ -110,6 +135,7 @@ pub enum Origin {
 impl Origin {
     fn get_flows(&self) -> &'static [UserFlow] {
         match self {
+            Self::SignInWithSSO => &SIGNIN_WITH_SSO_FLOW,
             Self::SignIn => &SIGNIN_FLOW,
             Self::SignUp => &SIGNUP_FLOW,
             Self::VerifyEmail => &VERIFY_EMAIL_FLOW,
@@ -119,6 +145,11 @@ impl Origin {
         }
     }
 }
+
+const SIGNIN_WITH_SSO_FLOW: [UserFlow; 2] = [
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
+];
 
 const SIGNIN_FLOW: [UserFlow; 4] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
@@ -150,48 +181,57 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 6] = [
+    UserFlow::SPTFlow(SPTFlow::AuthSelect),
+    UserFlow::SPTFlow(SPTFlow::SSO),
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
     UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
+const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
 pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
+    path: Vec<TokenPurpose>,
 }
 
 impl CurrentFlow {
-    pub fn new(origin: Origin, current_flow: UserFlow) -> UserResult<Self> {
-        let flows = origin.get_flows();
+    pub fn new(
+        token: auth::UserFromSinglePurposeToken,
+        current_flow: UserFlow,
+    ) -> UserResult<Self> {
+        let flows = token.origin.get_flows();
         let index = flows
             .iter()
             .position(|flow| flow == &current_flow)
             .ok_or(UserErrors::InternalServerError)?;
+        let mut path = token.path;
+        path.push(current_flow.into());
 
         Ok(Self {
-            origin,
+            origin: token.origin,
             current_flow_index: index,
+            path,
         })
     }
 
-    pub async fn next(&self, user: UserFromStorage, state: &AppState) -> UserResult<NextFlow> {
+    pub async fn next(self, user: UserFromStorage, state: &SessionState) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
+
         for flow in remaining_flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &self.path, state).await? {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
+                    path: self.path,
                 });
             }
         }
@@ -203,21 +243,24 @@ pub struct NextFlow {
     origin: Origin,
     next_flow: UserFlow,
     user: UserFromStorage,
+    path: Vec<TokenPurpose>,
 }
 
 impl NextFlow {
     pub async fn from_origin(
         origin: Origin,
         user: UserFromStorage,
-        state: &AppState,
+        state: &SessionState,
     ) -> UserResult<Self> {
         let flows = origin.get_flows();
+        let path = vec![];
         for flow in flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &path, state).await? {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
                     user,
+                    path,
                 });
             }
         }
@@ -228,7 +271,7 @@ impl NextFlow {
         self.next_flow
     }
 
-    pub async fn get_token(&self, state: &AppState) -> UserResult<Secret<String>> {
+    pub async fn get_token(&self, state: &SessionState) -> UserResult<Secret<String>> {
         match self.next_flow {
             UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
             UserFlow::JWTFlow(jwt_flow) => {
@@ -251,7 +294,7 @@ impl NextFlow {
 
     pub async fn get_token_with_user_role(
         &self,
-        state: &AppState,
+        state: &SessionState,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         match self.next_flow {
@@ -282,6 +325,8 @@ impl From<UserFlow> for TokenPurpose {
 impl From<SPTFlow> for TokenPurpose {
     fn from(value: SPTFlow) -> Self {
         match value {
+            SPTFlow::AuthSelect => Self::AuthSelect,
+            SPTFlow::SSO => Self::SSO,
             SPTFlow::TOTP => Self::TOTP,
             SPTFlow::VerifyEmail => Self::VerifyEmail,
             SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,

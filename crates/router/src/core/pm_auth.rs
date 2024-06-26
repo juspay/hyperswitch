@@ -36,15 +36,12 @@ use crate::{
         errors::{self, ApiErrorResponse, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::cards,
         payments::helpers as oss_helpers,
-        pm_auth::helpers::{self as pm_auth_helpers},
+        pm_auth::helpers as pm_auth_helpers,
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
-    services::{
-        pm_auth::{self as pm_auth_services},
-        ApplicationResponse,
-    },
+    routes::SessionState,
+    services::{pm_auth as pm_auth_services, ApplicationResponse},
     types::{
         self,
         domain::{self, types::decrypt},
@@ -55,7 +52,7 @@ use crate::{
 };
 
 pub async fn create_link_token(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::LinkTokenCreateRequest,
@@ -101,6 +98,7 @@ pub async fn create_link_token(
     let payment_intent = oss_helpers::verify_payment_intent_time_and_client_secret(
         &*state.store,
         &merchant_account,
+        &key_store,
         payload.client_secret,
     )
     .await?;
@@ -160,7 +158,7 @@ pub async fn create_link_token(
     };
 
     let connector_resp = pm_auth_services::execute_connector_processing_step(
-        state.as_ref(),
+        &state,
         connector_integration,
         &router_data,
         &connector.connector_name,
@@ -205,7 +203,7 @@ impl ForeignTryFrom<&types::ConnectorAuthType> for PlaidAuthType {
 }
 
 pub async fn exchange_token_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::ExchangeTokenCreateRequest,
@@ -270,7 +268,7 @@ async fn store_bank_details_in_payment_methods(
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::ExchangeTokenCreateRequest,
     merchant_account: domain::MerchantAccount,
-    state: AppState,
+    state: SessionState,
     bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
     connector_details: (&str, Secret<String>),
     mca_id: String,
@@ -283,6 +281,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_intent_by_payment_id_merchant_id(
             &payload.payment_id,
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -523,7 +522,7 @@ pub async fn get_bank_account_creds(
     connector_name: &str,
     access_token: &Secret<String>,
     auth_type: pm_auth_types::ConnectorAuthType,
-    state: &AppState,
+    state: &SessionState,
     bank_account_id: Option<Secret<String>>,
 ) -> RouterResult<pm_auth_types::BankAccountCredentialsResponse> {
     let connector_integration_bank_details: BoxedConnectorIntegration<
@@ -578,7 +577,7 @@ async fn get_access_token_from_exchange_api(
     connector_name: &str,
     payload: &api_models::pm_auth::ExchangeTokenCreateRequest,
     auth_type: &pm_auth_types::ConnectorAuthType,
-    state: &AppState,
+    state: &SessionState,
 ) -> RouterResult<Secret<String>> {
     let connector_integration: BoxedConnectorIntegration<
         '_,
@@ -662,7 +661,7 @@ async fn get_selected_config_from_redis(
 }
 
 pub async fn retrieve_payment_method_from_auth_service(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,

@@ -83,6 +83,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -127,6 +128,7 @@ pub enum RoutableConnectors {
     Coinbase,
     Cryptopay,
     Cybersource,
+    // Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -1069,6 +1071,8 @@ pub enum EventClass {
     Refunds,
     Disputes,
     Mandates,
+    #[cfg(feature = "payouts")]
+    Payouts,
 }
 
 #[derive(
@@ -1107,6 +1111,13 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    PayoutSuccess,
+    PayoutFailed,
+    PayoutInitiated,
+    PayoutProcessing,
+    PayoutCancelled,
+    PayoutExpired,
+    PayoutReversed,
 }
 
 #[derive(
@@ -1384,8 +1395,10 @@ pub enum PaymentMethodType {
     Dana,
     DanamonVa,
     Debit,
+    DuitNow,
     Efecty,
     Eps,
+    Fps,
     Evoucher,
     Giropay,
     Givex,
@@ -1397,6 +1410,7 @@ pub enum PaymentMethodType {
     Indomaret,
     Klarna,
     KakaoPay,
+    LocalBankRedirect,
     MandiriVa,
     Knet,
     MbWay,
@@ -1419,6 +1433,7 @@ pub enum PaymentMethodType {
     Pix,
     PaySafeCard,
     Przelewy24,
+    PromptPay,
     Pse,
     RedCompra,
     RedPagos,
@@ -1432,6 +1447,7 @@ pub enum PaymentMethodType {
     UpiCollect,
     UpiIntent,
     Vipps,
+    VietQr,
     Venmo,
     Walley,
     WeChatPay,
@@ -1442,6 +1458,7 @@ pub enum PaymentMethodType {
     Seicomart,
     PayEasy,
     LocalBankTransfer,
+    Mifinity,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -1475,6 +1492,7 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    RealTimePayment,
     Upi,
     Voucher,
     GiftCard,
@@ -2116,10 +2134,14 @@ pub enum PayoutStatus {
     Success,
     Failed,
     Cancelled,
+    Initiated,
+    Expired,
+    Reversed,
     Pending,
     Ineligible,
     #[default]
     RequiresCreation,
+    RequiresConfirmation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
     RequiresVendorAccountCreation,
@@ -2182,6 +2204,31 @@ pub enum PayoutEntityType {
     #[serde(rename = "lowercase")]
     Business,
     Personal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutSendPriority {
+    Instant,
+    Fast,
+    Regular,
+    Wire,
+    CrossBorder,
+    Internal,
 }
 
 #[derive(
@@ -2283,11 +2330,6 @@ pub enum ReconStatus {
     Requested,
     Active,
     Disabled,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ApplePayFlow {
-    Simplified,
-    Manual,
 }
 
 #[derive(
@@ -2713,10 +2755,39 @@ pub enum BankHolderType {
     Business,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GenericLinkType {
+    #[default]
+    PaymentMethodCollect,
+    PayoutLink,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TokenPurpose {
+    AuthSelect,
+    #[serde(rename = "sso")]
+    #[strum(serialize = "sso")]
+    SSO,
     #[serde(rename = "totp")]
     #[strum(serialize = "totp")]
     TOTP,
@@ -2726,4 +2797,46 @@ pub enum TokenPurpose {
     ResetPassword,
     AcceptInvite,
     UserInfo,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum UserAuthType {
+    OpenIdConnect,
+    MagicLink,
+    #[default]
+    Password,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum Owner {
+    Organization,
+    Tenant,
+    Internal,
 }

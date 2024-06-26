@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr, sync::Arc};
 
 use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
@@ -97,6 +97,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             None,
         ),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
         access_token: None,
@@ -160,6 +161,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
         access_token: None,
@@ -193,23 +195,25 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -238,21 +242,23 @@ async fn payments_create_failure() {
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        let connector = types::api::ConnectorData {
-            connector: Box::new(&CV),
-            connector_name: types::Connector::Aci,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        };
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
+        let connector = utils::construct_connector_data_old(
+            Box::new(&CV),
+            types::Connector::Aci,
+            types::api::GetToken::Connector,
+            None,
+        );
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -291,23 +297,25 @@ async fn payments_create_failure() {
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -326,8 +334,7 @@ async fn refund_for_successful_payments() {
         response.status == enums::AttemptStatus::Charged,
         "The payment failed"
     );
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -360,23 +367,25 @@ async fn refund_for_successful_payments() {
 async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,

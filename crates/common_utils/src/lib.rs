@@ -2,6 +2,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+use masking::{PeekInterface, Secret};
+
 use crate::{
     consts::ID_LENGTH,
     id_type::{CustomerId, MerchantReferenceId},
@@ -17,6 +19,7 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+pub mod link_utils;
 pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
@@ -27,6 +30,9 @@ pub mod signals;
 pub mod static_cache;
 pub mod types;
 pub mod validation;
+
+#[cfg(feature = "metrics")]
+pub mod metrics;
 
 /// Date-time utilities.
 pub mod date_time {
@@ -222,6 +228,27 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 #[inline]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}
+
+#[allow(missing_docs)]
+pub trait DbConnectionParams {
+    fn get_username(&self) -> &str;
+    fn get_password(&self) -> Secret<String>;
+    fn get_host(&self) -> &str;
+    fn get_port(&self) -> u16;
+    fn get_dbname(&self) -> &str;
+    fn get_database_url(&self, schema: &str) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            self.get_username(),
+            self.get_password().peek(),
+            self.get_host(),
+            self.get_port(),
+            self.get_dbname(),
+            schema,
+            schema,
+        )
+    }
 }
 
 #[cfg(test)]

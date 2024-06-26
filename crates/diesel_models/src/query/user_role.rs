@@ -90,4 +90,18 @@ impl UserRole {
         )
         .await
     }
+
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: String,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
+    }
 }
