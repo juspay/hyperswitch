@@ -3497,7 +3497,7 @@ pub async fn list_customer_payment_method(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            crate::core::utils::get_profile_id_from_business_details(
+            core_utils::get_profile_id_from_business_details(
                 payment_intent.business_country,
                 payment_intent.business_label.as_ref(),
                 &merchant_account,
