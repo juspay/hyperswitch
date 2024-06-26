@@ -1,41 +1,45 @@
+//! Consists of all the common functions to use the Keymanager.
+
 use std::str::FromStr;
 
 use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-#[cfg(feature = "keymanager_mtls")]
-use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    errors, headers,
-    types::domain::{DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest},
-    SessionState,
+    errors,
+    types::keymanager::{
+        DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
+    },
 };
 
+#[cfg(feature = "keymanager_mtls")]
+use masking::PeekInterface;
+
+const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
+/// Get keymanager client cosntructed from the url and state
 #[allow(unused_mut)]
-pub fn get_api_encryption_client(
-    state: &SessionState,
-) -> errors::CustomResult<reqwest::Client, errors::ApiClientError> {
-    let proxy = &state.conf.proxy;
-
+fn get_api_encryption_client(
+    state: &KeyManagerState,
+) -> errors::CustomResult<reqwest::Client, errors::KeyManagerClientError> {
     let get_client = || {
         let mut client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .pool_idle_timeout(std::time::Duration::from_secs(
-                proxy.idle_pool_connection_timeout.unwrap_or_default(),
+                state.client_idle_timeout.unwrap_or_default(),
             ));
 
         #[cfg(feature = "keymanager_mtls")]
         {
-            let ca = state.conf.key_manager.ca.clone();
-            let cert = state.conf.key_manager.cert.clone();
+            let cert = state.cert.clone();
+            let ca = state.ca.clone();
 
             let identity = reqwest::Identity::from_pem(cert.peek().as_ref())
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
             let ca_cert = reqwest::Certificate::from_pem(ca.peek().as_ref())
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
 
             client = client
                 .use_rustls_tls()
@@ -46,36 +50,25 @@ pub fn get_api_encryption_client(
 
         client
             .build()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)
+            .change_context(errors::KeyManagerClientError::ClientConstructionFailed)
     };
 
     Ok(ENCRYPTION_API_CLIENT.get_or_try_init(get_client)?.clone())
 }
 
+/// Generic function to send the request to keymanager
 pub async fn send_encryption_request<T>(
-    state: &SessionState,
-    headers: Vec<(String, String)>,
+    state: &KeyManagerState,
+    headers: HeaderMap,
     url: String,
     request_body: T,
-) -> errors::CustomResult<reqwest::Response, errors::ApiClientError>
+) -> errors::CustomResult<reqwest::Response, errors::KeyManagerClientError>
 where
     T: serde::Serialize,
 {
     let client = get_api_encryption_client(state)?;
-    let url =
-        reqwest::Url::parse(&url).change_context(errors::ApiClientError::UrlEncodingFailed)?;
-
-    let headers = headers.into_iter().try_fold(
-        HeaderMap::new(),
-        |mut header_map, (header_name, header_value)| {
-            let header_name = HeaderName::from_str(&header_name)
-                .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
-            let header_value = HeaderValue::from_str(&header_value)
-                .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
-            header_map.append(header_name, header_value);
-            Ok::<_, error_stack::Report<errors::ApiClientError>>(header_map)
-        },
-    )?;
+    let url = reqwest::Url::parse(&url)
+        .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
     client
         .post(url)
@@ -83,13 +76,14 @@ where
         .headers(headers)
         .send()
         .await
-        .change_context(errors::ApiClientError::RequestNotSent(
+        .change_context(errors::KeyManagerClientError::RequestNotSent(
             "Unable to send request to encryption service".to_string(),
         ))
 }
 
+/// Generic function to call the Keymanager and parse the response back
 pub async fn call_encryption_service<T, R>(
-    state: &SessionState,
+    state: &KeyManagerState,
     endpoint: &str,
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
@@ -97,14 +91,19 @@ where
     T: serde::Serialize + Send + Sync + 'static,
     R: serde::de::DeserializeOwned,
 {
-    let url = format!("{}/{}", &state.conf.key_manager.url, endpoint);
+    let url = format!("{}/{endpoint}", &state.url);
 
     let response = send_encryption_request(
         state,
-        vec![(
-            headers::CONTENT_TYPE.to_string(),
-            "application/json".to_string(),
-        )],
+        HeaderMap::from_iter(
+            vec![(
+                HeaderName::from_str(CONTENT_TYPE)
+                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+                HeaderValue::from_str("application/json")
+                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+            )]
+            .into_iter(),
+        ),
         url,
         request_body,
     )
@@ -142,8 +141,9 @@ where
     }
 }
 
+/// A function to create the key in keymanager
 pub async fn create_key_in_key_manager(
-    state: &SessionState,
+    state: &KeyManagerState,
     request_body: EncryptionCreateRequest,
 ) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
     call_encryption_service(state, "key/create", request_body)
@@ -151,8 +151,9 @@ pub async fn create_key_in_key_manager(
         .change_context(errors::KeyManagerError::KeyAddFailed)
 }
 
+/// A function to transfer the key in keymanager
 pub async fn transfer_key_to_key_manager(
-    state: &SessionState,
+    state: &KeyManagerState,
     request_body: EncryptionTransferRequest,
 ) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
     call_encryption_service(state, "key/transfer", request_body)

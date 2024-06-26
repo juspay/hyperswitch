@@ -4,7 +4,6 @@ pub mod behaviour {
 }
 
 mod customer;
-mod encryption;
 mod event;
 mod merchant_account;
 mod merchant_connector_account;
@@ -19,7 +18,6 @@ pub mod user_key_store;
 
 pub use address::*;
 pub use customer::*;
-pub use encryption::*;
 pub use event::*;
 pub use merchant_account::*;
 pub use merchant_connector_account::*;

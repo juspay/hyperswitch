@@ -3,13 +3,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::ExposeInterface;
 
-use crate::{
-    consts::BASE64_ENGINE,
-    encryption::transfer_key_to_key_manager,
-    errors,
-    types::domain::{EncryptionTransferRequest, Identifier},
-    SessionState,
+use common_utils::{
+    keymanager::transfer_key_to_key_manager,
+    types::keymanager::{EncryptionTransferRequest, Identifier},
 };
+
+use crate::{consts::BASE64_ENGINE, errors, SessionState};
 
 pub async fn transfer_encryption_key(
     state: &SessionState,
@@ -32,7 +31,7 @@ pub async fn send_request_to_key_service_for_merchant(
             identifier: Identifier::Merchant(key.merchant_id.clone()),
             key: key_encoded,
         };
-        transfer_key_to_key_manager(state, req).await
+        transfer_key_to_key_manager(&state.into(), req).await
     }))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

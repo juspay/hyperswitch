@@ -4,7 +4,12 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
+use common_utils::{
+    crypto::Encryptable,
+    errors::CustomResult,
+    pii,
+    types::keymanager::{EncryptionCreateRequest, Identifier},
+};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -926,10 +931,10 @@ impl UserFromStorage {
                 created_at: common_utils::date_time::now(),
             };
 
-            crate::encryption::create_key_in_key_manager(
-                state,
-                super::EncryptionCreateRequest {
-                    identifier: super::Identifier::User(key_store.user_id.clone()),
+            common_utils::keymanager::create_key_in_key_manager(
+                &state.into(),
+                EncryptionCreateRequest {
+                    identifier: Identifier::User(key_store.user_id.clone()),
                 },
             )
             .await

@@ -8,7 +8,8 @@ use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
-    pii,
+    keymanager, pii,
+    types::keymanager as km_types,
 };
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
@@ -28,7 +29,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    encryption,
     routes::{metrics, SessionState},
     services::{self, api as service_api},
     types::{
@@ -124,10 +124,10 @@ pub async fn create_merchant_account(
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
 
-    encryption::create_key_in_key_manager(
-        &state,
-        domain::EncryptionCreateRequest {
-            identifier: domain::Identifier::Merchant(req.merchant_id.clone()),
+    keymanager::create_key_in_key_manager(
+        &(&state).into(),
+        km_types::EncryptionCreateRequest {
+            identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
         },
     )
     .await
