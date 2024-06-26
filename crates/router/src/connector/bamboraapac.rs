@@ -1,24 +1,15 @@
 pub mod transformers;
 
-use common_utils::{
-    self,
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
-};
+use common_utils::{self, ext_traits::XmlExt};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
 use transformers as bamboraapac;
 
-use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -28,17 +19,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Bamboraapac {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-}
-
-impl Bamboraapac {
-    pub const fn new() -> &'static Self {
-        &Self {
-            amount_converter: &MinorUnitForConnector,
-        }
-    }
-}
+pub struct Bamboraapac;
 
 impl api::Payment for Bamboraapac {}
 impl api::PaymentSession for Bamboraapac {}
@@ -69,15 +50,13 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
         Ok(header)
     }
 }
@@ -92,23 +71,11 @@ impl ConnectorCommon for Bamboraapac {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "text/xml"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bamboraapac.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = bamboraapac::BamboraapacAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -177,9 +144,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -187,15 +154,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((amount, req))?;
-        let connector_req =
-            bamboraapac::BamboraapacPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = bamboraapac::get_payment_body(req)?;
+
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -226,10 +187,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bamboraapac::BamboraapacPaymentsResponse = res
-            .response
-            .parse_struct("Bamboraapac PaymentsAuthorizeResponse")
+        let response_data = html_to_xml_string_conversion(
+            String::from_utf8(res.response.to_vec())
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        );
+
+        let response = response_data
+            .parse_xml::<bamboraapac::BamboraapacPaymentsResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -401,158 +367,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Bamboraapac
 {
-    fn get_headers(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data =
-            bamboraapac::BamboraapacRouterData::try_from((refund_amount, req))?;
-        let connector_req =
-            bamboraapac::BamboraapacRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefundsRouterData<api::Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: bamboraapac::RefundResponse = res
-            .response
-            .parse_struct("bamboraapac RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Bamboraapac
 {
-    fn get_headers(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: bamboraapac::RefundResponse = res
-            .response
-            .parse_struct("bamboraapac RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
 }
 
 #[async_trait::async_trait]
@@ -577,4 +396,8 @@ impl api::IncomingWebhook for Bamboraapac {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
+}
+
+fn html_to_xml_string_conversion(res: String) -> String {
+    res.replace("&lt;", "<").replace("&gt;", ">")
 }

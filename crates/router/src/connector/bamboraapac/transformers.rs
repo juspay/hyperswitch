@@ -1,114 +1,161 @@
-use masking::Secret;
+use hyperswitch_interfaces::consts;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
-    types::{self, api, domain, storage::enums, MinorUnit},
+    connector::utils::{self, CardData, RouterData},
+    core::{errors, mandate::MandateBehaviour},
+    types::{self, domain, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
-pub struct BamboraapacRouterData<T> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
+type Error = error_stack::Report<errors::ConnectorError>;
+
+// request body in soap format
+pub fn get_payment_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Vec<u8>, Error> {
+    let transaction_data = get_transaction_body(req)?;
+    let body = format!(
+        r#"
+    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+    xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+        <soapenv:Body>
+        <dts:SubmitSinglePayment>
+            <dts:trnXML>
+                <![CDATA[
+                    {}
+                ]]>    
+            </dts:trnXML>
+        </dts:SubmitSinglePayment>
+        </soapenv:Body>
+    </soapenv:Envelope>
+"#,
+        transaction_data
+    );
+
+    Ok(body.as_bytes().to_vec())
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for BamboraapacRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Ok(Self {
-            amount,
-            router_data: item,
-        })
-    }
+fn get_transaction_body(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
+    let amount = req.request.get_amount();
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let card_info = get_card_data(req)?;
+    let transaction_data = format!(
+        r#"
+        <Transaction>
+            <CustRef>{}</CustRef>
+            <Amount>{}</Amount>
+            <TrnType>1</TrnType>
+            <AccountNumber>{}</AccountNumber>
+            {}
+            <Security>
+                    <UserName>{}</UserName>
+                    <Password>{}</Password>
+            </Security>
+        </Transaction>
+    "#,
+        req.connector_request_reference_id.to_owned(),
+        amount,
+        auth_details.account_number.peek(),
+        card_info,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(transaction_data)
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BamboraapacPaymentsRequest {
-    amount: MinorUnit,
-    card: BamboraapacCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BamboraapacCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>>
-    for BamboraapacPaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = BamboraapacCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
+    let card_holder_name = req.get_billing_full_name()?;
+    let card_data = match &req.request.payment_method_data {
+        domain::PaymentMethodData::Card(card) => {
+            format!(
+                r#"
+                <CreditCard Registered="False">
+                    <CardNumber>{}</CardNumber>
+                    <ExpM>{}</ExpM>
+                    <ExpY>{}</ExpY>
+                    <CVN>{}</CVN>
+                    <CardHolderName>{}</CardHolderName>
+                </CreditCard>
+            "#,
+                card.card_number.get_card_no(),
+                card.card_exp_month.peek(),
+                card.get_expiry_year_4_digit().peek(),
+                card.card_cvc.peek(),
+                card_holder_name.peek(),
+            )
         }
-    }
+        _ => {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
+            ))?
+        }
+    };
+    Ok(card_data)
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct BamboraapacAuthType {
-    pub(super) api_key: Secret<String>,
+    username: Secret<String>,
+    password: Secret<String>,
+    account_number: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BamboraapacAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                username: api_key.to_owned(),
+                password: api_secret.to_owned(),
+                account_number: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum BamboraapacPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
-impl From<BamboraapacPaymentStatus> for enums::AttemptStatus {
-    fn from(item: BamboraapacPaymentStatus) -> Self {
-        match item {
-            BamboraapacPaymentStatus::Succeeded => Self::Charged,
-            BamboraapacPaymentStatus::Failed => Self::Failure,
-            BamboraapacPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+#[serde(rename_all = "PascalCase")]
 pub struct BamboraapacPaymentsResponse {
-    status: BamboraapacPaymentStatus,
-    id: String,
+    body: BodyResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct BodyResponse {
+    submit_single_payment_response: SubmitSinglePaymentResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSinglePaymentResponse {
+    submit_single_payment_result: SubmitSinglePaymentResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSinglePaymentResult {
+    response: PaymentResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PaymentResponse {
+    response_code: u8,
+    receipt: String,
+    declined_code: Option<String>,
+    declined_message: Option<String>,
+}
+
+fn get_attempt_status(response_code: u8) -> enums::AttemptStatus {
+    match response_code {
+        0 => enums::AttemptStatus::Charged,
+        _ => enums::AttemptStatus::Failure,
+    }
 }
 
 impl<F, T>
@@ -125,106 +172,70 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct BamboraapacRefundRequest {
-    pub amount: MinorUnit,
-}
-
-impl<F> TryFrom<&BamboraapacRouterData<&types::RefundsRouterData<F>>> for BamboraapacRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &BamboraapacRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+        let response_code = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .response_code;
+        let connector_transaction_id = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .receipt;
+        // transaction approved
+        if response_code == 0 {
+            Ok(Self {
+                status: get_attempt_status(response_code),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        connector_transaction_id.to_owned(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(connector_transaction_id),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+        // transaction failed
+        else {
+            Ok(Self {
+                status: get_attempt_status(response_code),
+                response: Err(types::ErrorResponse {
+                    status_code: item.http_code,
+                    code: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_code
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            })
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraapacErrorResponse {
     pub status_code: u16,
