@@ -3346,7 +3346,7 @@ fn filter_payment_amount_based(
 ) -> bool {
     let amount = payment_intent.amount;
     (pm.maximum_amount.map_or(true, |amt| amount <= amt)
-        && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
+        && pm.minimum_amount.map_or(true, |amt| amount >= amt))
         || payment_intent.amount == MinorUnit::zero()
 }
 
