@@ -247,7 +247,7 @@ fn compile_pm_graph(
                 .make_edge(
                     and_node_for_all_the_filters,
                     payment_method_type_value_node,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Normal,
                     cgraph::Relation::Positive,
                     None::<cgraph::DomainId>,
                 )
@@ -665,7 +665,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     pm_object_currency_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCurrencies::DisableOnly(currency) => {
@@ -682,7 +682,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     pm_object_currency_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCurrencies::AllAccepted => return Ok(None),
@@ -720,7 +720,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     config_currency_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
         }
