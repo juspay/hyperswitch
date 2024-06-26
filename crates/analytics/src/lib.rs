@@ -8,6 +8,7 @@ pub mod payments;
 mod query;
 pub mod refunds;
 
+pub mod active_payments;
 pub mod api_event;
 pub mod auth_events;
 pub mod connector_events;
@@ -33,6 +34,7 @@ pub mod utils;
 use std::sync::Arc;
 
 use api_models::analytics::{
+    active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
@@ -58,6 +60,7 @@ use storage_impl::config::Database;
 use strum::Display;
 
 use self::{
+    active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
     auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     frm::metrics::{FrmMetric, FrmMetricRow},
     payments::{
@@ -617,7 +620,7 @@ impl AnalyticsProvider {
         &self,
         metric: &SdkEventMetrics,
         dimensions: &[SdkEventDimensions],
-        pub_key: &str,
+        publishable_key: &str,
         filters: &SdkEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -626,20 +629,53 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        publishable_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
                         dimensions,
-                        pub_key,
+                        publishable_key,
                         filters,
                         granularity,
                         // Since SDK events are ckh only use ckh here
                         time_range,
                         ckh_pool,
                     )
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_active_payments_metrics(
+        &self,
+        metric: &ActivePaymentsMetrics,
+        merchant_id: &str,
+        publishable_key: &str,
+    ) -> types::MetricsResult<
+        Vec<(
+            ActivePaymentsMetricsBucketIdentifier,
+            ActivePaymentsMetricRow,
+        )>,
+    > {
+        match self {
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
+            Self::Clickhouse(pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, pool)
+                    .await
+            }
+            Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, ckh_pool)
                     .await
             }
         }
@@ -827,6 +863,7 @@ pub enum AnalyticsFlow {
     GetFrmMetrics,
     GetSdkMetrics,
     GetAuthMetrics,
+    GetActivePaymentsMetrics,
     GetPaymentFilters,
     GetRefundFilters,
     GetFrmFilters,

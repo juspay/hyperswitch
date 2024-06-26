@@ -355,3 +355,8 @@ pub struct AuthMethodDetails {
     pub auth_type: common_enums::UserAuthType,
     pub name: Option<OpenIdProvider>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthIdQueryParam {
+    pub auth_id: Option<String>,
+}

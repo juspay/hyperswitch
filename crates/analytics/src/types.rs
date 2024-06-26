@@ -28,12 +28,14 @@ pub enum AnalyticsCollection {
     Refund,
     FraudCheck,
     SdkEvents,
+    SdkEventsAnalytics,
     ApiEvents,
     PaymentIntent,
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
     ApiEventsAnalytics,
+    ActivePaymentsAnalytics,
 }
 
 #[allow(dead_code)]

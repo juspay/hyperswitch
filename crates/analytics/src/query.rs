@@ -254,6 +254,10 @@ pub enum Aggregate<R> {
         alias: Option<&'static str>,
         percentile: Option<&'static u8>,
     },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
