@@ -247,7 +247,7 @@ pub async fn decrypt_oidc_private_config(
     private_config
         .parse_value("OpenIdConnectPrivateConfig")
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse generic data value")
+        .attach_printable("unable to parse OpenIdConnectPrivateConfig")
 }
 
 pub async fn set_sso_id_in_redis(

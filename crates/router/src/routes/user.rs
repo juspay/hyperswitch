@@ -800,7 +800,7 @@ pub async fn sso_sign(
     req: HttpRequest,
     json_payload: web::Json<user_api::SsoSignInRequest>,
 ) -> HttpResponse {
-    let flow = Flow::SigninWithSso;
+    let flow = Flow::SignInWithSso;
     let payload = json_payload.into_inner();
     Box::pin(api::server_wrap(
         flow,

@@ -435,7 +435,7 @@ pub enum Flow {
     /// Get sso auth url
     GetSsoAuthUrl,
     /// Signin with SSO
-    SigninWithSso,
+    SignInWithSso,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

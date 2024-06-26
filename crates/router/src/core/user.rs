@@ -2222,14 +2222,14 @@ pub async fn get_sso_auth_url(
         .attach_printable("Public config not present")?
         .parse_value("OpenIdConnectPublicConfig")
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse generic data value")?;
+        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
 
     let oidc_state = Secret::new(nanoid::nanoid!());
     utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
 
     let redirect_url = utils::user::get_oidc_sso_redirect_url(
         &state,
-        &open_id_public_config.name.to_string().to_lowercase(),
+        &open_id_public_config.name.to_string(),
     );
 
     openidconnect::get_authorization_url(
@@ -2275,11 +2275,11 @@ pub async fn sso_sign(
         .attach_printable("Public config not present")?
         .parse_value("OpenIdConnectPublicConfig")
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse generic data value")?;
+        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
 
     let redirect_url = utils::user::get_oidc_sso_redirect_url(
         &state,
-        &open_id_public_config.name.to_string().to_lowercase(),
+        &open_id_public_config.name.to_string(),
     );
     let email = openidconnect::get_user_email_from_oidc_provider(
         &state,

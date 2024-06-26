@@ -32,13 +32,13 @@ pub async fn get_authorization_url(
             .add_scope(oidc::Scope::new("email".to_string()))
             .url();
 
-    // Save csrf & nounce as key value respectively
+    // Save csrf & nonce as key value respectively
     let key = get_oidc_redis_key(csrf_token.secret());
     get_redis_connection(&state)?
         .set_key_with_expiry(&key, nonce.secret(), consts::user::REDIS_SSO_TTL)
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to save csrf-nounce in redis")?;
+        .attach_printable("Failed to save csrf-nonce in redis")?;
 
     Ok(auth_url)
 }
@@ -52,7 +52,7 @@ pub async fn get_user_email_from_oidc_provider(
     authorization_code: Secret<String>,
     client_secret: Secret<String>,
 ) -> UserResult<UserEmail> {
-    let nounce = get_nounce_from_redis(state, &redirect_state).await?;
+    let nonce = get_nonce_from_redis(state, &redirect_state).await?;
     let discovery_document = get_discovery_document(base_url, state).await?;
     let client = get_oidc_core_client(
         discovery_document,
@@ -61,12 +61,12 @@ pub async fn get_user_email_from_oidc_provider(
         redirect_url,
     )?;
 
-    let nounce_clone = nounce.clone();
+    let nonce_clone = nonce.clone();
     client
         .authorize_url(
             oidc_core::CoreAuthenticationFlow::AuthorizationCode,
             || oidc::CsrfToken::new(redirect_state.expose()),
-            || nounce_clone,
+            || nonce_clone,
         )
         .add_scope(oidc::Scope::new("email".to_string()));
 
@@ -86,7 +86,7 @@ pub async fn get_user_email_from_oidc_provider(
 
     // Verify id token
     let id_token_claims = id_token
-        .claims(&client.id_token_verifier(), &nounce)
+        .claims(&client.id_token_verifier(), &nonce)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to verify id token")?;
 
@@ -134,7 +134,7 @@ fn get_oidc_core_client(
     )
 }
 
-async fn get_nounce_from_redis(
+async fn get_nonce_from_redis(
     state: &SessionState,
     redirect_state: &Secret<String>,
 ) -> UserResult<oidc::Nonce> {

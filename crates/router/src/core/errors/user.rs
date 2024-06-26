@@ -86,7 +86,7 @@ pub enum UserErrors {
     InvalidUserAuthMethodOperation,
     #[error("Auth config parsing error")]
     AuthConfigParsingError,
-    #[error("SSO Failed")]
+    #[error("Invalid SSO request")]
     SSOFailed,
 }
 
