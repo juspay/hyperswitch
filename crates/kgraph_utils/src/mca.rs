@@ -668,7 +668,7 @@ fn compile_merchant_connector_graph(
     Ok(())
 }
 
-pub fn make_mca_graph<'a>(
+pub fn make_mca_graph(
     accts: Vec<admin_api::MerchantConnectorResponse>,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<cgraph::ConstraintGraph<dir::DirValue>, KgraphError> {
@@ -700,7 +700,7 @@ mod tests {
     use super::*;
     use crate::types as kgraph_types;
 
-    fn build_test_data<'a>() -> ConstraintGraph<dir::DirValue> {
+    fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
 
         let stripe_account = MerchantConnectorResponse {
