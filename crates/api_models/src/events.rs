@@ -125,5 +125,3 @@ impl<T> ApiEventMetric for MetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
-
-
