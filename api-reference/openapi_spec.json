@@ -6918,7 +6918,7 @@
           "intent_fulfillment_time": {
             "type": "integer",
             "format": "int64",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
             "example": 900,
             "nullable": true
           },
@@ -11047,12 +11047,6 @@
                 "$ref": "#/components/schemas/RoutingAlgorithm"
               }
             ],
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true
           },
           "organization_id": {

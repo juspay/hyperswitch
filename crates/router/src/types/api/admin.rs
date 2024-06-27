@@ -39,7 +39,6 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             locker_id: item.locker_id,
             primary_business_details,
             frm_routing_algorithm: item.frm_routing_algorithm,
-            intent_fulfillment_time: item.intent_fulfillment_time,
             #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,

@@ -46,7 +46,6 @@ use crate::{
         payment_methods::{self, cards, vault},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
@@ -1924,6 +1923,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
@@ -2002,6 +2002,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -2022,6 +2023,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2040,17 +2042,7 @@ pub async fn store_in_vault_and_generate_ppmt(
         ))
     });
 
-    let db = &*state.store;
-
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        payment_intent.profile_id.as_ref(),
-        &payment_intent.merchant_id,
-    )
-    .await?;
-
     let intent_fulfillment_time = business_profile
-        .as_ref()
         .and_then(|b_profile| b_profile.intent_fulfillment_time)
         .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
@@ -2073,6 +2065,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2087,6 +2080,7 @@ pub async fn store_payment_method_data_in_vault(
             payment_attempt,
             payment_method,
             merchant_key_store,
+            business_profile,
         )
         .await?;
 
