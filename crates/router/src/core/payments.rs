@@ -197,7 +197,7 @@ where
         &validate_result,
         &key_store,
         &customer,
-        None,
+        Some(&business_profile),
     )
     .await?;
 
