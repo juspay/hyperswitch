@@ -1650,6 +1650,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1663,6 +1664,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -1745,6 +1747,23 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+            },
+            Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
             },
         }
     }
@@ -1981,6 +2000,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1993,6 +2013,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             },
             DieselPaymentAttemptUpdate::CaptureUpdate {
                 amount_to_capture,
@@ -2074,6 +2095,23 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+            },
+            DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
             },
         }
     }

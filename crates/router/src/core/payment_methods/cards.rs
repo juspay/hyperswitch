@@ -45,7 +45,9 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{transformers as payment_methods, vault},
+        payment_methods::{
+            add_payment_method_status_update_task, transformers as payment_methods, vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -297,6 +299,21 @@ pub async fn get_client_secret_or_add_payment_method(
         )
         .await?;
 
+        if res.status == enums::PaymentMethodStatus::AwaitingData {
+            add_payment_method_status_update_task(
+                db,
+                &res,
+                enums::PaymentMethodStatus::AwaitingData,
+                enums::PaymentMethodStatus::Inactive,
+                merchant_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method status update task in process tracker",
+            )?;
+        }
+
         Ok(services::api::ApplicationResponse::Json(
             api::PaymentMethodResponse::foreign_from(res),
         ))
@@ -357,7 +374,7 @@ pub async fn add_payment_method_data(
         .attach_printable("Unable to find payment method")?;
 
     if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
-        return Err((errors::ApiErrorResponse::DuplicatePaymentMethod).into());
+        return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
 
     let customer_id = payment_method.customer_id.clone();
@@ -639,21 +656,32 @@ pub async fn add_payment_method(
                             .attach_printable("Failed while updating card metadata changes"))?
                     };
 
+                    let existing_pm_data = get_card_details_without_locker_fallback(
+                        &existing_pm,
+                        key_store.key.peek(),
+                        &state,
+                    )
+                    .await?;
+
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: card.card_issuing_country,
+                        issuer_country: card
+                            .card_issuing_country
+                            .or(existing_pm_data.issuer_country),
                         card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
                         card_token: None,
                         card_fingerprint: None,
-                        card_holder_name: card.card_holder_name,
-                        nick_name: card.nick_name,
-                        card_network: card.card_network,
-                        card_issuer: card.card_issuer,
-                        card_type: card.card_type,
+                        card_holder_name: card
+                            .card_holder_name
+                            .or(existing_pm_data.card_holder_name),
+                        nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                        card_network: card.card_network.or(existing_pm_data.card_network),
+                        card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                        card_type: card.card_type.or(existing_pm_data.card_type),
                         saved_to_locker: true,
                     });
 
@@ -4058,21 +4086,17 @@ pub async fn set_default_payment_method(
 }
 
 pub async fn update_last_used_at(
-    pm_id: &str,
+    payment_method: &diesel_models::PaymentMethod,
     state: &routes::SessionState,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<()> {
     let update_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
         last_used_at: common_utils::date_time::now(),
     };
-    let payment_method = state
-        .store
-        .find_payment_method(pm_id, storage_scheme)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
     state
         .store
-        .update_payment_method(payment_method, update_last_used, storage_scheme)
+        .update_payment_method(payment_method.clone(), update_last_used, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the last_used_at in db")?;

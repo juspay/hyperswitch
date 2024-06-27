@@ -1,6 +1,10 @@
 pub mod api;
 pub mod authentication;
 pub mod authorization;
+pub mod connector_integration_interface;
+pub mod conversion_impls;
+#[cfg(feature = "email")]
+pub mod email;
 pub mod encryption;
 #[cfg(feature = "olap")]
 pub mod jwt;
@@ -10,8 +14,8 @@ pub mod pm_auth;
 #[cfg(feature = "recon")]
 pub mod recon;
 
-#[cfg(feature = "email")]
-pub mod email;
+#[cfg(feature = "olap")]
+pub mod openidconnect;
 
 use std::sync::Arc;
 
@@ -74,7 +78,7 @@ pub async fn get_store(
             tenant,
             master_enc_key,
             cache_store,
-            storage_impl::redis::cache::PUB_SUB_CHANNEL,
+            storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
         )
         .await?
     };

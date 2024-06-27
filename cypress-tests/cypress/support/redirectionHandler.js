@@ -154,7 +154,7 @@ function bankRedirectRedirection(
           cy.get("#bankSearch").type("giropay TestBank{enter}");
           cy.get(".normal-2 > div").click();
           cy.get('[data-testid="customerIban"]').type("DE48499999601234567890");
-          cy.get('[data-testid="customerIdentification"]').type("1234567890");
+          cy.get('[data-testid="customerIdentification"]').type("9123456789");
           cy.get(":nth-child(3) > .rds-button").click();
           cy.get('[data-testid="onlineBankingPin"]').type("1234");
           cy.get(".rds-button--primary").click();
@@ -190,6 +190,24 @@ function bankRedirectRedirection(
           );
           break;
         case "trustly":
+          break;
+        default:
+          throw new Error(
+            `Unsupported payment method type: ${payment_method_type}`
+          );
+      }
+      verifyUrl = true;
+      break;
+    case "paypal":
+      switch (payment_method_type) {
+        case "eps":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+          break;
+        case "ideal":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+          break;
+        case "giropay":
+          cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
           break;
         default:
           throw new Error(
@@ -246,13 +264,8 @@ function bankRedirectRedirection(
           cy.get("input#submitButton.btn.btn-primary").click();
           break;
         case "ideal":
-          cy.get("p").should(
-            "contain.text",
-            "Choose your iDeal Issuer Bank please"
-          );
-          cy.get("#issuerSearchInput").click();
-          cy.get("#issuerSearchInput").type("ING{enter}");
-          cy.get("#trustpay__selectIssuer_submit").click();
+          cy.contains("button", "Select your bank").click();
+          cy.get('[data-testid="ideal-box-bank-item-INGBNL2A"]').click();
           break;
         case "giropay":
           cy.get("._transactionId__header__iXVd_").should(
