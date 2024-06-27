@@ -51,9 +51,8 @@ impl SPTFlow {
     ) -> UserResult<bool> {
         match self {
             // Auth
-            // AuthSelect and SSO flow are not enabled, once the terminate SSO API is ready, we can enable these flows
-            Self::AuthSelect => Ok(false),
-            Self::SSO => Ok(false),
+            Self::AuthSelect => Ok(true),
+            Self::SSO => Ok(true),
             // TOTP
             Self::TOTP => Ok(!path.contains(&TokenPurpose::SSO)),
             // Main email APIs
@@ -310,6 +309,26 @@ impl NextFlow {
                 jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
+    }
+
+    pub async fn skip(self, user: UserFromStorage, state: &SessionState) -> UserResult<Self> {
+        let flows = self.origin.get_flows();
+        let index = flows
+            .iter()
+            .position(|flow| flow == &self.get_flow())
+            .ok_or(UserErrors::InternalServerError)?;
+        let remaining_flows = flows.iter().skip(index + 1);
+        for flow in remaining_flows {
+            if flow.is_required(&user, &self.path, state).await? {
+                return Ok(Self {
+                    origin: self.origin.clone(),
+                    next_flow: *flow,
+                    user,
+                    path: self.path,
+                });
+            }
+        }
+        Err(UserErrors::InternalServerError.into())
     }
 }
 
