@@ -84,6 +84,8 @@ pub enum MerchantAccountUpdate {
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
+        let now = date_time::now();
+
         match merchant_account_update {
             MerchantAccountUpdate::Update {
                 merchant_name,
@@ -122,7 +124,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
-                modified_at: Some(date_time::now()),
+                modified_at: Some(now),
                 intent_fulfillment_time,
                 payout_routing_algorithm,
                 default_profile,
@@ -132,15 +134,17 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
-                modified_at: Some(date_time::now()),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {

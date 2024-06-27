@@ -413,9 +413,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     modified_at: date_time::now(),
                     intent_fulfillment_time: None,
                     frm_routing_algorithm: None,
-                    #[cfg(feature = "payouts")]
-                    payout_routing_algorithm: None,
-                    #[cfg(not(feature = "payouts"))]
                     payout_routing_algorithm: None,
                     id: None,
                     organization_id: self.organization_id,
