@@ -553,8 +553,9 @@ impl<F>
                         _,
                     ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
-                            session_token_data:
+                            session_token_data: Some(
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                            ),
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
                                     country_code: item.data.get_billing_country()?,
