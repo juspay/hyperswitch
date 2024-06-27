@@ -333,7 +333,7 @@ fn validate_order_details(
     Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    let required_convertion_type = StringMajorUnitForConnector;
+    let required_conversion_type = StringMajorUnitForConnector;
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -365,7 +365,7 @@ fn validate_order_details(
                         .product_img_link
                         .clone_from(&order.product_img_link)
                 };
-                order_details_amount_string.amount = required_convertion_type
+                order_details_amount_string.amount = required_conversion_type
                     .convert(MinorUnit::new(order.amount), currency)
                     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
                         amount_type: "StringMajorUnit",
