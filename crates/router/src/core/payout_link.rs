@@ -12,7 +12,7 @@ use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
     core::payments::helpers,
-    errors, logger,
+    errors,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::{api::enums, domain},
@@ -148,7 +148,6 @@ pub async fn initiate_payout_link(
             let enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
-            logger::debug!("enabled_payment_methods : {:?}", enabled_payment_methods);
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: merchant_account
                     .publishable_key
@@ -249,6 +248,16 @@ pub async fn filter_payout_methods(
         filtered_mca_on_profile.clone(),
         common_enums::ConnectorType::PayoutProcessor,
     );
+    let address = db
+        .find_address_by_address_id(&payout.address_id.clone(), key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while fetching address with address id {}",
+                payout.address_id.clone()
+            )
+        })?;
 
     let mut response: Vec<link_utils::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<
@@ -277,19 +286,38 @@ pub async fn filter_payout_methods(
                 let connector = mca.connector_name.clone();
                 let payout_filter = payout_filter_config.0.get(&connector);
                 for pmts in &payment_method_types {
-                    let currency_country_filter =
-                        check_currency_country_filters(payout_filter, pmts, payout, key_store, db)
-                            .await?;
+                    let currency_country_filter = check_currency_country_filters(
+                        payout_filter,
+                        pmts,
+                        &payout.destination_currency,
+                        &address.country,
+                    )
+                    .await?;
                     if currency_country_filter != Some(false) {
-                        if payment_method == common_enums::PaymentMethod::Card {
-                            card_hs.insert(pmts.payment_method_type);
-                            payment_method_list_hm.insert(payment_method, card_hs.clone());
-                        } else if payment_method == common_enums::PaymentMethod::Wallet {
-                            wallet_hs.insert(pmts.payment_method_type);
-                            payment_method_list_hm.insert(payment_method, wallet_hs.clone());
-                        } else if payment_method == common_enums::PaymentMethod::BankTransfer {
-                            bank_transfer_hs.insert(pmts.payment_method_type);
-                            payment_method_list_hm.insert(payment_method, bank_transfer_hs.clone());
+                        match payment_method {
+                            common_enums::PaymentMethod::Card => {
+                                card_hs.insert(pmts.payment_method_type);
+                                payment_method_list_hm.insert(payment_method, card_hs.clone());
+                            }
+                            common_enums::PaymentMethod::Wallet => {
+                                wallet_hs.insert(pmts.payment_method_type);
+                                payment_method_list_hm.insert(payment_method, wallet_hs.clone());
+                            }
+                            common_enums::PaymentMethod::BankTransfer => {
+                                bank_transfer_hs.insert(pmts.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_transfer_hs.clone());
+                            }
+                            common_enums::PaymentMethod::CardRedirect
+                            | common_enums::PaymentMethod::PayLater
+                            | common_enums::PaymentMethod::BankRedirect
+                            | common_enums::PaymentMethod::Crypto
+                            | common_enums::PaymentMethod::BankDebit
+                            | common_enums::PaymentMethod::Reward
+                            | common_enums::PaymentMethod::RealTimePayment
+                            | common_enums::PaymentMethod::Upi
+                            | common_enums::PaymentMethod::Voucher
+                            | common_enums::PaymentMethod::GiftCard => continue,
                         }
                     }
                 }
@@ -313,9 +341,8 @@ pub async fn filter_payout_methods(
 pub async fn check_currency_country_filters(
     payout_filter: Option<&PaymentMethodFilters>,
     pmts: &api_models::payment_methods::RequestPaymentMethodTypes,
-    payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
-    key_store: &domain::MerchantKeyStore,
-    db: &dyn StorageInterface,
+    currency: &common_enums::Currency,
+    country: &Option<enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
         pmts.payment_method_type,
@@ -328,29 +355,19 @@ pub async fn check_currency_country_filters(
                 pmts.payment_method_type,
             ))
         });
-        let address = db
-            .find_address_by_address_id(&payout.address_id.clone(), key_store)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Failed while fetching address with address id {}",
-                    payout.address_id.clone()
-                )
-            })?;
-        let country_filter = address.country.and_then(|country| {
+        let country_filter = country.as_ref().and_then(|country| {
             pmt_filter.and_then(|pmt_filter_hm| {
                 pmt_filter_hm
                     .country
                     .as_ref()
-                    .map(|pmt_filter_hs| pmt_filter_hs.contains(&country))
+                    .map(|pmt_filter_hs| pmt_filter_hs.contains(country))
             })
         });
         let currency_filter = pmt_filter.and_then(|pmt_filter_hm| {
             pmt_filter_hm
                 .currency
                 .as_ref()
-                .map(|pmt_filter_hs| pmt_filter_hs.contains(&payout.destination_currency.clone()))
+                .map(|pmt_filter_hs| pmt_filter_hs.contains(currency))
         });
         Ok(currency_filter.or(country_filter))
     }
