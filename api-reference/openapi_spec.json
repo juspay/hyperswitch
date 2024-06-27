@@ -6799,24 +6799,29 @@
         ]
       },
       "BusinessPaymentLinkConfig": {
-        "type": "object",
-        "required": [
-          "theme_configs"
-        ],
-        "properties": {
-          "domain_name": {
-            "type": "string",
-            "description": "Custom domain name to be used for hosting the link in your own domain",
-            "nullable": true
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentLinkConfigRequest"
           },
-          "theme_configs": {
+          {
             "type": "object",
-            "description": "list of configs for multi theme setup",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+            "properties": {
+              "domain_name": {
+                "type": "string",
+                "description": "Custom domain name to be used for hosting the link in your own domain",
+                "nullable": true
+              },
+              "business_specific_configs": {
+                "type": "object",
+                "description": "list of configs for multi theme setup",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+                },
+                "nullable": true
+              }
             }
           }
-        }
+        ]
       },
       "BusinessPayoutLinkConfig": {
         "allOf": [
@@ -14699,7 +14704,7 @@
           },
           "payment_link_config_id": {
             "type": "string",
-            "description": "custom payment link config id set at business profile",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "payment_type": {
@@ -15073,7 +15078,7 @@
           },
           "payment_link_config_id": {
             "type": "string",
-            "description": "custom payment link config id set at business profile",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "profile_id": {
@@ -15599,7 +15604,7 @@
           },
           "payment_link_config_id": {
             "type": "string",
-            "description": "custom payment link config id set at business profile",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "profile_id": {
@@ -16640,7 +16645,7 @@
           },
           "payment_link_config_id": {
             "type": "string",
-            "description": "custom payment link config id set at business profile",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "surcharge_details": {
