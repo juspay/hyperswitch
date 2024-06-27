@@ -4968,7 +4968,7 @@ pub enum PaymentLinkData<'a> {
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -4989,7 +4989,7 @@ pub struct PaymentLinkDetails {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkStatusDetails {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,
     pub payment_id: String,
     pub merchant_logo: String,
@@ -5075,7 +5075,7 @@ pub struct OrderDetailsWithStringAmount {
     #[schema(example = 1)]
     pub quantity: u16,
     /// the amount per quantity of product
-    pub amount: String,
+    pub amount: StringMajorUnit,
     /// Product Image link
     pub product_img_link: Option<String>,
 }

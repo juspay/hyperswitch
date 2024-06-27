@@ -5,6 +5,7 @@ use common_utils::{
         DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use futures::future;
@@ -122,9 +123,15 @@ pub async fn initiate_payment_link_flow(
         payment_intent.currency,
         payment_intent.client_secret.clone(),
     )?;
-    let amount = currency
-        .to_currency_base_unit(payment_intent.amount.get_amount_as_i64())
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+
+    let required_conversion_type = StringMajorUnitForConnector;
+
+    let amount = required_conversion_type
+        .convert(payment_intent.amount, currency)
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
     let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
@@ -326,6 +333,7 @@ fn validate_order_details(
     Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    let required_convertion_type = StringMajorUnitForConnector;
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -357,10 +365,11 @@ fn validate_order_details(
                         .product_img_link
                         .clone_from(&order.product_img_link)
                 };
-                order_details_amount_string.amount =
-                    currency
-                        .to_currency_base_unit(order.amount)
-                        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+                order_details_amount_string.amount = required_convertion_type
+                    .convert(MinorUnit::new(order.amount), currency)
+                    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "StringMajorUnit",
+                    })?;
                 order_details_amount_string.product_name =
                     capitalize_first_char(&order.product_name.clone());
                 order_details_amount_string.quantity = order.quantity;
@@ -528,9 +537,13 @@ pub async fn get_payment_link_status(
                 field_name: "currency",
             })?;
 
-    let amount = currency
-        .to_currency_base_unit(payment_attempt.net_amount.get_amount_as_i64())
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+    let required_conversion_type = StringMajorUnitForConnector;
+
+    let amount = required_conversion_type
+        .convert(payment_attempt.net_amount, currency)
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
