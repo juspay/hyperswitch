@@ -467,7 +467,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
-    /// custom payment link config id set at business profile
+    /// custom payment link config id set at business profile send only if business_specific_configs is configured
     pub payment_link_config_id: Option<String>,
 
     /// The business profile to use for this payment, if not passed the default business profile

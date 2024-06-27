@@ -1159,8 +1159,12 @@ pub struct BusinessGenericLinkConfig {
 pub struct BusinessPaymentLinkConfig {
     /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
+    /// Default payment link config for all future payment link
+    #[serde(flatten)]
+    #[schema(value_type = PaymentLinkConfigRequest)]
+    pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
-    pub theme_configs: HashMap<String, PaymentLinkConfigRequest>,
+    pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

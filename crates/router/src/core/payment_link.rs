@@ -414,21 +414,22 @@ pub fn get_payment_link_config_based_on_priority(
                 .clone()
                 .map(|d_name| format!("https://{}", d_name))
                 .unwrap_or_else(|| default_domain_name.clone()),
-            Some(extracted_value.theme_configs),
+            payment_link_config_id
+                .and_then(|id| {
+                    extracted_value
+                        .business_specific_configs
+                        .as_ref()
+                        .and_then(|specific_configs| specific_configs.get(&id).cloned())
+                })
+                .or_else(|| extracted_value.default_config),
         )
     } else {
         (default_domain_name, None)
     };
 
-    let business_config = business_theme_configs.and_then(|theme_map| {
-        payment_link_config_id
-            .and_then(|id| theme_map.get(&id).cloned())
-            .or_else(|| theme_map.get("default").cloned())
-    });
-
     let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
         payment_create_link_config,
-        business_config,
+        business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
         (logo, DEFAULT_MERCHANT_LOGO.to_string()),
         (seller_name, merchant_name.clone()),
