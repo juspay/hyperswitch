@@ -109,9 +109,6 @@ impl_misc_api_event_type!(
     GetDisputeMetricRequest
 );
 
-#[cfg(feature = "v2")]
-impl_misc_api_event_type!(MerchantAccountCreateV2, MerchantAccountResponseV2);
-
 #[cfg(feature = "stripe")]
 impl_misc_api_event_type!(
     StripeSetupIntentResponse,

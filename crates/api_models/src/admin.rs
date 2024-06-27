@@ -22,6 +22,7 @@ pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -100,10 +101,10 @@ pub struct MerchantAccountCreate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MerchantAccountCreateV2 {
+pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: String,
+    pub merchant_id: String,
 
     /// Name of the Merchant Account
     #[schema(value_type= Option<String>, example = "NewAge Retailer")]
@@ -211,6 +212,7 @@ pub struct MerchantAccountUpdate {
     pub default_profile: Option<String>,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -304,7 +306,7 @@ pub struct MerchantAccountResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
-pub struct MerchantAccountResponseV2 {
+pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,

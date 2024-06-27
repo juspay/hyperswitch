@@ -544,19 +544,6 @@ pub(crate) struct ApiDoc;
 
 struct SecurityAddon;
 
-#[cfg(feature = "v2")]
-#[derive(utoipa::OpenApi)]
-#[openapi(
-    paths(routes::merchant_account::merchant_account_create_v2),
-    components(schemas(
-        api_models::admin::MerchantAccountCreateV2,
-        api_models::admin::MerchantAccountResponseV2,
-    ))
-)]
-// Bypass clippy lint for not being constructed
-#[allow(dead_code)]
-pub(crate) struct ApiDocV2;
-
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};

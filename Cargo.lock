@@ -5727,7 +5727,6 @@ dependencies = [
  "nanoid",
  "num_cpus",
  "once_cell",
- "openapi",
  "openssl",
  "pm_auth",
  "qrcode",

@@ -6,8 +6,6 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-#[cfg(feature = "v2")]
-pub use api_models::admin::{MerchantAccountCreateV2, MerchantAccountResponseV2};
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -17,6 +15,7 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -52,8 +51,8 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponseV2 {
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         Ok(Self {

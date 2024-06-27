@@ -374,29 +374,42 @@ impl NewUserMerchant {
         state: SessionState,
     ) -> UserResult<()> {
         self.check_if_already_exists_in_db(state.clone()).await?;
+
+        #[cfg(feature = "v2")]
+        let merchant_account_create_request = admin_api::MerchantAccountCreate {
+            merchant_id: self.get_merchant_id(),
+            merchant_name: self.get_company_name().map(Secret::new),
+            organization_id: self.new_organization.get_organization_id(),
+            metadata: None,
+            merchant_details: None,
+        };
+
+        #[cfg(not(feature = "v2"))]
+        let merchant_account_create_request = admin_api::MerchantAccountCreate {
+            merchant_id: self.get_merchant_id(),
+            metadata: None,
+            locker_id: None,
+            return_url: None,
+            merchant_name: self.get_company_name().map(Secret::new),
+            webhook_details: None,
+            publishable_key: None,
+            organization_id: Some(self.new_organization.get_organization_id()),
+            merchant_details: None,
+            routing_algorithm: None,
+            parent_merchant_id: None,
+            sub_merchants_enabled: None,
+            frm_routing_algorithm: None,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: None,
+            primary_business_details: None,
+            payment_response_hash_key: None,
+            enable_payment_response_hash: None,
+            redirect_to_merchant_with_http_post: None,
+        };
+
         Box::pin(admin::create_merchant_account(
             state.clone(),
-            admin_api::MerchantAccountCreate {
-                merchant_id: self.get_merchant_id(),
-                metadata: None,
-                locker_id: None,
-                return_url: None,
-                merchant_name: self.get_company_name().map(Secret::new),
-                webhook_details: None,
-                publishable_key: None,
-                organization_id: Some(self.new_organization.get_organization_id()),
-                merchant_details: None,
-                routing_algorithm: None,
-                parent_merchant_id: None,
-                sub_merchants_enabled: None,
-                frm_routing_algorithm: None,
-                #[cfg(feature = "payouts")]
-                payout_routing_algorithm: None,
-                primary_business_details: None,
-                payment_response_hash_key: None,
-                enable_payment_response_hash: None,
-                redirect_to_merchant_with_http_post: None,
-            },
+            merchant_account_create_request,
         ))
         .await
         .change_context(UserErrors::InternalServerError)

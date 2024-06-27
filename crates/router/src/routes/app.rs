@@ -980,20 +980,18 @@ impl Blocklist {
     }
 }
 
-pub struct MerchantAccountV2;
+pub struct MerchantAccount;
 
 #[cfg(all(feature = "v2", feature = "olap"))]
-impl MerchantAccountV2 {
+impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/accounts")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(merchant_account_create_v2)))
+            .service(web::resource("").route(web::post().to(merchant_account_create)))
     }
 }
 
-pub struct MerchantAccount;
-
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", not(feature = "v2")))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
