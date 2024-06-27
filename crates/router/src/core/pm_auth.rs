@@ -725,10 +725,8 @@ pub async fn retrieve_payment_method_from_auth_service(
             .attach_printable("Could not convert FloatMajorUnit to MinorUnit")?;
 
         if converted_amount < payment_intent.amount {
-            return Err((ApiErrorResponse::InvalidRequestData {
-                message:
-                    "Payment amount is greater than the available amount in selected bank account"
-                        .to_string(),
+            return Err((ApiErrorResponse::PreconditionFailed {
+                message: "selected bank account has insufficient balance".to_string(),
             })
             .into());
         }
