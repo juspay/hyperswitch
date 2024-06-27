@@ -273,7 +273,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::active_payments::get_metrics(
                     &state.pool,
-                    auth.merchant_account.publishable_key.as_ref(),
+                    &auth.merchant_account.publishable_key,
                     Some(&auth.merchant_account.merchant_id),
                     req,
                 )
