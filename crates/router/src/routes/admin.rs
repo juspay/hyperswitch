@@ -8,6 +8,7 @@ use crate::{
     types::api::admin,
 };
 
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,

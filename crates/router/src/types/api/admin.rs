@@ -15,7 +15,7 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(not(feature = "v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -57,7 +57,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(feature = "v2")]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {

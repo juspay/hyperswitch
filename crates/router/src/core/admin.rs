@@ -4,7 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 use common_utils::crypto::generate_cryptographically_secure_random_string;
 use common_utils::{
     date_time,
@@ -19,7 +19,7 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
@@ -76,6 +76,7 @@ pub async fn insert_merchant_configs(
     Ok(())
 }
 
+#[cfg(feature = "olap")]
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
@@ -119,6 +120,7 @@ pub async fn create_merchant_account(
     ))
 }
 
+#[cfg(feature = "olap")]
 #[async_trait::async_trait]
 trait MerchantAccountCreateBridge {
     async fn create_domain_model_from_request(
@@ -128,7 +130,7 @@ trait MerchantAccountCreateBridge {
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
@@ -335,7 +337,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
