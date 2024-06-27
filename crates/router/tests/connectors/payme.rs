@@ -68,6 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         return_url: None,
         connector_customer: None,
         payment_method_token: None,
+        #[cfg(feature = "payouts")]
         currency: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
