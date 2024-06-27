@@ -311,6 +311,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -741,6 +742,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => Self {
                 connector: connector.map(Some),
                 status: Some(status),
@@ -754,6 +756,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {

@@ -50,6 +50,7 @@ fn get_default_payment_info(
         payment_method_token,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
         currency: None,
     })
 }

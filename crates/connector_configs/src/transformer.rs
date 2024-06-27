@@ -316,6 +316,7 @@ impl DashboardRequestPayload {
                                 ],
                                 billing_address_required: None,
                                 billing_address_parameters: None,
+                                assurance_details_required: Some(true),
                             };
                         let allowed_payment_methods = payments::GpayAllowedPaymentMethods {
                             payment_method_type: String::from("CARD"),
