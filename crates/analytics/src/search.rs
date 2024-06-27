@@ -20,8 +20,34 @@ pub async fn msearch_results(
         OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
 
     query_builder
-        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .add_filter_clause(
+            "merchant_id.keyword".to_string(),
+            vec![merchant_id.to_string()],
+        )
         .switch()?;
+
+    if let Some(filters) = req.filters {
+        if let Some(currency) = filters.currency {
+            query_builder
+                .add_filter_clause("currency.keyword".to_string(), currency)
+                .switch()?;
+        };
+        if let Some(status) = filters.status {
+            query_builder
+                .add_filter_clause("status.keyword".to_string(), status)
+                .switch()?;
+        };
+        if let Some(payment_method) = filters.payment_method {
+            query_builder
+                .add_filter_clause("payment_method.keyword".to_string(), payment_method)
+                .switch()?;
+        };
+        if let Some(customer_email) = filters.customer_email {
+            query_builder
+                .add_filter_clause("customer_email.keyword".to_string(), customer_email)
+                .switch()?;
+        };
+    };
 
     let response_text: OpenMsearchOutput = client
         .execute(query_builder)
@@ -82,9 +108,34 @@ pub async fn search_results(
         OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
 
     query_builder
-        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .add_filter_clause(
+            "merchant_id.keyword".to_string(),
+            vec![merchant_id.to_string()],
+        )
         .switch()?;
 
+    if let Some(filters) = search_req.filters {
+        if let Some(currency) = filters.currency {
+            query_builder
+                .add_filter_clause("currency.keyword".to_string(), currency)
+                .switch()?;
+        };
+        if let Some(status) = filters.status {
+            query_builder
+                .add_filter_clause("status.keyword".to_string(), status)
+                .switch()?;
+        };
+        if let Some(payment_method) = filters.payment_method {
+            query_builder
+                .add_filter_clause("payment_method.keyword".to_string(), payment_method)
+                .switch()?;
+        };
+        if let Some(customer_email) = filters.customer_email {
+            query_builder
+                .add_filter_clause("customer_email.keyword".to_string(), customer_email)
+                .switch()?;
+        };
+    };
     query_builder
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;
