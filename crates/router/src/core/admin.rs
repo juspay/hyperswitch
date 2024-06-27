@@ -4,13 +4,8 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-
 #[cfg(not(feature = "v2"))]
 use common_utils::crypto::generate_cryptographically_secure_random_string;
-
-#[cfg(not(feature = "v2"))]
-use crate::types::transformers::ForeignFrom;
-
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
@@ -24,6 +19,8 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(not(feature = "v2"))]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
