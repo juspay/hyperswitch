@@ -24,8 +24,6 @@ pub mod services;
 pub mod types;
 pub mod utils;
 
-use std::{fs::File, io::BufReader};
-
 use actix_web::{
     body::MessageBody,
     dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
@@ -35,7 +33,6 @@ use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 use router_env::tracing::Instrument;
 use routes::{AppState, SessionState};
-use rustls::{pki_types::PrivateKeyDer, ServerConfig};
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
@@ -213,13 +210,13 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         None => server_builder.run(),
         Some(tls_conf) => {
             let cert_file =
-                &mut BufReader::new(File::open(tls_conf.certificate).map_err(|err| {
-                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
-                })?);
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.certificate).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
             let key_file =
-                &mut BufReader::new(File::open(tls_conf.private_key).map_err(|err| {
-                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
-                })?);
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.private_key).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
 
             let cert_chain = rustls_pemfile::certs(cert_file)
                 .collect::<Result<Vec<_>, _>>()
@@ -228,7 +225,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
                 })?;
 
             let mut keys = rustls_pemfile::pkcs8_private_keys(key_file)
-                .map(|key| key.map(PrivateKeyDer::Pkcs8))
+                .map(|key| key.map(rustls::pki_types::PrivateKeyDer::Pkcs8))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|err| {
                     errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
@@ -241,7 +238,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
                 ));
             }
 
-            let config_builder = ServerConfig::builder().with_no_client_auth();
+            let config_builder = rustls::ServerConfig::builder().with_no_client_auth();
             let config = config_builder
                 .with_single_cert(cert_chain, keys.remove(0))
                 .map_err(|err| {
