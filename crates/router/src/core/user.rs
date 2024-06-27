@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse, OpenIdConnectPublicConfig},
+    user::{self as user_api, InviteMultipleUserResponse},
 };
-use common_enums::UserAuthType;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -2173,16 +2172,18 @@ pub async fn list_user_authentication_methods(
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (UserAuthType::OpenIdConnect, Some(config)) => {
+                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
                         let open_id_public_config =
-                            serde_json::from_value::<OpenIdConnectPublicConfig>(config)
+                            serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(config)
                                 .change_context(UserErrors::InternalServerError)
                                 .attach_printable("unable to parse generic data value")?;
 
                         Ok(Some(open_id_public_config.name))
                     }
-                    (UserAuthType::OpenIdConnect, None) => Err(UserErrors::InternalServerError)
-                        .attach_printable("No config found for open_id_connect auth_method"),
+                    (common_enums::UserAuthType::OpenIdConnect, None) => {
+                        Err(UserErrors::InternalServerError)
+                            .attach_printable("No config found for open_id_connect auth_method")
+                    }
                     _ => Ok(None),
                 }?;
 
@@ -2214,7 +2215,7 @@ pub async fn get_sso_auth_url(
         utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
             .await?;
 
-    let open_id_public_config = serde_json::from_value::<OpenIdConnectPublicConfig>(
+    let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method
             .public_config
             .ok_or(UserErrors::InternalServerError)
@@ -2266,7 +2267,7 @@ pub async fn sso_sign(
         utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
             .await?;
 
-    let open_id_public_config = serde_json::from_value::<OpenIdConnectPublicConfig>(
+    let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method
             .public_config
             .ok_or(UserErrors::InternalServerError)
