@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use api_models::user::{self as user_api};
+use api_models::user as user_api;
 use common_enums::UserAuthType;
 use common_utils::errors::CustomResult;
 use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
@@ -287,7 +287,7 @@ pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String
     format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
 
-pub fn is_sso_auth_type(auth_type: UserAuthType) -> bool {
+pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
     match auth_type {
         UserAuthType::OpenIdConnect => true,
         UserAuthType::Password | UserAuthType::MagicLink => false,

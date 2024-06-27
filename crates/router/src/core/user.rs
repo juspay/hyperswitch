@@ -2176,7 +2176,7 @@ pub async fn list_user_authentication_methods(
                         let open_id_public_config =
                             serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(config)
                                 .change_context(UserErrors::InternalServerError)
-                                .attach_printable("unable to parse generic data value")?;
+                                .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
 
                         Ok(Some(open_id_public_config.name))
                     }
@@ -2330,15 +2330,14 @@ pub async fn terminate_auth_select(
         .store
         .get_user_authentication_method_by_id(&req.id)
         .await
-        .change_context(UserErrors::InvalidUserAuthMethodOperation)
-        .attach_printable("No authentication method found for the id")?;
+        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     // Skip SSO if continue with password(TOTP)
     if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
-        && !utils::user::is_sso_auth_type(user_authentication_method.auth_type)
+        && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
     {
         next_flow = next_flow.skip(user_from_db, &state).await?;
     }
