@@ -3,6 +3,7 @@ use api_models::analytics::{
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentMetrics},
+    payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
     NameDescription,
@@ -11,6 +12,10 @@ use strum::IntoEnumIterator;
 
 pub fn get_payment_dimensions() -> Vec<NameDescription> {
     PaymentDimensions::iter().map(Into::into).collect()
+}
+
+pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
+    PaymentIntentDimensions::iter().map(Into::into).collect()
 }
 
 pub fn get_refund_dimensions() -> Vec<NameDescription> {
@@ -27,6 +32,10 @@ pub fn get_api_event_dimensions() -> Vec<NameDescription> {
 
 pub fn get_payment_metrics_info() -> Vec<NameDescription> {
     PaymentMetrics::iter().map(Into::into).collect()
+}
+
+pub fn get_payment_intent_metrics_info() -> Vec<NameDescription> {
+    PaymentIntentMetrics::iter().map(Into::into).collect()
 }
 
 pub fn get_refund_metrics_info() -> Vec<NameDescription> {
