@@ -4172,6 +4172,57 @@
         ]
       }
     },
+    "/payouts/{payout_id}/confirm": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Confirm",
+        "description": "Payouts - Confirm",
+        "operationId": "Confirm a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -5001,7 +5052,8 @@
           },
           "amount": {
             "type": "string",
-            "description": "The total amount for the payment"
+            "description": "The total amount for the payment in majot unit string (Ex: 38.02)",
+            "example": "38.02"
           }
         }
       },
@@ -6172,6 +6224,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_redirect"
+            ],
+            "properties": {
+              "local_bank_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6697,6 +6760,46 @@
           }
         }
       },
+      "BusinessCollectLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "enabled_payment_methods"
+            ],
+            "properties": {
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\", \"sepa\"]}]"
+              }
+            }
+          }
+        ]
+      },
+      "BusinessGenericLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "domain_name": {
+                "type": "string",
+                "description": "Custom domain name to be used for hosting the link",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "BusinessPaymentLinkConfig": {
         "allOf": [
           {
@@ -6710,6 +6813,16 @@
                 "nullable": true
               }
             }
+          }
+        ]
+      },
+      "BusinessPayoutLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object"
           }
         ]
       },
@@ -6832,6 +6945,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         },
@@ -6973,6 +7094,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7394,6 +7523,61 @@
             }
           }
         ]
+      },
+      "CardResponse": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_extended_bin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_checks": {
+            "nullable": true
+          },
+          "authentication_data": {
+            "nullable": true
+          }
+        }
       },
       "CardToken": {
         "type": "object",
@@ -8918,6 +9102,26 @@
           }
         }
       },
+      "EnabledPaymentMethod": {
+        "type": "object",
+        "description": "Object for EnabledPaymentMethod",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "An array of associated payment method types"
+          }
+        }
+      },
       "EphemeralKeyCreateResponse": {
         "type": "object",
         "description": "ephemeral_key for the customer_id mentioned",
@@ -9642,6 +9846,33 @@
       "GcashRedirection": {
         "type": "object"
       },
+      "GenericLinkUiConfig": {
+        "type": "object",
+        "description": "Object for GenericLinkUiConfig",
+        "properties": {
+          "logo": {
+            "type": "string",
+            "description": "Merchant's display logo",
+            "example": "https://hyperswitch.io/favicon.ico",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for the link",
+            "example": "Hyperswitch",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "theme": {
+            "type": "string",
+            "description": "Primary color to be used in the form represented in hex format",
+            "example": "#4285F4",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -9688,6 +9919,23 @@
       "GoPayRedirection": {
         "type": "object"
       },
+      "GooglePayAssuranceDetails": {
+        "type": "object",
+        "required": [
+          "card_holder_authenticated",
+          "account_verified"
+        ],
+        "properties": {
+          "card_holder_authenticated": {
+            "type": "boolean",
+            "description": "indicates that Cardholder possession validation has been performed"
+          },
+          "account_verified": {
+            "type": "boolean",
+            "description": "indicates that identification and verifications (ID&V) was performed"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -9702,6 +9950,14 @@
           "card_details": {
             "type": "string",
             "description": "The details of the card"
+          },
+          "assurance_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9848,6 +10104,11 @@
                 "$ref": "#/components/schemas/GpayBillingAddressParameters"
               }
             ],
+            "nullable": true
+          },
+          "assurance_details_required": {
+            "type": "boolean",
+            "description": "Whether assurance details are required",
             "nullable": true
           }
         }
@@ -10013,7 +10274,8 @@
           },
           "total_price": {
             "type": "string",
-            "description": "The total price"
+            "description": "The total price",
+            "example": "38.02"
           }
         }
       },
@@ -10436,6 +10698,15 @@
       },
       "KakaoPayRedirection": {
         "type": "object"
+      },
+      "KlarnaSdkPaymentMethodResponse": {
+        "type": "object",
+        "properties": {
+          "payment_type": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "KlarnaSessionTokenResponse": {
         "type": "object",
@@ -10880,6 +11151,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11046,6 +11325,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11166,6 +11453,14 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "pm_collect_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11819,13 +12114,9 @@
       "MifinityData": {
         "type": "object",
         "required": [
-          "destination_account_number",
           "date_of_birth"
         ],
         "properties": {
-          "destination_account_number": {
-            "type": "string"
-          },
           "date_of_birth": {
             "type": "string",
             "format": "date"
@@ -12696,6 +12987,19 @@
           }
         }
       },
+      "PaylaterResponse": {
+        "type": "object",
+        "properties": {
+          "klarna_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/KlarnaSdkPaymentMethodResponse"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -13206,9 +13510,118 @@
           "crypto",
           "bank_debit",
           "reward",
+          "real_time_payment",
           "upi",
           "voucher",
           "gift_card"
+        ]
+      },
+      "PaymentMethodCollectLinkRequest": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "customer_id"
+            ],
+            "properties": {
+              "pm_collect_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The unique identifier of the customer.",
+                "example": "cus_92dnwed8s32bV9D8Snbiasd8v"
+              },
+              "session_expiry": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+                "example": 900,
+                "nullable": true,
+                "minimum": 0
+              },
+              "return_url": {
+                "type": "string",
+                "description": "Redirect to this URL post completion",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodCollectLinkResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GenericLinkUiConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "pm_collect_link_id",
+              "customer_id",
+              "expiry",
+              "link"
+            ],
+            "properties": {
+              "pm_collect_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1"
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The unique identifier of the customer.",
+                "example": "cus_92dnwed8s32bV9D8Snbiasd8v"
+              },
+              "expiry": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Time when this link will be expired in ISO8601 format",
+                "example": "2025-01-18T11:04:09.922Z"
+              },
+              "link": {
+                "type": "string",
+                "description": "URL to the form's link generated for collecting payment method details.",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1"
+              },
+              "return_url": {
+                "type": "string",
+                "description": "Redirect to this URL post completion",
+                "example": "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
         ]
       },
       "PaymentMethodCreate": {
@@ -13404,6 +13817,18 @@
           },
           {
             "type": "object",
+            "title": "RealTimePayment",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "$ref": "#/components/schemas/RealTimePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "Crypto",
             "required": [
               "crypto"
@@ -13503,6 +13928,211 @@
           }
         ],
         "description": "The payment method information provided for making a payment"
+      },
+      "PaymentMethodDataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_later"
+            ],
+            "properties": {
+              "pay_later": {
+                "$ref": "#/components/schemas/PaylaterResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "crypto"
+            ],
+            "properties": {
+              "crypto": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandate_payment"
+            ],
+            "properties": {
+              "mandate_payment": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "reward"
+            ],
+            "properties": {
+              "reward": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi"
+            ],
+            "properties": {
+              "upi": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_token"
+            ],
+            "properties": {
+              "card_token": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodDataResponseWithBilling": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodDeleteResponse": {
         "type": "object",
@@ -13765,8 +14395,10 @@
           "dana",
           "danamon_va",
           "debit",
+          "duit_now",
           "efecty",
           "eps",
+          "fps",
           "evoucher",
           "giropay",
           "givex",
@@ -13778,6 +14410,7 @@
           "indomaret",
           "klarna",
           "kakao_pay",
+          "local_bank_redirect",
           "mandiri_va",
           "knet",
           "mb_way",
@@ -13800,6 +14433,7 @@
           "pix",
           "pay_safe_card",
           "przelewy24",
+          "prompt_pay",
           "pse",
           "red_compra",
           "red_pagos",
@@ -13813,6 +14447,7 @@
           "upi_collect",
           "upi_intent",
           "vipps",
+          "viet_qr",
           "venmo",
           "walley",
           "we_chat_pay",
@@ -15955,12 +16590,12 @@
             "nullable": true
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
               }
             ],
             "nullable": true
@@ -16883,6 +17518,38 @@
           "wise"
         ]
       },
+      "PayoutCreatePayoutLinkConfig": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenericLinkUiConfig"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payout_link_id": {
+                "type": "string",
+                "description": "The unique identifier for the collect link.",
+                "example": "pm_collect_link_2bdacf398vwzq5n422S1",
+                "nullable": true
+              },
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payout methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
@@ -17045,17 +17712,40 @@
           },
           "payout_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payment method",
+            "description": "Provide a reference to a stored payout method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "description": "The business profile to use for this payout, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           },
           "priority": {
             "$ref": "#/components/schemas/PayoutSendPriority"
+          },
+          "payout_link": {
+            "type": "boolean",
+            "description": "Whether to get the payout link (if applicable)",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutCreatePayoutLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -17067,7 +17757,6 @@
           "merchant_id",
           "amount",
           "currency",
-          "payout_type",
           "customer_id",
           "auto_fulfill",
           "client_secret",
@@ -17110,7 +17799,12 @@
             "nullable": true
           },
           "payout_type": {
-            "$ref": "#/components/schemas/PayoutType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutType"
+              }
+            ],
+            "nullable": true
           },
           "billing": {
             "type": "object",
@@ -17210,7 +17904,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment"
+            "description": "The business profile that is associated with this payout"
           },
           "created": {
             "type": "string",
@@ -17240,6 +17934,14 @@
             },
             "description": "List of attempts",
             "nullable": true
+          },
+          "payout_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutLinkResponse"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17255,6 +17957,36 @@
           "lowercase",
           "Personal"
         ]
+      },
+      "PayoutLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payout_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payout_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PayoutLinkResponse": {
+        "type": "object",
+        "required": [
+          "payout_link_id",
+          "link"
+        ],
+        "properties": {
+          "payout_link_id": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        }
       },
       "PayoutListConstraints": {
         "allOf": [
@@ -17542,7 +18274,7 @@
           "fast",
           "regular",
           "wire",
-          "crossBorder",
+          "cross_border",
           "internal"
         ]
       },
@@ -17558,6 +18290,7 @@
           "pending",
           "ineligible",
           "requires_creation",
+          "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
           "requires_vendor_account_creation"
@@ -17797,6 +18530,54 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RealTimePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "fps"
+            ],
+            "properties": {
+              "fps": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "duit_now"
+            ],
+            "properties": {
+              "duit_now": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "prompt_pay"
+            ],
+            "properties": {
+              "prompt_pay": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "viet_qr"
+            ],
+            "properties": {
+              "viet_qr": {
+                "type": "object"
+              }
+            }
+          }
+        ]
       },
       "ReceiverDetails": {
         "type": "object",

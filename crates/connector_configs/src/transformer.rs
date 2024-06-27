@@ -134,6 +134,7 @@ impl DashboardRequestPayload {
                     | PaymentMethod::Crypto
                     | PaymentMethod::BankDebit
                     | PaymentMethod::Reward
+                    | PaymentMethod::RealTimePayment
                     | PaymentMethod::Upi
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard
@@ -203,6 +204,7 @@ impl DashboardRequestPayload {
             klarna_region: None,
             source_balance_account: None,
             brand_id: None,
+            destination_account_number: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -231,6 +233,7 @@ impl DashboardRequestPayload {
         let klarna_region = meta_data.klarna_region;
         let source_balance_account = meta_data.source_balance_account;
         let brand_id = meta_data.brand_id;
+        let destination_account_number = meta_data.destination_account_number;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -255,6 +258,7 @@ impl DashboardRequestPayload {
             klarna_region,
             source_balance_account,
             brand_id,
+            destination_account_number,
         })
     }
 
@@ -312,6 +316,7 @@ impl DashboardRequestPayload {
                                 ],
                                 billing_address_required: None,
                                 billing_address_parameters: None,
+                                assurance_details_required: Some(true),
                             };
                         let allowed_payment_methods = payments::GpayAllowedPaymentMethods {
                             payment_method_type: String::from("CARD"),

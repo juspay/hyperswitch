@@ -224,6 +224,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
+            // api_enums::Connector::Datatrans => Self::Datatrans,  added as template code for future use
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -452,6 +453,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::LocalBankRedirect
             | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
@@ -508,6 +510,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
             | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
+            api_enums::PaymentMethodType::Fps
+            | api_enums::PaymentMethodType::DuitNow
+            | api_enums::PaymentMethodType::PromptPay
+            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
         }
     }
 }
@@ -528,6 +534,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
             payments::PaymentMethodData::Reward => Ok(Self::Reward),
+            payments::PaymentMethodData::RealTimePayment(..) => Ok(Self::RealTimePayment),
             payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
@@ -571,7 +578,8 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             | storage_enums::PayoutStatus::RequiresCreation
             | storage_enums::PayoutStatus::RequiresFulfillment
             | storage_enums::PayoutStatus::RequiresPayoutMethodData
-            | storage_enums::PayoutStatus::RequiresVendorAccountCreation => None,
+            | storage_enums::PayoutStatus::RequiresVendorAccountCreation
+            | storage_enums::PayoutStatus::RequiresConfirmation => None,
         }
     }
 }

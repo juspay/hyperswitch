@@ -396,6 +396,7 @@ impl NewUserMerchant {
                 payment_response_hash_key: None,
                 enable_payment_response_hash: None,
                 redirect_to_merchant_with_http_post: None,
+                pm_collect_link_config: None,
             },
         ))
         .await
@@ -837,6 +838,10 @@ impl UserFromStorage {
         Ok(Some(days_left_for_verification.whole_days()))
     }
 
+    pub fn is_verified(&self) -> bool {
+        self.0.is_verified
+    }
+
     pub fn is_password_rotate_required(&self, state: &SessionState) -> UserResult<bool> {
         let last_password_modified_at =
             if let Some(last_password_modified_at) = self.0.last_password_modified_at {
@@ -1103,6 +1108,7 @@ impl SignInWithMultipleRolesStrategy {
                     TokenPurpose::AcceptInvite,
                     Origin::SignIn,
                     &state.conf,
+                    vec![],
                 )
                 .await?
                 .into(),

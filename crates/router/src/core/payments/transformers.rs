@@ -11,7 +11,7 @@ use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
@@ -26,7 +26,9 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api, domain,
+        self, api,
+        api::ConnectorTransactionId,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -844,12 +846,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)
@@ -995,7 +997,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
@@ -1032,6 +1034,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
+            payout_link: None,
         }
     }
 }
@@ -1382,7 +1385,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     }
 }
 
-impl api::ConnectorTransactionId for Helcim {
+impl ConnectorTransactionId for Helcim {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1397,7 +1400,7 @@ impl api::ConnectorTransactionId for Helcim {
     }
 }
 
-impl api::ConnectorTransactionId for Nexinets {
+impl ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1482,6 +1485,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
+            minor_amount: Some(amount),
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
@@ -1552,6 +1556,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
                 |billing_address| {

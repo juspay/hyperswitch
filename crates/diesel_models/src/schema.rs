@@ -197,6 +197,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
+        payout_link_config -> Nullable<Jsonb>,
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
@@ -399,6 +400,7 @@ diesel::table! {
         request -> Nullable<Bytea>,
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -492,6 +494,28 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    generic_link (link_id) {
+        #[max_length = 64]
+        link_id -> Varchar,
+        #[max_length = 64]
+        primary_reference -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+        expiry -> Timestamp,
+        link_data -> Jsonb,
+        link_status -> Jsonb,
+        link_type -> GenericLinkType,
+        url -> Text,
+        return_url -> Nullable<Text>,
     }
 }
 
@@ -643,6 +667,7 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
+        pm_collect_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -712,8 +737,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_attempt (id) {
-        id -> Int4,
+    payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -802,8 +826,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_intent (id) {
-        id -> Int4,
+    payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1004,7 +1027,7 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         address_id -> Varchar,
-        payout_type -> PayoutType,
+        payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         amount -> Int8,
@@ -1026,6 +1049,10 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
+        #[max_length = 255]
+        payout_link_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
         #[max_length = 32]
         priority -> Nullable<Varchar>,
     }
@@ -1178,6 +1205,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    user_authentication_methods (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        auth_id -> Varchar,
+        #[max_length = 64]
+        owner_id -> Varchar,
+        #[max_length = 64]
+        owner_type -> Varchar,
+        #[max_length = 64]
+        auth_type -> Varchar,
+        private_config -> Nullable<Bytea>,
+        public_config -> Nullable<Jsonb>,
+        allow_signup -> Bool,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     user_key_store (user_id) {
         #[max_length = 64]
         user_id -> Varchar,
@@ -1254,6 +1304,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     file_metadata,
     fraud_check,
     gateway_status_map,
+    generic_link,
     incremental_authorization,
     locker_mock_up,
     mandate,
@@ -1272,6 +1323,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    user_authentication_methods,
     user_key_store,
     user_roles,
     users,

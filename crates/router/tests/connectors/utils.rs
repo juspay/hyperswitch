@@ -10,7 +10,11 @@ use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
     db::StorageImpl,
-    routes, services,
+    routes,
+    services::{
+        self,
+        connector_integration_interface::{BoxedConnectorIntegrationInterface, ConnectorEnum},
+    },
     types::{self, storage::enums, AccessToken, MinorUnit, PaymentAddress, RouterData},
 };
 use test_utils::connector_auth::ConnectorAuthType;
@@ -39,6 +43,20 @@ pub trait Connector {
     }
 }
 
+pub fn construct_connector_data_old(
+    connector: types::api::BoxedConnector,
+    connector_name: types::Connector,
+    get_token: types::api::GetToken,
+    merchant_connector_id: Option<String>,
+) -> types::api::ConnectorData {
+    types::api::ConnectorData {
+        connector: ConnectorEnum::Old(connector),
+        connector_name,
+        get_token,
+        merchant_connector_id,
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
@@ -51,7 +69,6 @@ pub struct PaymentInfo {
     #[cfg(feature = "payouts")]
     pub payout_method_data: Option<types::api::PayoutMethodData>,
     pub currency: Option<enums::Currency>,
-    pub country: Option<enums::CountryAlpha2>,
 }
 
 impl PaymentInfo {
@@ -441,7 +458,7 @@ pub trait ConnectorActions: Connector {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
-                payout_type,
+                payout_type: Some(payout_type),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -549,8 +566,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoEligibility,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -590,8 +606,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoFulfill,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -631,8 +646,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoCreate,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -673,8 +687,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoCancel,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -765,8 +778,7 @@ pub trait ConnectorActions: Connector {
         payout_type: enums::PayoutType,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             types::api::PoRecipient,
             types::PayoutsData,
             types::PayoutsResponseData,
@@ -802,11 +814,15 @@ pub trait ConnectorActions: Connector {
 
 async fn call_connector<
     T: Debug + Clone + 'static,
+    ResourceCommonData: Debug
+        + Clone
+        + services::connector_integration_interface::RouterDataConversion<T, Req, Resp>
+        + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     request: RouterData<T, Req, Resp>,
-    integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
+    integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;

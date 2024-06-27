@@ -272,6 +272,8 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
 
         dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
 
+        dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
+
         dir::DirKeyKind::CardBin => {
             let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
                 if st.len() == 6 && st.chars().all(|x| x.is_ascii_digit()) {

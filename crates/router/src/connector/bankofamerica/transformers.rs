@@ -260,15 +260,15 @@ pub struct Amount {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
-    address1: Secret<String>,
-    locality: Secret<String>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    address1: Option<Secret<String>>,
+    locality: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
-    country: api_enums::CountryAlpha2,
+    country: Option<api_enums::CountryAlpha2>,
     email: pii::Email,
 }
 
@@ -320,6 +320,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -394,6 +395,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -442,47 +444,77 @@ impl<F, T>
 }
 
 // for bankofamerica each item in Billing is mandatory
+// fn build_bill_to(
+//     address_details: &payments::Address,
+//     email: pii::Email,
+// ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
+//     let address = address_details
+//         .address
+//         .as_ref()
+//         .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+//     let country = address.get_country()?.to_owned();
+//     let first_name = address.get_first_name()?;
+
+//     let (administrative_area, postal_code) =
+//         if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+//             let mut state = address.to_state_code()?.peek().clone();
+//             state.truncate(20);
+//             (
+//                 Some(Secret::from(state)),
+//                 Some(address.get_zip()?.to_owned()),
+//             )
+//         } else {
+//             let zip = address.zip.clone();
+//             let mut_state = address.state.clone().map(|state| state.expose());
+//             match mut_state {
+//                 Some(mut state) => {
+//                     state.truncate(20);
+//                     (Some(Secret::from(state)), zip)
+//                 }
+//                 None => (None, zip),
+//             }
+//         };
+//     Ok(BillTo {
+//         first_name: first_name.clone(),
+//         last_name: address.get_last_name().unwrap_or(first_name).clone(),
+//         address1: address.get_line1()?.to_owned(),
+//         locality: Secret::new(address.get_city()?.to_owned()),
+//         administrative_area,
+//         postal_code,
+//         country,
+//         email,
+//     })
+// }
+
 fn build_bill_to(
-    address_details: &payments::Address,
+    address_details: Option<&payments::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    let address = address_details
-        .address
-        .as_ref()
-        .ok_or_else(utils::missing_field_err("billing.address"))?;
-
-    let country = address.get_country()?.to_owned();
-    let first_name = address.get_first_name()?;
-
-    let (administrative_area, postal_code) =
-        if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
-            let mut state = address.to_state_code()?.peek().clone();
-            state.truncate(20);
-            (
-                Some(Secret::from(state)),
-                Some(address.get_zip()?.to_owned()),
-            )
-        } else {
-            let zip = address.zip.clone();
-            let mut_state = address.state.clone().map(|state| state.expose());
-            match mut_state {
-                Some(mut state) => {
-                    state.truncate(20);
-                    (Some(Secret::from(state)), zip)
-                }
-                None => (None, zip),
-            }
-        };
-    Ok(BillTo {
-        first_name: first_name.clone(),
-        last_name: address.get_last_name().unwrap_or(first_name).clone(),
-        address1: address.get_line1()?.to_owned(),
-        locality: Secret::new(address.get_city()?.to_owned()),
-        administrative_area,
-        postal_code,
-        country,
-        email,
-    })
+    let default_address = BillTo {
+        first_name: None,
+        last_name: None,
+        address1: None,
+        locality: None,
+        administrative_area: None,
+        postal_code: None,
+        country: None,
+        email: email.clone(),
+    };
+    Ok(address_details
+        .and_then(|addr| {
+            addr.address.as_ref().map(|addr| BillTo {
+                first_name: addr.first_name.clone(),
+                last_name: addr.last_name.clone(),
+                address1: addr.line1.clone(),
+                locality: addr.city.clone(),
+                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
+                postal_code: addr.zip.clone(),
+                country: addr.country,
+                email,
+            })
+        })
+        .unwrap_or(default_address))
 }
 
 impl From<CardIssuer> for String {
@@ -852,7 +884,7 @@ pub struct Profile {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
-    name: Secret<String>,
+    name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -876,7 +908,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
         let payment_information = PaymentInformation::try_from(&ccard)?;
@@ -939,7 +971,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
@@ -976,7 +1008,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
             item,
@@ -1030,7 +1062,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::from(&google_pay_data);
         let processing_information =
@@ -1081,8 +1113,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
-                                    let bill_to =
-                                        build_bill_to(item.router_data.get_billing()?, email)?;
+                                    let bill_to = build_bill_to(
+                                        item.router_data.get_optional_billing(),
+                                        email,
+                                    )?;
                                     let order_information: OrderInformationWithBill =
                                         OrderInformationWithBill::from((item, Some(bill_to)));
                                     let processing_information =
@@ -1185,6 +1219,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::BankTransfer(_)
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::RealTimePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -1235,6 +1270,7 @@ impl TryFrom<(&domain::PaymentMethodData, String)> for BankOfAmericaAuthSetupReq
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1859,6 +1895,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1897,7 +1934,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
                     .1
                     .to_string();
                 let email = item.router_data.request.get_email()?;
-                let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+                let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
                 let order_information = OrderInformationWithBill {
                     amount_details,
                     bill_to: Some(bill_to),
@@ -1968,6 +2005,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterDat
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2196,6 +2234,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -2269,6 +2308,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -2484,6 +2524,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -2920,7 +2961,11 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" , {}", risk_info.name.clone().expose()))
+                        .map(|risk_info| {
+                            risk_info.name.clone().map_or("".to_string(), |name| {
+                                format!(" , {}", name.clone().expose())
+                            })
+                        })
                         .collect::<Vec<String>>()
                         .join("")
                 })
@@ -3098,7 +3143,7 @@ impl TryFrom<&types::SetupMandateRouterData> for OrderInformationWithBill {
 
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.get_optional_billing(), email)?;
 
         Ok(Self {
             amount_details: Amount {

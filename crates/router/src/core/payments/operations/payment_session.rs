@@ -52,7 +52,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let storage_scheme = merchant_account.storage_scheme;
 
         let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -224,7 +229,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _mechant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
@@ -244,6 +249,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
                         metadata,
                         updated_by: storage_scheme.to_string(),
                     },
+                    key_store,
                     storage_scheme,
                 )
                 .await
@@ -460,6 +466,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
