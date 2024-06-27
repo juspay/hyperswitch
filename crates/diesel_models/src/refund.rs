@@ -2,16 +2,24 @@ use common_utils::{
     pii,
     types::{ChargeRefunds, MinorUnit},
 };
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::refund};
 
 #[derive(
-    Clone, Debug, Eq, Identifiable, Queryable, PartialEq, serde::Serialize, serde::Deserialize,
+    Clone,
+    Debug,
+    Eq,
+    Identifiable,
+    Queryable,
+    Selectable,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
 )]
-#[diesel(table_name = refund)]
+#[diesel(table_name = refund, check_for_backend(diesel::pg::Pg))]
 pub struct Refund {
     pub id: i32,
     pub internal_reference_id: String,
@@ -34,7 +42,7 @@ pub struct Refund {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub updated_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,

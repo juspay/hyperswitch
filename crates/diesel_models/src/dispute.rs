@@ -1,5 +1,5 @@
 use common_utils::custom_serde;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -32,8 +32,8 @@ pub struct DisputeNew {
     pub dispute_amount: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable)]
-#[diesel(table_name = dispute)]
+#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = dispute, check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
     #[serde(skip_serializing)]
     pub id: i32,

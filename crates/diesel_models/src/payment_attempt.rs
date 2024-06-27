@@ -1,4 +1,4 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -7,8 +7,10 @@ use crate::{
     schema::payment_attempt,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentAttempt {
     pub payment_id: String,
     pub merchant_id: String,
