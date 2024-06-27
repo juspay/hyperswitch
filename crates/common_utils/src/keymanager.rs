@@ -8,6 +8,8 @@ use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
+use rustc_hash::FxHashMap;
+
 use crate::{
     errors,
     types::keymanager::{
@@ -17,6 +19,16 @@ use crate::{
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+
+/// A trait which converts the struct to Hashmap required for encryption and back to struct
+pub trait ToEncryptable: Sized {
+    /// Serializes the type to a hashmap
+    fn to_encryptable(self) -> FxHashMap<String, masking::Secret<String>>;
+    /// Deserializes the hashmap back to the type
+    fn from_encryptable(
+        hashmap: FxHashMap<String, masking::Secret<String>>,
+    ) -> errors::CustomResult<Self, errors::ParsingError>;
+}
 
 /// Get keymanager client cosntructed from the url and state
 #[allow(unused_mut)]

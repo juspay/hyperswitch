@@ -583,3 +583,13 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Generates the function to convert struct to Key, Value pair
+#[proc_macro_derive(ToEncryption, attributes(encrypt))]
+pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::encryption::derive_to_encryption(input)
+        .unwrap_or_else(|err| err.into_compile_error())
+        .into()
+}
