@@ -497,6 +497,16 @@ pub struct Locker {
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
+    pub decryption_scheme: DecryptionScheme,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub enum DecryptionScheme {
+    #[default]
+    #[serde(rename = "RSA-OAEP")]
+    RsaOaep,
+    #[serde(rename = "RSA-OAEP-256")]
+    RsaOaep256,
 }
 
 #[derive(Debug, Deserialize, Clone)]
