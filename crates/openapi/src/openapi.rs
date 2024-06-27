@@ -317,6 +317,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
         api_models::payments::PaymentProcessingDetailsAt,
+        api_models::payments::ApplepayInitiative,
         api_models::payments::PaymentProcessingDetails,
         api_models::payments::PaymentMethodDataResponseWithBilling,
         api_models::payments::PaymentMethodDataResponse,
