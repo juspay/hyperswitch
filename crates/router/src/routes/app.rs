@@ -460,6 +460,10 @@ impl Payments {
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(
+                    web::resource("/{payment_id}/manual-update")
+                        .route(web::put().to(payments_manual_update)),
+                )
         }
         #[cfg(feature = "oltp")]
         {
@@ -1347,6 +1351,8 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            // signin/signup with sso using openidconnect
+            .service(web::resource("/oidc").route(web::post().to(sso_sign)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1410,7 +1416,9 @@ impl User {
                 )
                 .service(
                     web::resource("/list").route(web::get().to(list_user_authentication_methods)),
-                ),
+                )
+                .service(web::resource("/url").route(web::get().to(get_sso_auth_url)))
+                .service(web::resource("/select").route(web::post().to(terminate_auth_select))),
         );
 
         #[cfg(feature = "email")]

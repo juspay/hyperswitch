@@ -31,7 +31,6 @@ use crate::{
         transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
-    // transformers::{ForeignFrom, ForeignTryFrom},
     utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
@@ -50,7 +49,6 @@ impl Payme {
         }
     }
 }
-// dummy commit
 impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
 impl api::PaymentsCompleteAuthorize for Payme {}
