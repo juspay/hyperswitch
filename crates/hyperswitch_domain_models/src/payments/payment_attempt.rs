@@ -417,6 +417,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -455,6 +456,15 @@ pub enum PaymentAttemptUpdate {
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
         updated_by: String,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 

@@ -12,6 +12,13 @@ impl UserAuthenticationMethodNew {
 }
 
 impl UserAuthenticationMethod {
+    pub async fn get_user_authentication_method_by_id(
+        conn: &PgPooledConn,
+        id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
+    }
+
     pub async fn list_user_authentication_methods_for_auth_id(
         conn: &PgPooledConn,
         auth_id: &str,

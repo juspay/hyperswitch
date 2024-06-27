@@ -1,7 +1,7 @@
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
-    crypto, id_type,
+    crypto, id_type, link_utils,
     pii::{self, Email},
 };
 use masking::Secret;
@@ -141,17 +141,45 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Provide a reference to a stored payment method
+    /// Provide a reference to a stored payout method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payout_token: Option<String>,
 
-    /// The business profile to use for this payment, if not passed the default business profile
+    /// The business profile to use for this payout, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
     /// The send method for processing payouts
     #[schema(value_type = PayoutSendPriority, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
+
+    /// Whether to get the payout link (if applicable)
+    #[schema(default = false, example = true)]
+    pub payout_link: Option<bool>,
+
+    /// custom payout link config for the particular payout
+    #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
+    pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
+
+    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
+    /// (900) for 15 mins
+    #[schema(value_type = Option<u32>, example = 900)]
+    pub session_expiry: Option<u32>,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
+pub struct PayoutCreatePayoutLinkConfig {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = Option<String>, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub payout_link_id: Option<String>,
+
+    #[serde(flatten)]
+    #[schema(value_type = Option<GenericLinkUiConfig>)]
+    pub ui_config: Option<link_utils::GenericLinkUiConfig>,
+
+    /// List of payout methods shown on collect UI
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -437,7 +465,7 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = String, example = "E0001")]
     pub error_code: Option<String>,
 
-    /// The business profile that is associated with this payment
+    /// The business profile that is associated with this payout
     pub profile_id: String,
 
     /// Time when the payout was created
@@ -457,6 +485,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
+
+    // If payout link is request, this represents response on
+    #[schema(value_type = Option<PayoutLinkResponse>)]
+    pub payout_link: Option<PayoutLinkResponse>,
 }
 
 #[derive(
@@ -659,8 +691,53 @@ pub struct PayoutListFilters {
     pub connector: Vec<api_enums::PayoutConnectors>,
     /// The list of available currency filters
     pub currency: Vec<common_enums::Currency>,
-    /// The list of available payment status filters
+    /// The list of available payout status filters
     pub status: Vec<common_enums::PayoutStatus>,
-    /// The list of available payment method filters
+    /// The list of available payout method filters
     pub payout_method: Vec<common_enums::PayoutType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutLinkResponse {
+    pub payout_link_id: String,
+    #[schema(value_type = String)]
+    pub link: Secret<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+pub struct PayoutLinkInitiateRequest {
+    pub merchant_id: String,
+    pub payout_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutLinkDetails {
+    pub publishable_key: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub payout_link_id: String,
+    pub payout_id: String,
+    pub customer_id: id_type::CustomerId,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
+    pub return_url: Option<String>,
+    #[serde(flatten)]
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub amount: String,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutLinkStatusDetails {
+    pub payout_link_id: String,
+    pub payout_id: String,
+    pub customer_id: id_type::CustomerId,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
+    pub return_url: Option<String>,
+    pub status: api_enums::PayoutStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    #[serde(flatten)]
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
 }

@@ -5,6 +5,7 @@ use api_models::{
     payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
 use base64::Engine;
+use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
@@ -121,6 +122,16 @@ pub fn filter_mca_based_on_business_profile(
     } else {
         merchant_connector_accounts
     }
+}
+
+pub fn filter_mca_based_on_connector_type(
+    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    connector_type: ConnectorType,
+) -> Vec<domain::MerchantConnectorAccount> {
+    merchant_connector_accounts
+        .into_iter()
+        .filter(|mca| mca.connector_type == connector_type)
+        .collect::<Vec<_>>()
 }
 
 #[instrument(skip_all)]
@@ -537,6 +548,63 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_generic_data.mandate_connector,
                             mandate_generic_data.payment_method_info,
                         )
+                    } else if request.payment_method_type
+                        == Some(api_models::enums::PaymentMethodType::ApplePay)
+                        || request.payment_method_type
+                            == Some(api_models::enums::PaymentMethodType::GooglePay)
+                    {
+                        if let Some(customer_id) = &request.customer_id {
+                            let customer_saved_pm_option = match state
+                                .store
+                                .find_payment_method_by_customer_id_merchant_id_list(
+                                    customer_id,
+                                    merchant_account.merchant_id.as_str(),
+                                    None,
+                                )
+                                .await
+                            {
+                                Ok(customer_payment_methods) => Ok(customer_payment_methods
+                                    .iter()
+                                    .find(|payment_method| {
+                                        payment_method.payment_method_type
+                                            == request.payment_method_type
+                                    })
+                                    .cloned()),
+                                Err(error) => {
+                                    if error.current_context().is_db_not_found() {
+                                        Ok(None)
+                                    } else {
+                                        Err(error)
+                                            .change_context(
+                                                errors::ApiErrorResponse::InternalServerError,
+                                            )
+                                            .attach_printable(
+                                                "failed to find payment methods for a customer",
+                                            )
+                                    }
+                                }
+                            }?;
+
+                            (
+                                None,
+                                request.payment_method,
+                                request.payment_method_type,
+                                None,
+                                None,
+                                None,
+                                customer_saved_pm_option,
+                            )
+                        } else {
+                            (
+                                None,
+                                request.payment_method,
+                                request.payment_method_type,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
+                        }
                     } else {
                         (
                             request.payment_token.to_owned(),

@@ -12,12 +12,12 @@ impl ConnectorActions for CryptopayTest {}
 impl utils::Connector for CryptopayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cryptopay;
-        api::ConnectorData {
-            connector: Box::new(Cryptopay::new()),
-            connector_name: types::Connector::Cryptopay,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Cryptopay::new()),
+            types::Connector::Cryptopay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
