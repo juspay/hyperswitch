@@ -378,7 +378,7 @@ mod pii_masking_strategy_tests {
     /*
     #[test]
     fn test_valid_phone_number_masking() {
-        let secret: Secret<String, PhoneNumber> = Secret::new("9922992299".to_string());
+        let secret: Secret<String, PhoneNumber> = Secret::new("9123456789".to_string());
         assert_eq!("99*****299", format!("{}", secret));
     }
 

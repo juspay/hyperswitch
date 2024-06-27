@@ -154,7 +154,7 @@ function bankRedirectRedirection(
           cy.get("#bankSearch").type("giropay TestBank{enter}");
           cy.get(".normal-2 > div").click();
           cy.get('[data-testid="customerIban"]').type("DE48499999601234567890");
-          cy.get('[data-testid="customerIdentification"]').type("1234567890");
+          cy.get('[data-testid="customerIdentification"]').type("9123456789");
           cy.get(":nth-child(3) > .rds-button").click();
           cy.get('[data-testid="onlineBankingPin"]').type("1234");
           cy.get(".rds-button--primary").click();

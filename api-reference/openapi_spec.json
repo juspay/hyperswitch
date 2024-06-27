@@ -59,7 +59,7 @@
                       },
                       "phone": {
                         "country_code": "+91",
-                        "number": "8056594427"
+                        "number": "9123456789"
                       }
                     },
                     "currency": "USD",
@@ -107,7 +107,7 @@
                       "email": "john@example.com",
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9999999999"
+                      "phone": "9123456789"
                     },
                     "description": "Its my first payment request",
                     "metadata": {
@@ -254,7 +254,7 @@
                       },
                       "phone": {
                         "country_code": "+91",
-                        "number": "8056594427"
+                        "number": "9123456789"
                       }
                     }
                   }
@@ -8481,7 +8481,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 10
           },
@@ -8524,7 +8524,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 10
           },
@@ -8733,7 +8733,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -8797,7 +8797,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -10686,7 +10686,7 @@
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true
           }
         }
@@ -15647,7 +15647,7 @@
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
             "deprecated": true,
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -16184,7 +16184,7 @@
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon. Please refer to `customer.phone` object",
             "deprecated": true,
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -17222,7 +17222,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -17401,7 +17401,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -17929,7 +17929,7 @@
           "number": {
             "type": "string",
             "description": "The contact number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true
           },
           "country_code": {
@@ -19312,7 +19312,7 @@
           },
           "bic": {
             "type": "string",
-            "example": "1024419982"
+            "example": "9123456789"
           },
           "country": {
             "type": "string"
