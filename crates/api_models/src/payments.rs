@@ -20,6 +20,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
+use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
@@ -592,6 +593,8 @@ pub struct HeaderPayload {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
+    pub browser_name: Option<api_enums::BrowserName>,
+    pub x_client_platform: Option<api_enums::ClientPlatform>,
 }
 
 impl HeaderPayload {
@@ -4299,12 +4302,19 @@ pub struct SessionTokenInfo {
     pub certificate_keys: Secret<String>,
     pub merchant_identifier: String,
     pub display_name: String,
-    pub initiative: String,
-    pub initiative_context: String,
+    pub initiative: ApplepayInitiative,
+    pub initiative_context: Option<String>,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Display, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplepayInitiative {
+    Web,
+    Ios,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4421,7 +4431,9 @@ pub struct PaypalSessionTokenResponse {
 #[serde(rename_all = "lowercase")]
 pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
-    pub session_token_data: ApplePaySessionResponse,
+    /// The session_token_data will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_token_data: Option<ApplePaySessionResponse>,
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
