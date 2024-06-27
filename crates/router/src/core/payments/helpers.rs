@@ -17,7 +17,7 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
 use josekit::jwe;
@@ -43,7 +43,11 @@ use crate::{
         authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
-        payment_methods::{self, cards, vault},
+        payment_methods::{
+            self,
+            cards::{self, create_encrypted_data},
+            vault,
+        },
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
     },
@@ -1508,6 +1512,44 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+    // Updation of Customer Details for the cases where both customer_id and specific customer
+    // details are provided in Payment Update Request
+    let raw_customer_details = req.clone().map(|req| {
+        if let Some(customer_details_raw) = payment_data.payment_intent.customer_details.clone() {
+            let customer_details_encrypted =
+                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                Some(CustomerData {
+                    name: req
+                        .name
+                        .clone()
+                        .or(customer_details_encrypted_data.name.clone()),
+                    email: req
+                        .email
+                        .clone()
+                        .or(customer_details_encrypted_data.email.clone()),
+                    phone: req
+                        .phone
+                        .clone()
+                        .or(customer_details_encrypted_data.phone.clone()),
+                    phone_country_code: req
+                        .phone_country_code
+                        .clone()
+                        .or(customer_details_encrypted_data.phone_country_code.clone()),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
+    payment_data.payment_intent.customer_details = raw_customer_details
+        .clone()
+        .async_and_then(|_| async { create_encrypted_data(key_store, raw_customer_details).await })
+        .await;
+
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;

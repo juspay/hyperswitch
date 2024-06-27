@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
-use masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -19,7 +18,6 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -91,61 +89,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
-
-        // Updation of Customer Details for the cases where both customer_id and specific customer
-        // details are provided in Payment Update Request
-        let temp_customer_details = Some(CustomerData {
-            name: request.name.clone(),
-            phone: request.phone.clone(),
-            email: request.email.clone(),
-            phone_country_code: request.phone_country_code.clone(),
-        });
-
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
-            if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
-                let customer_details_encrypted = serde_json::from_value::<CustomerData>(
-                    customer_details_raw.into_inner().expose(),
-                );
-                if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
-                    Some(CustomerData {
-                        name: request
-                            .name
-                            .clone()
-                            .or(customer_details_encrypted_data.name.clone()),
-                        email: request
-                            .email
-                            .clone()
-                            .or(customer_details_encrypted_data.email.clone()),
-                        phone: request
-                            .phone
-                            .clone()
-                            .or(customer_details_encrypted_data.phone.clone()),
-                        phone_country_code: request
-                            .phone_country_code
-                            .clone()
-                            .or(customer_details_encrypted_data.phone_country_code.clone()),
-                    })
-                } else {
-                    temp_customer_details
-                }
-            } else {
-                temp_customer_details
-            }
-        } else {
-            None
-        };
-
-        payment_intent.customer_details = raw_customer_details
-            .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, raw_customer_details).await
-            })
-            .await;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
