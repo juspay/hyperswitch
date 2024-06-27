@@ -49,7 +49,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
@@ -202,7 +202,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: domain::PaymentMethodData::Card(domain::Card {
-                    card_cvc: Secret::new("2131233213".to_string()),
+                    card_cvc: Secret::new("9123456789".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..get_default_payment_authorize_data().unwrap()
