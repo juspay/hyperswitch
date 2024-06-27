@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse},
+    user::{self as user_api, InviteMultipleUserResponse, OpenIdConnectPublicConfig},
 };
-use common_utils::ext_traits::ValueExt;
+use common_enums::UserAuthType;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -481,7 +481,7 @@ pub async fn rotate_password(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 #[cfg(feature = "email")]
@@ -544,7 +544,7 @@ pub async fn reset_password_token_only_flow(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 #[cfg(feature = "email")]
@@ -597,7 +597,7 @@ pub async fn reset_password(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 pub async fn invite_multiple_user(
@@ -2173,18 +2173,16 @@ pub async fn list_user_authentication_methods(
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
-                        let open_id_public_config: user_api::OpenIdConnectPublicConfig = config
-                            .parse_value("OpenIdConnectPublicConfig")
-                            .change_context(UserErrors::InternalServerError)
-                            .attach_printable("unable to parse generic data value")?;
+                    (UserAuthType::OpenIdConnect, Some(config)) => {
+                        let open_id_public_config =
+                            serde_json::from_value::<OpenIdConnectPublicConfig>(config)
+                                .change_context(UserErrors::InternalServerError)
+                                .attach_printable("unable to parse generic data value")?;
 
                         Ok(Some(open_id_public_config.name))
                     }
-                    (common_enums::UserAuthType::OpenIdConnect, None) => {
-                        Err(UserErrors::InternalServerError)
-                            .attach_printable("No config found for open_id_connect auth_method")
-                    }
+                    (UserAuthType::OpenIdConnect, None) => Err(UserErrors::InternalServerError)
+                        .attach_printable("No config found for open_id_connect auth_method"),
                     _ => Ok(None),
                 }?;
 
@@ -2216,13 +2214,14 @@ pub async fn get_sso_auth_url(
         utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
             .await?;
 
-    let open_id_public_config: user_api::OpenIdConnectPublicConfig = user_authentication_method
-        .public_config
-        .ok_or(UserErrors::InternalServerError)
-        .attach_printable("Public config not present")?
-        .parse_value("OpenIdConnectPublicConfig")
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+    let open_id_public_config = serde_json::from_value::<OpenIdConnectPublicConfig>(
+        user_authentication_method
+            .public_config
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Public config not present")?,
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
 
     let oidc_state = Secret::new(nanoid::nanoid!());
     utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
@@ -2267,13 +2266,14 @@ pub async fn sso_sign(
         utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
             .await?;
 
-    let open_id_public_config: user_api::OpenIdConnectPublicConfig = user_authentication_method
-        .public_config
-        .ok_or(UserErrors::InternalServerError)
-        .attach_printable("Public config not present")?
-        .parse_value("OpenIdConnectPublicConfig")
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+    let open_id_public_config = serde_json::from_value::<OpenIdConnectPublicConfig>(
+        user_authentication_method
+            .public_config
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Public config not present")?,
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
 
     let redirect_url =
         utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
@@ -2329,14 +2329,15 @@ pub async fn terminate_auth_select(
         .store
         .get_user_authentication_method_by_id(&req.id)
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(UserErrors::InvalidUserAuthMethodOperation)
+        .attach_printable("No authentication method found for the id")?;
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     // Skip SSO if continue with password(TOTP)
     if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
-        && user_authentication_method.auth_type != common_enums::UserAuthType::OpenIdConnect
+        && !utils::user::is_sso_auth_type(user_authentication_method.auth_type)
     {
         next_flow = next_flow.skip(user_from_db, &state).await?;
     }
