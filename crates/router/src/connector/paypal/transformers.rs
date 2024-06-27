@@ -2004,7 +2004,7 @@ pub struct ErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<ErrorDetails>>,
@@ -2147,7 +2147,7 @@ pub struct PaypalRedirectsWebhooks {
     pub purchase_units: Vec<PurchaseUnitItem>,
     pub links: Vec<PaypalLinks>,
     pub id: String,
-    pub intent: PaypalPaymentIntent, 
+    pub intent: PaypalPaymentIntent,
 }
 
 #[derive(Deserialize, Debug, Serialize)]

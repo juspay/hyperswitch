@@ -1478,7 +1478,7 @@ impl
             .parse_struct("paypal PaypalSourceVerificationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);   
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1552,14 +1552,14 @@ impl api::IncomingWebhook for Paypal {
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let outcome = match payload.event_type {
-            PaypalWebhookEventType:: CustomerDisputeResolved => Some(
+            PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
                     .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
                     .outcome_code,
             ),
-            PaypalWebhookEventType::CustomerDisputeCreated 
+            PaypalWebhookEventType::CustomerDisputeCreated
             | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::CustomerDisputedUpdated
             | PaypalWebhookEventType::PaymentAuthorizationCreated
@@ -1607,27 +1607,36 @@ impl api::IncomingWebhook for Paypal {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
-        let payload: paypal::PaypalDisputeWebhooks = request
+        let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
-            .parse_struct("PaypalDisputeWebhooks")
+            .parse_struct("PaypalWebhooksBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api::disputes::DisputePayload {
-            amount: connector_utils::to_currency_lower_unit(
-                payload.dispute_amount.value,
-                payload.dispute_amount.currency_code,
-            )?,
-            currency: payload.dispute_amount.currency_code.to_string(),
-            dispute_stage: api_models::enums::DisputeStage::from(
-                payload.dispute_life_cycle_stage.clone(),
-            ),
-            connector_status: payload.status.to_string(),
-            connector_dispute_id: payload.dispute_id,
-            connector_reason: payload.reason.clone(),
-            connector_reason_code: payload.reason,
-            challenge_required_by: None,
-            created_at: payload.create_time,
-            updated_at: payload.update_time,
-        })
+        match webhook_payload.resource {
+            transformers::PaypalResource::PaypalCardWebhooks(_)
+            | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
+            | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound.into())
+            },
+            transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                Ok(api::disputes::DisputePayload {
+                    amount: connector_utils::to_currency_lower_unit(
+                        payload.dispute_amount.value,
+                        payload.dispute_amount.currency_code,
+                    )?,
+                    currency: payload.dispute_amount.currency_code.to_string(),
+                    dispute_stage: api_models::enums::DisputeStage::from(
+                        payload.dispute_life_cycle_stage.clone(),
+                    ),
+                    connector_status: payload.status.to_string(),
+                    connector_dispute_id: payload.dispute_id,
+                    connector_reason: payload.reason.clone(),
+                    connector_reason_code: payload.reason,
+                    challenge_required_by: None,
+                    created_at: payload.create_time,
+                    updated_at: payload.update_time,
+                })
+            }
+        }
     }
 }
 
