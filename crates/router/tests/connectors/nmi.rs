@@ -645,7 +645,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
     let capture_response = CONNECTOR
-        .capture_payment("7899353591".to_string(), None, None)
+        .capture_payment("9123456789".to_string(), None, None)
         .await
         .unwrap();
     assert_eq!(capture_response.status, enums::AttemptStatus::CaptureFailed);

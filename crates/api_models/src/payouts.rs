@@ -81,7 +81,7 @@ pub struct PayoutCreateRequest {
             "first_name": "John",
             "last_name": "Doe"
         },
-        "phone": { "number": "8056594427", "country_code": "+1" }
+        "phone": { "number": "9123456789", "country_code": "+1" }
     }"#))]
     pub billing: Option<payments::Address>,
 
@@ -102,7 +102,7 @@ pub struct PayoutCreateRequest {
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
@@ -393,7 +393,7 @@ pub struct PayoutCreateResponse {
             "first_name": "John",
             "last_name": "Doe"
         },
-        "phone": { "number": "8056594427", "country_code": "+1" }
+        "phone": { "number": "9123456789", "country_code": "+1" }
     }"#))]
     pub billing: Option<payments::Address>,
 
@@ -414,7 +414,7 @@ pub struct PayoutCreateResponse {
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The country code for the customer phone number
