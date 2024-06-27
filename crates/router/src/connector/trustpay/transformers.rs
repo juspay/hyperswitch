@@ -1209,12 +1209,13 @@ pub fn get_apple_pay_session<F, T>(
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
             session_token: Some(types::api::SessionToken::ApplePay(Box::new(
                 api_models::payments::ApplepaySessionTokenResponse {
-                    session_token_data:
+                    session_token_data: Some(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                             api_models::payments::ThirdPartySdkSessionResponse {
                                 secrets: secrets.to_owned().into(),
                             },
                         ),
+                    ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
