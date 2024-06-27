@@ -190,14 +190,21 @@ pub fn get_link_with_token(
     base_url: impl std::fmt::Display,
     token: impl std::fmt::Display,
     action: impl std::fmt::Display,
+    auth_id: &Option<impl std::fmt::Display>,
 ) -> String {
-    format!("{base_url}/user/{action}?token={token}")
+    let email_url = format!("{base_url}/user/{action}?token={token}");
+    if let Some(auth_id) = auth_id {
+        format!("{email_url}&auth_id={auth_id}")
+    } else {
+        email_url
+    }
 }
 
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 /// Currently only HTML is supported
@@ -213,8 +220,12 @@ impl EmailData for VerifyEmail {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let verify_email_link =
-            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+        let verify_email_link = get_link_with_token(
+            &self.settings.user.base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
@@ -233,6 +244,7 @@ pub struct ResetPassword {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -247,8 +259,12 @@ impl EmailData for ResetPassword {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let reset_password_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+        let reset_password_link = get_link_with_token(
+            &self.settings.user.base_url,
+            token,
+            "set_password",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
@@ -268,6 +284,7 @@ pub struct MagicLink {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -282,8 +299,12 @@ impl EmailData for MagicLink {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login =
-            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+        let magic_link_login = get_link_with_token(
+            &self.settings.user.base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
@@ -305,6 +326,7 @@ pub struct InviteUser {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -319,8 +341,12 @@ impl EmailData for InviteUser {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+        let invite_user_link = get_link_with_token(
+            &self.settings.user.base_url,
+            token,
+            "set_password",
+            &self.auth_id,
+        );
 
         let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
@@ -341,6 +367,7 @@ pub struct InviteRegisteredUser {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
+    pub auth_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -356,9 +383,10 @@ impl EmailData for InviteRegisteredUser {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.settings.email.base_url,
+            &self.settings.user.base_url,
             token,
             "accept_invite_from_email",
+            &self.auth_id,
         );
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,

@@ -77,6 +77,8 @@ pub mod headers {
     pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
     pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
     pub const CONTENT_LENGTH: &str = "Content-Length";
+    pub const BROWSER_NAME: &str = "browsername";
+    pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
 }
 
 pub mod pii {
@@ -155,7 +157,9 @@ pub fn mk_app(
 
     #[cfg(feature = "payouts")]
     {
-        server_app = server_app.service(routes::Payouts::server(state.clone()));
+        server_app = server_app
+            .service(routes::Payouts::server(state.clone()))
+            .service(routes::PayoutLink::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
