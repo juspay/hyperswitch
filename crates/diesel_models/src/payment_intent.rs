@@ -206,6 +206,10 @@ pub enum PaymentIntentUpdate {
     CompleteAuthorizeUpdate {
         shipping_address_id: Option<String>,
     },
+    ManualUpdate {
+        status: Option<storage_enums::IntentStatus>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -506,6 +510,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
             } => Self {
                 shipping_address_id,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+                status,
+                updated_by,
                 ..Default::default()
             },
         }

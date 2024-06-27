@@ -126,9 +126,6 @@ pub struct EmailSettings {
     /// The AWS region to send SES requests to.
     pub aws_region: String,
 
-    /// Base-url used when adding links that should redirect to self
-    pub base_url: String,
-
     /// Number of days for verification of the email
     pub allowed_unverified_days: i64,
 

@@ -55,6 +55,7 @@ use crate::{
         ephemeral_key::EphemeralKeyInterface,
         events::EventInterface,
         file::FileMetadataInterface,
+        generic_link::GenericLinkInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
         locker_mock_up::LockerMockUpInterface,
@@ -2876,6 +2877,67 @@ impl RoleInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
+impl GenericLinkInterface for KafkaStore {
+    async fn find_generic_link_by_link_id(
+        &self,
+        link_id: &str,
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
+        self.diesel_store
+            .find_generic_link_by_link_id(link_id)
+            .await
+    }
+
+    async fn find_pm_collect_link_by_link_id(
+        &self,
+        link_id: &str,
+    ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
+        self.diesel_store
+            .find_pm_collect_link_by_link_id(link_id)
+            .await
+    }
+
+    async fn find_payout_link_by_link_id(
+        &self,
+        link_id: &str,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        self.diesel_store.find_payout_link_by_link_id(link_id).await
+    }
+
+    async fn insert_generic_link(
+        &self,
+        generic_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
+        self.diesel_store.insert_generic_link(generic_link).await
+    }
+
+    async fn insert_pm_collect_link(
+        &self,
+        pm_collect_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
+        self.diesel_store
+            .insert_pm_collect_link(pm_collect_link)
+            .await
+    }
+
+    async fn insert_payout_link(
+        &self,
+        pm_collect_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        self.diesel_store.insert_payout_link(pm_collect_link).await
+    }
+
+    async fn update_payout_link(
+        &self,
+        payout_link: storage::PayoutLink,
+        payout_link_update: storage::PayoutLinkUpdate,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        self.diesel_store
+            .update_payout_link(payout_link, payout_link_update)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
 impl UserKeyStoreInterface for KafkaStore {
     async fn insert_user_key_store(
         &self,
@@ -2906,6 +2968,15 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .insert_user_authentication_method(user_authentication_method)
+            .await
+    }
+
+    async fn get_user_authentication_method_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .get_user_authentication_method_by_id(id)
             .await
     }
 
