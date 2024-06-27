@@ -2222,7 +2222,7 @@ pub async fn get_sso_auth_url(
             .attach_printable("Public config not present")?,
     )
     .change_context(UserErrors::InternalServerError)
-    .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+    .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
 
     let oidc_state = Secret::new(nanoid::nanoid!());
     utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
@@ -2274,7 +2274,7 @@ pub async fn sso_sign(
             .attach_printable("Public config not present")?,
     )
     .change_context(UserErrors::InternalServerError)
-    .attach_printable("unable to parse OpenIdConnectPublicConfig")?;
+    .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
 
     let redirect_url =
         utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
