@@ -17,7 +17,7 @@ impl utils::Connector for PaymeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payme;
         utils::construct_connector_data_old(
-            Box::new(&Payme),
+            Box::new(Payme::new()),
             types::Connector::Payme,
             types::api::GetToken::Connector,
             None,
