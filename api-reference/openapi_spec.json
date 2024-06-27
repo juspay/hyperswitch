@@ -5201,6 +5201,13 @@
           }
         }
       },
+      "ApplepayInitiative": {
+        "type": "string",
+        "enum": [
+          "web",
+          "ios"
+        ]
+      },
       "ApplepayPaymentMethod": {
         "type": "object",
         "required": [
@@ -5226,14 +5233,18 @@
       "ApplepaySessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_token_data",
           "connector",
           "delayed_session_token",
           "sdk_next_action"
         ],
         "properties": {
           "session_token_data": {
-            "$ref": "#/components/schemas/ApplePaySessionResponse"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePaySessionResponse"
+              }
+            ],
+            "nullable": true
           },
           "payment_request_data": {
             "allOf": [
@@ -19434,8 +19445,7 @@
               "certificate_keys",
               "merchant_identifier",
               "display_name",
-              "initiative",
-              "initiative_context"
+              "initiative"
             ],
             "properties": {
               "certificate": {
@@ -19451,10 +19461,11 @@
                 "type": "string"
               },
               "initiative": {
-                "type": "string"
+                "$ref": "#/components/schemas/ApplepayInitiative"
               },
               "initiative_context": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "merchant_business_country": {
                 "allOf": [
