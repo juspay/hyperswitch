@@ -1,3 +1,9 @@
+use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+};
+
 use crate::{
     core::{
         mandate::utils,
@@ -11,11 +17,6 @@ use crate::{
         api::{ConnectorData, GetToken},
         storage,
     },
-};
-use common_utils::ext_traits::ValueExt;
-use error_stack::ResultExt;
-use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
 
 pub struct PaymentMethodMandateDetailsRevokeWorkflow;
