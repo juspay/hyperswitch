@@ -8,8 +8,8 @@ use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
-    payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
+    payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
@@ -21,8 +21,8 @@ pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
 pub mod outgoing_webhook_event;
-pub mod payments;
 pub mod payment_intents;
+pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
 pub mod search;

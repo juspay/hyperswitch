@@ -65,7 +65,7 @@ pub enum ApiEventsType {
     Poll {
         poll_id: String,
     },
-    Analytics
+    Analytics,
 }
 
 impl ApiEventMetric for serde_json::Value {}

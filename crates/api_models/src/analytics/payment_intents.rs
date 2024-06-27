@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{NameDescription, TimeRange};
-use crate::enums::{IntentStatus, Currency};
+use crate::enums::{Currency, IntentStatus};
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct PaymentIntentFilters {

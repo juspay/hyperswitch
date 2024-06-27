@@ -1,5 +1,6 @@
 use api_models::analytics::payment_intents::PaymentIntentMetricsBucketValue;
 use bigdecimal::ToPrimitive;
+
 use super::metrics::PaymentIntentMetricRow;
 
 #[derive(Debug, Default)]

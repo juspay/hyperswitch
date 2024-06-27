@@ -3,9 +3,7 @@ mod core;
 pub mod filters;
 pub mod metrics;
 pub mod types;
-pub use accumulator::{
-    PaymentIntentMetricAccumulator, PaymentIntentMetricsAccumulator,
-};
+pub use accumulator::{PaymentIntentMetricAccumulator, PaymentIntentMetricsAccumulator};
 
 pub trait PaymentIntentAnalytics:
     metrics::PaymentIntentMetricAnalytics + filters::PaymentIntentFilterAnalytics

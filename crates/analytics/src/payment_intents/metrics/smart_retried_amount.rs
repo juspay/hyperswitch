@@ -1,5 +1,7 @@
 use api_models::analytics::{
-    payment_intents::{PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier},
+    payment_intents::{
+        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
+    },
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
@@ -34,7 +36,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentIntent);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::PaymentIntent);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;

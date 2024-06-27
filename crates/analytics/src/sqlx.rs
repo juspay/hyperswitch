@@ -9,7 +9,7 @@ use common_utils::{
     DbConnectionParams,
 };
 use diesel_models::enums::{
-    AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus, IntentStatus,
+    AttemptStatus, AuthenticationType, Currency, IntentStatus, PaymentMethod, RefundStatus,
 };
 use error_stack::ResultExt;
 use sqlx::{
@@ -482,10 +482,7 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
-        Ok(Self {
-            status,
-            currency,
-        })
+        Ok(Self { status, currency })
     }
 }
 

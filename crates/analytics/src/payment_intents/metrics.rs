@@ -1,5 +1,8 @@
 use api_models::analytics::{
-    payment_intents::{PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics, PaymentIntentMetricsBucketIdentifier},
+    payment_intents::{
+        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics,
+        PaymentIntentMetricsBucketIdentifier,
+    },
     Granularity, TimeRange,
 };
 use diesel_models::enums as storage_enums;
@@ -10,16 +13,15 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
+mod payment_intent_count;
+mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
-mod smart_retried_amount;
-mod payment_intent_count;
 
+use payment_intent_count::PaymentIntentCount;
+use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
 use total_smart_retries::TotalSmartRetries;
-use smart_retried_amount::SmartRetriedAmount;
-use payment_intent_count::PaymentIntentCount;
-
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct PaymentIntentMetricRow {

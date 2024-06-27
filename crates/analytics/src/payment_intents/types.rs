@@ -12,11 +12,13 @@ where
     AnalyticsCollection: ToSql<T>,
 {
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
-        
         if !self.status.is_empty() {
             builder
-            .add_filter_in_range_clause(PaymentIntentDimensions::PaymentIntentStatus, &self.status)
-            .attach_printable("Error adding payment intent status filter")?;
+                .add_filter_in_range_clause(
+                    PaymentIntentDimensions::PaymentIntentStatus,
+                    &self.status,
+                )
+                .attach_printable("Error adding payment intent status filter")?;
         }
         if !self.currency.is_empty() {
             builder

@@ -3,8 +3,8 @@ pub mod core;
 pub mod disputes;
 pub mod errors;
 pub mod metrics;
-pub mod payments;
 pub mod payment_intents;
+pub mod payments;
 mod query;
 pub mod refunds;
 
@@ -40,8 +40,11 @@ use api_models::analytics::{
     },
     auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
+    payment_intents::{
+        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics,
+        PaymentIntentMetricsBucketIdentifier,
+    },
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
-    payment_intents::{PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics, PaymentIntentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
@@ -62,11 +65,11 @@ use strum::Display;
 use self::{
     active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
     auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
+    payment_intents::metrics::{PaymentIntentMetric, PaymentIntentMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
         metrics::{PaymentMetric, PaymentMetricRow},
     },
-    payment_intents::metrics::{PaymentIntentMetric, PaymentIntentMetricRow},
     refunds::metrics::{RefundMetric, RefundMetricRow},
     sdk_events::metrics::{SdkEventMetric, SdkEventMetricRow},
     sqlx::SqlxClient,
@@ -324,7 +327,8 @@ impl AnalyticsProvider {
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> types::MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
         // Metrics to get the fetch time for each payment intent metric
         metrics::request::record_operation_time(
             async {

@@ -92,7 +92,7 @@ where
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
-        
+
         query_builder
             .execute_query::<PaymentIntentMetricRow, _>(pool)
             .await

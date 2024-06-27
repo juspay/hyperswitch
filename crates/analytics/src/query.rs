@@ -6,15 +6,15 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
-        payments::{PaymentDimensions, PaymentDistributions},
         payment_intents::PaymentIntentDimensions,
+        payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
-        PaymentMethodType, IntentStatus
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
+        PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
 };
