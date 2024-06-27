@@ -484,6 +484,7 @@ pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

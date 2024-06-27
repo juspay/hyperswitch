@@ -214,6 +214,10 @@ pub enum PaymentIntentUpdate {
     CompleteAuthorizeUpdate {
         shipping_address_id: Option<String>,
     },
+    ManualUpdate {
+        status: Option<storage_enums::IntentStatus>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -442,6 +446,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+                status,
+                modified_at: Some(common_utils::date_time::now()),
+                updated_by,
+                ..Default::default()
+            },
         }
     }
 }
@@ -611,6 +621,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
+                Self::ManualUpdate { status, updated_by }
+            }
         }
     }
 }
