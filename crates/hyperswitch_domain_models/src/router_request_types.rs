@@ -685,6 +685,9 @@ pub struct PaymentsSessionData {
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+
+    // Minor Unit amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone)]
