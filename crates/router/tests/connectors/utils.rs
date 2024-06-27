@@ -68,6 +68,7 @@ pub struct PaymentInfo {
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
     pub payout_method_data: Option<types::api::PayoutMethodData>,
+    #[cfg(feature = "payouts")]
     pub currency: Option<enums::Currency>,
 }
 
