@@ -110,8 +110,7 @@ pub async fn accept_dispute(
         api::GetToken::Connector,
         dispute.merchant_connector_id.clone(),
     )?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
         api::Accept,
         AcceptDisputeRequestData,
         AcceptDisputeResponse,
@@ -225,8 +224,7 @@ pub async fn submit_evidence(
         dispute.merchant_connector_id.clone(),
     )?;
 
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
         api::Evidence,
         SubmitEvidenceRequestData,
         SubmitEvidenceResponse,
@@ -262,52 +260,53 @@ pub async fn submit_evidence(
                 reason: err.reason,
             })?;
     //Defend Dispute Optionally if connector expects to defend / submit evidence in a separate api call
-    let (dispute_status, connector_status) =
-        if connector_data.connector_name.requires_defend_dispute() {
-            let connector_integration_defend_dispute: services::BoxedConnectorIntegration<
-                '_,
+    let (dispute_status, connector_status) = if connector_data
+        .connector_name
+        .requires_defend_dispute()
+    {
+        let connector_integration_defend_dispute: services::BoxedDisputeConnectorIntegrationInterface<
                 api::Defend,
                 DefendDisputeRequestData,
                 DefendDisputeResponse,
             > = connector_data.connector.get_connector_integration();
-            let defend_dispute_router_data = core_utils::construct_defend_dispute_router_data(
-                &state,
-                &payment_intent,
-                &payment_attempt,
-                &merchant_account,
-                &key_store,
-                &dispute,
-            )
-            .await?;
-            let defend_response = services::execute_connector_processing_step(
-                &state,
-                connector_integration_defend_dispute,
-                &defend_dispute_router_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await
-            .to_dispute_failed_response()
-            .attach_printable("Failed while calling defend dispute connector api")?;
-            let defend_dispute_response = defend_response.response.map_err(|err| {
-                errors::ApiErrorResponse::ExternalConnectorError {
-                    code: err.code,
-                    message: err.message,
-                    connector: dispute.connector.clone(),
-                    status_code: err.status_code,
-                    reason: err.reason,
-                }
-            })?;
-            (
-                defend_dispute_response.dispute_status,
-                defend_dispute_response.connector_status,
-            )
-        } else {
-            (
-                submit_evidence_response.dispute_status,
-                submit_evidence_response.connector_status,
-            )
-        };
+        let defend_dispute_router_data = core_utils::construct_defend_dispute_router_data(
+            &state,
+            &payment_intent,
+            &payment_attempt,
+            &merchant_account,
+            &key_store,
+            &dispute,
+        )
+        .await?;
+        let defend_response = services::execute_connector_processing_step(
+            &state,
+            connector_integration_defend_dispute,
+            &defend_dispute_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_dispute_failed_response()
+        .attach_printable("Failed while calling defend dispute connector api")?;
+        let defend_dispute_response = defend_response.response.map_err(|err| {
+            errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: dispute.connector.clone(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+        })?;
+        (
+            defend_dispute_response.dispute_status,
+            defend_dispute_response.connector_status,
+        )
+    } else {
+        (
+            submit_evidence_response.dispute_status,
+            submit_evidence_response.connector_status,
+        )
+    };
     let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
         dispute_status,
         connector_status,

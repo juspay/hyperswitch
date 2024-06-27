@@ -1,5 +1,5 @@
 {
-  "amount": 1,
+  "amount": 100,
   "currency": "EUR",
   "customer_id": "payout_customer",
   "email": "payout_customer@example.com",
@@ -7,8 +7,6 @@
   "phone": "999999999",
   "phone_country_code": "+65",
   "description": "Its my first payout request",
-  "payout_type": "card",
-  "payout_method_data": {},
   "billing": {
     "address": {
       "line1": "1467",

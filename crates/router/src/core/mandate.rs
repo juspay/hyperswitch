@@ -103,8 +103,7 @@ pub async fn revoke_mandate(
                 GetToken::Connector,
                 mandate.merchant_connector_id.clone(),
             )?;
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
+            let connector_integration: services::BoxedMandateRevokeConnectorIntegrationInterface<
                 types::api::MandateRevoke,
                 types::MandateRevokeRequestData,
                 types::MandateRevokeResponseData,

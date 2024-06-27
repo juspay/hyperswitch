@@ -101,6 +101,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
@@ -126,7 +127,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
-            | Flow::PaymentsCompleteAuthorize => Self::Payments,
+            | Flow::PaymentsCompleteAuthorize
+            | Flow::PaymentsManualUpdate => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -135,7 +137,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFulfill
             | Flow::PayoutsList
             | Flow::PayoutsFilter
-            | Flow::PayoutsAccounts => Self::Payouts,
+            | Flow::PayoutsAccounts
+            | Flow::PayoutsConfirm
+            | Flow::PayoutLinkInitiate => Self::Payouts,
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
@@ -226,7 +230,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryCodeVerify
             | Flow::RecoveryCodesGenerate
             | Flow::TerminateTwoFactorAuth
-            | Flow::TwoFactorAuthStatus => Self::User,
+            | Flow::TwoFactorAuthStatus
+            | Flow::CreateUserAuthenticationMethod
+            | Flow::UpdateUserAuthenticationMethod
+            | Flow::ListUserAuthenticationMethods
+            | Flow::GetSsoAuthUrl
+            | Flow::SignInWithSso
+            | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

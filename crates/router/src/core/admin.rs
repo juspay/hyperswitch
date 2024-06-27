@@ -175,6 +175,17 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             })
             .transpose()?;
 
+        let pm_collect_link_config = self
+            .pm_collect_link_config
+            .as_ref()
+            .map(|c| {
+                c.encode_to_value()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "pm_collect_link_config",
+                    })
+            })
+            .transpose()?;
+
         if let Some(ref routing_algorithm) = self.routing_algorithm {
             let _: api_models::routing::RoutingAlgorithm = routing_algorithm
                 .clone()
@@ -274,6 +285,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
+                    pm_collect_link_config,
                 },
             )
         }
@@ -414,6 +426,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
+                    pm_collect_link_config: None,
                 },
             )
         }
@@ -577,6 +590,7 @@ pub async fn update_business_profile_cascade(
             payment_link_config: None,
             session_expiry: None,
             authentication_connector_details: None,
+            payout_link_config: None,
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
@@ -646,6 +660,17 @@ pub async fn merchant_account_update(
                     field_name: "primary_business_details",
                 },
             )
+        })
+        .transpose()?;
+
+    let pm_collect_link_config = req
+        .pm_collect_link_config
+        .as_ref()
+        .map(|c| {
+            c.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config",
+                })
         })
         .transpose()?;
 
@@ -739,6 +764,7 @@ pub async fn merchant_account_update(
         payout_routing_algorithm: None,
         default_profile: business_profile_id_update,
         payment_link_config: None,
+        pm_collect_link_config,
     };
 
     let response = db
@@ -1822,6 +1848,14 @@ pub async fn update_business_profile(
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
+            })?,
+        payout_link_config: request
+            .payout_link_config
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payout_link_config",
             })?,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
