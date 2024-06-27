@@ -421,7 +421,7 @@ pub fn get_payment_link_config_based_on_priority(
                         .as_ref()
                         .and_then(|specific_configs| specific_configs.get(&id).cloned())
                 })
-                .or_else(|| extracted_value.default_config),
+                .or(extracted_value.default_config),
         )
     } else {
         (default_domain_name, None)
