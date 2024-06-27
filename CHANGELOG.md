@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.20.1-hotfix2
+
+### Bug Fixes
+
+- Fix(router): skip serialize if none for assurance_details_required in googlepay session response ([#5139](https://github.com/juspay/hyperswitch/pull/5139)) ([`54b2a8b`](https://github.com/juspay/hyperswitch/commit/54b2a8b6308e1ebf87312be27a2a8c4a9f074d83))
+
+### Miscellaneous Tasks
+
+- **cards:** Add configuration option to change the decryption scheme locker ([#5145](https://github.com/juspay/hyperswitch/pull/5145)) ([`8a30400`](https://github.com/juspay/hyperswitch/commit/8a30400b880b63eda1bf5a33ffda4926d509586c))
+
+- - -
+
 ## 2024.06.20.1-hotfix1
 
 ### Bug Fixes
