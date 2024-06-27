@@ -2,10 +2,11 @@ use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    generate_customer_id_of_default_length, id_type,
+    fp_utils, generate_customer_id_of_default_length, id_type,
+    types::MinorUnit,
 };
 use diesel_models::encryption::Encryption;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
@@ -883,6 +884,20 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
     )
 }
 
+pub(crate) fn validate_payout_status_against_not_allowed_statuses(
+    payout_status: &api_enums::PayoutStatus,
+    not_allowed_statuses: &[api_enums::PayoutStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(not_allowed_statuses.contains(payout_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payout because it has status {payout_status}",
+            ),
+        })
+    })
+}
+
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
@@ -921,4 +936,106 @@ pub(super) async fn filter_by_constraints(
         .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
         .await?;
     Ok(result)
+}
+
+pub async fn update_payouts_and_payout_attempt(
+    payout_data: &mut PayoutData,
+    merchant_account: &domain::MerchantAccount,
+    req: &payouts::PayoutCreateRequest,
+    state: &SessionState,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let payout_attempt = payout_data.payout_attempt.to_owned();
+    let status = payout_attempt.status;
+    let payout_id = payout_attempt.payout_id.clone();
+    // Verify update feasibility
+    if is_payout_terminal_state(status) || is_payout_initiated(status) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payout {} cannot be updated for status {}",
+                payout_id, status
+            ),
+        }));
+    }
+
+    // Update DB with new data
+    let payouts = payout_data.payouts.to_owned();
+    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
+        .get_amount_as_i64();
+    let updated_payouts = storage::PayoutsUpdate::Update {
+        amount,
+        destination_currency: req
+            .currency
+            .to_owned()
+            .unwrap_or(payouts.destination_currency),
+        source_currency: req.currency.to_owned().unwrap_or(payouts.source_currency),
+        description: req
+            .description
+            .to_owned()
+            .clone()
+            .or(payouts.description.clone()),
+        recurring: req.recurring.to_owned().unwrap_or(payouts.recurring),
+        auto_fulfill: req.auto_fulfill.to_owned().unwrap_or(payouts.auto_fulfill),
+        return_url: req
+            .return_url
+            .to_owned()
+            .clone()
+            .or(payouts.return_url.clone()),
+        entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
+        metadata: req.metadata.clone().or(payouts.metadata.clone()),
+        status: Some(status),
+        profile_id: Some(payout_attempt.profile_id.clone()),
+        confirm: req.confirm.to_owned(),
+        payout_type: req
+            .payout_type
+            .to_owned()
+            .or(payouts.payout_type.to_owned()),
+    };
+    let db = &*state.store;
+    payout_data.payouts = db
+        .update_payout(
+            &payouts,
+            updated_payouts,
+            &payout_attempt,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating payouts")?;
+    let updated_business_country =
+        payout_attempt
+            .business_country
+            .map_or(req.business_country.to_owned(), |c| {
+                req.business_country
+                    .to_owned()
+                    .and_then(|nc| if nc != c { Some(nc) } else { None })
+            });
+    let updated_business_label =
+        payout_attempt
+            .business_label
+            .map_or(req.business_label.to_owned(), |l| {
+                req.business_label
+                    .to_owned()
+                    .and_then(|nl| if nl != l { Some(nl) } else { None })
+            });
+    match (updated_business_country, updated_business_label) {
+        (None, None) => Ok(()),
+        (business_country, business_label) => {
+            let payout_attempt = &payout_data.payout_attempt;
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
+                business_country,
+                business_label,
+            };
+            payout_data.payout_attempt = db
+                .update_payout_attempt(
+                    payout_attempt,
+                    updated_payout_attempt,
+                    &payout_data.payouts,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payout_attempt")?;
+            Ok(())
+        }
+    }
 }

@@ -1,0 +1,9 @@
+{
+  "childrenOrder": [
+    "upsert Surcharge rules",
+    "Payments - Create",
+    "List Payment Methods for a Merchant",
+    "Payments - Confirm",
+    "Payments - Retrieve"
+  ]
+}

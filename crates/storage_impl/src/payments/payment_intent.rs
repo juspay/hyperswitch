@@ -4,7 +4,7 @@ use api_models::payments::AmountFilter;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
-use common_utils::{date_time, ext_traits::Encode};
+use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
@@ -12,8 +12,7 @@ use diesel_models::{
     kv,
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
-        PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
-        PaymentIntentUpdate as DieselPaymentIntentUpdate,
+        PaymentIntent as DieselPaymentIntent, PaymentIntentUpdate as DieselPaymentIntentUpdate,
     },
 };
 #[cfg(feature = "olap")]
@@ -25,10 +24,12 @@ use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors::StorageError,
+    merchant_key_store::MerchantKeyStore,
     payments::{
         payment_attempt::PaymentAttempt,
-        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
+        payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
         PaymentIntent,
     },
     RemoteStorageObject,
@@ -52,12 +53,13 @@ use crate::{
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        payment_intent: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
-        let merchant_id = new.merchant_id.clone();
-        let payment_id = new.payment_id.clone();
-        let field = format!("pi_{}", new.payment_id);
+        let merchant_id = payment_intent.merchant_id.clone();
+        let payment_id = payment_intent.payment_id.clone();
+        let field = format!("pi_{}", payment_intent.payment_id);
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
@@ -67,70 +69,35 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payment_intent(new, storage_scheme)
+                    .insert_payment_intent(payment_intent, merchant_key_store, storage_scheme)
                     .await
             }
 
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
-                let created_intent = PaymentIntent {
-                    id: 0i32,
-                    payment_id: new.payment_id.clone(),
-                    merchant_id: new.merchant_id.clone(),
-                    status: new.status,
-                    amount: new.amount,
-                    currency: new.currency,
-                    amount_captured: new.amount_captured,
-                    customer_id: new.customer_id.clone(),
-                    description: new.description.clone(),
-                    return_url: new.return_url.clone(),
-                    metadata: new.metadata.clone(),
-                    frm_metadata: new.frm_metadata.clone(),
-                    connector_id: new.connector_id.clone(),
-                    shipping_address_id: new.shipping_address_id.clone(),
-                    billing_address_id: new.billing_address_id.clone(),
-                    statement_descriptor_name: new.statement_descriptor_name.clone(),
-                    statement_descriptor_suffix: new.statement_descriptor_suffix.clone(),
-                    created_at: new.created_at.unwrap_or_else(date_time::now),
-                    modified_at: new.created_at.unwrap_or_else(date_time::now),
-                    last_synced: new.last_synced,
-                    setup_future_usage: new.setup_future_usage,
-                    off_session: new.off_session,
-                    client_secret: new.client_secret.clone(),
-                    business_country: new.business_country,
-                    business_label: new.business_label.clone(),
-                    active_attempt: new.active_attempt.clone(),
-                    order_details: new.order_details.clone(),
-                    allowed_payment_method_types: new.allowed_payment_method_types.clone(),
-                    connector_metadata: new.connector_metadata.clone(),
-                    feature_metadata: new.feature_metadata.clone(),
-                    attempt_count: new.attempt_count,
-                    profile_id: new.profile_id.clone(),
-                    merchant_decision: new.merchant_decision.clone(),
-                    payment_link_id: new.payment_link_id.clone(),
-                    payment_confirm_source: new.payment_confirm_source,
-                    updated_by: storage_scheme.to_string(),
-                    surcharge_applicable: new.surcharge_applicable,
-                    request_incremental_authorization: new.request_incremental_authorization,
-                    incremental_authorization_allowed: new.incremental_authorization_allowed,
-                    authorization_count: new.authorization_count,
-                    fingerprint_id: new.fingerprint_id.clone(),
-                    session_expiry: new.session_expiry,
-                    request_external_three_ds_authentication: new
-                        .request_external_three_ds_authentication,
-                    charges: new.charges.clone(),
-                };
+                let new_payment_intent = payment_intent
+                    .clone()
+                    .construct_new()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
+
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
+                        insertable: kv::Insertable::PaymentIntent(new_payment_intent),
                     },
                 };
+
+                let diesel_payment_intent = payment_intent
+                    .clone()
+                    .convert()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
 
                 match kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
-                        &created_intent.clone().to_storage_model(),
+                        &diesel_payment_intent,
                         redis_entry,
                     ),
                     key,
@@ -144,7 +111,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         key: Some(key_str),
                     }
                     .into()),
-                    Ok(HsetnxReply::KeySet) => Ok(created_intent),
+                    Ok(HsetnxReply::KeySet) => Ok(payment_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
             }
@@ -156,6 +123,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         this: PaymentIntent,
         payment_intent_update: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = this.merchant_id.clone();
@@ -174,14 +142,22 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payment_intent(this, payment_intent_update, storage_scheme)
+                    .update_payment_intent(
+                        this,
+                        payment_intent_update,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
                     .await
             }
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let diesel_intent_update = payment_intent_update.to_storage_model();
-                let origin_diesel_intent = this.to_storage_model();
+                let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
+                let origin_diesel_intent = this
+                    .convert()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
 
                 let diesel_intent = diesel_intent_update
                     .clone()
@@ -213,7 +189,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(PaymentIntent::from_storage_model(diesel_intent))
+                let payment_intent =
+                    PaymentIntent::convert_back(diesel_intent, merchant_key_store.key.get_inner())
+                        .await
+                        .change_context(StorageError::DecryptionError)?;
+
+                Ok(payment_intent)
             }
         }
     }
@@ -223,6 +204,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let database_call = || async {
@@ -236,7 +218,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         };
         let storage_scheme =
             decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Find).await;
-        match storage_scheme {
+        let diesel_payment_intent = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
@@ -259,8 +241,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 ))
                 .await
             }
-        }
-        .map(PaymentIntent::from_storage_model)
+        }?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     async fn get_active_payment_attempt(
@@ -295,10 +280,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         self.router_store
-            .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
+            .filter_payment_intent_by_constraints(
+                merchant_id,
+                filters,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -307,12 +298,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         self.router_store
             .filter_payment_intents_by_time_range_constraints(
                 merchant_id,
                 time_range,
+                merchant_key_store,
                 storage_scheme,
             )
             .await
@@ -323,10 +316,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         self.router_store
-            .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
+            .get_filtered_payment_intents_attempt(
+                merchant_id,
+                filters,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -352,18 +351,25 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        payment_intent: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model()
+        let diesel_payment_intent = payment_intent
+            .construct_new()
+            .await
+            .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
-            })
-            .map(PaymentIntent::from_storage_model)
+            })?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -371,17 +377,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.to_storage_model()
-            .update(&conn, payment_intent.to_storage_model())
+        let diesel_payment_intent_update = DieselPaymentIntentUpdate::from(payment_intent);
+
+        let diesel_payment_intent = this
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?
+            .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
-            })
-            .map(PaymentIntent::from_storage_model)
+            })?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -389,16 +404,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
+
         DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
             .await
-            .map(PaymentIntent::from_storage_model)
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+            .async_and_then(|diesel_payment_intent| async {
+                PaymentIntent::convert_back(
+                    diesel_payment_intent,
+                    merchant_key_store.key.get_inner(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+            })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -435,9 +460,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -473,6 +500,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 starting_after_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -490,6 +518,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 ending_before_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -529,18 +558,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map(|payment_intents| {
-            payment_intents
-                .into_iter()
-                .map(PaymentIntent::from_storage_model)
-                .collect::<Vec<PaymentIntent>>()
+            try_join_all(payment_intents.into_iter().map(|diesel_payment_intent| {
+                PaymentIntent::convert_back(
+                    diesel_payment_intent,
+                    merchant_key_store.key.get_inner(),
+                )
+            }))
+            .map(|join_result| join_result.change_context(StorageError::DecryptionError))
         })
         .map_err(|er| {
             StorageError::DatabaseError(
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payment records"),
             )
-            .into()
-        })
+        })?
+        .await
     }
 
     #[cfg(feature = "olap")]
@@ -549,12 +581,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         // TODO: Remove this redundant function
         let payment_filters = (*time_range).into();
-        self.filter_payment_intent_by_constraints(merchant_id, &payment_filters, storage_scheme)
-            .await
+        self.filter_payment_intent_by_constraints(
+            merchant_id,
+            &payment_filters,
+            merchant_key_store,
+            storage_scheme,
+        )
+        .await
     }
 
     #[cfg(feature = "olap")]
@@ -563,8 +601,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+        use futures::{future::try_join_all, FutureExt};
+
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -601,6 +642,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 starting_after_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -618,6 +660,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 ending_before_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -701,23 +744,24 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .get_results_async::<(DieselPaymentIntent, DieselPaymentAttempt)>(conn)
             .await
             .map(|results| {
-                results
-                    .into_iter()
-                    .map(|(pi, pa)| {
-                        (
-                            PaymentIntent::from_storage_model(pi),
-                            PaymentAttempt::from_storage_model(pa),
-                        )
-                    })
-                    .collect()
+                try_join_all(results.into_iter().map(|(pi, pa)| {
+                    PaymentIntent::convert_back(pi, merchant_key_store.key.get_inner()).map(
+                        |payment_intent| {
+                            payment_intent.map(|payment_intent| {
+                                (payment_intent, PaymentAttempt::from_storage_model(pa))
+                            })
+                        },
+                    )
+                }))
+                .map(|join_result| join_result.change_context(StorageError::DecryptionError))
             })
             .map_err(|er| {
                 StorageError::DatabaseError(
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payment records"),
                 )
-                .into()
-            })
+            })?
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -800,383 +844,5 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             )
             .into()
         })
-    }
-}
-
-impl DataModelExt for PaymentIntentNew {
-    type StorageModel = DieselPaymentIntentNew;
-
-    fn to_storage_model(self) -> Self::StorageModel {
-        DieselPaymentIntentNew {
-            payment_id: self.payment_id,
-            merchant_id: self.merchant_id,
-            status: self.status,
-            amount: self.amount,
-            currency: self.currency,
-            amount_captured: self.amount_captured,
-            customer_id: self.customer_id,
-            description: self.description,
-            return_url: self.return_url,
-            metadata: self.metadata,
-            frm_metadata: self.frm_metadata,
-            connector_id: self.connector_id,
-            shipping_address_id: self.shipping_address_id,
-            billing_address_id: self.billing_address_id,
-            statement_descriptor_name: self.statement_descriptor_name,
-            statement_descriptor_suffix: self.statement_descriptor_suffix,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
-            last_synced: self.last_synced,
-            setup_future_usage: self.setup_future_usage,
-            off_session: self.off_session,
-            client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.get_id(),
-            business_country: self.business_country,
-            business_label: self.business_label,
-            order_details: self.order_details,
-            allowed_payment_method_types: self.allowed_payment_method_types,
-            connector_metadata: self.connector_metadata,
-            feature_metadata: self.feature_metadata,
-            attempt_count: self.attempt_count,
-            profile_id: self.profile_id,
-            merchant_decision: self.merchant_decision,
-            payment_link_id: self.payment_link_id,
-            payment_confirm_source: self.payment_confirm_source,
-            updated_by: self.updated_by,
-            surcharge_applicable: self.surcharge_applicable,
-            request_incremental_authorization: self.request_incremental_authorization,
-            incremental_authorization_allowed: self.incremental_authorization_allowed,
-            authorization_count: self.authorization_count,
-            fingerprint_id: self.fingerprint_id,
-            session_expiry: self.session_expiry,
-            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
-        }
-    }
-
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        Self {
-            payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
-            status: storage_model.status,
-            amount: storage_model.amount,
-            currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
-            customer_id: storage_model.customer_id,
-            description: storage_model.description,
-            return_url: storage_model.return_url,
-            metadata: storage_model.metadata,
-            frm_metadata: storage_model.frm_metadata,
-            connector_id: storage_model.connector_id,
-            shipping_address_id: storage_model.shipping_address_id,
-            billing_address_id: storage_model.billing_address_id,
-            statement_descriptor_name: storage_model.statement_descriptor_name,
-            statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
-            last_synced: storage_model.last_synced,
-            setup_future_usage: storage_model.setup_future_usage,
-            off_session: storage_model.off_session,
-            client_secret: storage_model.client_secret,
-            active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
-            business_country: storage_model.business_country,
-            business_label: storage_model.business_label,
-            order_details: storage_model.order_details,
-            allowed_payment_method_types: storage_model.allowed_payment_method_types,
-            connector_metadata: storage_model.connector_metadata,
-            feature_metadata: storage_model.feature_metadata,
-            attempt_count: storage_model.attempt_count,
-            profile_id: storage_model.profile_id,
-            merchant_decision: storage_model.merchant_decision,
-            payment_link_id: storage_model.payment_link_id,
-            payment_confirm_source: storage_model.payment_confirm_source,
-            updated_by: storage_model.updated_by,
-            surcharge_applicable: storage_model.surcharge_applicable,
-            request_incremental_authorization: storage_model.request_incremental_authorization,
-            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
-            authorization_count: storage_model.authorization_count,
-            fingerprint_id: storage_model.fingerprint_id,
-            session_expiry: storage_model.session_expiry,
-            request_external_three_ds_authentication: storage_model
-                .request_external_three_ds_authentication,
-            charges: storage_model.charges,
-        }
-    }
-}
-
-impl DataModelExt for PaymentIntent {
-    type StorageModel = DieselPaymentIntent;
-
-    fn to_storage_model(self) -> Self::StorageModel {
-        DieselPaymentIntent {
-            id: self.id,
-            payment_id: self.payment_id,
-            merchant_id: self.merchant_id,
-            status: self.status,
-            amount: self.amount,
-            currency: self.currency,
-            amount_captured: self.amount_captured,
-            customer_id: self.customer_id,
-            description: self.description,
-            return_url: self.return_url,
-            metadata: self.metadata,
-            connector_id: self.connector_id,
-            shipping_address_id: self.shipping_address_id,
-            billing_address_id: self.billing_address_id,
-            statement_descriptor_name: self.statement_descriptor_name,
-            statement_descriptor_suffix: self.statement_descriptor_suffix,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
-            last_synced: self.last_synced,
-            setup_future_usage: self.setup_future_usage,
-            off_session: self.off_session,
-            client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.get_id(),
-            business_country: self.business_country,
-            business_label: self.business_label,
-            order_details: self.order_details,
-            allowed_payment_method_types: self.allowed_payment_method_types,
-            connector_metadata: self.connector_metadata,
-            feature_metadata: self.feature_metadata,
-            attempt_count: self.attempt_count,
-            profile_id: self.profile_id,
-            merchant_decision: self.merchant_decision,
-            payment_link_id: self.payment_link_id,
-            payment_confirm_source: self.payment_confirm_source,
-            updated_by: self.updated_by,
-            surcharge_applicable: self.surcharge_applicable,
-            request_incremental_authorization: self.request_incremental_authorization,
-            incremental_authorization_allowed: self.incremental_authorization_allowed,
-            authorization_count: self.authorization_count,
-            fingerprint_id: self.fingerprint_id,
-            session_expiry: self.session_expiry,
-            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
-            frm_metadata: self.frm_metadata,
-        }
-    }
-
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        Self {
-            id: storage_model.id,
-            payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
-            status: storage_model.status,
-            amount: storage_model.amount,
-            currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
-            customer_id: storage_model.customer_id,
-            description: storage_model.description,
-            return_url: storage_model.return_url,
-            metadata: storage_model.metadata,
-            connector_id: storage_model.connector_id,
-            shipping_address_id: storage_model.shipping_address_id,
-            billing_address_id: storage_model.billing_address_id,
-            statement_descriptor_name: storage_model.statement_descriptor_name,
-            statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
-            last_synced: storage_model.last_synced,
-            setup_future_usage: storage_model.setup_future_usage,
-            off_session: storage_model.off_session,
-            client_secret: storage_model.client_secret,
-            active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
-            business_country: storage_model.business_country,
-            business_label: storage_model.business_label,
-            order_details: storage_model.order_details,
-            allowed_payment_method_types: storage_model.allowed_payment_method_types,
-            connector_metadata: storage_model.connector_metadata,
-            feature_metadata: storage_model.feature_metadata,
-            attempt_count: storage_model.attempt_count,
-            profile_id: storage_model.profile_id,
-            merchant_decision: storage_model.merchant_decision,
-            payment_link_id: storage_model.payment_link_id,
-            payment_confirm_source: storage_model.payment_confirm_source,
-            updated_by: storage_model.updated_by,
-            surcharge_applicable: storage_model.surcharge_applicable,
-            request_incremental_authorization: storage_model.request_incremental_authorization,
-            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
-            authorization_count: storage_model.authorization_count,
-            fingerprint_id: storage_model.fingerprint_id,
-            session_expiry: storage_model.session_expiry,
-            request_external_three_ds_authentication: storage_model
-                .request_external_three_ds_authentication,
-            charges: storage_model.charges,
-            frm_metadata: storage_model.frm_metadata,
-        }
-    }
-}
-
-impl DataModelExt for PaymentIntentUpdate {
-    type StorageModel = DieselPaymentIntentUpdate;
-
-    fn to_storage_model(self) -> Self::StorageModel {
-        match self {
-            Self::ResponseUpdate {
-                status,
-                amount_captured,
-                fingerprint_id,
-                return_url,
-                updated_by,
-                incremental_authorization_allowed,
-            } => DieselPaymentIntentUpdate::ResponseUpdate {
-                status,
-                amount_captured,
-                fingerprint_id,
-                return_url,
-                updated_by,
-                incremental_authorization_allowed,
-            },
-            Self::MetadataUpdate {
-                metadata,
-                updated_by,
-            } => DieselPaymentIntentUpdate::MetadataUpdate {
-                metadata,
-                updated_by,
-            },
-            Self::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                updated_by,
-            } => DieselPaymentIntentUpdate::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                updated_by,
-            },
-            Self::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-                updated_by,
-            } => DieselPaymentIntentUpdate::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-                updated_by,
-            },
-            Self::PGStatusUpdate {
-                status,
-                updated_by,
-                incremental_authorization_allowed,
-            } => DieselPaymentIntentUpdate::PGStatusUpdate {
-                status,
-                updated_by,
-                incremental_authorization_allowed,
-            },
-            Self::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-                updated_by,
-                fingerprint_id,
-                session_expiry,
-                request_external_three_ds_authentication,
-                frm_metadata,
-            } => DieselPaymentIntentUpdate::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-                updated_by,
-                fingerprint_id,
-                session_expiry,
-                request_external_three_ds_authentication,
-                frm_metadata,
-            },
-            Self::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-                updated_by,
-            } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-                updated_by,
-            },
-            Self::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-                updated_by,
-            } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-                updated_by,
-            },
-            Self::ApproveUpdate {
-                status,
-                merchant_decision,
-                updated_by,
-            } => DieselPaymentIntentUpdate::ApproveUpdate {
-                status,
-                merchant_decision,
-                updated_by,
-            },
-            Self::RejectUpdate {
-                status,
-                merchant_decision,
-                updated_by,
-            } => DieselPaymentIntentUpdate::RejectUpdate {
-                status,
-                merchant_decision,
-                updated_by,
-            },
-            Self::SurchargeApplicableUpdate {
-                surcharge_applicable,
-                updated_by,
-            } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
-                surcharge_applicable: Some(surcharge_applicable),
-                updated_by,
-            },
-            Self::IncrementalAuthorizationAmountUpdate { amount } => {
-                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
-            }
-            Self::AuthorizationCountUpdate {
-                authorization_count,
-            } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
-                authorization_count,
-            },
-            Self::CompleteAuthorizeUpdate {
-                shipping_address_id,
-            } => DieselPaymentIntentUpdate::CompleteAuthorizeUpdate {
-                shipping_address_id,
-            },
-        }
-    }
-
-    #[allow(clippy::todo)]
-    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
-        todo!("Reverse map should no longer be needed")
     }
 }

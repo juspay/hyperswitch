@@ -12,12 +12,12 @@ impl ConnectorActions for NmiTest {}
 impl utils::Connector for NmiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nmi;
-        types::api::ConnectorData {
-            connector: Box::new(Nmi::new()),
-            connector_name: types::Connector::Nmi,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Nmi::new()),
+            types::Connector::Nmi,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

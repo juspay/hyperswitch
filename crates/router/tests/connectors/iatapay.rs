@@ -14,12 +14,12 @@ impl ConnectorActions for IatapayTest {}
 impl Connector for IatapayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Iatapay;
-        api::ConnectorData {
-            connector: Box::new(&Iatapay),
-            connector_name: types::Connector::Iatapay,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Iatapay),
+            types::Connector::Iatapay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

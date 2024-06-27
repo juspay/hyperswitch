@@ -1,5 +1,6 @@
 pub mod access_token;
 pub mod conditional_configs;
+pub mod connector_integration_v2_impls;
 pub mod customers;
 pub mod flows;
 pub mod helpers;
@@ -78,10 +79,10 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState},
-    services::{self, api::Authenticate},
+    services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, authentication, ConnectorCallType},
+        api::{self, authentication, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
@@ -330,6 +331,7 @@ where
                             &validate_result.payment_id,
                             payment_data,
                             router_data,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await?
@@ -434,6 +436,7 @@ where
                             &validate_result.payment_id,
                             payment_data,
                             router_data,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await?
@@ -1158,6 +1161,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 &merchant_id,
+                &merchant_key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1437,7 +1441,7 @@ where
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, merchant_account, operation, payment_data).await?;
+    blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -1622,6 +1626,7 @@ where
 async fn blocklist_guard<F, ApiRequest>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
@@ -1650,7 +1655,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, merchant_account, payment_data)
+            .guard_payment_against_blocklist(state, merchant_account, key_store, payment_data)
             .await?)
     } else {
         Ok(false)
@@ -2660,16 +2665,22 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
-    let payment_intents =
-        helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intents = helpers::filter_by_constraints(
+        db,
+        &constraints,
+        merchant_id,
+        &key_store,
+        merchant.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2726,6 +2737,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     let limit = &constraints.limit;
@@ -2735,6 +2747,7 @@ pub async fn apply_filters_on_payments(
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
             &constraints.clone().into(),
+            &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
@@ -2779,6 +2792,7 @@ pub async fn apply_filters_on_payments(
 pub async fn get_filters_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    merchant_key_store: domain::MerchantKeyStore,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
     let db = state.store.as_ref();
@@ -2786,6 +2800,7 @@ pub async fn get_filters_for_payments(
         .filter_payment_intents_by_time_range_constraints(
             &merchant.merchant_id,
             &time_range,
+            &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
@@ -3638,57 +3653,61 @@ pub async fn perform_session_token_routing<F>(
 where
     F: Clone,
 {
-    let routing_info: Option<storage::PaymentRoutingInfo> = payment_data
-        .payment_attempt
-        .straight_through_algorithm
-        .clone()
-        .map(|val| val.parse_value("PaymentRoutingInfo"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("invalid payment routing info format found in payment attempt")?;
+    // Commenting out this code as `list_payment_method_api` and `perform_session_token_routing`
+    // will happen in parallel the behaviour of the session call differ based on filters in
+    // list_payment_method_api
 
-    if let Some(storage::PaymentRoutingInfo {
-        pre_routing_results: Some(pre_routing_results),
-        ..
-    }) = routing_info
-    {
-        let mut payment_methods: rustc_hash::FxHashMap<
-            (String, enums::PaymentMethodType),
-            api::SessionConnectorData,
-        > = rustc_hash::FxHashMap::from_iter(connectors.iter().map(|c| {
-            (
-                (
-                    c.connector.connector_name.to_string(),
-                    c.payment_method_type,
-                ),
-                c.clone(),
-            )
-        }));
+    // let routing_info: Option<storage::PaymentRoutingInfo> = payment_data
+    //     .payment_attempt
+    //     .straight_through_algorithm
+    //     .clone()
+    //     .map(|val| val.parse_value("PaymentRoutingInfo"))
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("invalid payment routing info format found in payment attempt")?;
 
-        let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
-        for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
-            let routable_connector_list = match pre_routing_choice {
-                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
-                    vec![routable_connector.clone()]
-                }
-                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
-                    routable_connector_list.clone()
-                }
-            };
-            for routable_connector in routable_connector_list {
-                if let Some(session_connector_data) =
-                    payment_methods.remove(&(routable_connector.to_string(), routed_pm_type))
-                {
-                    final_list.push(session_connector_data);
-                    break;
-                }
-            }
-        }
+    // if let Some(storage::PaymentRoutingInfo {
+    //     pre_routing_results: Some(pre_routing_results),
+    //     ..
+    // }) = routing_info
+    // {
+    //     let mut payment_methods: rustc_hash::FxHashMap<
+    //         (String, enums::PaymentMethodType),
+    //         api::SessionConnectorData,
+    //     > = rustc_hash::FxHashMap::from_iter(connectors.iter().map(|c| {
+    //         (
+    //             (
+    //                 c.connector.connector_name.to_string(),
+    //                 c.payment_method_type,
+    //             ),
+    //             c.clone(),
+    //         )
+    //     }));
 
-        if !final_list.is_empty() {
-            return Ok(final_list);
-        }
-    }
+    //     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
+    //     for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
+    //         let routable_connector_list = match pre_routing_choice {
+    //             storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+    //                 vec![routable_connector.clone()]
+    //             }
+    //             storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+    //                 routable_connector_list.clone()
+    //             }
+    //         };
+    //         for routable_connector in routable_connector_list {
+    //             if let Some(session_connector_data) =
+    //                 payment_methods.remove(&(routable_connector.to_string(), routed_pm_type))
+    //             {
+    //                 final_list.push(session_connector_data);
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     if !final_list.is_empty() {
+    //         return Ok(final_list);
+    //     }
+    // }
 
     let routing_enabled_pms = HashSet::from([
         enums::PaymentMethodType::GooglePay,
@@ -3891,7 +3910,12 @@ pub async fn payment_external_authentication(
     let storage_scheme = merchant_account.storage_scheme;
     let payment_id = req.payment_id;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+        .find_payment_intent_by_payment_id_merchant_id(
+            &payment_id,
+            merchant_id,
+            &key_store,
+            storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     let attempt_id = payment_intent.active_attempt.get_id().clone();
@@ -4109,4 +4133,116 @@ pub async fn get_extended_card_info(
     Ok(services::ApplicationResponse::Json(
         payments_api::ExtendedCardInfoResponse { payload },
     ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payments_manual_update(
+    state: SessionState,
+    req: api_models::payments::PaymentsManualUpdateRequest,
+) -> RouterResponse<serde_json::Value> {
+    let api_models::payments::PaymentsManualUpdateRequest {
+        payment_id,
+        attempt_id,
+        merchant_id,
+        attempt_status,
+        error_code,
+        error_message,
+        error_reason,
+    } = req;
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_id,
+            &merchant_id,
+            &attempt_id.clone(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
+        )?;
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_merchant_id(
+            &payment_id,
+            &merchant_account.merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+    let option_gsm = if let Some(((code, message), connector_name)) = error_code
+        .as_ref()
+        .zip(error_message.as_ref())
+        .zip(payment_attempt.connector.as_ref())
+    {
+        helpers::get_gsm_record(
+            &state,
+            Some(code.to_string()),
+            Some(message.to_string()),
+            connector_name.to_string(),
+            // We need to get the unified_code and unified_message of the Authorize flow
+            "Authorize".to_string(),
+        )
+        .await
+    } else {
+        None
+    };
+    // Update the payment_attempt
+    let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
+        status: attempt_status,
+        error_code,
+        error_message,
+        error_reason,
+        updated_by: merchant_account.storage_scheme.to_string(),
+        unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
+        unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
+    };
+    let updated_payment_attempt = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+    // If the payment_attempt is active attempt for an intent, update the intent status
+    if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
+        let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
+        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+            status: Some(intent_status),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        };
+        state
+            .store
+            .update_payment_intent(
+                payment_intent,
+                payment_intent_update,
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating payment_intent")?;
+    }
+    Ok(services::ApplicationResponse::StatusOk)
 }

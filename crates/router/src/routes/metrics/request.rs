@@ -1,4 +1,4 @@
-use router_env::{metrics::add_attributes, opentelemetry};
+use router_env::metrics::add_attributes;
 
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
@@ -25,20 +25,6 @@ where
     result
 }
 
-#[inline]
-pub async fn record_operation_time<F, R>(
-    future: F,
-    metric: &once_cell::sync::Lazy<opentelemetry::metrics::Histogram<f64>>,
-    key_value: &[opentelemetry::KeyValue],
-) -> R
-where
-    F: futures::Future<Output = R>,
-{
-    let (result, time) = metric_utils::time_future(future).await;
-    metric.record(&super::CONTEXT, time.as_secs_f64(), key_value);
-    result
-}
-
 pub fn status_code_metrics(status_code: String, flow: String, merchant_id: String) {
     super::REQUEST_STATUS.add(
         &super::CONTEXT,
@@ -57,6 +43,7 @@ pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
         | ApplicationResponse::StatusOk
         | ApplicationResponse::TextPlain(_)
         | ApplicationResponse::Form(_)
+        | ApplicationResponse::GenericLinkForm(_)
         | ApplicationResponse::PaymentLinkForm(_)
         | ApplicationResponse::FileData(_)
         | ApplicationResponse::JsonWithHeaders(_) => 200,
