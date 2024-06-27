@@ -87,7 +87,7 @@
                     "setup_future_usage": "off_session",
                     "mandate_data": {
                       "customer_acceptance": {
-                        "acceptance_type": "offline",
+                        "acceptance_type": "online",
                         "accepted_at": "1963-05-03T04:07:52.723Z",
                         "online": {
                           "ip_address": "127.0.0.1",
@@ -102,7 +102,7 @@
                       }
                     },
                     "customer_acceptance": {
-                      "acceptance_type": "offline",
+                      "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
                       "online": {
                         "ip_address": "127.0.0.1",
@@ -141,6 +141,14 @@
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
                         "card_cvc": "123"
+                      }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
                     },
                     "setup_future_usage": "off_session"
@@ -312,7 +320,7 @@ pub fn payments_update() {}
                 }
               },
               "customer_acceptance": {
-                "acceptance_type": "offline",
+                "acceptance_type": "online",
                 "accepted_at": "1963-05-03T04:07:52.723Z",
                 "online": {
                   "ip_address": "127.0.0.1",
