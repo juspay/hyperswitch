@@ -40,7 +40,6 @@ impl ApiEventMetric for TimeRange {}
 
 impl_misc_api_event_type!(
     PaymentMethodId,
-    PaymentsSessionResponse,
     PaymentMethodCreate,
     PaymentLinkInitiateRequest,
     RetrievePaymentLinkResponse,
