@@ -85,6 +85,7 @@ describe("Bank Redirect tests", () => {
         this.skip();
       }
     });
+    
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
