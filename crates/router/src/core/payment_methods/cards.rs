@@ -657,21 +657,32 @@ pub async fn add_payment_method(
                             .attach_printable("Failed while updating card metadata changes"))?
                     };
 
+                    let existing_pm_data = get_card_details_without_locker_fallback(
+                        &existing_pm,
+                        key_store.key.peek(),
+                        &state,
+                    )
+                    .await?;
+
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: card.card_issuing_country,
+                        issuer_country: card
+                            .card_issuing_country
+                            .or(existing_pm_data.issuer_country),
                         card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
                         card_token: None,
                         card_fingerprint: None,
-                        card_holder_name: card.card_holder_name,
-                        nick_name: card.nick_name,
-                        card_network: card.card_network,
-                        card_issuer: card.card_issuer,
-                        card_type: card.card_type,
+                        card_holder_name: card
+                            .card_holder_name
+                            .or(existing_pm_data.card_holder_name),
+                        nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                        card_network: card.card_network.or(existing_pm_data.card_network),
+                        card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                        card_type: card.card_type.or(existing_pm_data.card_type),
                         saved_to_locker: true,
                     });
 
@@ -4337,7 +4348,7 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     utils::when(
-        &pm.status == &storage_enums::PaymentMethodStatus::Inactive,
+        pm.status == storage_enums::PaymentMethodStatus::Inactive,
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "The payment method has already been disabled".to_string(),
@@ -4408,7 +4419,7 @@ pub async fn delete_payment_method(
         .transpose()?;
 
     if let Some(connector_mandate_details) = connector_mandate_id {
-        // get the mca ids and then filter on the basis of configs
+        // filter the mcas that have the connector_mandate_id
 
         delete_connector_mandate_metadata(
             db,
@@ -4534,6 +4545,7 @@ pub async fn delete_connector_mandate_metadata(
         &payment_mandate_reference,
     )
     .await?;
+    // TODO: filter on the basis of the configs, for the connectors that don't support revoke
     let filtered_mca_ids = mca_ids
         .into_iter()
         .filter(|(mca_id, _)| payment_mandate_reference.contains_key(mca_id))

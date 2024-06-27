@@ -14,7 +14,9 @@ use crate::{
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use scheduler::workflows::ProcessTrackerWorkflow;
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+};
 
 pub struct PaymentMethodMandateDetailsRevokeWorkflow;
 
@@ -40,7 +42,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
             )
             .await?;
 
-        let _retry_count = process.retry_count;
+        let retry_count = process.retry_count;
         let merchant_account = db
             .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await?;
@@ -93,10 +95,38 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                     .finish_process_with_business_status(process, "COMPLETED_BY_PT")
                     .await?;
             }
-            Err(_) => {
+            Err(err) => {
                 // if not implemented end the task in the PT
-                // if not supported revoke in the core, not handle  here
-                // if genuine err re scgedule task
+                if err.code == "IR_00" {
+                    db.as_scheduler()
+                        .finish_process_with_business_status(
+                            process,
+                            "NOT IMPLEMENTED FOR THE CONNECTOR",
+                        )
+                        .await?;
+                } else {
+                    // if connector err re-schedule task
+                    let mapping = process_data::PaymentMethodMandateRevokePTMapping::default();
+                    let time_delta = if retry_count == 0 {
+                        Some(mapping.default.start_after)
+                    } else {
+                        pt_utils::get_delay(retry_count + 1, &mapping.default.frequencies)
+                    };
+                    let schedule_time = pt_utils::get_time_from_delta(time_delta);
+
+                    match schedule_time {
+                        Some(s_time) => db
+                            .as_scheduler()
+                            .retry_process(process, s_time)
+                            .await
+                            .map_err(Into::<errors::ProcessTrackerError>::into)?,
+                        None => db
+                            .as_scheduler()
+                            .finish_process_with_business_status(process, "RETRIES_EXCEEDED")
+                            .await
+                            .map_err(Into::<errors::ProcessTrackerError>::into)?,
+                    };
+                }
             }
         };
 

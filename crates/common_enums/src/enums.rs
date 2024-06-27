@@ -2141,6 +2141,7 @@ pub enum PayoutStatus {
     Ineligible,
     #[default]
     RequiresCreation,
+    RequiresConfirmation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
     RequiresVendorAccountCreation,
@@ -2210,17 +2211,17 @@ pub enum PayoutEntityType {
     Copy,
     Debug,
     Eq,
-    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "camelCase")]
-#[strum(serialize_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutSendPriority {
     Instant,
     Fast,
@@ -2752,6 +2753,31 @@ pub enum BankType {
 pub enum BankHolderType {
     Personal,
     Business,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GenericLinkType {
+    #[default]
+    PaymentMethodCollect,
+    PayoutLink,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
