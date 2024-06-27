@@ -1,11 +1,10 @@
 use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
-    OpensearchOutput, SearchIndex,
+    OpensearchOutput, SearchIndex, SearchStatus,
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::tracing;
-use strum::IntoEnumIterator;
 
 use crate::opensearch::{
     OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
@@ -15,8 +14,10 @@ pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
     merchant_id: &String,
+    indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
-    let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch, req.query);
+    let mut query_builder =
+        OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
 
     query_builder
         .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
@@ -40,29 +41,19 @@ pub async fn msearch_results(
     Ok(response_body
         .responses
         .into_iter()
-        .zip(SearchIndex::iter())
+        .zip(indexes)
         .map(|(index_hit, index)| match index_hit {
-            OpensearchOutput::Success(success) => {
-                if success.status == 200 {
-                    GetSearchResponse {
-                        count: success.hits.total.value,
-                        index,
-                        hits: success
-                            .hits
-                            .hits
-                            .into_iter()
-                            .map(|hit| hit.source)
-                            .collect(),
-                    }
-                } else {
-                    tracing::error!("Unexpected status code: {}", success.status,);
-                    GetSearchResponse {
-                        count: 0,
-                        index,
-                        hits: Vec::new(),
-                    }
-                }
-            }
+            OpensearchOutput::Success(success) => GetSearchResponse {
+                count: success.hits.total.value,
+                index,
+                hits: success
+                    .hits
+                    .hits
+                    .into_iter()
+                    .map(|hit| hit.source)
+                    .collect(),
+                status: SearchStatus::Success,
+            },
             OpensearchOutput::Error(error) => {
                 tracing::error!(
                     index = ?index,
@@ -73,6 +64,7 @@ pub async fn msearch_results(
                     count: 0,
                     index,
                     hits: Vec::new(),
+                    status: SearchStatus::Failure,
                 }
             }
         })
@@ -113,27 +105,17 @@ pub async fn search_results(
     let response_body: OpensearchOutput = response_text;
 
     match response_body {
-        OpensearchOutput::Success(success) => {
-            if success.status == 200 {
-                Ok(GetSearchResponse {
-                    count: success.hits.total.value,
-                    index: req.index,
-                    hits: success
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| hit.source)
-                        .collect(),
-                })
-            } else {
-                tracing::error!("Unexpected status code: {}", success.status);
-                Ok(GetSearchResponse {
-                    count: 0,
-                    index: req.index,
-                    hits: Vec::new(),
-                })
-            }
-        }
+        OpensearchOutput::Success(success) => Ok(GetSearchResponse {
+            count: success.hits.total.value,
+            index: req.index,
+            hits: success
+                .hits
+                .hits
+                .into_iter()
+                .map(|hit| hit.source)
+                .collect(),
+            status: SearchStatus::Success,
+        }),
         OpensearchOutput::Error(error) => {
             tracing::error!(
                 index = ?req.index,
@@ -144,6 +126,7 @@ pub async fn search_results(
                 count: 0,
                 index: req.index,
                 hits: Vec::new(),
+                status: SearchStatus::Failure,
             })
         }
     }

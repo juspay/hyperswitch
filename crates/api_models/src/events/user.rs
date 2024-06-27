@@ -10,13 +10,14 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
+    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    CreateUserAuthenticationMethodRequest, DashboardEntryResponse, ForgotPasswordRequest,
+    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
+    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
+    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
     TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
     VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
@@ -81,7 +82,10 @@ common_utils::impl_misc_api_event_type!(
     RecoveryCodes,
     GetUserAuthenticationMethodsRequest,
     CreateUserAuthenticationMethodRequest,
-    UpdateUserAuthenticationMethodRequest
+    UpdateUserAuthenticationMethodRequest,
+    GetSsoAuthUrlRequest,
+    SsoSignInRequest,
+    AuthSelectRequest
 );
 
 #[cfg(feature = "dummy_connector")]

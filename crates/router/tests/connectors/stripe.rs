@@ -13,12 +13,12 @@ impl ConnectorActions for Stripe {}
 impl utils::Connector for Stripe {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Stripe;
-        types::api::ConnectorData {
-            connector: Box::new(Stripe::new()),
-            connector_name: types::Connector::Stripe,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Stripe::new()),
+            types::Connector::Stripe,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

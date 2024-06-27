@@ -13,12 +13,12 @@ impl ConnectorActions for Cybersource {}
 impl utils::Connector for Cybersource {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cybersource;
-        api::ConnectorData {
-            connector: Box::new(&Cybersource),
-            connector_name: types::Connector::Cybersource,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Cybersource),
+            types::Connector::Cybersource,
+            api::GetToken::Connector,
+            None,
+        )
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(

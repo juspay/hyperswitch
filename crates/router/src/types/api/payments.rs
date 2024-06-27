@@ -8,11 +8,11 @@ pub use api_models::payments::{
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
     PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
     PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
-    WalletData,
+    PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{

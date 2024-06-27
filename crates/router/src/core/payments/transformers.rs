@@ -27,7 +27,9 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api, domain,
+        self, api,
+        api::ConnectorTransactionId,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -1073,6 +1075,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
+            payout_link: None,
         }
     }
 }
@@ -1423,7 +1426,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     }
 }
 
-impl api::ConnectorTransactionId for Helcim {
+impl ConnectorTransactionId for Helcim {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1438,7 +1441,7 @@ impl api::ConnectorTransactionId for Helcim {
     }
 }
 
-impl api::ConnectorTransactionId for Nexinets {
+impl ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1594,6 +1597,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
                 |billing_address| {
