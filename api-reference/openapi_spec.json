@@ -15541,12 +15541,12 @@
             "nullable": true
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
               }
             ],
             "nullable": true
@@ -20121,7 +20121,6 @@
       },
       "ThreeDsCompletionIndicator": {
         "type": "string",
-        "description": "Indicates if 3DS method data was successfully completed or not",
         "enum": [
           "Y",
           "N",
