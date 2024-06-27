@@ -2312,3 +2312,41 @@ pub async fn sso_sign(
 
     auth::cookies::set_cookie_response(response, token)
 }
+
+pub async fn terminate_auth_select(
+    state: SessionState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::AuthSelectRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(&req.id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
+    let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+
+    // Skip SSO if continue with password(TOTP)
+    if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
+        && user_authentication_method.auth_type != common_enums::UserAuthType::OpenIdConnect
+    {
+        next_flow = next_flow.skip(user_from_db, &state).await?;
+    }
+    let token = next_flow.get_token(&state).await?;
+
+    auth::cookies::set_cookie_response(
+        user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        },
+        token,
+    )
+}

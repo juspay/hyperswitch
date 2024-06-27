@@ -20,7 +20,6 @@ use opensearch::{
 };
 use serde_json::{json, Value};
 use storage_impl::errors::ApplicationError;
-use strum::IntoEnumIterator;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use crate::query::QueryBuildingError;
@@ -78,6 +77,10 @@ pub enum OpenSearchError {
     QueryBuildingError,
     #[error("Opensearch deserialisation error")]
     DeserialisationError,
+    #[error("Opensearch index access not present error: {0:?}")]
+    IndexAccessNotPermittedError(SearchIndex),
+    #[error("Opensearch unknown error")]
+    UnknownError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -97,28 +100,39 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             )),
             Self::ResponseNotOK(response) => ApiErrorResponse::InternalServerError(ApiError::new(
                 "IR",
-                0,
+                1,
                 format!("Something went wrong {}", response),
                 None,
             )),
             Self::ResponseError => ApiErrorResponse::InternalServerError(ApiError::new(
                 "IR",
-                0,
+                2,
                 "Something went wrong",
                 None,
             )),
             Self::QueryBuildingError => ApiErrorResponse::InternalServerError(ApiError::new(
                 "IR",
-                0,
+                3,
                 "Query building error",
                 None,
             )),
             Self::DeserialisationError => ApiErrorResponse::InternalServerError(ApiError::new(
                 "IR",
-                0,
+                4,
                 "Deserialisation error",
                 None,
             )),
+            Self::IndexAccessNotPermittedError(index) => {
+                ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                    "IR",
+                    5,
+                    format!("Index access not permitted: {index:?}"),
+                    None,
+                ))
+            }
+            Self::UnknownError => {
+                ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
+            }
         }
     }
 }
@@ -179,18 +193,16 @@ impl OpenSearchClient {
         query_builder: OpenSearchQueryBuilder,
     ) -> CustomResult<Response, OpenSearchError> {
         match query_builder.query_type {
-            OpenSearchQuery::Msearch => {
-                let search_indexes = SearchIndex::iter();
-
+            OpenSearchQuery::Msearch(ref indexes) => {
                 let payload = query_builder
-                    .construct_payload(search_indexes.clone().collect())
+                    .construct_payload(indexes)
                     .change_context(OpenSearchError::QueryBuildingError)?;
 
-                let payload_with_indexes = payload.into_iter().zip(search_indexes).fold(
+                let payload_with_indexes = payload.into_iter().zip(indexes).fold(
                     Vec::new(),
                     |mut payload_with_indexes, (index_hit, index)| {
                         payload_with_indexes.push(
-                            json!({"index": self.search_index_to_opensearch_index(index)}).into(),
+                            json!({"index": self.search_index_to_opensearch_index(*index)}).into(),
                         );
                         payload_with_indexes.push(JsonBody::new(index_hit.clone()));
                         payload_with_indexes
@@ -207,7 +219,7 @@ impl OpenSearchClient {
             OpenSearchQuery::Search(index) => {
                 let payload = query_builder
                     .clone()
-                    .construct_payload(vec![index])
+                    .construct_payload(&[index])
                     .change_context(OpenSearchError::QueryBuildingError)?;
 
                 let final_payload = payload.first().unwrap_or(&Value::Null);
@@ -349,7 +361,7 @@ pub struct OpenSearchHealth {
 
 #[derive(Debug, Clone)]
 pub enum OpenSearchQuery {
-    Msearch,
+    Msearch(Vec<SearchIndex>),
     Search(SearchIndex),
 }
 
@@ -384,7 +396,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn construct_payload(&self, indexes: Vec<SearchIndex>) -> QueryResult<Vec<Value>> {
+    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query =
             vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
 
