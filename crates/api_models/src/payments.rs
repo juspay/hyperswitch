@@ -594,6 +594,7 @@ pub struct HeaderPayload {
     pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<api_enums::BrowserName>,
+    pub x_client_platform: Option<api_enums::ClientPlatform>,
 }
 
 impl HeaderPayload {

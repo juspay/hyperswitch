@@ -335,8 +335,12 @@ async fn create_applepay_session_token(
             required_shipping_contact_fields,
         )?;
 
-        let apple_pay_session_response = match header_payload.browser_name {
-            Some(common_enums::BrowserName::Safari) | None => {
+        let apple_pay_session_response = match (
+            header_payload.browser_name,
+            header_payload.x_client_platform,
+        ) {
+            (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
+            | (None, None) => {
                 let apple_pay_session_request = apple_pay_session_request_optional
                     .attach_printable("Failed to obtain apple pay session request")?;
                 let applepay_session_request = build_apple_pay_session_request(
@@ -377,7 +381,7 @@ async fn create_applepay_session_token(
                     })
                     .flatten()
             }
-            Some(_) => {
+            _ => {
                 logger::debug!("Skipping apple pay session call based on the browser name");
                 None
             }

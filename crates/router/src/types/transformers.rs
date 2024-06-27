@@ -19,7 +19,10 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
-    headers::{BROWSER_NAME, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_PAYMENT_CONFIRM_SOURCE},
+    headers::{
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        X_PAYMENT_CONFIRM_SOURCE,
+    },
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -1115,12 +1118,23 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                 .unwrap_or(api_enums::BrowserName::Unknown)
         });
 
+        let x_client_platform_str =
+            get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
+
+        let x_client_platform: Option<api_enums::ClientPlatform> =
+            x_client_platform_str.map(|x_client_platform| {
+                x_client_platform
+                    .parse_enum("ClientPlatform")
+                    .unwrap_or(api_enums::ClientPlatform::Unknown)
+            });
+
         Ok(Self {
             payment_confirm_source,
             client_source,
             client_version,
             x_hs_latency: Some(x_hs_latency),
             browser_name,
+            x_client_platform,
         })
     }
 }
