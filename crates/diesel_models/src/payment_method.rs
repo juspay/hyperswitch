@@ -1,14 +1,16 @@
 use common_enums::MerchantStorageScheme;
 use common_utils::{id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::payment_methods};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_methods)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods, check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
     pub id: i32,
     pub customer_id: id_type::CustomerId,

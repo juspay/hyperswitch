@@ -1,5 +1,5 @@
 use common_utils::id_type;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -29,8 +29,8 @@ pub struct AddressNew {
     pub email: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
-#[diesel(table_name = address, primary_key(address_id))]
+#[derive(Clone, Debug, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
+#[diesel(table_name = address, primary_key(address_id), check_for_backend(diesel::pg::Pg))]
 pub struct Address {
     pub id: Option<i32>,
     pub address_id: String,

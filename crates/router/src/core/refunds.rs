@@ -894,7 +894,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
-            updated_at: Some(refund.updated_at),
+            updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
             charges: refund.charges,
