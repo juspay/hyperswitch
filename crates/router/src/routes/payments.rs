@@ -8,7 +8,7 @@ use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
 use masking::PeekInterface;
-use router_env::{env, instrument, tracing, types, Flow};
+use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 use crate::{
@@ -593,6 +593,14 @@ pub async fn payments_connector_session(
     let flow = Flow::PaymentsSessionToken;
     let payload = json_payload.into_inner();
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            logger::error!(?err, "Failed to get headers in payments_connector_session");
+            HeaderPayload::default()
+        }
+    };
+
     tracing::Span::current().record("payment_id", &payload.payment_id);
 
     let locking_action = payload.get_locking_input(flow.clone());
@@ -619,7 +627,7 @@ pub async fn payments_connector_session(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         &auth::PublishableKeyAuth,

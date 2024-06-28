@@ -24,6 +24,7 @@ use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
+    types::MinorUnit,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -2862,11 +2863,7 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(
-                        &payment_method_type_info,
-                        req.amount
-                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
-                    )
+                    && filter_amount_based(&payment_method_type_info, req.amount)
                 {
                     let mut payment_method_object = payment_method_type_info;
 
@@ -3108,6 +3105,19 @@ fn filter_pm_based_on_capture_method_used(
         .unwrap_or(true)
 }
 
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
+) -> bool {
+    let min_check = amount
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
+        .unwrap_or(true);
+    let max_check = amount
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
+        .unwrap_or(true);
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
+}
+
 fn card_network_filter(
     country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
@@ -3279,32 +3289,6 @@ fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
     }
 }
 
-fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Option<i64>) -> bool {
-    let min_check = amount
-        .and_then(|amt| {
-            payment_method
-                .minimum_amount
-                .map(|min_amt| amt >= min_amt.into())
-        })
-        .unwrap_or(true);
-    let max_check = amount
-        .and_then(|amt| {
-            payment_method
-                .maximum_amount
-                .map(|max_amt| amt <= max_amt.into())
-        })
-        .unwrap_or(true);
-    // let min_check = match (amount, payment_method.minimum_amount) {
-    //     (Some(amt), Some(min_amt)) => amt >= min_amt,
-    //     (_, _) => true,
-    // };
-    // let max_check = match (amount, payment_method.maximum_amount) {
-    //     (Some(amt), Some(max_amt)) => amt <= max_amt,
-    //     (_, _) => true,
-    // };
-    (min_check && max_check) || amount == Some(0)
-}
-
 fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
     payment_method_type: &api_enums::PaymentMethodType,
@@ -3360,10 +3344,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount.get_amount_as_i64();
-    (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
-        && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount.get_amount_as_i64() == 0
+    let amount = payment_intent.amount;
+    (pm.maximum_amount.map_or(true, |amt| amount <= amt)
+        && pm.minimum_amount.map_or(true, |amt| amount >= amt))
+        || payment_intent.amount == MinorUnit::zero()
 }
 
 async fn filter_payment_mandate_based(

@@ -2870,6 +2870,7 @@ name = "euclid"
 version = "0.1.0"
 dependencies = [
  "common_enums",
+ "common_utils",
  "criterion",
  "erased-serde 0.4.4",
  "euclid_macros",
@@ -4149,6 +4150,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "common_utils",
  "criterion",
  "euclid",
  "hyperswitch_constraint_graph",

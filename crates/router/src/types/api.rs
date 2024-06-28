@@ -477,7 +477,9 @@ impl ConnectorData {
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }
-                enums::Connector::Paypal => Ok(ConnectorEnum::Old(Box::new(&connector::Paypal))),
+                enums::Connector::Paypal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }

@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
+    refunds::MinorUnit,
 };
 use euclid::{
     dirval,
@@ -227,7 +228,7 @@ fn compile_request_pm_types(
 
     if let Some(min_amt) = pm_types.minimum_amount {
         let num_val = NumValue {
-            number: min_amt.into(),
+            number: min_amt,
             refinement: Some(NumValueRefinement::GreaterThanEqual),
         };
 
@@ -243,7 +244,7 @@ fn compile_request_pm_types(
 
     if let Some(max_amt) = pm_types.maximum_amount {
         let num_val = NumValue {
-            number: max_amt.into(),
+            number: max_amt,
             refinement: Some(NumValueRefinement::LessThanEqual),
         };
 
@@ -259,7 +260,7 @@ fn compile_request_pm_types(
 
     if !amount_nodes.is_empty() {
         let zero_num_val = NumValue {
-            number: 0,
+            number: MinorUnit::zero(),
             refinement: None,
         };
 
@@ -729,8 +730,8 @@ mod tests {
                             api_enums::Currency::INR,
                         ])),
                         accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
                     },
@@ -745,8 +746,8 @@ mod tests {
                             api_enums::Currency::GBP,
                         ])),
                         accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
                     },

@@ -323,7 +323,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -502,7 +502,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -552,7 +552,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -590,7 +590,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -626,7 +626,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -662,7 +662,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
