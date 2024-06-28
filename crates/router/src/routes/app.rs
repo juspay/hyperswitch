@@ -237,38 +237,6 @@ impl AppStateInfo for AppState {
         self.api_client.get_request_id()
     }
 
-    // #[cfg(feature = "partial-auth")]
-    // fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])> {
-    //     use error_stack::ResultExt;
-    //     use hyperswitch_domain_models::errors::api_error_response as errors;
-    //     use masking::prelude::PeekInterface as _;
-    //     use router_env::logger;
-
-    //     let output = CHECKSUM_KEY.get_or_try_init(|| {
-    //         let conf = self.conf();
-    //         let context = conf
-    //             .api_keys
-    //             .get_inner()
-    //             .checksum_auth_context
-    //             .peek()
-    //             .clone();
-    //         let key = conf.api_keys.get_inner().checksum_auth_key.peek();
-    //         hex::decode(key).map(|key| {
-    //             (
-    //                 masking::StrongSecret::new(context),
-    //                 masking::StrongSecret::new(key),
-    //             )
-    //         })
-    //     });
-
-    //     match output {
-    //         Ok((context, key)) => Ok((Blake3::new(context.peek().clone()), key.peek())),
-    //         Err(err) => {
-    //             logger::error!("Failed to get checksum key");
-    //             Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-    //         }
-    //     }
-    // }
 }
 
 impl AsRef<Self> for AppState {
