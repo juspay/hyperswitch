@@ -343,6 +343,11 @@ impl MinorUnit {
         self.0
     }
 
+    /// forms a new minor default unit i.e zero
+    pub fn zero() -> Self {
+        Self(0)
+    }
+
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         Self(value)
@@ -542,6 +547,11 @@ impl StringMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+
+    /// Get string amount from struct to be removed in future
+    pub fn get_amount_as_string(&self) -> String {
+        self.0.clone()
     }
 }
 

@@ -66,6 +66,7 @@ mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
+openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.64"
 qrcode = "0.14.0"
 rand = "0.8.5"

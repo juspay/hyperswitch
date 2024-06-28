@@ -51,6 +51,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
+        _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),
