@@ -14,7 +14,7 @@ use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
-    generate_id,
+    fp_utils, generate_id,
     types::{self as util_types, AmountConvertor},
 };
 use error_stack::ResultExt;
@@ -66,6 +66,20 @@ pub async fn create_link_token(
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+
+    let value_bytes = redis_conn
+        .get_key::<Vec<u8>>(&pm_auth_key)
+        .await
+        .change_context(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?;
+
+    fp_utils::when(value_bytes.is_empty(), || {
+        Err(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+    })?;
 
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
@@ -635,6 +649,20 @@ async fn get_selected_config_from_redis(
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+
+    let value_bytes = redis_conn
+        .get_key::<Vec<u8>>(&pm_auth_key)
+        .await
+        .change_context(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?;
+
+    fp_utils::when(value_bytes.is_empty(), || {
+        Err(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+    })?;
 
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
