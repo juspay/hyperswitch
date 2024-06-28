@@ -6,7 +6,7 @@ use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
-use common_utils::crypto::{Blake3, VerifySignature};
+use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -114,7 +114,7 @@ pub trait SessionStateInfo {
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])>;
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -137,7 +137,7 @@ impl SessionStateInfo for SessionState {
     }
 
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])> {
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
         use error_stack::ResultExt;
         use hyperswitch_domain_models::errors::api_error_response as errors;
         use masking::prelude::PeekInterface as _;
