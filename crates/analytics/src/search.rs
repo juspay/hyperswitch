@@ -28,24 +28,32 @@ pub async fn msearch_results(
 
     if let Some(filters) = req.filters {
         if let Some(currency) = filters.currency {
-            query_builder
-                .add_filter_clause("currency.keyword".to_string(), currency)
-                .switch()?;
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .switch()?;
+            }
         };
         if let Some(status) = filters.status {
-            query_builder
-                .add_filter_clause("status.keyword".to_string(), status)
-                .switch()?;
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .switch()?;
+            }
         };
         if let Some(payment_method) = filters.payment_method {
-            query_builder
-                .add_filter_clause("payment_method.keyword".to_string(), payment_method)
-                .switch()?;
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .switch()?;
+            }
         };
         if let Some(customer_email) = filters.customer_email {
-            query_builder
-                .add_filter_clause("customer_email.keyword".to_string(), customer_email)
-                .switch()?;
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause("customer_email.keyword".to_string(), customer_email.clone())
+                    .switch()?;
+            }
         };
     };
 
@@ -116,24 +124,32 @@ pub async fn search_results(
 
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
-            query_builder
-                .add_filter_clause("currency.keyword".to_string(), currency)
-                .switch()?;
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .switch()?;
+            }
         };
         if let Some(status) = filters.status {
-            query_builder
-                .add_filter_clause("status.keyword".to_string(), status)
-                .switch()?;
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .switch()?;
+            }
         };
         if let Some(payment_method) = filters.payment_method {
-            query_builder
-                .add_filter_clause("payment_method.keyword".to_string(), payment_method)
-                .switch()?;
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .switch()?;
+            }
         };
         if let Some(customer_email) = filters.customer_email {
-            query_builder
-                .add_filter_clause("customer_email.keyword".to_string(), customer_email)
-                .switch()?;
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause("customer_email.keyword".to_string(), customer_email.clone())
+                    .switch()?;
+            }
         };
     };
     query_builder
