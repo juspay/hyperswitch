@@ -217,7 +217,7 @@ impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
     }
 }
 
-pub async fn extract_public_and_private_auth_configs(
+pub async fn construct_public_and_private_db_configs(
     auth_config: &user_api::AuthConfig,
     encryption_key: &[u8],
 ) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {

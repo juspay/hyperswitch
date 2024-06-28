@@ -2036,7 +2036,7 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = utils::user::extract_public_and_private_auth_configs(
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &req.auth_method,
         &user_auth_encryption_key,
     )
@@ -2108,7 +2108,7 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = utils::user::extract_public_and_private_auth_configs(
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &req.auth_method,
         &user_auth_encryption_key,
     )
