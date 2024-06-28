@@ -207,19 +207,10 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenericLink {
     pub payment_method_collect: GenericLinkEnvConfig,
     pub payout_link: GenericLinkEnvConfig,
-}
-
-impl Default for GenericLink {
-    fn default() -> Self {
-        Self {
-            payment_method_collect: GenericLinkEnvConfig::default(),
-            payout_link: GenericLinkEnvConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
