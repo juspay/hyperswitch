@@ -34,6 +34,7 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
+        metrics,
     },
     routes::app::SessionStateInfo,
     services::api,
@@ -404,6 +405,10 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let report_failure = || {
+            metrics::PARTIAL_AUTH_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+        };
+
         let payload = ExtractedPayload::from_headers(request_headers)
             .and_then(|value| {
                 let (algo, secret) = state.get_detached_auth()?;
@@ -447,11 +452,18 @@ where
                         },
                     ))
                 }
-                _ => self.0.authenticate_and_fetch(request_headers, state).await,
+                _ => {
+                    report_failure();
+                    self.0.authenticate_and_fetch(request_headers, state).await
+                }
             },
-            Ok(None) => self.0.authenticate_and_fetch(request_headers, state).await,
+            Ok(None) => {
+                report_failure();
+                self.0.authenticate_and_fetch(request_headers, state).await
+            }
             Err(error) => {
                 logger::error!(%error, "Failed to extract payload from headers");
+                report_failure();
                 self.0.authenticate_and_fetch(request_headers, state).await
             }
         }

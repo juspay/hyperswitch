@@ -83,3 +83,6 @@ counter_metric!(
     ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE,
     GLOBAL_METER
 );
+
+#[cfg(feature = "partial-auth")]
+counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
