@@ -17,7 +17,7 @@ impl utils::Connector for PaymeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payme;
         utils::construct_connector_data_old(
-            Box::new(&Payme),
+            Box::new(Payme::new()),
             types::Connector::Payme,
             types::api::GetToken::Connector,
             None,
@@ -68,6 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         return_url: None,
         connector_customer: None,
         payment_method_token: None,
+        #[cfg(feature = "payouts")]
         currency: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,

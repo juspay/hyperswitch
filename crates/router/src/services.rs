@@ -14,6 +14,9 @@ pub mod pm_auth;
 #[cfg(feature = "recon")]
 pub mod recon;
 
+#[cfg(feature = "olap")]
+pub mod openidconnect;
+
 use std::sync::Arc;
 
 use error_stack::ResultExt;
