@@ -1680,7 +1680,8 @@ pub enum CybersourcePaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
-    StatusNotRecieved, //PartialAuthorized, not being consumed yet.
+    StatusNotRecieved,
+    //PartialAuthorized, not being consumed yet.
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
