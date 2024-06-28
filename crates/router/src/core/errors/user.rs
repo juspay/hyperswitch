@@ -86,6 +86,8 @@ pub enum UserErrors {
     InvalidUserAuthMethodOperation,
     #[error("Auth config parsing error")]
     AuthConfigParsingError,
+    #[error("Invalid SSO request")]
+    SSOFailed,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -219,6 +221,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::AuthConfigParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 45, self.get_error_message(), None))
             }
+            Self::SSOFailed => {
+                AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -265,6 +270,7 @@ impl UserErrors {
             Self::UserAuthMethodAlreadyExists => "User auth method already exists",
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
             Self::AuthConfigParsingError => "Auth config parsing error",
+            Self::SSOFailed => "Invalid SSO request",
         }
     }
 }

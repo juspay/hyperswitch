@@ -24,6 +24,7 @@ use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
+    types::MinorUnit,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -656,21 +657,32 @@ pub async fn add_payment_method(
                             .attach_printable("Failed while updating card metadata changes"))?
                     };
 
+                    let existing_pm_data = get_card_details_without_locker_fallback(
+                        &existing_pm,
+                        key_store.key.peek(),
+                        &state,
+                    )
+                    .await?;
+
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: card.card_issuing_country,
+                        issuer_country: card
+                            .card_issuing_country
+                            .or(existing_pm_data.issuer_country),
                         card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
                         card_token: None,
                         card_fingerprint: None,
-                        card_holder_name: card.card_holder_name,
-                        nick_name: card.nick_name,
-                        card_network: card.card_network,
-                        card_issuer: card.card_issuer,
-                        card_type: card.card_type,
+                        card_holder_name: card
+                            .card_holder_name
+                            .or(existing_pm_data.card_holder_name),
+                        nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                        card_network: card.card_network.or(existing_pm_data.card_network),
+                        card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                        card_type: card.card_type.or(existing_pm_data.card_type),
                         saved_to_locker: true,
                     });
 
@@ -2851,11 +2863,7 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(
-                        &payment_method_type_info,
-                        req.amount
-                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
-                    )
+                    && filter_amount_based(&payment_method_type_info, req.amount)
                 {
                     let mut payment_method_object = payment_method_type_info;
 
@@ -3097,6 +3105,19 @@ fn filter_pm_based_on_capture_method_used(
         .unwrap_or(true)
 }
 
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
+) -> bool {
+    let min_check = amount
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
+        .unwrap_or(true);
+    let max_check = amount
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
+        .unwrap_or(true);
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
+}
+
 fn card_network_filter(
     country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
@@ -3268,32 +3289,6 @@ fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
     }
 }
 
-fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Option<i64>) -> bool {
-    let min_check = amount
-        .and_then(|amt| {
-            payment_method
-                .minimum_amount
-                .map(|min_amt| amt >= min_amt.into())
-        })
-        .unwrap_or(true);
-    let max_check = amount
-        .and_then(|amt| {
-            payment_method
-                .maximum_amount
-                .map(|max_amt| amt <= max_amt.into())
-        })
-        .unwrap_or(true);
-    // let min_check = match (amount, payment_method.minimum_amount) {
-    //     (Some(amt), Some(min_amt)) => amt >= min_amt,
-    //     (_, _) => true,
-    // };
-    // let max_check = match (amount, payment_method.maximum_amount) {
-    //     (Some(amt), Some(max_amt)) => amt <= max_amt,
-    //     (_, _) => true,
-    // };
-    (min_check && max_check) || amount == Some(0)
-}
-
 fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
     payment_method_type: &api_enums::PaymentMethodType,
@@ -3349,10 +3344,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount.get_amount_as_i64();
-    (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
-        && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount.get_amount_as_i64() == 0
+    let amount = payment_intent.amount;
+    (pm.maximum_amount.map_or(true, |amt| amount <= amt)
+        && pm.minimum_amount.map_or(true, |amt| amount >= amt))
+        || payment_intent.amount == MinorUnit::zero()
 }
 
 async fn filter_payment_mandate_based(

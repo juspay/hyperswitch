@@ -211,7 +211,7 @@ where
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_data.payment_intent.amount.get_amount_as_i64(),
+        amount: payment_data.payment_intent.amount,
         card_bin: payment_data
             .payment_method_data
             .as_ref()
@@ -904,7 +904,7 @@ pub async fn perform_session_flow_routing(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount.get_amount_as_i64(),
+        amount: session_input.payment_intent.amount,
         currency: session_input
             .payment_intent
             .currency
@@ -1138,7 +1138,7 @@ pub fn make_dsl_input_for_surcharge(
         payment_type: None,
     };
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount.get_amount_as_i64(),
+        amount: payment_attempt.amount,
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency
