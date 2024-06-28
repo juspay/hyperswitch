@@ -1,7 +1,3 @@
-use std::path::PathBuf;
-
-use utoipa::OpenApi;
-
 mod openapi;
 mod routes;
 
@@ -15,8 +11,7 @@ fn main() {
     let mut file_path = router_env::workspace_path();
     file_path.push(relative_file_path);
 
-    #[allow(unused_mut)]
-    let openapi = <openapi::ApiDoc as OpenApi>::openapi();
+    let openapi = <openapi::ApiDoc as utoipa::OpenApi>::openapi();
 
     #[allow(clippy::expect_used)]
     std::fs::write(
