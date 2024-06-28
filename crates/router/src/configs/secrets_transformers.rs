@@ -197,6 +197,7 @@ impl SecretsHandler for settings::PaymentMethodAuth {
     }
 }
 
+#[allow(unused_variables)]
 #[async_trait::async_trait]
 impl SecretsHandler for settings::KeyManagerConfig {
     async fn convert_to_raw_secret(

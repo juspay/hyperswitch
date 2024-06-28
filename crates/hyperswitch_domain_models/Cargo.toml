@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 default = ["olap", "payouts"]
+encryption_service =[]
 olap = []
 payouts = ["api_models/payouts"]
 

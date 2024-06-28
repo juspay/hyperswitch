@@ -5,13 +5,11 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{Identifier, KeyManagerState, DEFAULT_KEY},
 };
 #[cfg(feature = "encryption_service")]
 use common_utils::{
-    ext_traits::BytesExt,
     keymanager::call_encryption_service,
-    request,
     types::keymanager::{
         DecryptDataRequest, DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
     },
@@ -111,24 +109,21 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
             let encrypted = match result {
-                Ok(response) => match response {
-                    Ok(encrypt_response) => {
-                        match EncryptDataResponse::try_from(encrypt_response.response) {
-                            Ok(encrypted) => encrypted.data.0.get(DEFAULT_KEY).map(|ed| {
-                                Self::new(masked_data.clone(), ed.data.peek().clone().into())
-                            }),
-                            Err(_) => None,
-                        }
-                    }
-                    Err(_) => None,
-                },
+                Ok(encrypted_data) => encrypted_data
+                    .data
+                    .0
+                    .get(DEFAULT_KEY)
+                    .map(|ed| Self::new(masked_data.clone(), ed.data.peek().clone().into())),
                 Err(_) => None,
             };
             match encrypted {
@@ -156,30 +151,24 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
-                Ok(response) => match response {
-                    Ok(decrypt_response) => {
-                        match DecryptDataResponse::try_from(decrypt_response.response) {
-                            Ok(decrypted) => match decrypted.data.0.get(DEFAULT_KEY) {
-                                Some(data) => {
-                                    let inner =
-                                        String::from_utf8(data.clone().inner().peek().clone())
-                                            .change_context(errors::CryptoError::DecodingFailed)?
-                                            .into();
-                                    Ok(Self::new(inner, encrypted_data.clone().into_inner()))
-                                }
-                                None => Err(errors::CryptoError::DecodingFailed),
-                            },
-                            Err(_) => Err(errors::CryptoError::DecodingFailed),
-                        }
+                Ok(decrypted_data) => match decrypted_data.data.0.get(DEFAULT_KEY) {
+                    Some(data) => {
+                        let inner = String::from_utf8(data.clone().inner().peek().clone())
+                            .change_context(errors::CryptoError::DecodingFailed)?
+                            .into();
+                        Ok(Self::new(inner, encrypted_data.clone().into_inner()))
                     }
-                    Err(_) => Err(errors::CryptoError::DecodingFailed),
+                    None => Err(errors::CryptoError::DecodingFailed),
                 },
                 Err(_) => Err(errors::CryptoError::DecodingFailed),
             };
@@ -233,38 +222,29 @@ impl<
 
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match response {
-                Ok(result) => match result {
-                    Ok(encrypted_data) => {
-                        match EncryptDataResponse::try_from(encrypted_data.response) {
-                            Ok(encrypted_data_response) => {
-                                let mut encrypted = FxHashMap::default();
-                                for (k, v) in encrypted_data_response.data.0.iter() {
-                                    masked_data.get(k).map(|inner| {
-                                        encrypted.insert(
-                                            k.clone(),
-                                            Self::new(inner.clone(), v.data.peek().clone().into()),
-                                        )
-                                    });
-                                }
-                                Some(encrypted)
-                            }
-                            Err(_) => None,
-                        }
+            match result {
+                Ok(encrypted_data) => {
+                    let mut encrypted = FxHashMap::default();
+                    for (k, v) in encrypted_data.data.0.iter() {
+                        masked_data.get(k).map(|inner| {
+                            encrypted.insert(
+                                k.clone(),
+                                Self::new(inner.clone(), v.data.peek().clone().into()),
+                            )
+                        });
                     }
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
+                    Ok(encrypted)
+                }
+                Err(_) => {
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -287,39 +267,30 @@ impl<
 
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
-            let decrypted = match response {
-                Ok(service_response) => match service_response {
-                    Ok(decrypted_response) => {
-                        match DecryptDataResponse::try_from(decrypted_response.response) {
-                            Ok(decrypted_data) => {
-                                let mut decrypted = FxHashMap::default();
-                                for (k, v) in decrypted_data.data.0.iter() {
-                                    let inner = String::from_utf8(v.clone().inner().peek().clone())
-                                        .change_context(errors::CryptoError::DecodingFailed)?;
-                                    encrypted_data.get(k).map(|encrypted| {
-                                        decrypted.insert(
-                                            k.clone(),
-                                            Self::new(inner.into(), encrypted.clone().into_inner()),
-                                        )
-                                    });
-                                }
-                                Ok(decrypted)
-                            }
-                            Err(_) => Err(errors::CryptoError::DecodingFailed),
-                        }
+            match result {
+                Ok(decrypted_data) => {
+                    let mut decrypted = FxHashMap::default();
+                    for (k, v) in decrypted_data.data.0.iter() {
+                        let inner = String::from_utf8(v.clone().inner().peek().clone())
+                            .change_context(errors::CryptoError::DecodingFailed)?;
+                        encrypted_data.get(k).map(|encrypted| {
+                            decrypted.insert(
+                                k.clone(),
+                                Self::new(inner.into(), encrypted.clone().into_inner()),
+                            )
+                        });
                     }
-                    Err(_) => Err(errors::CryptoError::DecodingFailed),
-                },
-                Err(_) => Err(errors::CryptoError::DecodingFailed),
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
+                    Ok(decrypted)
+                }
                 Err(_) => {
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
@@ -386,24 +357,19 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
             let encrypted = match result {
-                Ok(response) => match response {
-                    Ok(encrypt_response) => {
-                        match EncryptDataResponse::try_from(encrypt_response.response) {
-                            Ok(encrypted) => encrypted.data.0.get(DEFAULT_KEY).map(|encrypted| {
-                                Self::new(masked_data.clone(), encrypted.data.peek().clone().into())
-                            }),
-                            Err(_) => None,
-                        }
-                    }
-                    Err(_) => None,
-                },
+                Ok(encrypted_data) => encrypted_data.data.0.get(DEFAULT_KEY).map(|encrypted| {
+                    Self::new(masked_data.clone(), encrypted.data.peek().clone().into())
+                }),
                 Err(_) => None,
             };
             match encrypted {
@@ -431,29 +397,24 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
-                Ok(response) => match response {
-                    Ok(decrypt_response) => {
-                        match DecryptDataResponse::try_from(decrypt_response.response) {
-                            Ok(decrypted) => match decrypted.data.0.get(DEFAULT_KEY) {
-                                Some(data) => {
-                                    let value: serde_json::Value =
-                                        serde_json::from_slice(data.clone().inner().peek())
-                                            .change_context(errors::CryptoError::EncodingFailed)?;
-                                    Ok(Self::new(value.into(), encrypted_data.clone().into_inner()))
-                                }
-                                None => Err(errors::CryptoError::EncodingFailed),
-                            },
-                            Err(_) => Err(errors::CryptoError::EncodingFailed),
-                        }
+                Ok(decrypted_data) => match decrypted_data.data.0.get(DEFAULT_KEY) {
+                    Some(data) => {
+                        let value: serde_json::Value =
+                            serde_json::from_slice(data.clone().inner().peek())
+                                .change_context(errors::CryptoError::EncodingFailed)?;
+                        Ok(Self::new(value.into(), encrypted_data.clone().into_inner()))
                     }
-                    Err(_) => Err(errors::CryptoError::EncodingFailed),
+                    None => Err(errors::CryptoError::EncodingFailed),
                 },
                 Err(_) => Err(errors::CryptoError::EncodingFailed),
             };
@@ -507,41 +468,29 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match response {
-                Ok(result) => match result {
-                    Ok(encrypted_data) => {
-                        match EncryptDataResponse::try_from(encrypted_data.response) {
-                            Ok(data) => {
-                                let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
-                                for (k, v) in data.data.0.iter() {
-                                    masked_data.get(k).map(|inner| {
-                                        encrypted.insert(
-                                            k.to_string(),
-                                            Self::new(
-                                                inner.clone(),
-                                                Secret::new(v.data.peek().clone()),
-                                            ),
-                                        )
-                                    });
-                                }
-                                Some(encrypted)
-                            }
-                            Err(_) => None,
-                        }
+            match result {
+                Ok(encrypted_data) => {
+                    let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+                    for (k, v) in encrypted_data.data.0.iter() {
+                        masked_data.get(k).map(|inner| {
+                            encrypted.insert(
+                                k.to_string(),
+                                Self::new(inner.clone(), Secret::new(v.data.peek().clone())),
+                            )
+                        });
                     }
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
+                    Ok(encrypted)
+                }
+                Err(_) => {
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -563,45 +512,34 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
-            let decrypted = match response {
-                Ok(service_response) => match service_response {
-                    Ok(decrypted_response) => {
-                        match DecryptDataResponse::try_from(decrypted_response.response) {
-                            Ok(decrypted_data) => {
-                                let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
-                                for (k, v) in decrypted_data.data.0.iter() {
-                                    let encrypted = encrypted_data
-                                        .get(k)
-                                        .ok_or(errors::CryptoError::DecodingFailed)?;
-                                    decrypted.insert(
-                                        k.to_string(),
-                                        Self::new(
-                                            serde_json::from_slice(
-                                                v.clone().inner().peek().clone().to_bytes(),
-                                            )
-                                            .change_context(errors::CryptoError::DecodingFailed)?,
-                                            encrypted.clone().into_inner(),
-                                        ),
-                                    );
-                                }
-                                Some(decrypted)
-                            }
-                            Err(_) => None,
-                        }
+            match result {
+                Ok(decrypted_data) => {
+                    let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+                    for (k, v) in decrypted_data.data.0.iter() {
+                        let encrypted = encrypted_data
+                            .get(k)
+                            .ok_or(errors::CryptoError::DecodingFailed)?;
+                        decrypted.insert(
+                            k.to_string(),
+                            Self::new(
+                                serde_json::from_slice(v.clone().inner().peek().clone().to_bytes())
+                                    .change_context(errors::CryptoError::DecodingFailed)?,
+                                encrypted.clone().into_inner(),
+                            ),
+                        );
                     }
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            };
-            match decrypted {
-                Some(de) => Ok(de),
-                None => {
+                    Ok(decrypted)
+                }
+                Err(_) => {
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                 }
@@ -664,26 +602,22 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match result {
-                Ok(response) => match response {
-                    Ok(encrypt_response) => {
-                        match EncryptDataResponse::try_from(encrypt_response.response) {
-                            Ok(encrypted) => encrypted.data.0.get(DEFAULT_KEY).map(|inner| {
-                                Self::new(masked_data.clone(), inner.data.peek().clone().into())
-                            }),
-                            Err(_) => None,
-                        }
-                    }
+            let encrypted =
+                match result {
+                    Ok(encrypted_data) => encrypted_data.data.0.get(DEFAULT_KEY).map(|inner| {
+                        Self::new(masked_data.clone(), inner.data.peek().clone().into())
+                    }),
                     Err(_) => None,
-                },
-                Err(_) => None,
-            };
+                };
             match encrypted {
                 Some(en) => Ok(en),
                 None => {
@@ -709,27 +643,22 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let result = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
-                Ok(response) => match response {
-                    Ok(decrypt_response) => {
-                        match DecryptDataResponse::try_from(decrypt_response.response) {
-                            Ok(decrypted) => decrypted.data.0.get(DEFAULT_KEY).map(|data| {
-                                Self::new(
-                                    data.clone().inner().peek().clone().into(),
-                                    encrypted_data.clone().into_inner(),
-                                )
-                            }),
-                            Err(_) => None,
-                        }
-                    }
-                    Err(_) => None,
-                },
+                Ok(decrypted_data) => decrypted_data.data.0.get(DEFAULT_KEY).map(|data| {
+                    Self::new(
+                        data.clone().inner().peek().clone().into(),
+                        encrypted_data.clone().into_inner(),
+                    )
+                }),
                 Err(_) => None,
             };
             match decrypted {
@@ -778,41 +707,29 @@ impl<
 
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                EncryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match response {
-                Ok(encryption_service_result) => match encryption_service_result {
-                    Ok(encryption_response) => {
-                        match EncryptDataResponse::try_from(encryption_response.response) {
-                            Ok(encrypted_data_response) => {
-                                let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
-                                for (k, v) in encrypted_data_response.data.0.iter() {
-                                    masked_data.get(k).map(|inner| {
-                                        encrypted.insert(
-                                            k.to_string(),
-                                            Self::new(
-                                                inner.clone(),
-                                                Secret::new(v.data.peek().clone()),
-                                            ),
-                                        )
-                                    });
-                                }
-                                Some(encrypted)
-                            }
-                            Err(_) => None,
-                        }
+            match result {
+                Ok(encrypted_data) => {
+                    let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
+                    for (k, v) in encrypted_data.data.0.iter() {
+                        masked_data.get(k).map(|inner| {
+                            encrypted.insert(
+                                k.to_string(),
+                                Self::new(inner.clone(), Secret::new(v.data.peek().clone())),
+                            )
+                        });
                     }
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
+                    Ok(encrypted)
+                }
+                Err(_) => {
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -834,41 +751,32 @@ impl<
         }
         #[cfg(feature = "encryption_service")]
         {
-            let response = call_encryption_service(
+            let result: Result<
+                DecryptDataResponse,
+                error_stack::Report<errors::KeyManagerClientError>,
+            > = call_encryption_service(
                 state,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
-            let decrypted = match response {
-                Ok(service_response) => match service_response {
-                    Ok(decrypted_response) => {
-                        match DecryptDataResponse::try_from(decrypted_response.response) {
-                            Ok(decrypted_data) => {
-                                let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
-                                for (k, v) in decrypted_data.data.0.iter() {
-                                    encrypted_data.get(k).map(|encrypted| {
-                                        decrypted.insert(
-                                            k.to_string(),
-                                            Self::new(
-                                                v.clone().inner().peek().clone().into(),
-                                                encrypted.clone().into_inner(),
-                                            ),
-                                        )
-                                    });
-                                }
-                                Some(decrypted)
-                            }
-                            Err(_) => None,
-                        }
+            match result {
+                Ok(decrypted_data) => {
+                    let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
+                    for (k, v) in decrypted_data.data.0.iter() {
+                        encrypted_data.get(k).map(|encrypted| {
+                            decrypted.insert(
+                                k.to_string(),
+                                Self::new(
+                                    v.clone().inner().peek().clone().into(),
+                                    encrypted.clone().into_inner(),
+                                ),
+                            )
+                        });
                     }
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            };
-            match decrypted {
-                Some(de) => Ok(de),
-                None => {
+                    Ok(decrypted)
+                }
+                Err(_) => {
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                 }
