@@ -51,7 +51,7 @@ pub async fn generate_sample_data_for_user(
 
     state
         .store
-        .insert_payment_intents_batch_for_sample_data(&state, payment_intents, &key_store)
+        .insert_payment_intents_batch_for_sample_data(&(&state).into(), payment_intents, &key_store)
         .await
         .switch()?;
     state
@@ -89,7 +89,7 @@ pub async fn delete_sample_data_for_user(
 
     state
         .store
-        .delete_payment_intents_for_sample_data(&state, merchant_id_del, &key_store)
+        .delete_payment_intents_for_sample_data(&(&state).into(), merchant_id_del, &key_store)
         .await
         .switch()?;
     state

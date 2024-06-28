@@ -15,16 +15,13 @@ use hyperswitch_domain_models::{
 };
 use storage_impl::DataModelExt;
 
-use crate::{
-    connection::pg_connection_write, core::errors::CustomResult, routes::SessionState,
-    services::Store,
-};
+use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
 
 #[async_trait::async_trait]
 pub trait BatchSampleDataInterface {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         batch: Vec<PaymentIntent>,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
@@ -41,7 +38,7 @@ pub trait BatchSampleDataInterface {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
@@ -61,7 +58,7 @@ pub trait BatchSampleDataInterface {
 impl BatchSampleDataInterface for Store {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         batch: Vec<PaymentIntent>,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -80,9 +77,8 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
             .map(|v| {
                 try_join_all(v.into_iter().map(|payment_intent| {
-                    let key_manager_state: KeyManagerState = state.into();
                     PaymentIntent::convert_back(
-                        &key_manager_state,
+                        state,
                         payment_intent,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone(),
@@ -123,7 +119,7 @@ impl BatchSampleDataInterface for Store {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -135,9 +131,8 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
             .map(|v| {
                 try_join_all(v.into_iter().map(|payment_intent| {
-                    let key_manager_state: KeyManagerState = state.into();
                     PaymentIntent::convert_back(
-                        &key_manager_state,
+                        state,
                         payment_intent,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone(),
@@ -181,7 +176,7 @@ impl BatchSampleDataInterface for Store {
 impl BatchSampleDataInterface for storage_impl::MockDb {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        _state: &SessionState,
+        _state: &KeyManagerState,
         _batch: Vec<PaymentIntent>,
         _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -204,7 +199,7 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        _state: &SessionState,
+        _state: &KeyManagerState,
         _merchant_id: &str,
         _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {

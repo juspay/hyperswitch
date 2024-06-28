@@ -2685,7 +2685,7 @@ impl DashboardMetadataInterface for KafkaStore {
 impl BatchSampleDataInterface for KafkaStore {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         batch: Vec<hyperswitch_domain_models::payments::PaymentIntent>,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<
@@ -2748,7 +2748,7 @@ impl BatchSampleDataInterface for KafkaStore {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<
