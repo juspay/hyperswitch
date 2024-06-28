@@ -1116,6 +1116,7 @@ pub struct GpayTokenizationSpecification {
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
+    pub assurance_details_required: Option<bool>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1208,12 +1209,13 @@ pub fn get_apple_pay_session<F, T>(
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
             session_token: Some(types::api::SessionToken::ApplePay(Box::new(
                 api_models::payments::ApplepaySessionTokenResponse {
-                    session_token_data:
+                    session_token_data: Some(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                             api_models::payments::ThirdPartySdkSessionResponse {
                                 secrets: secrets.to_owned().into(),
                             },
                         ),
+                    ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
@@ -1336,6 +1338,7 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
             allowed_card_networks: value.allowed_card_networks,
             billing_address_required: None,
             billing_address_parameters: None,
+            assurance_details_required: value.assurance_details_required,
         }
     }
 }

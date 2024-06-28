@@ -657,21 +657,32 @@ pub async fn add_payment_method(
                             .attach_printable("Failed while updating card metadata changes"))?
                     };
 
+                    let existing_pm_data = get_card_details_without_locker_fallback(
+                        &existing_pm,
+                        key_store.key.peek(),
+                        &state,
+                    )
+                    .await?;
+
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: card.card_issuing_country,
+                        issuer_country: card
+                            .card_issuing_country
+                            .or(existing_pm_data.issuer_country),
                         card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
                         card_token: None,
                         card_fingerprint: None,
-                        card_holder_name: card.card_holder_name,
-                        nick_name: card.nick_name,
-                        card_network: card.card_network,
-                        card_issuer: card.card_issuer,
-                        card_type: card.card_type,
+                        card_holder_name: card
+                            .card_holder_name
+                            .or(existing_pm_data.card_holder_name),
+                        nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                        card_network: card.card_network.or(existing_pm_data.card_network),
+                        card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                        card_type: card.card_type.or(existing_pm_data.card_type),
                         saved_to_locker: true,
                     });
 
@@ -3094,6 +3105,19 @@ fn filter_pm_based_on_capture_method_used(
         .unwrap_or(true)
 }
 
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
+) -> bool {
+    let min_check = amount
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
+        .unwrap_or(true);
+    let max_check = amount
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
+        .unwrap_or(true);
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
+}
+
 fn card_network_filter(
     country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
@@ -3263,19 +3287,6 @@ fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
         (None, Some(r)) => Some(r.to_vec()),
         (_, _) => None,
     }
-}
-
-fn filter_amount_based(
-    payment_method: &RequestPaymentMethodTypes,
-    amount: Option<MinorUnit>,
-) -> bool {
-    let min_check = amount
-        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
-        .unwrap_or(true);
-    let max_check = amount
-        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
-        .unwrap_or(true);
-    (min_check && max_check) || amount == Some(MinorUnit::zero())
 }
 
 fn filter_pm_based_on_allowed_types(

@@ -160,8 +160,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("invalid connector name received in payment attempt")?;
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
             types::api::VerifyWebhookSource,
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,

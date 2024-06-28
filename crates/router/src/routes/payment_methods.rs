@@ -7,7 +7,10 @@ use time::PrimitiveDateTime;
 
 use super::app::{AppState, SessionState};
 use crate::{
-    core::{api_locking, errors, payment_methods::cards},
+    core::{
+        api_locking, errors,
+        payment_methods::{self as payment_methods_routes, cards},
+    },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -218,6 +221,65 @@ pub async fn list_customer_payment_method_api_client(
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn initiate_pm_collect_link_flow(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCollectLinkRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            payment_methods_routes::initiate_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn render_pm_collect_link(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    let (merchant_id, pm_collect_link_id) = path.into_inner();
+    let payload = payment_methods::PaymentMethodCollectLinkRenderRequest {
+        merchant_id: merchant_id.clone(),
+        pm_collect_link_id,
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payment_methods_routes::render_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await

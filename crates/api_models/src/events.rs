@@ -86,6 +86,7 @@ impl_misc_api_event_type!(
     GetInfoResponse,
     GetPaymentMetricRequest,
     GetRefundMetricRequest,
+    GetActivePaymentsMetricRequest,
     GetSdkEventMetricRequest,
     GetAuthEventMetricRequest,
     GetPaymentFiltersRequest,

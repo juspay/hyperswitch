@@ -4,7 +4,7 @@ use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
-    id_type, pii,
+    id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
@@ -942,6 +942,104 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkRequest {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = Option<String>, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: Option<String>,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = String, example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
+    pub customer_id: id_type::CustomerId,
+
+    #[serde(flatten)]
+    #[schema(value_type = Option<GenericLinkUiConfig>)]
+    pub ui_config: Option<link_utils::GenericLinkUiConfig>,
+
+    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
+    /// (900) for 15 mins
+    #[schema(value_type = Option<u32>, example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Redirect to this URL post completion
+    #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
+    pub return_url: Option<String>,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkResponse {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = String, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: String,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = String, example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
+    pub customer_id: id_type::CustomerId,
+
+    /// Time when this link will be expired in ISO8601 format
+    #[schema(value_type = PrimitiveDateTime, example = "2025-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: time::PrimitiveDateTime,
+
+    /// URL to the form's link generated for collecting payment method details.
+    #[schema(value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub link: masking::Secret<String>,
+
+    /// Redirect to this URL post completion
+    #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
+    pub return_url: Option<String>,
+
+    /// Collect link config used
+    #[serde(flatten)]
+    #[schema(value_type = GenericLinkUiConfig)]
+    pub ui_config: link_utils::GenericLinkUiConfig,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkRenderRequest {
+    /// Unique identifier for a merchant.
+    #[schema(example = "merchant_1671528864")]
+    pub merchant_id: String,
+
+    /// The unique identifier for the collect link.
+    #[schema(value_type = String, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodCollectLinkDetails {
+    pub publishable_key: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub pm_collect_link_id: String,
+    pub customer_id: id_type::CustomerId,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: time::PrimitiveDateTime,
+    pub return_url: Option<String>,
+    #[serde(flatten)]
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodCollectLinkStatusDetails {
+    pub pm_collect_link_id: String,
+    pub customer_id: id_type::CustomerId,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: time::PrimitiveDateTime,
+    pub return_url: Option<String>,
+    pub status: link_utils::PaymentMethodCollectStatus,
+    #[serde(flatten)]
+    pub ui_config: link_utils::GenericLinkUIConfigFormData,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

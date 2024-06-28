@@ -227,7 +227,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData, 
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -246,7 +246,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData, 
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -265,7 +265,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData, 
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -284,7 +284,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData, 
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -303,7 +303,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData, 
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -322,7 +322,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-       mandate_data: multiUseMandateData,
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -485,7 +485,7 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "HE_03",
-            reason: "debit mandate payment is not supported by trustpay",
+            reason: "manual is not supported by trustpay",
           },
         },
       },
@@ -542,7 +542,7 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "HE_03",
-            reason: "debit mandate payment is not supported by trustpay",
+            reason: "manual is not supported by trustpay",
           },
         },
       },
@@ -584,7 +584,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -622,7 +622,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -656,7 +656,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -693,7 +693,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
