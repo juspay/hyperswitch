@@ -14,6 +14,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -1140,33 +1141,60 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
 }
 
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,
+        Option<&storage::PaymentIntent>,
         Option<&domain::Address>,
         Option<&domain::Address>,
         Option<&domain::Customer>,
     )> for payments::PaymentsRequest
 {
-    fn foreign_from(
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
         value: (
             Option<&storage::PaymentAttempt>,
+            Option<&storage::PaymentIntent>,
             Option<&domain::Address>,
             Option<&domain::Address>,
             Option<&domain::Customer>,
         ),
-    ) -> Self {
-        let (payment_attempt, shipping, billing, customer) = value;
-        Self {
+    ) -> Result<Self, Self::Error> {
+        let (payment_attempt, payment_intent, shipping, billing, customer) = value;
+        // Populating the dynamic fields directly, for the cases where we have customer details stored in
+        // Payment Intent
+        let customer_details_from_pi = payment_intent
+            .and_then(|payment_intent| payment_intent.customer_details.clone())
+            .map(|customer_details| {
+                customer_details
+                    .into_inner()
+                    .peek()
+                    .clone()
+                    .parse_value::<CustomerData>("CustomerData")
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer_details",
+                    })
+                    .attach_printable("Failed to parse customer_details")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "customer_details",
+            })?;
+        Ok(Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing.map(api_types::Address::from),
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
-            phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
-            name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+            phone: customer
+                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
+            name: customer
+                .and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
             ..Self::default()
-        }
+        })
     }
 }
 
@@ -1266,7 +1294,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer
                 .name
                 .as_ref()
