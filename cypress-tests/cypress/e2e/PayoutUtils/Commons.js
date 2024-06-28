@@ -50,7 +50,7 @@ const billing = {
     last_name: "Doe",
   },
   phone: {
-    number: "0650242319",
+    number: "9123456789",
     country_code: "+31",
   },
 };

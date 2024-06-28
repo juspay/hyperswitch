@@ -5,7 +5,7 @@ use std::{
 };
 
 use api_models::{
-    admin::PaymentMethodsEnabled,
+    admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
@@ -22,8 +22,10 @@ use api_models::{
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     consts,
+    crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
+    types::MinorUnit,
 };
 use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
@@ -70,7 +72,7 @@ use crate::{
             types::{decrypt, encrypt_optional, AsyncLift},
         },
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -471,8 +473,9 @@ pub async fn add_payment_method_data(
                         };
 
                         let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                        let pm_data_encrypted =
-                            create_encrypted_data(&key_store, updated_pmd).await;
+                        let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                            .await
+                            .map(|details| details.into());
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
                             payment_method_data: pm_data_encrypted,
@@ -693,7 +696,9 @@ pub async fn add_payment_method(
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd).await;
+                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
+                        .await
+                        .map(|details| details.into());
 
                     let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                         payment_method_data: pm_data_encrypted,
@@ -767,7 +772,10 @@ pub async fn insert_payment_method(
         .card
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details).await;
+    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details)
+        .await
+        .map(|details| details.into());
+
     create_payment_method(
         db,
         &req,
@@ -947,7 +955,9 @@ pub async fn update_customer_payment_method(
             let updated_pmd = updated_card
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-            let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd).await;
+            let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                .await
+                .map(|details| details.into());
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted,
@@ -1320,11 +1330,15 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
-                .await
-                .change_context(errors::VaultError::FetchPaymentMethodFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            locker_choice,
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
@@ -1373,11 +1387,15 @@ pub async fn call_to_locker_hs<'a>(
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
 
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::SaveCardFailed)
-                .attach_printable("Error getting decrypted response payload")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting decrypted response payload")?;
         let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
             .parse_struct("StoreCardResp")
             .change_context(errors::VaultError::ResponseDeserializationFailed)?;
@@ -1454,11 +1472,15 @@ pub async fn get_card_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::FetchCardFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchCardFailed)?;
@@ -1508,6 +1530,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             jwekey,
             jwe_body,
             Some(api_enums::LockerChoice::HyperswitchCardVault),
+            locker.decryption_scheme.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1955,7 +1978,7 @@ pub async fn list_payment_methods(
         }
     } else {
         // No PM_FILTER_CGRAPH Cache present in MokaCache
-        let mut builder = cgraph::ConstraintGraphBuilder::<'static, _>::new();
+        let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
                 Some(pm) => pm,
@@ -2292,12 +2315,13 @@ pub async fn list_payment_methods(
         .then_some(billing_address.as_ref())
         .flatten();
 
-    let req = api_models::payments::PaymentsRequest::foreign_from((
+    let req = api_models::payments::PaymentsRequest::foreign_try_from((
         payment_attempt.as_ref(),
+        payment_intent.as_ref(),
         shipping_address.as_ref(),
         billing_address_for_calculating_required_fields,
         customer.as_ref(),
-    ));
+    ))?;
     let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
@@ -2890,7 +2914,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
-    graph: &cgraph::ConstraintGraph<'_, dir::DirValue>,
+    graph: &cgraph::ConstraintGraph<dir::DirValue>,
     payment_methods: &[serde_json::Value],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -2926,11 +2950,7 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(
-                        &payment_method_type_info,
-                        req.amount
-                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
-                    )
+                    && filter_amount_based(&payment_method_type_info, req.amount)
                 {
                     let payment_method_object = payment_method_type_info.clone();
 
@@ -3070,36 +3090,17 @@ pub async fn filter_payment_methods(
     Ok(())
 }
 
-fn filter_pm_based_on_allowed_types(
-    allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
-    payment_method_type: &api_enums::PaymentMethodType,
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
-}
-
-fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Option<i64>) -> bool {
     let min_check = amount
-        .and_then(|amt| {
-            payment_method
-                .minimum_amount
-                .map(|min_amt| amt >= min_amt.into())
-        })
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
         .unwrap_or(true);
     let max_check = amount
-        .and_then(|amt| {
-            payment_method
-                .maximum_amount
-                .map(|max_amt| amt <= max_amt.into())
-        })
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
         .unwrap_or(true);
-    (min_check && max_check) || amount == Some(0)
-}
-
-fn filter_recurring_based(
-    payment_method: &RequestPaymentMethodTypes,
-    recurring_enabled: Option<bool>,
-) -> bool {
-    recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
 }
 
 fn filter_installment_based(
@@ -3128,6 +3129,181 @@ fn filter_pm_card_network_based(
         }
         _ => true,
     }
+}
+fn filter_pm_country_based(
+    accepted_countries: &Option<admin::AcceptedCountries>,
+    req_country_list: &Option<Vec<api_enums::CountryAlpha2>>,
+) -> (
+    Option<admin::AcceptedCountries>,
+    Option<Vec<api_enums::CountryAlpha2>>,
+    bool,
+) {
+    match (accepted_countries, req_country_list) {
+        (None, None) => (None, None, true),
+        (None, Some(ref r)) => (
+            Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
+            Some(r.to_vec()),
+            true,
+        ),
+        (Some(l), None) => (Some(l.to_owned()), None, true),
+        (Some(l), Some(ref r)) => {
+            let updated = match l {
+                admin::AcceptedCountries::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::EnableOnly)
+                }
+
+                admin::AcceptedCountries::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::DisableOnly)
+                }
+
+                admin::AcceptedCountries::AllAccepted => {
+                    Some(admin::AcceptedCountries::AllAccepted)
+                }
+            };
+
+            (updated, Some(r.to_vec()), true)
+        }
+    }
+}
+
+fn filter_pm_currencies_based(
+    accepted_currency: &Option<admin::AcceptedCurrencies>,
+    req_currency_list: &Option<Vec<api_enums::Currency>>,
+) -> (
+    Option<admin::AcceptedCurrencies>,
+    Option<Vec<api_enums::Currency>>,
+    bool,
+) {
+    match (accepted_currency, req_currency_list) {
+        (None, None) => (None, None, true),
+        (None, Some(ref r)) => (
+            Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
+            Some(r.to_vec()),
+            true,
+        ),
+        (Some(l), None) => (Some(l.to_owned()), None, true),
+        (Some(l), Some(ref r)) => {
+            let updated = match l {
+                admin::AcceptedCurrencies::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::EnableOnly)
+                }
+
+                admin::AcceptedCurrencies::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::DisableOnly)
+                }
+
+                admin::AcceptedCurrencies::AllAccepted => {
+                    Some(admin::AcceptedCurrencies::AllAccepted)
+                }
+            };
+
+            (updated, Some(r.to_vec()), true)
+        }
+    }
+}
+
+fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
+    left: &Option<Vec<T>>,
+    right: &Option<Vec<T>>,
+) -> Option<Vec<T>> {
+    match (left, right) {
+        (Some(ref l), Some(ref r)) => {
+            let a: HashSet<&T> = HashSet::from_iter(l.iter());
+            let b: HashSet<&T> = HashSet::from_iter(r.iter());
+
+            let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
+            Some(y)
+        }
+        (Some(ref l), None) => Some(l.to_vec()),
+        (_, _) => None,
+    }
+}
+
+fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
+    left: &Option<Vec<T>>,
+    right: &Option<Vec<T>>,
+) -> Option<Vec<T>> {
+    match (left, right) {
+        (Some(ref l), Some(ref r)) => {
+            let mut enabled = Vec::new();
+            for element in r {
+                if !l.contains(element) {
+                    enabled.push(element.to_owned());
+                }
+            }
+            Some(enabled)
+        }
+        (None, Some(r)) => Some(r.to_vec()),
+        (_, _) => None,
+    }
+}
+
+fn filter_pm_based_on_allowed_types(
+    allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
+    payment_method_type: &api_enums::PaymentMethodType,
+) -> bool {
+    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
+}
+
+fn filter_recurring_based(
+    payment_method: &RequestPaymentMethodTypes,
+    recurring_enabled: Option<bool>,
+) -> bool {
+    recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
+}
+
+async fn filter_payment_country_based(
+    pm: &RequestPaymentMethodTypes,
+    address: Option<&domain::Address>,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+    Ok(address.map_or(true, |address| {
+        address.country.as_ref().map_or(true, |country| {
+            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+                admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
+                admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
+                admin::AcceptedCountries::AllAccepted => true,
+            })
+        })
+    }))
+}
+
+fn filter_payment_currency_based(
+    payment_intent: &storage::PaymentIntent,
+    pm: &RequestPaymentMethodTypes,
+) -> bool {
+    payment_intent.currency.map_or(true, |currency| {
+        pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency),
+            admin::AcceptedCurrencies::AllAccepted => true,
+        })
+    })
+}
+
+fn filter_payment_amount_based(
+    payment_intent: &storage::PaymentIntent,
+    pm: &RequestPaymentMethodTypes,
+) -> bool {
+    let amount = payment_intent.amount;
+    (pm.maximum_amount.map_or(true, |amt| amount <= amt)
+        && pm.minimum_amount.map_or(true, |amt| amount >= amt))
+        || payment_intent.amount == MinorUnit::zero()
+}
+
+async fn filter_payment_mandate_based(
+    payment_attempt: Option<&storage::PaymentAttempt>,
+    pm: &RequestPaymentMethodTypes,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+    let recurring_filter = if !pm.recurring_enabled {
+        payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
+    } else {
+        true
+    };
+    Ok(recurring_filter)
 }
 
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
@@ -4126,14 +4302,13 @@ pub async fn delete_payment_method(
 pub async fn create_encrypted_data<T>(
     key_store: &domain::MerchantKeyStore,
     data: Option<T>,
-) -> Option<Encryption>
+) -> Option<Encryptable<Secret<serde_json::Value>>>
 where
     T: Debug + serde::Serialize,
 {
     let key = key_store.key.get_inner().peek();
 
-    let encrypted_data: Option<Encryption> = data
-        .as_ref()
+    data.as_ref()
         .map(Encode::encode_to_value)
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)
@@ -4151,9 +4326,6 @@ where
             logger::error!(err=?err);
             None
         })
-        .map(|details| details.into());
-
-    encrypted_data
 }
 
 pub async fn list_countries_currencies_for_connector_payment_method(

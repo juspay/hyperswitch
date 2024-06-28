@@ -2258,6 +2258,24 @@ pub enum PaymentSource {
     ExternalAuthenticator,
 }
 
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+pub enum BrowserName {
+    #[default]
+    Safari,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum ClientPlatform {
+    #[default]
+    Web,
+    Ios,
+    #[serde(other)]
+    Unknown,
+}
+
 impl PaymentSource {
     pub fn is_for_internal_use_only(&self) -> bool {
         match self {

@@ -484,6 +484,7 @@ pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -496,6 +497,16 @@ pub struct Locker {
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
+    pub decryption_scheme: DecryptionScheme,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub enum DecryptionScheme {
+    #[default]
+    #[serde(rename = "RSA-OAEP")]
+    RsaOaep,
+    #[serde(rename = "RSA-OAEP-256")]
+    RsaOaep256,
 }
 
 #[derive(Debug, Deserialize, Clone)]

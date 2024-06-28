@@ -47,6 +47,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
         Self: Sized,

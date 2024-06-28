@@ -16,6 +16,11 @@ pub trait UserAuthenticationMethodInterface {
         user_authentication_method: storage::UserAuthenticationMethodNew,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError>;
 
+    async fn get_user_authentication_method_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError>;
+
     async fn list_user_authentication_methods_for_auth_id(
         &self,
         auth_id: &str,
@@ -43,6 +48,17 @@ impl UserAuthenticationMethodInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         user_authentication_method
             .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn get_user_authentication_method_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::UserAuthenticationMethod::get_user_authentication_method_by_id(&conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -118,6 +134,28 @@ impl UserAuthenticationMethodInterface for MockDb {
 
         user_authentication_methods.push(user_authentication_method.clone());
         Ok(user_authentication_method)
+    }
+
+    #[instrument(skip_all)]
+    async fn get_user_authentication_method_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        let user_authentication_methods = self.user_authentication_methods.lock().await;
+
+        let user_authentication_method = user_authentication_methods
+            .iter()
+            .find(|&auth_method_inner| auth_method_inner.id == id);
+
+        if let Some(user_authentication_method) = user_authentication_method {
+            Ok(user_authentication_method.to_owned())
+        } else {
+            return Err(errors::StorageError::ValueNotFound(format!(
+                "No user authentication method found for id = {}",
+                id
+            ))
+            .into());
+        }
     }
 
     async fn list_user_authentication_methods_for_auth_id(

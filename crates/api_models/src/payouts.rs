@@ -81,7 +81,7 @@ pub struct PayoutCreateRequest {
             "first_name": "John",
             "last_name": "Doe"
         },
-        "phone": { "number": "8056594427", "country_code": "+1" }
+        "phone": { "number": "9123456789", "country_code": "+1" }
     }"#))]
     pub billing: Option<payments::Address>,
 
@@ -102,7 +102,7 @@ pub struct PayoutCreateRequest {
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
@@ -366,7 +366,7 @@ pub struct PayoutCreateResponse {
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 1000)]
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
 
     /// Recipient's currency for the payout request
     #[schema(value_type = Currency, example = "USD")]
@@ -393,7 +393,7 @@ pub struct PayoutCreateResponse {
             "first_name": "John",
             "last_name": "Doe"
         },
-        "phone": { "number": "8056594427", "country_code": "+1" }
+        "phone": { "number": "9123456789", "country_code": "+1" }
     }"#))]
     pub billing: Option<payments::Address>,
 
@@ -414,7 +414,7 @@ pub struct PayoutCreateResponse {
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The country code for the customer phone number
@@ -501,7 +501,8 @@ pub struct PayoutAttemptResponse {
     #[schema(value_type = PayoutStatus, example = "failed")]
     pub status: api_enums::PayoutStatus,
     /// The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6583)]
+    pub amount: common_utils::types::MinorUnit,
     /// The currency of the amount of the payout attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
@@ -723,7 +724,7 @@ pub struct PayoutLinkDetails {
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUIConfigFormData,
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
-    pub amount: String,
+    pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
 }
 
