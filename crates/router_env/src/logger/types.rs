@@ -63,9 +63,6 @@ pub enum Flow {
     DeepHealthCheck,
     /// Merchants account create flow.
     MerchantsAccountCreate,
-    #[cfg(feature = "v2")]
-    /// Merchant account create flow for v2
-    MerchantAccountCreateV2,
     /// Merchants account retrieve flow.
     MerchantsAccountRetrieve,
     /// Merchants account update flow.
