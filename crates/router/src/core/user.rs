@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use common_utils::types::keymanager::Identifier;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -1069,6 +1070,7 @@ pub async fn create_internal_user(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1084,6 +1086,7 @@ pub async fn create_internal_user(
     let internal_merchant = state
         .store
         .find_merchant_account_by_merchant_id(
+            &state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &key_store,
         )
@@ -1152,6 +1155,7 @@ pub async fn switch_merchant_id(
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                &state,
                 request.merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -1166,7 +1170,7 @@ pub async fn switch_merchant_id(
 
         let org_id = state
             .store
-            .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(&state, request.merchant_id.as_str(), &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -1268,6 +1272,7 @@ pub async fn list_merchants_for_user(
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(
+            &state,
             user_roles
                 .iter()
                 .map(|role| role.merchant_id.clone())
@@ -1813,7 +1818,9 @@ pub async fn update_totp(
                 totp_secret: Some(
                     // TODO: Impl conversion trait for User and move this there
                     domain::types::encrypt::<String, masking::WithType>(
+                        &(&state).into(),
                         totp.get_secret_base32().into(),
+                        Identifier::User(key_store.user_id.clone()),
                         key_store.key.peek(),
                     )
                     .await

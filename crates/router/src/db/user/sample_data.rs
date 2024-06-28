@@ -1,3 +1,4 @@
+use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::{
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
@@ -14,12 +15,16 @@ use hyperswitch_domain_models::{
 };
 use storage_impl::DataModelExt;
 
-use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
+use crate::{
+    connection::pg_connection_write, core::errors::CustomResult, routes::SessionState,
+    services::Store,
+};
 
 #[async_trait::async_trait]
 pub trait BatchSampleDataInterface {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
+        state: &SessionState,
         batch: Vec<PaymentIntent>,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
@@ -36,6 +41,7 @@ pub trait BatchSampleDataInterface {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
@@ -55,6 +61,7 @@ pub trait BatchSampleDataInterface {
 impl BatchSampleDataInterface for Store {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
+        state: &SessionState,
         batch: Vec<PaymentIntent>,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -68,13 +75,18 @@ impl BatchSampleDataInterface for Store {
                 .change_context(StorageError::EncryptionError)
         }))
         .await?;
-
         sample_data_queries::insert_payment_intents(&conn, new_intents)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
                 try_join_all(v.into_iter().map(|payment_intent| {
-                    PaymentIntent::convert_back(payment_intent, key_store.key.get_inner())
+                    let key_manager_state: KeyManagerState = state.into();
+                    PaymentIntent::convert_back(
+                        &key_manager_state,
+                        payment_intent,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                 }))
                 .map(|join_result| join_result.change_context(StorageError::DecryptionError))
             })?
@@ -111,6 +123,7 @@ impl BatchSampleDataInterface for Store {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -122,7 +135,13 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
             .map(|v| {
                 try_join_all(v.into_iter().map(|payment_intent| {
-                    PaymentIntent::convert_back(payment_intent, key_store.key.get_inner())
+                    let key_manager_state: KeyManagerState = state.into();
+                    PaymentIntent::convert_back(
+                        &key_manager_state,
+                        payment_intent,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                 }))
                 .map(|join_result| join_result.change_context(StorageError::DecryptionError))
             })?
@@ -162,6 +181,7 @@ impl BatchSampleDataInterface for Store {
 impl BatchSampleDataInterface for storage_impl::MockDb {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
+        _state: &SessionState,
         _batch: Vec<PaymentIntent>,
         _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -184,6 +204,7 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
+        _state: &SessionState,
         _merchant_id: &str,
         _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {

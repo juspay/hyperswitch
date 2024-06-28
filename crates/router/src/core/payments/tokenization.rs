@@ -209,11 +209,16 @@ where
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                 });
 
-                let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
+                let pm_data_encrypted = payment_methods::cards::create_encrypted_data(
+                    state,
+                    key_store,
+                    pm_card_details,
+                )
+                .await;
 
                 let encrypted_payment_method_billing_address =
                     payment_methods::cards::create_encrypted_data(
+                        state,
                         key_store,
                         payment_method_billing_address,
                     )
@@ -305,7 +310,7 @@ where
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
                                         payment_methods::cards::create_payment_method(
-                                            db,
+                                            state,
                                             &payment_method_create_request,
                                             &customer_id,
                                             &resp.payment_method_id,
@@ -397,7 +402,7 @@ where
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
                                             payment_methods::cards::insert_payment_method(
-                                                db,
+                                                state,
                                                 &resp,
                                                 payment_method_create_request.clone(),
                                                 key_store,
@@ -493,6 +498,7 @@ where
                                 });
                                 let pm_data_encrypted =
                                     payment_methods::cards::create_encrypted_data(
+                                        state,
                                         key_store,
                                         updated_pmd,
                                     )
@@ -569,7 +575,7 @@ where
 
                             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                             payment_methods::cards::create_payment_method(
-                                db,
+                                state,
                                 &payment_method_create_request,
                                 &customer_id,
                                 &resp.payment_method_id,

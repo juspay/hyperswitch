@@ -1945,6 +1945,7 @@ name = "common_utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.0",
  "bytes 1.6.0",
  "common_enums",
  "diesel",
@@ -3681,8 +3682,10 @@ dependencies = [
  "http 0.2.12",
  "masking",
  "mime",
+ "rdkafka",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "serde_with",

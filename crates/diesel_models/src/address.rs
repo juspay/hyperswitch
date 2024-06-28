@@ -1,9 +1,9 @@
-use common_utils::id_type;
+use common_utils::{encryption::Encryption, id_type};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums, schema::address};
+use crate::{enums, schema::address};
 
 #[derive(Clone, Debug, Insertable, Serialize, Deserialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]

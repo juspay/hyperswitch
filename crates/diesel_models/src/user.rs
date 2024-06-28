@@ -1,11 +1,9 @@
-use common_utils::pii;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
-use crate::{
-    diesel_impl::OptionalDieselArray, encryption::Encryption, enums::TotpStatus, schema::users,
-};
+use crate::{diesel_impl::OptionalDieselArray, enums::TotpStatus, schema::users};
 
 pub mod dashboard_metadata;
 

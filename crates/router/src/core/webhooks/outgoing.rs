@@ -2,7 +2,7 @@ use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
     webhooks,
 };
-use common_utils::{ext_traits::Encode, request::RequestContent};
+use common_utils::{ext_traits::Encode, request::RequestContent, types::keymanager::Identifier};
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
@@ -103,11 +103,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         initial_attempt_id: Some(event_id.clone()),
         request: Some(
             domain_types::encrypt(
+                &(&state).into(),
                 request_content
                     .encode_to_string_of_json()
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable("Failed to encode outgoing webhook request content")
                     .map(Secret::new)?,
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
@@ -120,7 +122,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(new_event, merchant_key_store)
+        .insert_event(&state, new_event, merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -611,12 +613,14 @@ async fn update_event_if_client_error(
         is_webhook_notified,
         response: Some(
             domain_types::encrypt(
+                &(&state).into(),
                 response_to_store
                     .encode_to_string_of_json()
                     .change_context(
                         errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
                     )
                     .map(Secret::new)?,
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
@@ -628,6 +632,7 @@ async fn update_event_if_client_error(
     state
         .store
         .update_event_by_merchant_id_event_id(
+            &state,
             merchant_id,
             event_id,
             event_update,
@@ -726,12 +731,14 @@ async fn update_event_in_storage(
         is_webhook_notified,
         response: Some(
             domain_types::encrypt(
+                &(&state).into(),
                 response_to_store
                     .encode_to_string_of_json()
                     .change_context(
                         errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
                     )
                     .map(Secret::new)?,
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
@@ -742,6 +749,7 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
+            &state,
             merchant_id,
             event_id,
             event_update,

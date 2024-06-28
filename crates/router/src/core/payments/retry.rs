@@ -458,6 +458,7 @@ where
 
     payment_data.payment_intent = db
         .update_payment_intent(
+            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.payment_attempt.attempt_id.clone(),

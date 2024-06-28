@@ -16,6 +16,7 @@ metrics = ["dep:router_env", "dep:futures"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
+base64 = "0.22.0"
 bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"

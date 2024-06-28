@@ -1,12 +1,16 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto, date_time,
+    crypto::{self, Encryptable},
+    date_time,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
+    types::keymanager::{Identifier, KeyManagerState},
 };
-use diesel_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
+use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{
@@ -73,8 +77,10 @@ impl behaviour::Conversion for CustomerAddress {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -84,7 +90,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -117,8 +123,10 @@ impl behaviour::Conversion for PaymentAddress {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -129,7 +137,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -180,25 +188,39 @@ impl behaviour::Conversion for Address {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
+            let identifier = Identifier::Merchant(other.merchant_id.clone());
+            let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
+            map.insert("line1".to_string(), other.line1.clone());
+            map.insert("line2".to_string(), other.line2.clone());
+            map.insert("line3".to_string(), other.line3.clone());
+            map.insert("zip".to_string(), other.zip.clone());
+            map.insert("state".to_string(), other.state.clone());
+            map.insert("fn".to_string(), other.first_name.clone());
+            map.insert("ln".to_string(), other.last_name.clone());
+            map.insert("phone".to_string(), other.phone_number.clone());
+            let decrypted: FxHashMap<String, Encryptable<Secret<String>>> =
+                types::batch_decrypt_optional(state, map, identifier.clone(), key.peek()).await?;
+            let inner_decrypt_email =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: other.id,
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other.line1.async_lift(inner_decrypt).await?,
-                line2: other.line2.async_lift(inner_decrypt).await?,
-                line3: other.line3.async_lift(inner_decrypt).await?,
-                state: other.state.async_lift(inner_decrypt).await?,
-                zip: other.zip.async_lift(inner_decrypt).await?,
-                first_name: other.first_name.async_lift(inner_decrypt).await?,
-                last_name: other.last_name.async_lift(inner_decrypt).await?,
-                phone_number: other.phone_number.async_lift(inner_decrypt).await?,
+                line1: decrypted.get("line1").cloned(),
+                line2: decrypted.get("line2").cloned(),
+                line3: decrypted.get("line3").cloned(),
+                state: decrypted.get("state").cloned(),
+                zip: decrypted.get("zip").cloned(),
+                first_name: decrypted.get("fn").cloned(),
+                last_name: decrypted.get("ln").cloned(),
+                phone_number: decrypted.get("phone").cloned(),
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,

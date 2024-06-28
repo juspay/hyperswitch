@@ -1,7 +1,8 @@
+use common_utils::encryption::Encryption;
 use diesel::{Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, schema::user_key_store};
+use crate::schema::user_key_store;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Identifiable, Queryable)]
 #[diesel(table_name = user_key_store)]

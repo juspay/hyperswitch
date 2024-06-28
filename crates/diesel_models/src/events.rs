@@ -1,9 +1,9 @@
-use common_utils::custom_serde;
+use common_utils::{custom_serde, encryption::Encryption};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::events};
+use crate::{enums as storage_enums, schema::events};
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = events)]

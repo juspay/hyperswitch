@@ -31,7 +31,7 @@ pub async fn create_payment_method_api(
         json_payload.into_inner(),
         |state, auth, req, _| async move {
             Box::pin(cards::get_client_secret_or_add_payment_method(
-                state,
+                &state,
                 req,
                 &auth.merchant_account,
                 &auth.key_store,
@@ -365,7 +365,7 @@ pub async fn default_payment_method_set_api(
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             cards::set_default_payment_method(
-                &*state.clone().store,
+                &state,
                 auth.merchant_account.merchant_id,
                 auth.key_store,
                 customer_id,

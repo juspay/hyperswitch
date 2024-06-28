@@ -5,6 +5,7 @@ use error_stack::ResultExt;
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
+    routes::SessionState,
     types::{
         domain::{
             self,
@@ -22,6 +23,7 @@ where
 {
     async fn update_address(
         &self,
+        state: &SessionState,
         address_id: String,
         address: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -29,6 +31,7 @@ where
 
     async fn update_address_for_payments(
         &self,
+        state: &SessionState,
         this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
@@ -38,12 +41,14 @@ where
 
     async fn find_address_by_address_id(
         &self,
+        state: &SessionState,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn insert_address_for_payments(
         &self,
+        state: &SessionState,
         payment_id: &str,
         address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
@@ -52,12 +57,14 @@ where
 
     async fn insert_address_for_customers(
         &self,
+        state: &SessionState,
         address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         payment_id: &str,
         address_id: &str,
@@ -67,6 +74,7 @@ where
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
+        state: &SessionState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address: storage_types::AddressUpdate,
@@ -284,6 +292,7 @@ mod storage {
     use crate::{
         connection,
         core::errors::{self, CustomResult},
+        routes::SessionState,
         services::Store,
         types::{
             domain::{
@@ -299,6 +308,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
+            state: &SessionState,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -308,7 +318,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -318,6 +332,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
+            state: &SessionState,
             merchant_id: &str,
             payment_id: &str,
             address_id: &str,
@@ -362,7 +377,11 @@ mod storage {
                 }
             }?;
             address
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -370,6 +389,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address(
             &self,
+            state: &SessionState,
             address_id: String,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -380,7 +400,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -390,6 +414,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
+            state: &SessionState,
             this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
             payment_id: String,
@@ -420,7 +445,11 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
-                                .convert(key_store.key.get_inner())
+                                .convert(
+                                    &state.into(),
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone(),
+                                )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
                         })
@@ -457,7 +486,11 @@ mod storage {
                     .change_context(errors::StorageError::KVError)?;
 
                     updated_address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }
@@ -467,6 +500,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
+            state: &SessionState,
             payment_id: &str,
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
@@ -493,7 +527,11 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
-                                .convert(key_store.key.get_inner())
+                                .convert(
+                                    &state.into(),
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone(),
+                                )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
                         })
@@ -553,7 +591,11 @@ mod storage {
                         }
                         .into()),
                         Ok(HsetnxReply::KeySet) => Ok(created_address
-                            .convert(key_store.key.get_inner())
+                            .convert(
+                                &state.into(),
+                                key_store.key.get_inner(),
+                                key_store.merchant_id.clone(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
@@ -565,6 +607,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
+            state: &SessionState,
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -578,7 +621,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -588,6 +635,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
+            state: &SessionState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             address: storage_types::AddressUpdate,
@@ -607,7 +655,11 @@ mod storage {
                 for address in addresses.into_iter() {
                     output.push(
                         address
-                            .convert(key_store.key.get_inner())
+                            .convert(
+                                &state.into(),
+                                key_store.key.get_inner(),
+                                key_store.merchant_id.clone(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )
@@ -623,6 +675,7 @@ mod storage {
 impl AddressInterface for MockDb {
     async fn find_address_by_address_id(
         &self,
+        state: &SessionState,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -635,7 +688,11 @@ impl AddressInterface for MockDb {
         {
             Some(address) => address
                 .clone()
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => {
@@ -648,6 +705,7 @@ impl AddressInterface for MockDb {
 
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
+        state: &SessionState,
         _merchant_id: &str,
         _payment_id: &str,
         address_id: &str,
@@ -663,7 +721,11 @@ impl AddressInterface for MockDb {
         {
             Some(address) => address
                 .clone()
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => {
@@ -676,6 +738,7 @@ impl AddressInterface for MockDb {
 
     async fn update_address(
         &self,
+        state: &SessionState,
         address_id: String,
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -694,7 +757,11 @@ impl AddressInterface for MockDb {
             });
         match updated_addr {
             Some(address_updated) => address_updated
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -706,6 +773,7 @@ impl AddressInterface for MockDb {
 
     async fn update_address_for_payments(
         &self,
+        state: &SessionState,
         this: domain::PaymentAddress,
         address_update: domain::AddressUpdate,
         _payment_id: String,
@@ -726,7 +794,11 @@ impl AddressInterface for MockDb {
             });
         match updated_addr {
             Some(address_updated) => address_updated
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -738,6 +810,7 @@ impl AddressInterface for MockDb {
 
     async fn insert_address_for_payments(
         &self,
+        state: &SessionState,
         _payment_id: &str,
         address_new: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
@@ -752,13 +825,18 @@ impl AddressInterface for MockDb {
         addresses.push(address.clone());
 
         address
-            .convert(key_store.key.get_inner())
+            .convert(
+                &state.into(),
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn insert_address_for_customers(
         &self,
+        state: &SessionState,
         address_new: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -771,13 +849,18 @@ impl AddressInterface for MockDb {
         addresses.push(address.clone());
 
         address
-            .convert(key_store.key.get_inner())
+            .convert(
+                &state.into(),
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
+        state: &SessionState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address_update: storage_types::AddressUpdate,
@@ -801,7 +884,11 @@ impl AddressInterface for MockDb {
         match updated_addr {
             Some(address) => {
                 let address: domain::Address = address
-                    .convert(key_store.key.get_inner())
+                    .convert(
+                        &state.into(),
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?;
                 Ok(vec![address])

@@ -1,7 +1,13 @@
-use common_utils::{crypto, date_time, id_type, pii};
-use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
+use common_utils::{
+    crypto, date_time,
+    encryption::Encryption,
+    id_type, pii,
+    types::keymanager::{Identifier, KeyManagerState},
+};
+use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
@@ -53,22 +59,33 @@ impl super::behaviour::Conversion for Customer {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
+        let identifier = Identifier::Merchant(item.merchant_id.clone());
+        let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
+        map.insert("name".to_string(), item.name.clone());
+        map.insert("phone".to_string(), item.phone.clone());
+        let decrypted = types::batch_decrypt_optional(state, map, identifier.clone(), key.peek())
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,
-                name: item.name.async_lift(inner_decrypt).await?,
+                name: decrypted.get("name").cloned(),
                 email: item.email.async_lift(inner_decrypt_email).await?,
-                phone: item.phone.async_lift(inner_decrypt).await?,
+                phone: decrypted.get("phone").cloned(),
                 phone_country_code: item.phone_country_code,
                 description: item.description,
                 created_at: item.created_at,

@@ -1,5 +1,5 @@
 use api_models::apple_pay_certificates_migration;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::keymanager::Identifier};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -33,6 +33,7 @@ pub async fn apple_pay_certificates_migration(
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                &state,
                 merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -41,6 +42,7 @@ pub async fn apple_pay_certificates_migration(
 
         let merchant_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state,
                 merchant_id,
                 true,
                 &key_store,
@@ -63,11 +65,13 @@ pub async fn apple_pay_certificates_migration(
                     .ok();
             if let Some(apple_pay_metadata) = connector_apple_pay_metadata {
                 let encrypted_apple_pay_metadata = domain_types::encrypt(
+                    &(&state).into(),
                     Secret::new(
                         serde_json::to_value(apple_pay_metadata)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize apple pay metadata as JSON")?,
                     ),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
                     key_store.key.get_inner().peek(),
                 )
                 .await

@@ -32,13 +32,18 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                state,
                 tracking_data.merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(tracking_data.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                state,
+                tracking_data.merchant_id.as_str(),
+                &key_store,
+            )
             .await?;
 
         let email_id = merchant_account

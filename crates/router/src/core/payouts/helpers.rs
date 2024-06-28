@@ -1,13 +1,15 @@
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
+    encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
     generate_customer_id_of_default_length, id_type,
+    types::keymanager::{Identifier, KeyManagerState},
 };
-use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
+use rustc_hash::FxHashMap;
 
 use super::PayoutData;
 use crate::{
@@ -232,6 +234,7 @@ pub async fn save_payout_data_to_locker(
             }
             _ => {
                 let key = key_store.key.get_inner().peek();
+                let key_manager_state: KeyManagerState = state.into();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -241,7 +244,14 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| domain_types::encrypt_optional(inner, key))
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                &key_manager_state,
+                                inner,
+                                Identifier::Merchant(key_store.merchant_id.clone()),
+                                key,
+                            )
+                        })
                         .await
                 }
                 .await
@@ -448,7 +458,7 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_data(key_store, Some(pm_data)).await,
+                cards::create_encrypted_data(state, key_store, Some(pm_data)).await,
                 payment_method,
             )
         } else {
@@ -477,7 +487,7 @@ pub async fn save_payout_data_to_locker(
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
         cards::create_payment_method(
-            db,
+            state,
             &new_payment_method,
             &payout_attempt.customer_id,
             &payment_method_id,
@@ -591,6 +601,7 @@ pub async fn get_or_create_customer_details(
 
     match db
         .find_customer_optional_by_customer_id_merchant_id(
+            state,
             &customer_id,
             merchant_id,
             key_store,
@@ -601,21 +612,27 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
+            let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+            let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
+            map.insert("name".to_string(), customer_details.name.clone());
+            map.insert("phone".to_string(), customer_details.phone.clone());
+            let encrypted_data =
+                domain_types::batch_encrypt_optional(&state.into(), map, identifier.clone(), key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: domain_types::encrypt_optional(customer_details.name.to_owned(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                name: encrypted_data.get("name").cloned(),
                 email: domain_types::encrypt_optional(
+                    &state.into(),
                     customer_details.email.to_owned().map(|e| e.expose()),
+                    identifier.clone(),
                     key,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: domain_types::encrypt_optional(customer_details.phone.to_owned(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                phone: encrypted_data.get("phone").cloned(),
                 description: None,
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,
@@ -629,7 +646,7 @@ pub async fn get_or_create_customer_details(
             };
 
             Ok(Some(
-                db.insert_customer(customer, key_store, merchant_account.storage_scheme)
+                db.insert_customer(state, customer, key_store, merchant_account.storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
             ))
