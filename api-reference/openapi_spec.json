@@ -12460,8 +12460,7 @@
             "$ref": "#/components/schemas/ComparisonType"
           },
           "number": {
-            "type": "integer",
-            "format": "int64"
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -17003,7 +17002,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6583
           },
           "currency": {
             "allOf": [
@@ -18586,17 +18586,19 @@
             "nullable": true
           },
           "minimum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
-            "example": 1,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "maximum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 1313,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "recurring_enabled": {
@@ -19916,9 +19918,7 @@
                 ]
               },
               "value": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Represents a number literal"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             }
           },
@@ -19994,8 +19994,7 @@
               "value": {
                 "type": "array",
                 "items": {
-                  "type": "integer",
-                  "format": "int64"
+                  "$ref": "#/components/schemas/MinorUnit"
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }
