@@ -124,7 +124,10 @@ impl<
                     .0
                     .get(DEFAULT_KEY)
                     .map(|ed| Self::new(masked_data.clone(), ed.data.peek().clone().into())),
-                Err(_) => None,
+                Err(err) => {
+                    logger::error!("Encryption error {:?}", err);
+                    None
+                }
             };
             match encrypted {
                 Some(en) => Ok(en),
@@ -170,7 +173,10 @@ impl<
                     }
                     None => Err(errors::CryptoError::DecodingFailed),
                 },
-                Err(_) => Err(errors::CryptoError::DecodingFailed),
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
+                    Err(errors::CryptoError::DecodingFailed)
+                }
             };
 
             match decrypted {
@@ -244,7 +250,8 @@ impl<
                     }
                     Ok(encrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Encryption error {:?}", err);
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -291,7 +298,8 @@ impl<
                     }
                     Ok(decrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                 }
@@ -370,7 +378,10 @@ impl<
                 Ok(encrypted_data) => encrypted_data.data.0.get(DEFAULT_KEY).map(|encrypted| {
                     Self::new(masked_data.clone(), encrypted.data.peek().clone().into())
                 }),
-                Err(_) => None,
+                Err(err) => {
+                    logger::error!("Encryption error {:?}", err);
+                    None
+                }
             };
             match encrypted {
                 Some(en) => Ok(en),
@@ -416,7 +427,10 @@ impl<
                     }
                     None => Err(errors::CryptoError::EncodingFailed),
                 },
-                Err(_) => Err(errors::CryptoError::EncodingFailed),
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
+                    Err(errors::CryptoError::EncodingFailed)
+                }
             };
             match decrypted {
                 Ok(de) => Ok(de),
@@ -490,7 +504,8 @@ impl<
                     }
                     Ok(encrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Encryption error {:?}", err);
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -539,7 +554,8 @@ impl<
                     }
                     Ok(decrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                 }
@@ -616,7 +632,10 @@ impl<
                     Ok(encrypted_data) => encrypted_data.data.0.get(DEFAULT_KEY).map(|inner| {
                         Self::new(masked_data.clone(), inner.data.peek().clone().into())
                     }),
-                    Err(_) => None,
+                    Err(err) => {
+                        logger::error!("Encryption error {:?}", err);
+                        None
+                    }
                 };
             match encrypted {
                 Some(en) => Ok(en),
@@ -659,7 +678,10 @@ impl<
                         encrypted_data.clone().into_inner(),
                     )
                 }),
-                Err(_) => None,
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
+                    None
+                }
             };
             match decrypted {
                 Some(de) => Ok(de),
@@ -729,7 +751,8 @@ impl<
                     }
                     Ok(encrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Encryption error {:?}", err);
                     logger::info!("Fall back to Application Encryption");
                     Self::batch_encrypt(masked_data, key, crypt_algo).await
                 }
@@ -776,7 +799,8 @@ impl<
                     }
                     Ok(decrypted)
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Decryption error {:?}", err);
                     logger::info!("Fall back to Application Decryption");
                     Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                 }
