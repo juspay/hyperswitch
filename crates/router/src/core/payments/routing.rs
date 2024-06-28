@@ -211,7 +211,7 @@ where
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_data.payment_intent.amount.get_amount_as_i64(),
+        amount: payment_data.payment_intent.amount,
         card_bin: payment_data
             .payment_method_data
             .as_ref()
@@ -539,7 +539,7 @@ pub async fn get_merchant_cgraph<'a>(
     key_store: &domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
     #[cfg(feature = "business_profile_routing")]
@@ -565,7 +565,7 @@ pub async fn get_merchant_cgraph<'a>(
     };
 
     let cached_cgraph = CGRAPH_CACHE
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>>(
             CacheKey {
                 key: key.clone(),
                 prefix: state.tenant.redis_key_prefix.clone(),
@@ -596,7 +596,7 @@ pub async fn refresh_cgraph_cache<'a>(
     key: String,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -904,7 +904,7 @@ pub async fn perform_session_flow_routing(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount.get_amount_as_i64(),
+        amount: session_input.payment_intent.amount,
         currency: session_input
             .payment_intent
             .currency
@@ -1138,7 +1138,7 @@ pub fn make_dsl_input_for_surcharge(
         payment_type: None,
     };
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount.get_amount_as_i64(),
+        amount: payment_attempt.amount,
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency
