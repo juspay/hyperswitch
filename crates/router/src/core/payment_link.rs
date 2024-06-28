@@ -5,7 +5,7 @@ use common_utils::{
         DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
 };
 use error_stack::ResultExt;
 use futures::future;
@@ -124,7 +124,7 @@ pub async fn initiate_payment_link_flow(
         payment_intent.client_secret.clone(),
     )?;
 
-    let required_conversion_type = StringMajorUnitForConnector;
+    let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
         .convert(payment_intent.amount, currency)
@@ -333,7 +333,7 @@ fn validate_order_details(
     Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    let required_conversion_type = StringMajorUnitForConnector;
+    let required_conversion_type = StringMajorUnitForCore;
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -538,7 +538,7 @@ pub async fn get_payment_link_status(
                 field_name: "currency",
             })?;
 
-    let required_conversion_type = StringMajorUnitForConnector;
+    let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
         .convert(payment_attempt.net_amount, currency)
