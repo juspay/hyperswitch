@@ -89,6 +89,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
+    // Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -140,22 +141,28 @@ pub enum Connector {
 
 impl Connector {
     #[cfg(feature = "payouts")]
-    pub fn supports_instant_payout(&self, payout_method: PayoutType) -> bool {
+    pub fn supports_instant_payout(&self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card) | (Self::Adyenplatform, _)
+            (Self::Paypal, Some(PayoutType::Wallet))
+                | (_, Some(PayoutType::Card))
+                | (Self::Adyenplatform, _)
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
-        matches!((self, payout_method), (_, PayoutType::Bank))
+    pub fn supports_create_recipient(&self, payout_method: Option<PayoutType>) -> bool {
+        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
-        matches!((self, payout_method), (_, PayoutType::Card))
+    pub fn supports_payout_eligibility(&self, payout_method: Option<PayoutType>) -> bool {
+        matches!((self, payout_method), (_, Some(PayoutType::Card)))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
+    pub fn is_payout_quote_call_required(&self) -> bool {
+        matches!(self, Self::Wise)
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_payout(&self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
     }
     #[cfg(feature = "payouts")]
@@ -245,6 +252,7 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            // | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
@@ -455,6 +463,7 @@ pub enum FieldType {
     UserBank,
     Text,
     DropDown { options: Vec<String> },
+    UserDateOfBirth,
 }
 
 impl FieldType {
@@ -539,6 +548,7 @@ impl PartialEq for FieldType {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
+            (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             _unused => false,
         }
     }

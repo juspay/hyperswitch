@@ -31,7 +31,7 @@ pub struct CmdLineConf {
 #[derive(Clone)]
 pub struct AppState {
     pub conf: Arc<Settings<RawSecret>>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 
 impl AppState {
@@ -143,6 +143,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

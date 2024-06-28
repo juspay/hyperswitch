@@ -5,6 +5,7 @@ use std::{collections::HashMap, str::FromStr};
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
+use common_utils::types::MinorUnit;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,
@@ -38,8 +39,8 @@ fn build_test_data<'a>(
                     api_enums::Currency::INR,
                 ])),
                 accepted_countries: None,
-                minimum_amount: Some(10),
-                maximum_amount: Some(1000),
+                minimum_amount: Some(MinorUnit::new(10)),
+                maximum_amount: Some(MinorUnit::new(1000)),
                 recurring_enabled: true,
                 installment_payment_enabled: true,
             });

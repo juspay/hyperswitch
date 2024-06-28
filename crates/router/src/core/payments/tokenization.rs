@@ -7,8 +7,8 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use masking::{ExposeInterface, PeekInterface};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
 use crate::{
@@ -468,21 +468,34 @@ where
                                         ))?
                                 };
 
+                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(
+                                    &existing_pm,
+                                    key_store.key.peek(),
+                                    state,
+                                )
+                                .await?;
+
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: None,
+                                    scheme: existing_pm.scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
-                                    issuer_country: None,
+                                    issuer_country: card
+                                        .card_issuing_country
+                                        .or(existing_pm_data.issuer_country),
+                                    card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
                                     expiry_year: Some(card.card_exp_year),
                                     card_token: None,
                                     card_fingerprint: None,
-                                    card_holder_name: card.card_holder_name,
-                                    nick_name: card.nick_name,
-                                    card_network: None,
-                                    card_isin: None,
-                                    card_issuer: None,
-                                    card_type: None,
+                                    card_holder_name: card
+                                        .card_holder_name
+                                        .or(existing_pm_data.card_holder_name),
+                                    nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                                    card_network: card
+                                        .card_network
+                                        .or(existing_pm_data.card_network),
+                                    card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                                    card_type: card.card_type.or(existing_pm_data.card_type),
                                     saved_to_locker: true,
                                 });
 
@@ -515,35 +528,78 @@ where
                         }
                     },
                     None => {
-                        let pm_metadata = create_payment_method_metadata(None, connector_token)?;
-
-                        locker_id = resp.payment_method.and_then(|pm| {
-                            if pm == PaymentMethod::Card {
-                                Some(resp.payment_method_id)
-                            } else {
-                                None
+                        let customer_saved_pm_id_option = if payment_method_type
+                            == Some(api_models::enums::PaymentMethodType::ApplePay)
+                            || payment_method_type
+                                == Some(api_models::enums::PaymentMethodType::GooglePay)
+                        {
+                            match state
+                                .store
+                                .find_payment_method_by_customer_id_merchant_id_list(
+                                    &customer_id,
+                                    merchant_id,
+                                    None,
+                                )
+                                .await
+                            {
+                                Ok(customer_payment_methods) => Ok(customer_payment_methods
+                                    .iter()
+                                    .find(|payment_method| {
+                                        payment_method.payment_method_type == payment_method_type
+                                    })
+                                    .map(|pm| pm.payment_method_id.clone())),
+                                Err(error) => {
+                                    if error.current_context().is_db_not_found() {
+                                        Ok(None)
+                                    } else {
+                                        Err(error)
+                                            .change_context(
+                                                errors::ApiErrorResponse::InternalServerError,
+                                            )
+                                            .attach_printable(
+                                                "failed to find payment methods for a customer",
+                                            )
+                                    }
+                                }
                             }
-                        });
+                        } else {
+                            Ok(None)
+                        }?;
 
-                        resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-                        payment_methods::cards::create_payment_method(
-                            db,
-                            &payment_method_create_request,
-                            &customer_id,
-                            &resp.payment_method_id,
-                            locker_id,
-                            merchant_id,
-                            pm_metadata,
-                            customer_acceptance,
-                            pm_data_encrypted,
-                            key_store,
-                            connector_mandate_details,
-                            None,
-                            network_transaction_id,
-                            merchant_account.storage_scheme,
-                            encrypted_payment_method_billing_address,
-                        )
-                        .await?;
+                        if let Some(customer_saved_pm_id) = customer_saved_pm_id_option {
+                            resp.payment_method_id = customer_saved_pm_id;
+                        } else {
+                            let pm_metadata =
+                                create_payment_method_metadata(None, connector_token)?;
+
+                            locker_id = resp.payment_method.and_then(|pm| {
+                                if pm == PaymentMethod::Card {
+                                    Some(resp.payment_method_id)
+                                } else {
+                                    None
+                                }
+                            });
+
+                            resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+                            payment_methods::cards::create_payment_method(
+                                db,
+                                &payment_method_create_request,
+                                &customer_id,
+                                &resp.payment_method_id,
+                                locker_id,
+                                merchant_id,
+                                pm_metadata,
+                                customer_acceptance,
+                                pm_data_encrypted,
+                                key_store,
+                                connector_mandate_details,
+                                None,
+                                network_transaction_id,
+                                merchant_account.storage_scheme,
+                                encrypted_payment_method_billing_address,
+                            )
+                            .await?;
+                        };
                     }
                 }
 
@@ -728,8 +784,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
         | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                 api::PaymentMethodToken,
                 types::PaymentMethodTokenizationData,
                 types::PaymentsResponseData,
@@ -738,17 +793,12 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
                 Err(types::ErrorResponse::default());
 
-            let mut pm_token_router_data =
+            let pm_token_router_data =
                 helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
                     router_data.clone(),
                     pm_token_request_data,
                     pm_token_response_data,
                 );
-
-            connector_integration
-                .execute_pretasks(&mut pm_token_router_data, state)
-                .await
-                .to_payment_failed_response()?;
 
             router_data
                 .request
@@ -767,16 +817,10 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    ),
-                    metrics::request::add_attributes(
-                        "payment_method",
-                        router_data.payment_method.to_string(),
-                    ),
-                ],
+                &add_attributes([
+                    ("connector", connector.connector_name.to_string()),
+                    ("payment_method", router_data.payment_method.to_string()),
+                ]),
             );
 
             let pm_token = match resp.response {

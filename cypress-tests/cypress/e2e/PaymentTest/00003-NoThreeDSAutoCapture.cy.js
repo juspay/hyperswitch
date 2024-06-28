@@ -39,7 +39,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -87,7 +87,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);

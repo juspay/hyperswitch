@@ -1,9 +1,10 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Display},
     future::Future,
     str,
     sync::Arc,
@@ -19,22 +20,34 @@ use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
+};
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::AuthenticateAndFetch;
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
 use crate::{
-    configs::{settings::Connectors, Settings},
+    configs::Settings,
     consts,
     core::{
         api_locking,
@@ -48,8 +61,11 @@ use crate::{
     logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
-        metrics::{self, request as metrics_request},
-        AppState, SessionState,
+        metrics, AppState, SessionState,
+    },
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
     },
     types::{
         self,
@@ -58,21 +74,28 @@ use crate::{
     },
 };
 
-pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
-
-pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
-}
-
-impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
-where
-    S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
-{
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
-        Box::new(self)
-    }
-}
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::RefundFlowData, Req, Resp>;
+#[cfg(feature = "frm")]
+pub type BoxedFrmConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FrmFlowData, Req, Resp>;
+pub type BoxedDisputeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputesFlowData, Req, Resp>;
+pub type BoxedMandateRevokeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::MandateRevokeFlowData, Req, Resp>;
+#[cfg(feature = "payouts")]
+pub type BoxedPayoutConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PayoutFlowData, Req, Resp>;
+pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
+pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
+pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
 pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
@@ -129,165 +152,6 @@ pub trait ConnectorValidation: ConnectorCommon {
     }
 }
 
-#[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
-    fn get_headers(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        mime::APPLICATION_JSON.essence_str()
-    }
-
-    /// primarily used when creating signature based on request method of payment flow
-    fn get_http_method(&self) -> Method {
-        Method::Post
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::new())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
-    }
-
-    fn get_request_form_data(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    /// This module can be called before executing a payment flow where a pre-task is needed
-    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
-    async fn execute_pretasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    /// This module can be called after executing a payment flow where a post-task needed
-    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
-    async fn execute_posttasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &[metrics::request::add_attributes(
-                "connector",
-                req.connector.clone(),
-            )],
-        );
-        Ok(None)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RouterData<T, Req, Resp>,
-        event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
-    where
-        T: Clone,
-        Req: Clone,
-        Resp: Clone,
-    {
-        event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
-        Ok(data.clone())
-    }
-
-    fn get_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
-        Ok(ErrorResponse::get_not_implemented())
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
-        let error_message = match res.status_code {
-            500 => "internal_server_error",
-            501 => "not_implemented",
-            502 => "bad_gateway",
-            503 => "service_unavailable",
-            504 => "gateway_timeout",
-            505 => "http_version_not_supported",
-            506 => "variant_also_negotiates",
-            507 => "insufficient_storage",
-            508 => "loop_detected",
-            510 => "not_extended",
-            511 => "network_authentication_required",
-            _ => "unknown_error",
-        };
-        Ok(ErrorResponse {
-            code: res.status_code.to_string(),
-            message: error_message.to_string(),
-            reason: String::from_utf8(res.response.to_vec()).ok(),
-            status_code: res.status_code,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-
-    // whenever capture sync is implemented at the connector side, this method should be overridden
-    fn get_multiple_capture_sync_method(
-        &self,
-    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
-    }
-
-    fn get_certificate(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    fn get_certificate_key(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-}
-
-pub enum CaptureSyncMethod {
-    Individual,
-    Bulk,
-}
-
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
@@ -296,11 +160,12 @@ pub async fn execute_connector_processing_step<
     'b,
     'a,
     T,
+    ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     state: &'b SessionState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
@@ -350,9 +215,9 @@ where
             metrics::CONNECTOR_CALL_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    ("connector", req.connector.to_string()),
+                    (
                         "flow",
                         std::any::type_name::<T>()
                             .split("::")
@@ -360,7 +225,7 @@ where
                             .unwrap_or_default()
                             .to_string(),
                     ),
-                ],
+                ]),
             );
 
             let connector_request = match connector_request {
@@ -376,10 +241,7 @@ where
                             metrics::REQUEST_BUILD_FAILURE.add(
                                 &metrics::CONTEXT,
                                 1,
-                                &[metrics::request::add_attributes(
-                                    "connector",
-                                    req.connector.to_string(),
-                                )],
+                                &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
                         error
@@ -444,10 +306,10 @@ where
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
                                                 &metrics::CONTEXT,
                                                 1,
-                                                &[metrics::request::add_attributes(
+                                                &add_attributes([(
                                                     "connector",
                                                     req.connector.to_string(),
-                                                )],
+                                                )]),
                                             )
                                         }
                                             error
@@ -485,10 +347,7 @@ where
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
-                                        &[metrics::request::add_attributes(
-                                            "connector",
-                                            req.connector.clone(),
-                                        )],
+                                        &add_attributes([("connector", req.connector.clone())]),
                                     );
 
                                     let error = match body.status_code {
@@ -510,6 +369,7 @@ where
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
@@ -714,9 +574,10 @@ pub async fn send_request(
             .attach_printable("Unable to send request to connector")
     };
 
-    let response = metrics_request::record_operation_time(
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
+        &metrics::CONTEXT,
         &[metrics_tag.clone()],
     )
     .await;
@@ -741,9 +602,10 @@ pub async fn send_request(
                     logger::info!(
                         "Retrying request due to connection closed before message could complete"
                     );
-                    metrics_request::record_operation_time(
+                    common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
                         &[metrics_tag],
                     )
                     .await
@@ -861,6 +723,53 @@ pub enum ApplicationResponse<R> {
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
+    GenericLinkForm(Box<GenericLinks>),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinks {
+    ExpiredLink(GenericExpiredLinkData),
+    PaymentMethodCollect(GenericLinkFormData),
+    PayoutLink(GenericLinkFormData),
+    PayoutLinkStatus(GenericLinkStatusData),
+    PaymentMethodCollectStatus(GenericLinkStatusData),
+}
+
+impl Display for Box<GenericLinks> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match **self {
+                GenericLinks::ExpiredLink(_) => "ExpiredLink",
+                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
+                GenericLinks::PayoutLink(_) => "PayoutLink",
+                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
+                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+            }
+        )
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkFormData {
+    pub js_data: String,
+    pub css_data: String,
+    pub sdk_url: String,
+    pub html_meta_tags: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericExpiredLinkData {
+    pub title: String,
+    pub message: String,
+    pub theme: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkStatusData {
+    pub js_data: String,
+    pub css_data: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -961,10 +870,10 @@ where
         .into_iter()
         .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        common_utils::consts::DEFAULT_TENANT.to_string()
+        DEFAULT_TENANT.to_string()
     } else {
         incoming_request_header
-            .get("x-tenant-id")
+            .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
             .map(|req_tenant_id| {
@@ -978,6 +887,9 @@ where
                 }
             })??
     };
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
     // let tenant_id = "public".to_string();
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
@@ -1084,7 +996,11 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
+    metrics::request::status_code_metrics(
+        status_code.to_string(),
+        flow.to_string(),
+        merchant_id.to_string(),
+    );
 
     output
 }
@@ -1199,6 +1115,16 @@ where
             )
             .respond_to(request)
             .map_into_boxed_body()
+        }
+
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).to_string();
+            match build_generic_link_html(*boxed_generic_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => {
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {

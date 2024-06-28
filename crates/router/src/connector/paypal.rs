@@ -1,8 +1,12 @@
 pub mod transformers;
-use std::fmt::{Debug, Write};
+use std::fmt::Write;
 
 use base64::Engine;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -40,8 +44,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Paypal;
+#[derive(Clone)]
+pub struct Paypal {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Paypal {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Paypal {}
 impl api::PaymentSession for Paypal {}
@@ -103,7 +117,7 @@ impl Paypal {
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
+                self.clone(),
                 errors_list
                     .into_iter()
                     .map(|errors| errors.into())
@@ -274,7 +288,7 @@ impl ConnectorCommon for Paypal {
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
+                self.clone(),
                 errors_list
                     .into_iter()
                     .map(|errors| errors.into())
@@ -458,12 +472,12 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -588,12 +602,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1093,12 +1107,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount_to_capture, req))?;
         let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1260,12 +1274,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1614,7 +1628,7 @@ impl api::IncomingWebhook for Paypal {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: connector_utils::to_currency_lower_unit(
-                payload.dispute_amount.value,
+                payload.dispute_amount.value.get_amount_as_string(),
                 payload.dispute_amount.currency_code,
             )?,
             currency: payload.dispute_amount.currency_code.to_string(),
