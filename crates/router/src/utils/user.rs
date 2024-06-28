@@ -207,14 +207,60 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
         .attach_printable("Failed to get redis connection")
 }
 
-impl ForeignFrom<user_api::AuthConfig> for UserAuthType {
-    fn foreign_from(from: user_api::AuthConfig) -> Self {
+impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
+    fn foreign_from(from: &user_api::AuthConfig) -> Self {
         match from {
-            user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
-            user_api::AuthConfig::Password => Self::Password,
-            user_api::AuthConfig::MagicLink => Self::MagicLink,
+            &user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
+            &user_api::AuthConfig::Password => Self::Password,
+            &user_api::AuthConfig::MagicLink => Self::MagicLink,
         }
     }
+}
+
+pub async fn extract_public_and_private_auth_configs(
+    auth_config: &user_api::AuthConfig,
+    encryption_key: &[u8],
+) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {
+    match auth_config {
+        user_api::AuthConfig::OpenIdConnect {
+            private_config,
+            public_config,
+        } => {
+            let private_config_value = serde_json::to_value(private_config.clone())
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")?;
+
+            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                private_config_value.into(),
+                encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
+
+            Ok((
+                Some(encrypted_config.into()),
+                Some(
+                    serde_json::to_value(public_config.clone())
+                        .change_context(UserErrors::AuthConfigParsingError)
+                        .attach_printable("Failed to convert auth config to json")?,
+                ),
+            ))
+        }
+        _ => Ok((None, None)),
+    }
+}
+
+pub fn parse_oidc_public_config(
+    public_config: Option<serde_json::Value>,
+) -> UserResult<Option<user_api::OpenIdConnectPublicConfig>> {
+    public_config
+        .map(|config| {
+            serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(config)
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to parse OpenIdConnectPublicConfig")
+        })
+        .transpose()
 }
 
 pub async fn decrypt_oidc_private_config(
