@@ -5,7 +5,7 @@ use std::{
 };
 
 use api_models::{
-    admin::{self, PaymentMethodsEnabled},
+    admin::PaymentMethodsEnabled,
     enums as api_enums,
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
@@ -3130,117 +3130,117 @@ fn filter_pm_card_network_based(
         _ => true,
     }
 }
-fn filter_pm_country_based(
-    accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<api_enums::CountryAlpha2>>,
-) -> (
-    Option<admin::AcceptedCountries>,
-    Option<Vec<api_enums::CountryAlpha2>>,
-    bool,
-) {
-    match (accepted_countries, req_country_list) {
-        (None, None) => (None, None, true),
-        (None, Some(ref r)) => (
-            Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
-            Some(r.to_vec()),
-            true,
-        ),
-        (Some(l), None) => (Some(l.to_owned()), None, true),
-        (Some(l), Some(ref r)) => {
-            let updated = match l {
-                admin::AcceptedCountries::EnableOnly(acc) => {
-                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCountries::EnableOnly)
-                }
-
-                admin::AcceptedCountries::DisableOnly(den) => {
-                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCountries::DisableOnly)
-                }
-
-                admin::AcceptedCountries::AllAccepted => {
-                    Some(admin::AcceptedCountries::AllAccepted)
-                }
-            };
-
-            (updated, Some(r.to_vec()), true)
-        }
-    }
-}
-
-fn filter_pm_currencies_based(
-    accepted_currency: &Option<admin::AcceptedCurrencies>,
-    req_currency_list: &Option<Vec<api_enums::Currency>>,
-) -> (
-    Option<admin::AcceptedCurrencies>,
-    Option<Vec<api_enums::Currency>>,
-    bool,
-) {
-    match (accepted_currency, req_currency_list) {
-        (None, None) => (None, None, true),
-        (None, Some(ref r)) => (
-            Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
-            Some(r.to_vec()),
-            true,
-        ),
-        (Some(l), None) => (Some(l.to_owned()), None, true),
-        (Some(l), Some(ref r)) => {
-            let updated = match l {
-                admin::AcceptedCurrencies::EnableOnly(acc) => {
-                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCurrencies::EnableOnly)
-                }
-
-                admin::AcceptedCurrencies::DisableOnly(den) => {
-                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCurrencies::DisableOnly)
-                }
-
-                admin::AcceptedCurrencies::AllAccepted => {
-                    Some(admin::AcceptedCurrencies::AllAccepted)
-                }
-            };
-
-            (updated, Some(r.to_vec()), true)
-        }
-    }
-}
-
-fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
-    left: &Option<Vec<T>>,
-    right: &Option<Vec<T>>,
-) -> Option<Vec<T>> {
-    match (left, right) {
-        (Some(ref l), Some(ref r)) => {
-            let a: HashSet<&T> = HashSet::from_iter(l.iter());
-            let b: HashSet<&T> = HashSet::from_iter(r.iter());
-
-            let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
-            Some(y)
-        }
-        (Some(ref l), None) => Some(l.to_vec()),
-        (_, _) => None,
-    }
-}
-
-fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
-    left: &Option<Vec<T>>,
-    right: &Option<Vec<T>>,
-) -> Option<Vec<T>> {
-    match (left, right) {
-        (Some(ref l), Some(ref r)) => {
-            let mut enabled = Vec::new();
-            for element in r {
-                if !l.contains(element) {
-                    enabled.push(element.to_owned());
-                }
-            }
-            Some(enabled)
-        }
-        (None, Some(r)) => Some(r.to_vec()),
-        (_, _) => None,
-    }
-}
+// fn filter_pm_country_based(
+//     accepted_countries: &Option<admin::AcceptedCountries>,
+//     req_country_list: &Option<Vec<api_enums::CountryAlpha2>>,
+// ) -> (
+//     Option<admin::AcceptedCountries>,
+//     Option<Vec<api_enums::CountryAlpha2>>,
+//     bool,
+// ) {
+//     match (accepted_countries, req_country_list) {
+//         (None, None) => (None, None, true),
+//         (None, Some(ref r)) => (
+//             Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
+//             Some(r.to_vec()),
+//             true,
+//         ),
+//         (Some(l), None) => (Some(l.to_owned()), None, true),
+//         (Some(l), Some(ref r)) => {
+//             let updated = match l {
+//                 admin::AcceptedCountries::EnableOnly(acc) => {
+//                     filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+//                         .map(admin::AcceptedCountries::EnableOnly)
+//                 }
+//
+//                 admin::AcceptedCountries::DisableOnly(den) => {
+//                     filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+//                         .map(admin::AcceptedCountries::DisableOnly)
+//                 }
+//
+//                 admin::AcceptedCountries::AllAccepted => {
+//                     Some(admin::AcceptedCountries::AllAccepted)
+//                 }
+//             };
+//
+//             (updated, Some(r.to_vec()), true)
+//         }
+//     }
+// }
+//
+// fn filter_pm_currencies_based(
+//     accepted_currency: &Option<admin::AcceptedCurrencies>,
+//     req_currency_list: &Option<Vec<api_enums::Currency>>,
+// ) -> (
+//     Option<admin::AcceptedCurrencies>,
+//     Option<Vec<api_enums::Currency>>,
+//     bool,
+// ) {
+//     match (accepted_currency, req_currency_list) {
+//         (None, None) => (None, None, true),
+//         (None, Some(ref r)) => (
+//             Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
+//             Some(r.to_vec()),
+//             true,
+//         ),
+//         (Some(l), None) => (Some(l.to_owned()), None, true),
+//         (Some(l), Some(ref r)) => {
+//             let updated = match l {
+//                 admin::AcceptedCurrencies::EnableOnly(acc) => {
+//                     filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+//                         .map(admin::AcceptedCurrencies::EnableOnly)
+//                 }
+//
+//                 admin::AcceptedCurrencies::DisableOnly(den) => {
+//                     filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+//                         .map(admin::AcceptedCurrencies::DisableOnly)
+//                 }
+//
+//                 admin::AcceptedCurrencies::AllAccepted => {
+//                     Some(admin::AcceptedCurrencies::AllAccepted)
+//                 }
+//             };
+//
+//             (updated, Some(r.to_vec()), true)
+//         }
+//     }
+// }
+//
+// fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
+//     left: &Option<Vec<T>>,
+//     right: &Option<Vec<T>>,
+// ) -> Option<Vec<T>> {
+//     match (left, right) {
+//         (Some(ref l), Some(ref r)) => {
+//             let a: HashSet<&T> = HashSet::from_iter(l.iter());
+//             let b: HashSet<&T> = HashSet::from_iter(r.iter());
+//
+//             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
+//             Some(y)
+//         }
+//         (Some(ref l), None) => Some(l.to_vec()),
+//         (_, _) => None,
+//     }
+// }
+//
+// fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
+//     left: &Option<Vec<T>>,
+//     right: &Option<Vec<T>>,
+// ) -> Option<Vec<T>> {
+//     match (left, right) {
+//         (Some(ref l), Some(ref r)) => {
+//             let mut enabled = Vec::new();
+//             for element in r {
+//                 if !l.contains(element) {
+//                     enabled.push(element.to_owned());
+//                 }
+//             }
+//             Some(enabled)
+//         }
+//         (None, Some(r)) => Some(r.to_vec()),
+//         (_, _) => None,
+//     }
+// }
 
 fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
@@ -3256,55 +3256,55 @@ fn filter_recurring_based(
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
-async fn filter_payment_country_based(
-    pm: &RequestPaymentMethodTypes,
-    address: Option<&domain::Address>,
-) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    Ok(address.map_or(true, |address| {
-        address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
-                admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
-                admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
-                admin::AcceptedCountries::AllAccepted => true,
-            })
-        })
-    }))
-}
-
-fn filter_payment_currency_based(
-    payment_intent: &storage::PaymentIntent,
-    pm: &RequestPaymentMethodTypes,
-) -> bool {
-    payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
-            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency),
-            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency),
-            admin::AcceptedCurrencies::AllAccepted => true,
-        })
-    })
-}
-
-fn filter_payment_amount_based(
-    payment_intent: &storage::PaymentIntent,
-    pm: &RequestPaymentMethodTypes,
-) -> bool {
-    let amount = payment_intent.amount;
-    (pm.maximum_amount.map_or(true, |amt| amount <= amt)
-        && pm.minimum_amount.map_or(true, |amt| amount >= amt))
-        || payment_intent.amount == MinorUnit::zero()
-}
-
-async fn filter_payment_mandate_based(
-    payment_attempt: Option<&storage::PaymentAttempt>,
-    pm: &RequestPaymentMethodTypes,
-) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    let recurring_filter = if !pm.recurring_enabled {
-        payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
-    } else {
-        true
-    };
-    Ok(recurring_filter)
-}
+// async fn filter_payment_country_based(
+//     pm: &RequestPaymentMethodTypes,
+//     address: Option<&domain::Address>,
+// ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+//     Ok(address.map_or(true, |address| {
+//         address.country.as_ref().map_or(true, |country| {
+//             pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+//                 admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
+//                 admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
+//                 admin::AcceptedCountries::AllAccepted => true,
+//             })
+//         })
+//     }))
+// }
+//
+// fn filter_payment_currency_based(
+//     payment_intent: &storage::PaymentIntent,
+//     pm: &RequestPaymentMethodTypes,
+// ) -> bool {
+//     payment_intent.currency.map_or(true, |currency| {
+//         pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+//             admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency),
+//             admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency),
+//             admin::AcceptedCurrencies::AllAccepted => true,
+//         })
+//     })
+// }
+//
+// fn filter_payment_amount_based(
+//     payment_intent: &storage::PaymentIntent,
+//     pm: &RequestPaymentMethodTypes,
+// ) -> bool {
+//     let amount = payment_intent.amount;
+//     (pm.maximum_amount.map_or(true, |amt| amount <= amt)
+//         && pm.minimum_amount.map_or(true, |amt| amount >= amt))
+//         || payment_intent.amount == MinorUnit::zero()
+// }
+//
+// async fn filter_payment_mandate_based(
+//     payment_attempt: Option<&storage::PaymentAttempt>,
+//     pm: &RequestPaymentMethodTypes,
+// ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+//     let recurring_filter = if !pm.recurring_enabled {
+//         payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
+//     } else {
+//         true
+//     };
+//     Ok(recurring_filter)
+// }
 
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     state: routes::SessionState,
