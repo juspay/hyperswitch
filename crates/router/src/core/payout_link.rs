@@ -265,23 +265,23 @@ pub async fn filter_payout_methods(
         common_enums::PaymentMethod,
         HashSet<common_enums::PaymentMethodType>,
     > = HashMap::new();
-    let mut bank_transfer_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let mut card_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let mut wallet_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_filters.clone();
     for mca in &filtered_mca {
         let payout_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
         };
-        for payment_method in payout_methods.iter() {
+        for payout_method in payout_methods.iter() {
             let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(
-                payment_method.clone(),
+                payout_method.clone(),
             );
             if let Ok(payment_methods_enabled) = parse_result {
                 let payment_method = payment_methods_enabled.payment_method;
                 let payment_method_types = match payment_methods_enabled.payment_method_types {
-                    Some(pmt) => pmt,
+                    Some(payment_method_types) => payment_method_types,
                     None => continue,
                 };
                 let connector = mca.connector_name.clone();
@@ -297,18 +297,22 @@ pub async fn filter_payout_methods(
                     if currency_country_filter != Some(false) {
                         match payment_method {
                             common_enums::PaymentMethod::Card => {
-                                card_hs.insert(request_payout_method_type.payment_method_type);
-                                payment_method_list_hm.insert(payment_method, card_hs.clone());
-                            }
-                            common_enums::PaymentMethod::Wallet => {
-                                wallet_hs.insert(request_payout_method_type.payment_method_type);
-                                payment_method_list_hm.insert(payment_method, wallet_hs.clone());
-                            }
-                            common_enums::PaymentMethod::BankTransfer => {
-                                bank_transfer_hs
+                                card_hash_set
                                     .insert(request_payout_method_type.payment_method_type);
                                 payment_method_list_hm
-                                    .insert(payment_method, bank_transfer_hs.clone());
+                                    .insert(payment_method, card_hash_set.clone());
+                            }
+                            common_enums::PaymentMethod::Wallet => {
+                                wallet_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, wallet_hash_set.clone());
+                            }
+                            common_enums::PaymentMethod::BankTransfer => {
+                                bank_transfer_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_transfer_hash_set.clone());
                             }
                             common_enums::PaymentMethod::CardRedirect
                             | common_enums::PaymentMethod::PayLater
