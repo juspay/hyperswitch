@@ -1545,7 +1545,7 @@ impl api::IncomingWebhook for Paypal {
             }
             paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource
                             .disputed_transactions
                             .first()
