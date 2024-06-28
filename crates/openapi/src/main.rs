@@ -12,7 +12,7 @@ fn main() {
     #[cfg(feature = "v2")]
     let relative_file_path = "api-reference/v2/openapi_spec.json";
 
-    let mut file_path = PathBuf::from(router_env::workspace_path());
+    let mut file_path = router_env::workspace_path();
     file_path.push(relative_file_path);
 
     #[allow(unused_mut)]
