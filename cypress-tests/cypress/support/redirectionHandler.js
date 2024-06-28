@@ -336,7 +336,6 @@ function upiRedirection(
       case "upi_intent":
         cy.request(redirection_url.href).then((response) => {
           expect(response.status).to.eq(200);
-          console.log(response.body);
           expect(response.body).to.have.property("iataPaymentId");
           expect(response.body).to.have.property("status", "INITIATED");
           expect(response.body.qrInfoData).to.be.an("object");

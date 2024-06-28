@@ -92,7 +92,7 @@ describe("UPI Payments - Hyperswitch", () => {
 
   // Skipping UPI Intent intentionally as connector is throwing 5xx during redirection
   context.skip("[Payment] [UPI - UPI Intent] Create & Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    should_continue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
