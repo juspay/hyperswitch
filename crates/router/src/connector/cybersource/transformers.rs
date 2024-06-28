@@ -1680,6 +1680,7 @@ pub enum CybersourcePaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
+    StatusNotRecieved
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -1724,6 +1725,7 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::ServerError => Self::Failure,
             CybersourcePaymentStatus::PendingAuthentication => Self::AuthenticationPending,
             CybersourcePaymentStatus::PendingReview
+            | CybersourcePaymentStatus::StatusNotRecieved
             | CybersourcePaymentStatus::Challenge
             | CybersourcePaymentStatus::Accepted => Self::Pending,
         }
@@ -1751,7 +1753,7 @@ pub enum CybersourcePaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceClientReferenceResponse {
     id: String,
-    status: CybersourcePaymentStatus,
+    status: Option<CybersourcePaymentStatus>,
     client_reference_information: ClientReferenceInformation,
     processor_information: Option<ClientProcessorInformation>,
     risk_information: Option<ClientRiskInformation>,
@@ -2010,7 +2012,7 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    info_response.status.clone(),
+                    info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2545,7 +2547,7 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    info_response.status.clone(),
+                    info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2608,7 +2610,9 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status =
-                    enums::AttemptStatus::foreign_from((info_response.status.clone(), true));
+                    enums::AttemptStatus::foreign_from((
+                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        true));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
                     status,
@@ -2645,7 +2649,9 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status =
-                    enums::AttemptStatus::foreign_from((info_response.status.clone(), false));
+                    enums::AttemptStatus::foreign_from((
+                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                         false));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
                     status,
@@ -2691,7 +2697,9 @@ impl<F, T>
                     }
                 });
                 let mut mandate_status =
-                    enums::AttemptStatus::foreign_from((info_response.status.clone(), false));
+                    enums::AttemptStatus::foreign_from((
+                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        false));
                 if matches!(mandate_status, enums::AttemptStatus::Authorized) {
                     //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
                     mandate_status = enums::AttemptStatus::Charged
