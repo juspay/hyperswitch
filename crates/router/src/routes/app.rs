@@ -236,7 +236,6 @@ impl AppStateInfo for AppState {
     fn get_request_id(&self) -> Option<String> {
         self.api_client.get_request_id()
     }
-
 }
 
 impl AsRef<Self> for AppState {
