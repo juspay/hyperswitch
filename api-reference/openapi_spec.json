@@ -8496,14 +8496,12 @@
       },
       "CustomerDetailsResponse": {
         "type": "object",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The identifier for the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },

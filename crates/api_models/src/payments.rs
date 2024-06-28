@@ -202,11 +202,11 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq, Setter)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: id_type::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]

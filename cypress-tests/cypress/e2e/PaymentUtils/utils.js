@@ -3,6 +3,7 @@ import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmeri
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
+import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
@@ -14,6 +15,7 @@ const connectorDetails = {
   bluesnap: bluesnapConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  iatapay: iatapayConnectorDetails,
   nmi: nmiConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
