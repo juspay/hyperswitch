@@ -70,9 +70,11 @@ pub fn get_mandate_type(
             Ok(Some(api::MandateTransactionType::NewMandateTransaction))
         }
 
-        (_, _, Some(enums::FutureUsage::OffSession), _, Some(_)) | (_, Some(_), _, _, _) => Ok(
-            Some(api::MandateTransactionType::RecurringMandateTransaction),
-        ),
+        (_, _, Some(enums::FutureUsage::OffSession), _, Some(_))
+        | (_, Some(_), _, _, _)
+        | (_, _, Some(enums::FutureUsage::OffSession), _, _) => Ok(Some(
+            api::MandateTransactionType::RecurringMandateTransaction,
+        )),
 
         _ => Ok(None),
     }

@@ -1841,7 +1841,7 @@ pub struct ClientRiskInformation {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
-    name: Secret<String>,
+    name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3410,7 +3410,11 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" , {}", risk_info.name.clone().expose()))
+                        .map(|risk_info| {
+                            risk_info.name.clone().map_or("".to_string(), |name| {
+                                format!(" , {}", name.clone().expose())
+                            })
+                        })
                         .collect::<Vec<String>>()
                         .join("")
                 })

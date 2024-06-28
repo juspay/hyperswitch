@@ -1,5 +1,7 @@
 pub mod types;
 
+use common_utils::types::MinorUnit;
+
 use crate::{
     backend::{self, inputs, EuclidBackend},
     frontend::ast,
@@ -14,7 +16,7 @@ where
     O: Clone,
 {
     fn eval_number_comparison_array(
-        num: i64,
+        num: MinorUnit,
         array: &[ast::NumberComparison],
     ) -> Result<bool, types::InterpreterError> {
         for comparison in array {

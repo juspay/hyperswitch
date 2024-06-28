@@ -200,8 +200,7 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     >,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
