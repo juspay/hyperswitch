@@ -1325,11 +1325,15 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
-                .await
-                .change_context(errors::VaultError::FetchPaymentMethodFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            locker_choice,
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
@@ -1378,11 +1382,15 @@ pub async fn call_to_locker_hs<'a>(
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
 
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::SaveCardFailed)
-                .attach_printable("Error getting decrypted response payload")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting decrypted response payload")?;
         let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
             .parse_struct("StoreCardResp")
             .change_context(errors::VaultError::ResponseDeserializationFailed)?;
@@ -1459,11 +1467,15 @@ pub async fn get_card_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::FetchCardFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchCardFailed)?;
@@ -1513,6 +1525,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             jwekey,
             jwe_body,
             Some(api_enums::LockerChoice::HyperswitchCardVault),
+            locker.decryption_scheme.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
