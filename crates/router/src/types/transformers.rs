@@ -19,7 +19,10 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
-    headers::{X_CLIENT_SOURCE, X_CLIENT_VERSION, X_PAYMENT_CONFIRM_SOURCE},
+    headers::{
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        X_PAYMENT_CONFIRM_SOURCE,
+    },
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -224,6 +227,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
+            // api_enums::Connector::Datatrans => Self::Datatrans,  added as template code for future use
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -577,7 +581,8 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             | storage_enums::PayoutStatus::RequiresCreation
             | storage_enums::PayoutStatus::RequiresFulfillment
             | storage_enums::PayoutStatus::RequiresPayoutMethodData
-            | storage_enums::PayoutStatus::RequiresVendorAccountCreation => None,
+            | storage_enums::PayoutStatus::RequiresVendorAccountCreation
+            | storage_enums::PayoutStatus::RequiresConfirmation => None,
         }
     }
 }
@@ -1104,11 +1109,32 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
         let client_version =
             get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
 
+        let browser_name_str =
+            get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name: Option<api_enums::BrowserName> = browser_name_str.map(|browser_name| {
+            browser_name
+                .parse_enum("BrowserName")
+                .unwrap_or(api_enums::BrowserName::Unknown)
+        });
+
+        let x_client_platform_str =
+            get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
+
+        let x_client_platform: Option<api_enums::ClientPlatform> =
+            x_client_platform_str.map(|x_client_platform| {
+                x_client_platform
+                    .parse_enum("ClientPlatform")
+                    .unwrap_or(api_enums::ClientPlatform::Unknown)
+            });
+
         Ok(Self {
             payment_confirm_source,
             client_source,
             client_version,
             x_hs_latency: Some(x_hs_latency),
+            browser_name,
+            x_client_platform,
         })
     }
 }

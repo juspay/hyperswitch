@@ -10,13 +10,13 @@ impl ConnectorActions for BillwerkTest {}
 impl utils::Connector for BillwerkTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Billwerk;
-        types::api::ConnectorData {
-            connector: Box::new(&Billwerk),
+        utils::construct_connector_data_old(
+            Box::new(&Billwerk),
             // Added as Dummy connector as template code is added for future usage
-            connector_name: types::Connector::DummyConnector1,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+            types::Connector::DummyConnector1,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

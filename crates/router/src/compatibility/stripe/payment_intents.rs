@@ -498,7 +498,9 @@ pub async fn payment_intent_list(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| payments::list_payments(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))

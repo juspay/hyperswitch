@@ -8117,18 +8117,18 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "billing.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.first_name".to_string(),
+                                                    required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "first_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
                                                     value: None,
                                                 }
                                             ),
                                             (
-                                                "billing.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.last_name".to_string(),
+                                                    required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "last_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
                                                     value: None,
@@ -8153,9 +8153,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "billing.country".to_string(),
+                                                "billing.address.country".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.country".to_string(),
+                                                    required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "nationality".to_string(),
                                                     field_type: enums::FieldType::UserCountry{
                                                         options: vec![

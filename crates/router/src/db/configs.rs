@@ -72,7 +72,7 @@ impl ConfigInterface for Store {
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .publish(
-                cache::PUB_SUB_CHANNEL,
+                cache::IMC_INVALIDATION_CHANNEL,
                 CacheKind::Config((&inserted.key).into()),
             )
             .await
@@ -179,7 +179,10 @@ impl ConfigInterface for Store {
 
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .publish(cache::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
+            .publish(
+                cache::IMC_INVALIDATION_CHANNEL,
+                CacheKind::Config(key.into()),
+            )
             .await
             .map_err(Into::<errors::StorageError>::into)?;
 
