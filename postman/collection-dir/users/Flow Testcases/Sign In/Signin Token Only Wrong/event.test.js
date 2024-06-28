@@ -1,3 +1,5 @@
+console.log("X-Request-ID:", pm.response.headers.get("X-Request-ID"));
+
 // Validate status 4xx
 pm.test("[POST]::/user/v2/signin?token_only=true - Status code is 401", function () {
   pm.response.to.have.status(401);
