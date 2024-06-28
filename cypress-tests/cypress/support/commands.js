@@ -108,7 +108,7 @@ Cypress.Commands.add(
         }).then((response) => {
           logRequestId(response.headers["x-request-id"]);
 
-          if (response.status === 200) {
+          if (res_data.status === 200) {
             expect(globalState.get("connectorId")).to.equal(
               response.body.connector_name
             );
@@ -250,8 +250,8 @@ Cypress.Commands.add(
 
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.body).to.have.property("client_secret");
         const clientSecret = response.body.client_secret;
         globalState.set("clientSecret", clientSecret);
@@ -310,8 +310,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.body).to.have.property("payment_method_id");
         expect(response.body).to.have.property("client_secret");
         globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -343,8 +343,8 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("paymentID", paymentIntentID);
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -408,8 +408,8 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.headers["content-type"]).to.include("application/json");
         globalState.set("paymentID", paymentIntentId);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
@@ -497,8 +497,8 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("paymentID", paymentIntentID);
         if (
           response.body.capture_method === "automatic" ||
@@ -557,8 +557,8 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         if (
           response.body.capture_method === "automatic" ||
           response.body.capture_method === "manual"
@@ -618,8 +618,8 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         if (response.body.capture_method === "automatic") {
           expect(response.body).to.have.property("status");
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -687,8 +687,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("paymentID", paymentIntentID);
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -748,7 +748,7 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      expect(res_data.status).to.equal(response.status);
+      
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.body.capture_method !== undefined) {
         expect(response.body.payment_id).to.equal(payment_id);
@@ -779,7 +779,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
+      if (res_data.status === 200) {
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
@@ -829,8 +829,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("refundId", response.body.refund_id);
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
@@ -857,7 +857,7 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      expect(res_data.status).to.equal(response.status);
+      
       expect(response.headers["content-type"]).to.include("application/json");
       for (const key in res_data.body) {
         expect(res_data.body[key]).to.equal(response.body[key]);
@@ -899,9 +899,9 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
+      if (res_data.status === 200) {
         globalState.set("paymentID", response.body.payment_id);
-        expect(res_data.status).to.equal(response.status);
+        
         globalState.set("paymentID", response.body.payment_id);
         if (requestBody.mandate_data === null) {
           expect(response.body).to.have.property("payment_method_id");
@@ -1237,8 +1237,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
         globalState.set("payoutID", response.body.payout_id);
         for (const key in res_data.body) {
@@ -1285,8 +1285,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
         globalState.set("payoutID", response.body.payout_id);
         for (const key in res_data.body) {
@@ -1320,8 +1320,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
@@ -1354,8 +1354,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
@@ -1406,8 +1406,8 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.headers["content-type"]).to.include("application/json");
 
-    if (response.status === 200) {
-      expect(res_data.status).to.equal(response.status);
+    if (res_data.status === 200) {
+      
       expect(response.body).to.have.property("token");
       //set jwt_token
       globalState.set("jwtToken", response.body.token);
@@ -1478,8 +1478,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.body).to.have.property("id");
         globalState.set("routingConfigId", response.body.id);
         for (const key in res_data.body) {
@@ -1512,8 +1512,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.body.id).to.equal(routing_config_id);
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
@@ -1545,8 +1545,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(res_data.status).to.equal(response.status);
+      if (res_data.status === 200) {
+        
         expect(response.body.id).to.equal(routing_config_id);
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);

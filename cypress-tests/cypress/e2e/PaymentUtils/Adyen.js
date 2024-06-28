@@ -181,10 +181,6 @@ export const connectorDetails = {
         body: {
           status: "pending",
         },
-        status: 200,
-        body: {
-          status: "pending",
-        },
       },
     },
     PartialRefund: {

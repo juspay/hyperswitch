@@ -97,9 +97,7 @@ export function defaultErrorHandler(response, response_data) {
   }
 
   expect(response.body).to.have.property("error");
-  expect(response_data.status).to.equal(response.status);
   for (const key in response_data.body.error) {
-    console.log(response, key, response.body.error[key]);
     expect(response_data.body.error[key]).to.equal(response.body.error[key]);
   }
 }

@@ -7,9 +7,9 @@ import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 let globalState;
 
 describe("UPI Payments - Hyperswitch", () => {
-  context("[Payment] [UPI - UPI Collect] Create & Confirm + Refund", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+  context("[Payment] [UPI - UPI Collect] Create & Confirm + Refund", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
