@@ -1980,6 +1980,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.37.0",
+ "url",
  "utoipa",
  "uuid",
 ]

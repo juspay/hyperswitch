@@ -207,25 +207,60 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLink {
     pub payment_method_collect: GenericLinkEnvConfig,
     pub payout_link: GenericLinkEnvConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+impl Default for GenericLink {
+    fn default() -> Self {
+        Self {
+            payment_method_collect: GenericLinkEnvConfig::default(),
+            payout_link: GenericLinkEnvConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvConfig {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub expiry: u32,
     pub ui_config: GenericLinkEnvUiConfig,
+    #[serde(deserialize_with = "deserialize_hashmap")]
     pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[allow(clippy::panic)]
+impl Default for GenericLinkEnvConfig {
+    fn default() -> Self {
+        Self {
+            sdk_url: url::Url::parse("http://localhost:9050/HyperLoader.js")
+                .unwrap_or_else(|_| panic!("Failed to parse default SDK URL")),
+            expiry: 900,
+            ui_config: GenericLinkEnvUiConfig::default(),
+            enabled_payment_methods: HashMap::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvUiConfig {
-    pub logo: String,
+    pub logo: url::Url,
     pub merchant_name: Secret<String>,
     pub theme: String,
+}
+
+#[allow(clippy::panic)]
+impl Default for GenericLinkEnvUiConfig {
+    fn default() -> Self {
+        Self {
+            logo: url::Url::parse("https://hyperswitch.io/favicon.ico")
+                .unwrap_or_else(|_| panic!("Failed to parse default logo URL")),
+            merchant_name: Secret::new("HyperSwitch".to_string()),
+            theme: "#4285F4".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -676,13 +711,7 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
             .build()?;
@@ -813,6 +842,61 @@ pub struct PayPalOnboarding {
     pub client_secret: Secret<String>,
     pub partner_id: Secret<String>,
     pub enabled: bool,
+}
+
+fn deserialize_hashmap_inner<K, V>(
+    value: HashMap<String, String>,
+) -> Result<HashMap<K, Vec<V>>, String>
+where
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let (values, errors) = value
+        .into_iter()
+        .map(
+            |(k, v)| match (K::from_str(&k), deserialize_hashset_inner(v)) {
+                (Err(error), _) => Err(format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    k,
+                    std::any::type_name::<K>()
+                )),
+                (_, Err(error)) => Err(error),
+                (Ok(key), Ok(value)) => Ok((key, value.into_iter().collect())),
+            },
+        )
+        .fold(
+            (HashMap::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok((key, value)) => {
+                    values.insert(key, value);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_hashmap<'a, D, K, V>(deserializer: D) -> Result<HashMap<K, Vec<V>>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+    deserialize_hashmap_inner(<HashMap<String, String>>::deserialize(deserializer)?)
+        .map_err(D::Error::custom)
 }
 
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>

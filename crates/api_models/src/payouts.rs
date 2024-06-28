@@ -701,7 +701,7 @@ pub struct PayoutListFilters {
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]
-    pub link: Secret<String>,
+    pub link: url::Url,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -719,9 +719,9 @@ pub struct PayoutLinkDetails {
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     #[serde(flatten)]
-    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
     pub amount: String,
     pub currency: common_enums::Currency,
@@ -734,10 +734,10 @@ pub struct PayoutLinkStatusDetails {
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     pub status: api_enums::PayoutStatus,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     #[serde(flatten)]
-    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub ui_config: link_utils::GenericLinkUiConfigFormData,
 }
