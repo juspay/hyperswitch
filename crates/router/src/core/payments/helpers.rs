@@ -1351,11 +1351,6 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: Some(card_detail),
                         metadata: None,
                         customer_id: customer_id.clone(),
                         card_network: card
@@ -1363,7 +1358,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
-                        payment_method_data: None,
+                        payment_method_data: Some(api::PaymentMethodCreateData::Card(card_detail)),
                     };
                     Ok(payment_method_request)
                 }
@@ -1373,11 +1368,6 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
                         metadata: None,
                         customer_id: customer_id.clone(),
                         card_network: None,

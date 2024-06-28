@@ -15,12 +15,11 @@ use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, Payme
 use router_env::{instrument, tracing};
 use time::Duration;
 
-use super::errors::{RouterResponse, StorageErrorExt};
+use super::errors::{self, RouterResponse, StorageErrorExt};
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
-        payments::helpers,
+        errors::RouterResult, payment_methods::transformers as pm_transformers, payments::helpers,
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
@@ -531,3 +530,67 @@ pub async fn retrieve_payment_method_with_token(
     };
     Ok(token)
 }
+
+pub struct PaymentMethodAddServer;
+pub struct PaymentMethodAddClient;
+
+#[async_trait::async_trait]
+pub trait PaymentMethodAdd<T: Send + Sync> {
+    async fn perform_preprocessing(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+    async fn vault_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+    async fn handle_duplication(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+}
+
+// pub trait PaymentMethodAddData {
+//     fn get_customer(&self) -> Arc<domain::Customer>;
+//     fn get_payment_method(&self) -> Arc<diesel_models::PaymentMethod>;
+//     fn get_response(&self) -> Option<api::PaymentMethodResponse>;
+//     fn get_duplication_check(&self) -> Option<pm_transformers::DataDuplicationCheck>;
+// }
+
+pub struct PaymentMethodVaultingData {
+    pub pm_id: Option<String>,
+    pub payment_method: Option<diesel_models::PaymentMethod>,
+    pub customer: Option<domain::Customer>,
+    pub response: Option<api::PaymentMethodResponse>,
+    pub duplication_check: Option<pm_transformers::DataDuplicationCheck>,
+}
+// impl PaymentMethodAddData for PaymentMethodPreprocessingData {}
+// impl PaymentMethodAddData for PaymentMethodVaultingData {
+//     fn get_customer(&self) -> Arc<domain::Customer> {
+//         self.customer.clone()
+//     }
+
+//     fn get_response(&self) -> Option<api::PaymentMethodResponse> {
+//         None
+//     }
+
+//     fn get_duplication_check(&self) -> Option<pm_transformers::DataDuplicationCheck> {
+//         None
+//     }
+
+//     fn get_payment_method(&self) -> Arc<diesel_models::PaymentMethod> {
+//         self.payment_method.clone()
+//     }
+// }

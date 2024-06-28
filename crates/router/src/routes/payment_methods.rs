@@ -36,8 +36,38 @@ pub async fn create_payment_method_api(
             Box::pin(cards::get_client_secret_or_add_payment_method(
                 state,
                 req,
-                &auth.merchant_account,
-                &auth.key_store,
+                auth.merchant_account,
+                auth.key_store,
+                false,
+            ))
+            .await
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+pub async fn create_payment_method_api_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| async move {
+            Box::pin(cards::get_client_secret_or_add_payment_method(
+                state,
+                req,
+                auth.merchant_account,
+                auth.key_store,
+                true,
             ))
             .await
         },
@@ -74,6 +104,42 @@ pub async fn save_payment_method_api(
                 auth.merchant_account,
                 auth.key_store,
                 pm_id.clone(),
+            ))
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
+pub async fn save_payment_method_api_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSave;
+    let payload = json_payload.into_inner();
+    let pm_id = path.into_inner();
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            Box::pin(cards::add_payment_method_v2(
+                state,
+                req,
+                auth.merchant_account,
+                auth.key_store,
+                Some(pm_id.clone()),
+                Box::new(payment_methods_routes::PaymentMethodAddClient),
             ))
         },
         &*auth,

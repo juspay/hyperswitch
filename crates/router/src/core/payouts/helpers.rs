@@ -383,14 +383,13 @@ pub async fn save_payout_data_to_locker(
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
-                bank_transfer: None,
-                card: card_details.clone(),
-                wallet: None,
                 metadata: None,
                 customer_id: Some(payout_attempt.customer_id.to_owned()),
                 card_network: None,
                 client_secret: None,
-                payment_method_data: None,
+                payment_method_data: card_details
+                    .as_ref()
+                    .map(|cd| api::PaymentMethodCreateData::Card(cd.clone())),
             };
 
             let pm_data = card_isin
@@ -462,14 +461,15 @@ pub async fn save_payout_data_to_locker(
                     payment_method_type: Some(payment_method_type),
                     payment_method_issuer: None,
                     payment_method_issuer_code: None,
-                    bank_transfer: bank_details,
-                    card: None,
-                    wallet: wallet_details,
                     metadata: None,
                     customer_id: Some(payout_attempt.customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
-                    payment_method_data: None,
+                    payment_method_data: if let Some(bank) = bank_details {
+                        Some(api::PaymentMethodCreateData::BankTransfer(bank))
+                    } else {
+                        wallet_details.map(api::PaymentMethodCreateData::Wallet)
+                    },
                 },
             )
         };

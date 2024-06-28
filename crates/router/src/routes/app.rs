@@ -923,6 +923,7 @@ impl PaymentMethods {
                         .route(web::post().to(create_payment_method_api))
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
+                .service(web::resource("/v2").route(web::post().to(create_payment_method_api_v2)))
                 .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
                 )
@@ -942,6 +943,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}/save")
                         .route(web::post().to(save_payment_method_api)),
+                )
+                .service(
+                    web::resource("/v2/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api_v2)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),

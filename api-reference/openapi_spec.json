@@ -13644,14 +13644,6 @@
             ],
             "nullable": true
           },
-          "card": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardDetail"
-              }
-            ],
-            "nullable": true
-          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
@@ -13669,22 +13661,6 @@
             "type": "string",
             "description": "The card network",
             "example": "Visa",
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
             "nullable": true
           },
           "client_secret": {
@@ -13713,6 +13689,28 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/Wallet"
               }
             }
           }
@@ -14279,14 +14277,6 @@
             ],
             "nullable": true
           },
-          "card": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardDetailFromLocker"
-              }
-            ],
-            "nullable": true
-          },
           "recurring_enabled": {
             "type": "boolean",
             "description": "Indicates whether the payment method is eligible for recurring payments",
@@ -14320,14 +14310,6 @@
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
           },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
           "last_used_at": {
             "type": "string",
             "format": "date-time",
@@ -14338,8 +14320,42 @@
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponseData"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "PaymentMethodResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/Bank"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodStatus": {
         "type": "string",
