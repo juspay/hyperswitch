@@ -1680,8 +1680,7 @@ pub enum CybersourcePaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
-    StatusNotRecieved
-    //PartialAuthorized, not being consumed yet.
+    StatusNotRecieved, //PartialAuthorized, not being consumed yet.
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2012,7 +2011,10 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                    info_response
+                        .status
+                        .clone()
+                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2547,7 +2549,10 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                    info_response
+                        .status
+                        .clone()
+                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2609,10 +2614,13 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
-                let status =
-                    enums::AttemptStatus::foreign_from((
-                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
-                        true));
+                let status = enums::AttemptStatus::foreign_from((
+                    info_response
+                        .status
+                        .clone()
+                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                    true,
+                ));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
                     status,
@@ -2648,10 +2656,13 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
-                let status =
-                    enums::AttemptStatus::foreign_from((
-                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
-                         false));
+                let status = enums::AttemptStatus::foreign_from((
+                    info_response
+                        .status
+                        .clone()
+                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                    false,
+                ));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
                     status,
@@ -2696,10 +2707,13 @@ impl<F, T>
                         payment_method_id: None,
                     }
                 });
-                let mut mandate_status =
-                    enums::AttemptStatus::foreign_from((
-                        info_response.status.clone().map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
-                        false));
+                let mut mandate_status = enums::AttemptStatus::foreign_from((
+                    info_response
+                        .status
+                        .clone()
+                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                    false,
+                ));
                 if matches!(mandate_status, enums::AttemptStatus::Authorized) {
                     //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
                     mandate_status = enums::AttemptStatus::Charged
