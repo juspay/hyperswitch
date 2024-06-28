@@ -59,7 +59,7 @@
                       },
                       "phone": {
                         "country_code": "+91",
-                        "number": "8056594427"
+                        "number": "9123456789"
                       }
                     },
                     "currency": "USD",
@@ -107,7 +107,7 @@
                       "email": "john@example.com",
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9999999999"
+                      "phone": "9123456789"
                     },
                     "description": "Its my first payment request",
                     "metadata": {
@@ -254,7 +254,7 @@
                       },
                       "phone": {
                         "country_code": "+91",
-                        "number": "8056594427"
+                        "number": "9123456789"
                       }
                     }
                   }
@@ -8488,7 +8488,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 10
           },
@@ -8504,14 +8504,12 @@
       "CustomerDetailsResponse": {
         "type": "object",
         "description": "Details of customer attached to this payment",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The identifier for the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
@@ -8532,7 +8530,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 10
           },
@@ -8741,7 +8739,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -8805,7 +8803,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -10702,7 +10700,7 @@
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true
           }
         }
@@ -12477,8 +12475,7 @@
             "$ref": "#/components/schemas/ComparisonType"
           },
           "number": {
-            "type": "integer",
-            "format": "int64"
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -15613,7 +15610,7 @@
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon. Please refer to `customer.phone` object",
             "deprecated": true,
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -16125,7 +16122,7 @@
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
             "deprecated": true,
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -16662,7 +16659,7 @@
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon. Please refer to `customer.phone` object",
             "deprecated": true,
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -17453,7 +17450,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6583
           },
           "currency": {
             "allOf": [
@@ -17672,7 +17670,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -17851,7 +17849,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number",
-            "example": "3141592653",
+            "example": "9123456789",
             "nullable": true,
             "maxLength": 255
           },
@@ -18379,7 +18377,7 @@
           "number": {
             "type": "string",
             "description": "The contact number",
-            "example": "9999999999",
+            "example": "9123456789",
             "nullable": true
           },
           "country_code": {
@@ -19037,17 +19035,19 @@
             "nullable": true
           },
           "minimum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
-            "example": 1,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "maximum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 1313,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "recurring_enabled": {
@@ -19774,7 +19774,7 @@
           },
           "bic": {
             "type": "string",
-            "example": "1024419982"
+            "example": "9123456789"
           },
           "country": {
             "type": "string"
@@ -20379,9 +20379,7 @@
                 ]
               },
               "value": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Represents a number literal"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             }
           },
@@ -20457,8 +20455,7 @@
               "value": {
                 "type": "array",
                 "items": {
-                  "type": "integer",
-                  "format": "int64"
+                  "$ref": "#/components/schemas/MinorUnit"
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }

@@ -451,6 +451,7 @@ pub trait ConnectorActions: Connector {
                 payout_id: core_utils::get_or_generate_uuid("payout_id", None)
                     .map_or("payout_3154763247".to_string(), |p| p),
                 amount: 1,
+                minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)

@@ -195,7 +195,7 @@ pub struct CustomerDetails {
     pub email: Option<Email>,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 10, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer's phone number
@@ -204,11 +204,11 @@ pub struct CustomerDetails {
 }
 
 /// Details of customer attached to this payment
-#[derive(Debug, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq, Setter)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: id_type::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -219,7 +219,7 @@ pub struct CustomerDetailsResponse {
     pub email: Option<Email>,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 10, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer's phone number
@@ -323,7 +323,7 @@ pub struct PaymentsRequest {
 
     /// The customer's phone number
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone: Option<Secret<String>>,
 
@@ -2141,7 +2141,7 @@ pub struct JCSVoucherData {
     #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = Option<String>, example = "9999999999")]
+    #[schema(value_type = Option<String>, example = "9123456789")]
     pub phone_number: Option<String>,
 }
 
@@ -3018,7 +3018,7 @@ impl AddressDetails {
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 pub struct PhoneDetails {
     /// The contact number
-    #[schema(value_type = Option<String>, example = "9999999999")]
+    #[schema(value_type = Option<String>, example = "9123456789")]
     pub number: Option<Secret<String>>,
     /// The country code attached to the number
     #[schema(example = "+1")]
@@ -3239,7 +3239,7 @@ pub enum BankTransferInstructions {
 pub struct SepaBankTransferInstructions {
     #[schema(value_type = String, example = "Jane Doe")]
     pub account_holder_name: Secret<String>,
-    #[schema(value_type = String, example = "1024419982")]
+    #[schema(value_type = String, example = "9123456789")]
     pub bic: Secret<String>,
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
@@ -3461,7 +3461,7 @@ pub struct PaymentsResponse {
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation

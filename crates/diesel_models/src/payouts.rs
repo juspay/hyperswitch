@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -16,7 +16,7 @@ pub struct Payouts {
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -57,7 +57,7 @@ pub struct PayoutsNew {
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -82,7 +82,7 @@ pub struct PayoutsNew {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
-        amount: i64,
+        amount: MinorUnit,
         destination_currency: storage_enums::Currency,
         source_currency: storage_enums::Currency,
         description: Option<String>,
@@ -113,7 +113,7 @@ pub enum PayoutsUpdate {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payouts)]
 pub struct PayoutsUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
     pub source_currency: Option<storage_enums::Currency>,
     pub description: Option<String>,
