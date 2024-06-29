@@ -47,9 +47,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountDelete
             | Flow::MerchantAccountList => Self::MerchantAccount,
 
-            #[cfg(feature = "v2")]
-            Flow::MerchantAccountCreateV2 => Self::MerchantAccount,
-
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
