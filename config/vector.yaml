@@ -34,6 +34,19 @@ sources:
     address: 0.0.0.0:3103
     encoding: json
 
+  local_file_logs:
+    type: file
+    include:
+      - path: "/var/log/router/**/*.log*"
+    start_at_beginning: true
+    read_from_head: true
+    ignore_older: 0s
+    encoding:
+      multiline:
+        pattern: '^\['
+        negate: true
+        match: after
+
 transforms:
   plus_1_events:
     type: filter
@@ -45,12 +58,14 @@ transforms:
     type: filter
     inputs:
       - app_logs
+      - local_file_logs 
     condition: '.labels."com.docker.compose.service" == "hyperswitch-server"'
 
   parsed_hs_server_logs:
     type: remap
     inputs:
       - app_logs
+      - local_file_logs 
     source: |-
       .message = parse_json!(.message)
 
@@ -100,6 +115,7 @@ sinks:
     type: elasticsearch
     inputs:
       - parsed_hs_server_logs
+      - local_file_logs   
     endpoints:
       - "https://opensearch:9200"
     api_version: v7
@@ -131,6 +147,7 @@ sinks:
     type: loki
     inputs:
       - parsed_hs_server_logs
+      - local_file_logs 
     endpoint: http://loki:3100
     labels:
       source: vector
