@@ -158,7 +158,8 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresFulfillment
             | common_enums::PayoutStatus::RequiresPayoutMethodData
-            | common_enums::PayoutStatus::RequiresVendorAccountCreation => Self::PayoutProcessing,
+            | common_enums::PayoutStatus::RequiresVendorAccountCreation
+            | common_enums::PayoutStatus::RequiresConfirmation => Self::PayoutProcessing,
         }
     }
 }
@@ -168,7 +169,7 @@ impl From<payout_models::PayoutCreateResponse> for StripePayoutResponse {
     fn from(res: payout_models::PayoutCreateResponse) -> Self {
         Self {
             id: res.payout_id,
-            amount: res.amount,
+            amount: res.amount.get_amount_as_i64(),
             currency: res.currency.to_string(),
             payout_type: res.payout_type,
             status: StripePayoutStatus::from(res.status),

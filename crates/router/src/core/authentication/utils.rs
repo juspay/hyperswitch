@@ -1,5 +1,6 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
 
 use crate::{
     consts,
@@ -241,11 +242,16 @@ where
     Res: std::fmt::Debug + Clone + 'static,
     F: std::fmt::Debug + Clone + 'static,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+    dyn api::ConnectorV2 + Sync:
+        services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,
 {
     let connector_data =
         api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
-    let connector_integration: services::BoxedConnectorIntegration<'_, F, Req, Res> =
-        connector_data.connector.get_connector_integration();
+    let connector_integration: services::BoxedExternalAuthenticationConnectorIntegrationInterface<
+        F,
+        Req,
+        Res,
+    > = connector_data.connector.get_connector_integration();
     let router_data = execute_connector_processing_step(
         state,
         connector_integration,

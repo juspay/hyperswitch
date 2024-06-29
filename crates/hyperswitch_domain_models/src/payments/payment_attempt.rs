@@ -417,6 +417,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -455,6 +456,15 @@ pub enum PaymentAttemptUpdate {
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
         updated_by: String,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 
@@ -520,6 +530,7 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             billing_address_details: self.billing_address_details.map(Encryption::from),
+            customer_details: self.customer_details.map(Encryption::from),
         })
     }
 
@@ -581,6 +592,10 @@ impl behaviour::Conversion for PaymentIntent {
                     .billing_address_details
                     .async_lift(inner_decrypt)
                     .await?,
+                customer_details: storage_model
+                    .customer_details
+                    .async_lift(inner_decrypt)
+                    .await?,
             })
         }
         .await
@@ -635,6 +650,7 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             billing_address_details: self.billing_address_details.map(Encryption::from),
+            customer_details: self.customer_details.map(Encryption::from),
         })
     }
 }
