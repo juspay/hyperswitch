@@ -605,12 +605,12 @@ pub struct RequestPaymentMethodTypes {
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
-    pub minimum_amount: Option<i32>,
+    pub minimum_amount: Option<MinorUnit>,
 
     /// Maximum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
     #[schema(example = 1313)]
-    pub maximum_amount: Option<i32>,
+    pub maximum_amount: Option<MinorUnit>,
 
     /// Boolean to enable recurring payments / mandates. Default is true.
     #[schema(default = true, example = false)]

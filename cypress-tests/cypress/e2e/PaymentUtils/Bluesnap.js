@@ -198,7 +198,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
@@ -218,11 +218,11 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-       mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -242,7 +242,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-       mandate_data: singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -302,7 +302,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-       mandate_data: multiUseMandateData,
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -318,7 +318,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
@@ -338,7 +338,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSManualCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
@@ -358,11 +358,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 501,

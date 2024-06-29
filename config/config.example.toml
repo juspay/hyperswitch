@@ -346,7 +346,6 @@ wildcard_origin = false                 # If true, allows any origin to make req
 [email]
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
-base_url = ""                        # Base url used when adding links that should redirect to self
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
 active_email_client = "SES"          # The currently active email client
 
@@ -359,6 +358,7 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 password_validity_in_days = 90       # Number of days after which password should be updated
 two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should be done again if doing update/change from inside
 totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
+base_url = ""                        # Base url used for user specific redirects and emails
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

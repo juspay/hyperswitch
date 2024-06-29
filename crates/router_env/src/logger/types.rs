@@ -155,7 +155,7 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
-    // Payments filters flow
+    /// Payments filters flow
     PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
@@ -412,7 +412,7 @@ pub enum Flow {
     UserFromEmail,
     /// Begin TOTP
     TotpBegin,
-    // Reset TOTP
+    /// Reset TOTP
     TotpReset,
     /// Verify TOTP
     TotpVerify,
@@ -422,16 +422,22 @@ pub enum Flow {
     RecoveryCodeVerify,
     /// Generate or Regenerate recovery codes
     RecoveryCodesGenerate,
-    // Terminate two factor authentication
+    /// Terminate two factor authentication
     TerminateTwoFactorAuth,
-    // Check 2FA status
+    /// Check 2FA status
     TwoFactorAuthStatus,
-    // Create user authentication method
+    /// Create user authentication method
     CreateUserAuthenticationMethod,
-    // Update user authentication method
+    /// Update user authentication method
     UpdateUserAuthenticationMethod,
-    // List user authentication methods
+    /// List user authentication methods
     ListUserAuthenticationMethods,
+    /// Get sso auth url
+    GetSsoAuthUrl,
+    /// Signin with SSO
+    SignInWithSso,
+    /// Auth Select
+    AuthSelect,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -446,6 +452,8 @@ pub enum Flow {
     ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
+    /// Manually update the payment details like status, error code, error message etc.
+    PaymentsManualUpdate,
 }
 
 ///

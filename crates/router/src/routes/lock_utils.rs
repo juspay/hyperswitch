@@ -124,7 +124,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
-            | Flow::PaymentsCompleteAuthorize => Self::Payments,
+            | Flow::PaymentsCompleteAuthorize
+            | Flow::PaymentsManualUpdate => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -229,7 +230,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TwoFactorAuthStatus
             | Flow::CreateUserAuthenticationMethod
             | Flow::UpdateUserAuthenticationMethod
-            | Flow::ListUserAuthenticationMethods => Self::User,
+            | Flow::ListUserAuthenticationMethods
+            | Flow::GetSsoAuthUrl
+            | Flow::SignInWithSso
+            | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole
