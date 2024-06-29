@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.20.1-hotfix3
+
+### Bug Fixes
+
+- **connector:** [ADYEN] send `browser_info` for all the card and googlepay payments ([#5155](https://github.com/juspay/hyperswitch/pull/5155)) ([`a37b569`](https://github.com/juspay/hyperswitch/commit/a37b569c542742a6a4ce2ad70e0ccb8f2b72ad9a))
+
+- - -
+
 ## 2024.06.20.1-hotfix2
 
 ### Bug Fixes
