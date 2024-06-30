@@ -219,7 +219,7 @@ pub struct GenericLinkEnvConfig {
     pub expiry: u32,
     pub ui_config: GenericLinkEnvUiConfig,
     #[serde(deserialize_with = "deserialize_hashmap")]
-    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 impl Default for GenericLinkEnvConfig {
@@ -849,7 +849,7 @@ pub struct PayPalOnboarding {
 
 fn deserialize_hashmap_inner<K, V>(
     value: HashMap<String, String>,
-) -> Result<HashMap<K, Vec<V>>, String>
+) -> Result<HashMap<K, HashSet<V>>, String>
 where
     K: Eq + std::str::FromStr + std::hash::Hash,
     V: Eq + std::str::FromStr + std::hash::Hash,
@@ -866,7 +866,7 @@ where
                     std::any::type_name::<K>()
                 )),
                 (_, Err(error)) => Err(error),
-                (Ok(key), Ok(value)) => Ok((key, value.into_iter().collect())),
+                (Ok(key), Ok(value)) => Ok((key, value)),
             },
         )
         .fold(
@@ -889,7 +889,7 @@ where
     }
 }
 
-fn deserialize_hashmap<'a, D, K, V>(deserializer: D) -> Result<HashMap<K, Vec<V>>, D::Error>
+fn deserialize_hashmap<'a, D, K, V>(deserializer: D) -> Result<HashMap<K, HashSet<V>>, D::Error>
 where
     D: serde::Deserializer<'a>,
     K: Eq + std::str::FromStr + std::hash::Hash,
@@ -973,7 +973,7 @@ where
 #[cfg(test)]
 mod hashmap_deserialization_test {
     #![allow(clippy::unwrap_used)]
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use serde::de::{
         value::{Error as ValueError, MapDeserializer},
@@ -1004,11 +1004,11 @@ mod hashmap_deserialization_test {
         let expected_result = HashMap::from([
             (
                 PaymentMethod::BankTransfer,
-                vec![PaymentMethodType::Ach, PaymentMethodType::Bacs],
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
             ),
             (
                 PaymentMethod::Wallet,
-                vec![PaymentMethodType::Paypal, PaymentMethodType::Venmo],
+                HashSet::from([PaymentMethodType::Paypal, PaymentMethodType::Venmo]),
             ),
         ]);
 
@@ -1038,15 +1038,15 @@ mod hashmap_deserialization_test {
         let expected_result = HashMap::from([
             (
                 PaymentMethod::BankTransfer,
-                vec![PaymentMethodType::Ach, PaymentMethodType::Bacs],
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
             ),
             (
                 PaymentMethod::Wallet,
-                vec![
+                HashSet::from([
                     PaymentMethodType::Paypal,
                     PaymentMethodType::Pix,
                     PaymentMethodType::Venmo,
-                ],
+                ]),
             ),
         ]);
 
@@ -1073,8 +1073,6 @@ mod hashmap_deserialization_test {
             ValueError,
         > = input_map.into_deserializer();
         let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
-
-        println!("TEST ERR {:?}", result);
 
         assert!(result.is_err());
     }
