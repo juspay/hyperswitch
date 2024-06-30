@@ -702,7 +702,7 @@ pub struct PayoutListFilters {
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]
-    pub link: url::Url,
+    pub link: Secret<url::Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

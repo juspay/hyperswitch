@@ -1947,15 +1947,14 @@ pub async fn response_handler(
         priority: payouts.priority,
         attempts: None,
         payout_link: payout_link
-            .map(
-                |payout_link| match url::Url::parse(payout_link.url.peek()) {
-                    Ok(link) => Ok(PayoutLinkResponse {
+            .map(|payout_link| {
+                url::Url::parse(payout_link.url.peek()).and_then(|link| {
+                    Ok(PayoutLinkResponse {
                         payout_link_id: payout_link.link_id,
-                        link,
-                    }),
-                    Err(err) => Err(err),
-                },
-            )
+                        link: link.into(),
+                    })
+                })
+            })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,

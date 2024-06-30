@@ -2625,6 +2625,7 @@ dependencies = [
  "strum 0.26.2",
  "thiserror",
  "time",
+ "url",
 ]
 
 [[package]]
@@ -4308,6 +4309,7 @@ dependencies = [
  "serde_json",
  "subtle",
  "time",
+ "url",
  "zeroize",
 ]
 

@@ -222,12 +222,12 @@ pub struct GenericLinkEnvConfig {
     pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
 }
 
-#[allow(clippy::panic)]
 impl Default for GenericLinkEnvConfig {
     fn default() -> Self {
         Self {
+            #[allow(clippy::expect_used)]
             sdk_url: url::Url::parse("http://localhost:9050/HyperLoader.js")
-                .unwrap_or_else(|_| panic!("Failed to parse default SDK URL")),
+                .expect("Failed to parse default SDK URL"),
             expiry: 900,
             ui_config: GenericLinkEnvUiConfig::default(),
             enabled_payment_methods: HashMap::default(),
@@ -246,8 +246,9 @@ pub struct GenericLinkEnvUiConfig {
 impl Default for GenericLinkEnvUiConfig {
     fn default() -> Self {
         Self {
+            #[allow(clippy::expect_used)]
             logo: url::Url::parse("https://hyperswitch.io/favicon.ico")
-                .unwrap_or_else(|_| panic!("Failed to parse default logo URL")),
+                .expect("Failed to parse default logo URL"),
             merchant_name: Secret::new("HyperSwitch".to_string()),
             theme: "#4285F4".to_string(),
         }
@@ -858,7 +859,7 @@ where
     let (values, errors) = value
         .into_iter()
         .map(
-            |(k, v)| match (K::from_str(&k), deserialize_hashset_inner(v)) {
+            |(k, v)| match (K::from_str(&k.trim()), deserialize_hashset_inner(v)) {
                 (Err(error), _) => Err(format!(
                     "Unable to deserialize `{}` as `{}`: {error}",
                     k,
@@ -967,6 +968,116 @@ where
             }
         })
     })?
+}
+
+#[cfg(test)]
+mod hashmap_deserialization_test {
+    #![allow(clippy::expect_used)]
+    use std::collections::HashMap;
+
+    use serde::de::{
+        value::{Error as ValueError, MapDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::deserialize_hashmap;
+
+    #[test]
+    fn test_payment_method_and_payment_method_types() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            "bank_transfer": "ach,bacs",
+            "wallet": "paypal,venmo",
+        })
+        .as_object()
+        .expect("Failed to parse input JSON as an object")
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                vec![PaymentMethodType::Ach, PaymentMethodType::Bacs],
+            ),
+            (
+                PaymentMethod::Wallet,
+                vec![PaymentMethodType::Paypal, PaymentMethodType::Venmo],
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_and_payment_method_types_with_spaces() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            " bank_transfer ": " ach , bacs ",
+            "wallet ": " paypal , pix , venmo ",
+        })
+        .as_object()
+        .expect("Failed to parse input JSON as an object")
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                vec![PaymentMethodType::Ach, PaymentMethodType::Bacs],
+            ),
+            (
+                PaymentMethod::Wallet,
+                vec![
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Pix,
+                    PaymentMethodType::Venmo,
+                ],
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_deserializer_error() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            "unknown": "ach,bacs",
+            "wallet": "paypal,unknown",
+        })
+        .as_object()
+        .expect("Failed to parse input JSON as an object")
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+
+        println!("TEST ERR {:?}", result);
+
+        assert!(result.is_err());
+    }
 }
 
 #[cfg(test)]

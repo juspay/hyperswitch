@@ -989,7 +989,7 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// URL to the form's link generated for collecting payment method details.
     #[schema(value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1")]
-    pub link: url::Url,
+    pub link: masking::Secret<url::Url>,
 
     /// Redirect to this URL post completion
     #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]

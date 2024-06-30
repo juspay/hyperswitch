@@ -304,7 +304,7 @@ pub async fn create_payout_link_db_entry(
         link_type: common_enums::GenericLinkType::PayoutLink,
         link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
         link_data,
-        url: Secret::new(payout_link_data.link.to_string()),
+        url: payout_link_data.link.to_string().into(),
         return_url,
         expiry: common_utils::date_time::now()
             + Duration::seconds(payout_link_data.session_expiry.into()),
