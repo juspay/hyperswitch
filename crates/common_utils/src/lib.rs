@@ -30,6 +30,7 @@ pub mod request;
 pub mod signals;
 #[allow(missing_docs)] // Todo: add docs
 pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
 

@@ -3,7 +3,7 @@
 use core::fmt;
 
 use base64::Engine;
-use bytes::Bytes;
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 use rustc_hash::FxHashMap;
 use serde::{
@@ -11,7 +11,13 @@ use serde::{
     ser, Deserialize, Deserializer, Serialize,
 };
 
-use crate::{consts::BASE64_ENGINE, encryption::Encryption, errors, ext_traits::BytesExt};
+use crate::{
+    consts::BASE64_ENGINE,
+    crypto::Encryptable,
+    encryption::Encryption,
+    errors::{self, CustomResult},
+    transformers::{ForeignFrom, ForeignTryFrom},
+};
 
 #[derive(Debug)]
 pub struct KeyManagerState {
@@ -184,13 +190,6 @@ pub struct EncryptDataResponse {
     pub data: EncryptedDataGroup,
 }
 
-impl TryFrom<Bytes> for EncryptDataResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        value.parse_struct::<Self>("EncryptDataResponse")
-    }
-}
-
 #[derive(Debug, Serialize, serde::Deserialize)]
 pub struct EncryptedDataGroup(pub FxHashMap<String, EncryptedData>);
 #[derive(Debug, Serialize, Deserialize)]
@@ -198,6 +197,138 @@ pub struct DecryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
     pub data: EncryptedDataGroup,
+}
+
+impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, EncryptDataResponse)>
+    for FxHashMap<String, Encryptable<Secret<T, S>>>
+where
+    T: Clone,
+    S: Strategy<T> + Send,
+{
+    fn foreign_from(
+        (masked_data, response): (FxHashMap<String, Secret<T, S>>, EncryptDataResponse),
+    ) -> Self {
+        let mut encrypted = Self::default();
+        for (k, v) in response.data.0.iter() {
+            masked_data.get(k).map(|inner| {
+                encrypted.insert(
+                    k.clone(),
+                    Encryptable::new(inner.clone(), v.data.peek().clone().into()),
+                )
+            });
+        }
+        encrypted
+    }
+}
+
+impl<T, S> ForeignFrom<(Secret<T, S>, EncryptDataResponse)> for Option<Encryptable<Secret<T, S>>>
+where
+    T: Clone,
+    S: Strategy<T> + Send,
+{
+    fn foreign_from((masked_data, response): (Secret<T, S>, EncryptDataResponse)) -> Self {
+        response
+            .data
+            .0
+            .get(DEFAULT_KEY)
+            .map(|ed| Encryptable::new(masked_data.clone(), ed.data.peek().clone().into()))
+    }
+}
+
+pub trait DecryptedDataConversion<T: Clone, S: Strategy<T> + Send>: Sized {
+    fn convert(
+        value: &DecryptedData,
+        encryption: Encryption,
+    ) -> CustomResult<Self, errors::CryptoError>;
+}
+
+impl<S: Strategy<String> + Send> DecryptedDataConversion<String, S>
+    for Encryptable<Secret<String, S>>
+{
+    fn convert(
+        value: &DecryptedData,
+        encryption: Encryption,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        Ok(Self::new(
+            Secret::new(
+                String::from_utf8(value.clone().inner().peek().clone())
+                    .change_context(errors::CryptoError::DecodingFailed)?,
+            ),
+            encryption.clone().into_inner(),
+        ))
+    }
+}
+
+impl<S: Strategy<serde_json::Value> + Send> DecryptedDataConversion<serde_json::Value, S>
+    for Encryptable<Secret<serde_json::Value, S>>
+{
+    fn convert(
+        value: &DecryptedData,
+        encryption: Encryption,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        Ok(Self::new(
+            Secret::new(
+                serde_json::from_slice(value.clone().inner().peek())
+                    .change_context(errors::CryptoError::DecodingFailed)?,
+            ),
+            encryption.clone().into_inner(),
+        ))
+    }
+}
+
+impl<S: Strategy<Vec<u8>> + Send> DecryptedDataConversion<Vec<u8>, S>
+    for Encryptable<Secret<Vec<u8>, S>>
+{
+    fn convert(
+        value: &DecryptedData,
+        encryption: Encryption,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        Ok(Self::new(
+            Secret::new(value.clone().inner().peek().clone()),
+            encryption.clone().into_inner(),
+        ))
+    }
+}
+
+impl<T, S> ForeignTryFrom<(Encryption, DecryptDataResponse)> for Encryptable<Secret<T, S>>
+where
+    T: Clone,
+    S: Strategy<T> + Send,
+    Self: DecryptedDataConversion<T, S>,
+{
+    type Error = error_stack::Report<errors::CryptoError>;
+    fn foreign_try_from(
+        (encrypted_data, response): (Encryption, DecryptDataResponse),
+    ) -> Result<Self, Self::Error> {
+        match response.data.0.get(DEFAULT_KEY) {
+            Some(data) => Self::convert(data, encrypted_data),
+            None => Err(errors::CryptoError::DecodingFailed)?,
+        }
+    }
+}
+
+impl<T, S> ForeignTryFrom<(FxHashMap<String, Encryption>, DecryptDataResponse)>
+    for FxHashMap<String, Encryptable<Secret<T, S>>>
+where
+    T: Clone,
+    S: Strategy<T> + Send,
+    Encryptable<Secret<T, S>>: DecryptedDataConversion<T, S>,
+{
+    type Error = error_stack::Report<errors::CryptoError>;
+    fn foreign_try_from(
+        (encrypted_data, response): (FxHashMap<String, Encryption>, DecryptDataResponse),
+    ) -> Result<Self, Self::Error> {
+        let mut decrypted = Self::default();
+        for (k, v) in response.data.0.iter() {
+            match encrypted_data.get(k) {
+                Some(encrypted) => {
+                    decrypted.insert(k.clone(), Encryptable::convert(v, encrypted.clone())?);
+                }
+                None => Err(errors::CryptoError::DecodingFailed)?,
+            }
+        }
+        Ok(decrypted)
+    }
 }
 
 impl From<(Encryption, Identifier)> for DecryptDataRequest {
@@ -237,13 +368,6 @@ impl From<(FxHashMap<String, Encryption>, Identifier)> for DecryptDataRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptDataResponse {
     pub data: DecryptedDataGroup,
-}
-
-impl TryFrom<Bytes> for DecryptDataResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        value.parse_struct::<Self>("DecryptDataResponse")
-    }
 }
 
 #[derive(Clone, Debug)]
