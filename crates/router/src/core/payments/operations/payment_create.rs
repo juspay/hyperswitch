@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::AddressDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -1045,28 +1044,14 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
-        let mut raw_billing_address_details = AddressDetails::default();
-        let details_present = request.billing.clone().map(|billing_details| {
-            billing_details.address.clone().map(|address| {
-                raw_billing_address_details.set_city(address.city);
-                raw_billing_address_details.set_country(address.country);
-                raw_billing_address_details.set_line1(address.line1);
-                raw_billing_address_details.set_line2(address.line2);
-                raw_billing_address_details.set_line3(address.line3);
-                raw_billing_address_details.set_zip(address.zip);
-                raw_billing_address_details.set_state(address.state);
-                raw_billing_address_details.set_first_name(address.first_name);
-                raw_billing_address_details.set_last_name(address.last_name);
-                true
-            })
+        let raw_billing_address_details = request.billing.clone().and_then(|billing_details| {
+            billing_details.address.clone()
         });
 
         // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_address_details = if details_present.is_some_and(|d| d.is_some_and(|d| d)) {
-            create_encrypted_data(key_store, Some(raw_billing_address_details)).await
-        } else {
-            None
-        };
+        let billing_address_details = raw_billing_address_details.clone().async_and_then( |_| async {
+            create_encrypted_data(key_store, raw_billing_address_details.clone()).await
+        }).await;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.customer_id.is_none()
