@@ -859,7 +859,7 @@ where
     let (values, errors) = value
         .into_iter()
         .map(
-            |(k, v)| match (K::from_str(&k.trim()), deserialize_hashset_inner(v)) {
+            |(k, v)| match (K::from_str(k.trim()), deserialize_hashset_inner(v)) {
                 (Err(error), _) => Err(format!(
                     "Unable to deserialize `{}` as `{}`: {error}",
                     k,
@@ -972,7 +972,7 @@ where
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::unwrap_used)]
     use std::collections::HashMap;
 
     use serde::de::{
@@ -991,7 +991,7 @@ mod hashmap_deserialization_test {
             "wallet": "paypal,venmo",
         })
         .as_object()
-        .expect("Failed to parse input JSON as an object")
+        .unwrap()
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
@@ -1025,7 +1025,7 @@ mod hashmap_deserialization_test {
             "wallet ": " paypal , pix , venmo ",
         })
         .as_object()
-        .expect("Failed to parse input JSON as an object")
+        .unwrap()
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
@@ -1063,7 +1063,7 @@ mod hashmap_deserialization_test {
             "wallet": "paypal,unknown",
         })
         .as_object()
-        .expect("Failed to parse input JSON as an object")
+        .unwrap()
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();

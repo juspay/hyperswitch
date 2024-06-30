@@ -1948,11 +1948,9 @@ pub async fn response_handler(
         attempts: None,
         payout_link: payout_link
             .map(|payout_link| {
-                url::Url::parse(payout_link.url.peek()).and_then(|link| {
-                    Ok(PayoutLinkResponse {
-                        payout_link_id: payout_link.link_id,
-                        link: link.into(),
-                    })
+                url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
+                    payout_link_id: payout_link.link_id,
+                    link: link.into(),
                 })
             })
             .transpose()
