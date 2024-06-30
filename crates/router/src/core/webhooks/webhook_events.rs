@@ -212,6 +212,7 @@ pub async fn retry_delivery_attempt(
         request: event_to_retry.request,
         response: None,
         delivery_attempt: Some(delivery_attempt),
+        metadata: event_to_retry.metadata,
     };
 
     let event = store

@@ -12,6 +12,8 @@ use rdkafka::{
 #[cfg(feature = "payouts")]
 pub mod payout;
 use crate::events::EventType;
+mod authentication;
+mod authentication_event;
 mod dispute;
 mod dispute_event;
 mod payment_attempt;
@@ -20,7 +22,7 @@ mod payment_intent;
 mod payment_intent_event;
 mod refund;
 mod refund_event;
-use diesel_models::refund::Refund;
+use diesel_models::{authentication::Authentication, refund::Refund};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 use time::{OffsetDateTime, PrimitiveDateTime};
@@ -28,6 +30,7 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
 use self::{
+    authentication::KafkaAuthentication, authentication_event::KafkaAuthenticationEvent,
     dispute::KafkaDispute, dispute_event::KafkaDisputeEvent, payment_attempt::KafkaPaymentAttempt,
     payment_attempt_event::KafkaPaymentAttemptEvent, payment_intent::KafkaPaymentIntent,
     payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
@@ -147,6 +150,7 @@ pub struct KafkaSettings {
     #[cfg(feature = "payouts")]
     payout_analytics_topic: String,
     consolidated_events_topic: String,
+    authentication_analytics_topic: String,
 }
 
 impl KafkaSettings {
@@ -225,6 +229,15 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(
+            self.authentication_analytics_topic.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Kafka Authentication Analytics topic must not be empty".into(),
+                ))
+            },
+        )?;
+
         Ok(())
     }
 }
@@ -243,6 +256,7 @@ pub struct KafkaProducer {
     #[cfg(feature = "payouts")]
     payout_analytics_topic: String,
     consolidated_events_topic: String,
+    authentication_analytics_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -285,6 +299,7 @@ impl KafkaProducer {
             #[cfg(feature = "payouts")]
             payout_analytics_topic: conf.payout_analytics_topic.clone(),
             consolidated_events_topic: conf.consolidated_events_topic.clone(),
+            authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
         })
     }
 
@@ -347,6 +362,39 @@ impl KafkaProducer {
         ))
         .attach_printable_lazy(|| {
             format!("Failed to add negative attempt event {delete_old_attempt:?}")
+        })
+    }
+
+    pub async fn log_authentication(
+        &self,
+        authentication: &Authentication,
+        old_authentication: Option<Authentication>,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        if let Some(negative_event) = old_authentication {
+            self.log_event(&KafkaEvent::old(
+                &KafkaAuthentication::from_storage(&negative_event),
+                tenant_id.clone(),
+            ))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative authentication event {negative_event:?}")
+            })?;
+        };
+
+        self.log_event(&KafkaEvent::new(
+            &KafkaAuthentication::from_storage(authentication),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add positive authentication event {authentication:?}")
+        })?;
+
+        self.log_event(&KafkaConsolidatedEvent::new(
+            &KafkaAuthenticationEvent::from_storage(authentication),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add consolidated authentication event {authentication:?}")
         })
     }
 
@@ -507,6 +555,7 @@ impl KafkaProducer {
             #[cfg(feature = "payouts")]
             EventType::Payout => &self.payout_analytics_topic,
             EventType::Consolidated => &self.consolidated_events_topic,
+            EventType::Authentication => &self.authentication_analytics_topic,
         }
     }
 }

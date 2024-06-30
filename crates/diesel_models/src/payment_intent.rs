@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::payment_intent};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id))]
 pub struct PaymentIntent {
     pub payment_id: String,
@@ -61,10 +61,11 @@ pub struct PaymentIntent {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryption>,
     pub shipping_address_details: Option<Encryption>,
+    pub customer_details: Option<Encryption>,
 }
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+    Clone, Debug, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
@@ -118,6 +119,7 @@ pub struct PaymentIntentNew {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryption>,
     pub shipping_address_details: Option<Encryption>,
+    pub customer_details: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,12 +136,13 @@ pub enum PaymentIntentUpdate {
         metadata: pii::SecretSerdeValue,
         updated_by: String,
     },
-    ReturnUrlUpdate {
+    PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
         customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        customer_details: Option<Encryption>,
         updated_by: String,
     },
     MerchantStatusUpdate {
@@ -175,6 +178,7 @@ pub enum PaymentIntentUpdate {
         fingerprint_id: Option<String>,
         request_external_three_ds_authentication: Option<bool>,
         frm_metadata: Option<pii::SecretSerdeValue>,
+        customer_details: Option<Encryption>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -209,6 +213,10 @@ pub enum PaymentIntentUpdate {
     },
     CompleteAuthorizeUpdate {
         shipping_address_id: Option<String>,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::IntentStatus>,
+        updated_by: String,
     },
 }
 
@@ -248,6 +256,7 @@ pub struct PaymentIntentUpdateInternal {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryption>,
     pub shipping_address_details: Option<Encryption>,
+    pub customer_details: Option<Encryption>,
 }
 
 impl PaymentIntentUpdate {
@@ -285,6 +294,7 @@ impl PaymentIntentUpdate {
             frm_metadata,
             billing_address_details,
             shipping_address_details,
+            customer_details,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -324,6 +334,7 @@ impl PaymentIntentUpdate {
             frm_metadata: frm_metadata.or(source.frm_metadata),
             billing_address_details: billing_address_details.or(source.billing_address_details),
             shipping_address_details: shipping_address_details.or(source.shipping_address_details),
+            customer_details: customer_details.or(source.customer_details),
             ..source
         }
     }
@@ -354,6 +365,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 request_external_three_ds_authentication,
                 frm_metadata,
+                customer_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -377,6 +389,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 request_external_three_ds_authentication,
                 frm_metadata,
+                customer_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -388,12 +401,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ReturnUrlUpdate {
+            PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                customer_details,
                 updated_by,
             } => Self {
                 return_url,
@@ -401,6 +415,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                customer_details,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 ..Default::default()
@@ -516,6 +531,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
             } => Self {
                 shipping_address_id,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+                status,
+                updated_by,
                 ..Default::default()
             },
         }

@@ -227,6 +227,7 @@ pub async fn generate_sample_data(
             frm_metadata: Default::default(),
             billing_address_details: None,
             shipping_address_details: None,
+            customer_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

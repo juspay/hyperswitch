@@ -10,12 +10,12 @@ impl ConnectorActions for DatatransTest {}
 impl utils::Connector for DatatransTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
-        api::ConnectorData {
-            connector: Box::new(&Adyen),
-            connector_name: types::Connector::Adyen,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Adyen),
+            types::Connector::Adyen,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
