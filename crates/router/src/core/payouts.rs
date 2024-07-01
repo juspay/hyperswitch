@@ -1662,36 +1662,8 @@ pub async fn create_payout_retrieve(
                 }));
             }
         }
-        Err(err) => {
-            let status = storage_enums::PayoutStatus::Failed;
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
-                status,
-                error_code: Some(err.code),
-                error_message: Some(err.message),
-                is_eligible: None,
-            };
-            payout_data.payout_attempt = db
-                .update_payout_attempt(
-                    &payout_data.payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_attempt in db")?;
-            payout_data.payouts = db
-                .update_payout(
-                    &payout_data.payouts,
-                    storage::PayoutsUpdate::StatusUpdate { status },
-                    &payout_data.payout_attempt,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payouts in db")?;
-        }
+        // log in case of error in retrieval
+        Err(_) => logger::error!("Error in payout retrieval"),
     };
 
     Ok(())
