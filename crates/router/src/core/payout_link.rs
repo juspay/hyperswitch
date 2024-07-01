@@ -15,7 +15,7 @@ use crate::{
     errors,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
-    types::{api::enums, domain},
+    types::domain,
 };
 
 pub async fn initiate_payout_link(
@@ -134,7 +134,7 @@ pub async fn initiate_payout_link(
             {
                 let enabled_payment_method = link_utils::EnabledPaymentMethod {
                     payment_method,
-                    payment_method_types: payment_method_types.into_iter().collect(),
+                    payment_method_types,
                 };
                 default_enabled_payout_methods.push(enabled_payment_method);
             }
@@ -299,12 +299,10 @@ pub async fn filter_payout_methods(
             }
         }
     }
-    for (pm, method_types) in payment_method_list_hm {
-        if !method_types.is_empty() {
-            let payment_method_types: Vec<enums::PaymentMethodType> =
-                method_types.into_iter().collect();
+    for (payment_method, payment_method_types) in payment_method_list_hm {
+        if !payment_method_types.is_empty() {
             let enabled_payment_method = link_utils::EnabledPaymentMethod {
-                payment_method: pm,
+                payment_method,
                 payment_method_types,
             };
             response.push(enabled_payment_method);

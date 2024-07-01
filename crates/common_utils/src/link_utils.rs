@@ -1,6 +1,6 @@
 //! Common
 
-use std::primitive::i64;
+use std::{collections::HashSet, primitive::i64};
 
 use common_enums::enums;
 use diesel::{
@@ -206,6 +206,6 @@ pub struct EnabledPaymentMethod {
     pub payment_method: enums::PaymentMethod,
 
     /// An array of associated payment method types
-    #[schema(value_type = Vec<PaymentMethodType>)]
-    pub payment_method_types: Vec<enums::PaymentMethodType>,
+    #[schema(value_type = HashSet<PaymentMethodType>)]
+    pub payment_method_types: HashSet<enums::PaymentMethodType>,
 }
