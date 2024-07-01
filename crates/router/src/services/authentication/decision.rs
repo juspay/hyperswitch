@@ -193,7 +193,7 @@ pub async fn revoke_api_key(
 /// Safety: i64::MAX < u64::MAX
 ///
 #[allow(clippy::as_conversions)]
-pub fn convert_exipry(expiry: time::PrimitiveDateTime) -> u64 {
+pub fn convert_expiry(expiry: time::PrimitiveDateTime) -> u64 {
     let now = common_utils::date_time::now();
     let duration = expiry - now;
     let output = duration.whole_seconds();

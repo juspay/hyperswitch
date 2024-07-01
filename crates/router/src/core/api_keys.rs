@@ -161,7 +161,7 @@ pub async fn create_api_key(
                 hashed_api_key.into_inner().into(),
                 merchant_id_inner,
                 key_id,
-                expires_at.map(authentication::decision::convert_exipry),
+                expires_at.map(authentication::decision::convert_expiry),
             )
             .await
         },
@@ -309,7 +309,7 @@ pub async fn update_api_key(
                 hashed_api_key.into_inner().into(),
                 merchant_id.clone(),
                 key_id_inner,
-                expires_at.map(authentication::decision::convert_exipry),
+                expires_at.map(authentication::decision::convert_expiry),
             )
             .await
         },
