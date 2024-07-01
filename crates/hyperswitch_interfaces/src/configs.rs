@@ -1,7 +1,7 @@
 //! Configs interface
 use router_derive;
 use serde::Deserialize;
-use storage_impl::errors::ApplicationError;
+use common_enums::ApplicationError;
 
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]

@@ -8,6 +8,7 @@ use std::{
     io::Write,
 };
 
+use config::ConfigError;
 use once_cell::sync::Lazy;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::{ser::Formatter, Value};
@@ -155,7 +156,7 @@ where
     /// let formatting_layer = router_env::FormattingLayer::new(router_env::service_name!(),std::io::stdout, CompactFormatter);
     /// ```
     ///
-    pub fn new(service: &str, dst_writer: W, formatter: F) -> Self {
+    pub fn new(service: &str, dst_writer: W, formatter: F) -> error_stack::Result<Self,ConfigError>{
         Self::new_with_implicit_entries(service, dst_writer, HashMap::new(), formatter)
     }
 
@@ -165,7 +166,7 @@ where
         dst_writer: W,
         default_fields: HashMap<String, Value>,
         formatter: F,
-    ) -> Self {
+    ) -> error_stack::Result<Self, ConfigError> {
         let pid = std::process::id();
         let hostname = gethostname::gethostname().to_string_lossy().into_owned();
         let service = service.to_string();
@@ -175,7 +176,16 @@ where
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
 
-        Self {
+        // Check for invalid configuration values in default_fields
+        for (key, _value) in &default_fields {
+            if !IMPLICIT_KEYS.contains(key.as_str()) {
+                return Err(ConfigError::Message(
+                    format!("Invalid configuration value for key: {}", key),
+                ).into());
+            }
+        }
+
+        Ok(Self {
             dst_writer,
             pid,
             hostname,
@@ -187,7 +197,7 @@ where
             build,
             default_fields,
             formatter,
-        }
+        })
     }
 
     /// Serialize common for both span and event entries.
