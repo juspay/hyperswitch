@@ -76,6 +76,7 @@ impl Refunds {
 
 pub struct Customers;
 
+#[cfg(not(feature = "v2"))]
 impl Customers {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/customers")

@@ -163,6 +163,7 @@ pub async fn customer_delete(
     ))
     .await
 }
+#[cfg(not(feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,

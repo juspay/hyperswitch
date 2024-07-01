@@ -105,6 +105,8 @@ pub async fn list_payment_method_api(
     ))
     .await
 }
+
+#[cfg(not(feature = "v2"))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -164,12 +166,13 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
+#[cfg(feature = "v2")]
 /// List payment methods for a Customer v2
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
 #[utoipa::path(
     get,
-    path = "/payments/v2/{payment_id}/saved_payment_methods",
+    path = "v2/payments/{payment_id}/saved_payment_methods",
     params (
         ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -225,12 +228,13 @@ pub async fn list_customer_payment_method_for_payment(
     .await
 }
 
+#[cfg(feature = "v2")]
 /// List payment methods for a Customer v2
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
 #[utoipa::path(
     get,
-    path = "/customers/v2/{customer_id}/saved_payment_methods",
+    path = "v2/customers/{customer_id}/saved_payment_methods",
     params (
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
@@ -249,7 +253,7 @@ pub async fn list_customer_payment_method_for_payment(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
-pub async fn list_customer_payment_method_api_v2(
+pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(id_type::CustomerId,)>,
     req: HttpRequest,
@@ -284,6 +288,8 @@ pub async fn list_customer_payment_method_api_v2(
     ))
     .await
 }
+
+#[cfg(not(feature = "v2"))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID

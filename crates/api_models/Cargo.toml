@@ -21,6 +21,7 @@ frm = []
 olap = []
 openapi = ["common_enums/openapi", "olap", "backwards_compatibility", "business_profile_routing", "connector_choice_mca_id", "recon", "dummy_connector", "olap"]
 recon = []
+v2 = []
 
 [dependencies]
 actix-web = { version = "4.5.1", optional = true }
