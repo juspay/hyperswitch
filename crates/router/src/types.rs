@@ -545,6 +545,11 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
