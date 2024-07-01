@@ -10,6 +10,7 @@ use super::{
     active_payments::metrics::ActivePaymentsMetricRow,
     auth_events::metrics::AuthEventMetricRow,
     health_check::HealthCheck,
+    payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
     },
@@ -157,6 +158,8 @@ where
 impl super::payments::filters::PaymentFilterAnalytics for ClickhouseClient {}
 impl super::payments::metrics::PaymentMetricAnalytics for ClickhouseClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for ClickhouseClient {}
+impl super::payment_intents::filters::PaymentIntentFilterAnalytics for ClickhouseClient {}
+impl super::payment_intents::metrics::PaymentIntentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
@@ -243,6 +246,26 @@ impl TryInto<FilterRow> for serde_json::Value {
     fn try_into(self) -> Result<FilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse FilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<PaymentIntentMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<PaymentIntentFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentFilterRow in clickhouse results",
         ))
     }
 }

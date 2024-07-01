@@ -1,15 +1,14 @@
-use api_models::{
-    analytics::{
-        payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-        Granularity, TimeRange,
+use api_models::analytics::{
+    payment_intents::{
+        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
     },
-    enums::IntentStatus,
+    Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::PaymentMetricRow;
+use super::PaymentIntentMetricRow;
 use crate::{
     query::{
         Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
@@ -19,12 +18,12 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct RetriesCount;
+pub(super) struct TotalSmartRetries;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for RetriesCount
+impl<T> super::PaymentIntentMetric<T> for TotalSmartRetries
 where
-    T: AnalyticsDataSource + super::PaymentMetricAnalytics,
+    T: AnalyticsDataSource + super::PaymentIntentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
@@ -33,25 +32,23 @@ where
 {
     async fn load_metrics(
         &self,
-        _dimensions: &[PaymentDimensions],
+        dimensions: &[PaymentIntentDimensions],
         merchant_id: &str,
-        _filters: &PaymentFilters,
+        filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
+
+        for dim in dimensions.iter() {
+            query_builder.add_select_column(dim).switch()?;
+        }
         query_builder
             .add_select_column(Aggregate::Count {
                 field: None,
                 alias: Some("count"),
-            })
-            .switch()?;
-        query_builder
-            .add_select_column(Aggregate::Sum {
-                field: "amount",
-                alias: Some("total"),
             })
             .switch()?;
         query_builder
@@ -66,19 +63,26 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
+
+        filters.set_filter_clause(&mut query_builder).switch()?;
+
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
             .switch()?;
-        query_builder
-            .add_custom_filter_clause("status", IntentStatus::Succeeded, FilterTypes::Equal)
-            .switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
+
+        for dim in dimensions.iter() {
+            query_builder
+                .add_group_by_clause(dim)
+                .attach_printable("Error grouping by dimensions")
+                .switch()?;
+        }
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
@@ -88,22 +92,16 @@ where
         }
 
         query_builder
-            .execute_query::<PaymentMetricRow, _>(pool)
+            .execute_query::<PaymentIntentMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
             .into_iter()
             .map(|i| {
                 Ok((
-                    PaymentMetricsBucketIdentifier::new(
+                    PaymentIntentMetricsBucketIdentifier::new(
+                        i.status.as_ref().map(|i| i.0),
                         i.currency.as_ref().map(|i| i.0),
-                        None,
-                        i.connector.clone(),
-                        i.authentication_type.as_ref().map(|i| i.0),
-                        i.payment_method.clone(),
-                        i.payment_method_type.clone(),
-                        i.client_source.clone(),
-                        i.client_version.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -119,7 +117,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
+                Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)
