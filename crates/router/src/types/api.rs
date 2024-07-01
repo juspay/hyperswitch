@@ -371,7 +371,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Braintree)))
                 }
                 enums::Connector::Cashtocode => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cashtocode)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Checkout)))
@@ -477,7 +477,9 @@ impl ConnectorData {
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }
-                enums::Connector::Paypal => Ok(ConnectorEnum::Old(Box::new(&connector::Paypal))),
+                enums::Connector::Paypal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }

@@ -196,6 +196,7 @@ impl<F, T>
                     status,
                     response,
                     amount_captured,
+                    minor_amount_captured: amount_captured_in_minor_units,
                     ..item.data
                 })
             }

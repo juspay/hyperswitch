@@ -210,14 +210,17 @@ where
                 });
 
                 let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
+                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details)
+                        .await
+                        .map(|details| details.into());
 
                 let encrypted_payment_method_billing_address =
                     payment_methods::cards::create_encrypted_data(
                         key_store,
                         payment_method_billing_address,
                     )
-                    .await;
+                    .await
+                    .map(|details| details.into());
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
@@ -509,7 +512,8 @@ where
                                         key_store,
                                         updated_pmd,
                                     )
-                                    .await;
+                                    .await
+                                    .map(|details| details.into());
 
                                 let pm_update =
                                     storage::PaymentMethodUpdate::PaymentMethodDataUpdate {

@@ -1,5 +1,5 @@
 use common_enums as storage_enums;
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -75,7 +75,7 @@ pub struct Payouts {
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -103,7 +103,7 @@ pub struct PayoutsNew {
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -134,7 +134,7 @@ impl Default for PayoutsNew {
             address_id: String::default(),
             payout_type: Some(storage_enums::PayoutType::default()),
             payout_method_id: Option::default(),
-            amount: i64::default(),
+            amount: MinorUnit::new(i64::default()),
             destination_currency: storage_enums::Currency::default(),
             source_currency: storage_enums::Currency::default(),
             description: Option::default(),
@@ -159,7 +159,7 @@ impl Default for PayoutsNew {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
-        amount: i64,
+        amount: MinorUnit,
         destination_currency: storage_enums::Currency,
         source_currency: storage_enums::Currency,
         description: Option<String>,
@@ -189,7 +189,7 @@ pub enum PayoutsUpdate {
 
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
     pub source_currency: Option<storage_enums::Currency>,
     pub description: Option<String>,

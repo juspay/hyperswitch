@@ -78,6 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    // Bamboraapac, commented for template
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -572,6 +573,7 @@ mod test {
     }
 }
 
+/// Denotes the retry action
 #[derive(
     Debug,
     serde::Deserialize,
