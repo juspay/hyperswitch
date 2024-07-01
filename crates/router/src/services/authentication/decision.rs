@@ -1,9 +1,10 @@
 use common_utils::{errors::CustomResult, request::RequestContent};
-use masking::Secret;
+use masking::{ErasedMaskSerialize, Secret};
 use router_env::opentelemetry::KeyValue;
 use serde::Serialize;
 use storage_impl::errors::ApiClientError;
 
+use crate::routes::app::settings::DecisionConfig;
 use crate::{core::metrics, routes::SessionState};
 
 // # Consts
@@ -95,29 +96,7 @@ pub async fn add_api_key(
         },
     };
 
-    let mut request = common_utils::request::Request::new(
-        RULE_ADD_METHOD,
-        &(decision_config.base_url.clone() + DECISION_ENDPOINT),
-    );
-
-    request.set_body(RequestContent::Json(Box::new(rule)));
-    request.add_default_headers();
-
-    let response = state
-        .api_client
-        .send_request(state, request, None, false)
-        .await;
-
-    match response {
-        Err(error) => {
-            router_env::error!("Failed while calling the decision service: {:?}", error);
-            Err(error)
-        }
-        Ok(response) => {
-            router_env::info!("Decision service response: {:?}", response);
-            Ok(())
-        }
-    }
+    call_decision_service(&state, decision_config, rule, RULE_ADD_METHOD).await
 }
 
 pub async fn add_publishable_key(
@@ -141,8 +120,17 @@ pub async fn add_publishable_key(
         },
     };
 
+    call_decision_service(&state, decision_config, rule, RULE_ADD_METHOD).await
+}
+
+async fn call_decision_service<T: ErasedMaskSerialize + Send + 'static>(
+    state: &SessionState,
+    decision_config: &DecisionConfig,
+    rule: T,
+    method: common_utils::request::Method,
+) -> CustomResult<(), ApiClientError> {
     let mut request = common_utils::request::Request::new(
-        RULE_ADD_METHOD,
+        method,
         &(decision_config.base_url.clone() + DECISION_ENDPOINT),
     );
 
@@ -181,29 +169,7 @@ pub async fn revoke_api_key(
         variant: AuthType::ApiKey { api_key },
     };
 
-    let mut request = common_utils::request::Request::new(
-        RULE_DELETE_METHOD,
-        &(decision_config.base_url.clone() + DECISION_ENDPOINT),
-    );
-
-    request.set_body(RequestContent::Json(Box::new(rule)));
-    request.add_default_headers();
-
-    let response = state
-        .api_client
-        .send_request(state, request, None, false)
-        .await;
-
-    match response {
-        Err(error) => {
-            router_env::error!("Failed while calling the decision service: {:?}", error);
-            Err(error)
-        }
-        Ok(response) => {
-            router_env::info!("Decision service response: {:?}", response);
-            Ok(())
-        }
-    }
+    call_decision_service(&state, decision_config, rule, RULE_DELETE_METHOD).await
 }
 
 ///
