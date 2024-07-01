@@ -584,7 +584,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -622,7 +622,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -656,7 +656,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -693,7 +693,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },

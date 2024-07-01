@@ -1,16 +1,17 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
+    CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -506,7 +507,47 @@ where
         ))
     }
 
-    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
+    // For the case when we don't have Customer data directly stored in Payment intent
+    let customer_table_response: Option<CustomerDetailsResponse> =
+        customer.as_ref().map(ForeignInto::foreign_into);
+
+    // If we have customer data in Payment Intent, We are populating the Retrieve response from the
+    // same
+    let customer_details_response =
+        if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
+            let customer_details_encrypted =
+                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                Some(CustomerDetailsResponse {
+                    id: customer_table_response.and_then(|customer_data| customer_data.id),
+                    name: customer_details_encrypted_data
+                        .name
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer.name.as_ref().map(|name| name.clone().into_inner())
+                        })),
+                    email: customer_details_encrypted_data.email.or(customer
+                        .as_ref()
+                        .and_then(|customer| customer.email.clone().map(Email::from))),
+                    phone: customer_details_encrypted_data
+                        .phone
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer
+                                .phone
+                                .as_ref()
+                                .map(|phone| phone.clone().into_inner())
+                        })),
+                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(
+                        customer
+                            .as_ref()
+                            .and_then(|customer| customer.phone_country_code.clone()),
+                    ),
+                })
+            } else {
+                customer_table_response
+            }
+        } else {
+            customer_table_response
+        };
 
     headers.extend(
         external_latency
