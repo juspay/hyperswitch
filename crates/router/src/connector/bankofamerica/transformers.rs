@@ -946,7 +946,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         Ok(Self {
             processing_information,
@@ -983,7 +983,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         Ok(Self {
             processing_information,
@@ -1026,7 +1026,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         let ucaf_collection_indicator = match apple_pay_wallet_data
             .payment_method
             .network
@@ -1079,7 +1079,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         Ok(Self {
             processing_information,
@@ -1320,7 +1320,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             processing_information,
             payment_information,
@@ -2625,7 +2625,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -2670,7 +2670,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
             .request
             .metadata
             .clone()
-            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
