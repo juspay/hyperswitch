@@ -8356,6 +8356,7 @@
       "CustomerPaymentMethod": {
         "type": "object",
         "required": [
+          "payment_token",
           "payment_method_id",
           "customer_id",
           "payment_method",
@@ -8368,8 +8369,7 @@
           "payment_token": {
             "type": "string",
             "description": "Token for payment method in temporary card locker which gets refreshed often",
-            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef",
-            "nullable": true
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
           },
           "payment_method_id": {
             "type": "string",
