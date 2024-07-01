@@ -113,3 +113,35 @@ precommit : fmt clippy test
 
 hack:
 	cargo hack check --workspace --each-feature --all-targets
+
+# Run database migrations using `diesel_cli`.
+# Assumes `diesel_cli` is already installed.
+#
+# Usage :
+#	make migrate [database-url=<PSQL connection string>]
+
+# This proceeds as follows:
+# 	Creates a temporary migrations directory, cleans it up if it already exists
+# 	Copies all migrations to the temporary migrations directory and runs migrations
+# 	Cleans up migrations, removing tmp directory if empty, ignoring otherwise
+migrate:
+	mkdir -p $(ROOT_DIR)/tmp/migrations
+	find $(ROOT_DIR)/tmp/migrations/ -mindepth 1 -delete
+
+	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
+	diesel migration run --migration-dir=$(ROOT_DIR)/tmp/migrations \
+		$(if $(strip $(database-url)),--database-url="$(database-url)",)
+
+	rm -r $(ROOT_DIR)/tmp/migrations
+	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true
+
+revert_migrate: 
+	mkdir -p $(ROOT_DIR)/tmp/migrations
+	find $(ROOT_DIR)/tmp/migrations/ -mindepth 1 -delete
+
+	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
+	diesel migration revert --all --migration-dir=$(ROOT_DIR)/tmp/migrations \
+		$(if $(strip $(database-url)),--database-url="$(database-url)",)
+
+	rm -r $(ROOT_DIR)/tmp/migrations
+	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true	
