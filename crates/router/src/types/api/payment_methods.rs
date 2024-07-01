@@ -9,7 +9,6 @@ pub use api_models::payment_methods::{
     TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
     TokenizedWalletValue2,
 };
-
 #[cfg(not(feature = "v2"))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,

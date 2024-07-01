@@ -446,9 +446,9 @@ pub struct Payments;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
-        #[cfg(not(feature="v2"))]
+        #[cfg(not(feature = "v2"))]
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
-        #[cfg(feature="v2")]
+        #[cfg(feature = "v2")]
         let mut route = web::scope("v2/payments").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
@@ -533,9 +533,11 @@ impl Payments {
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 )
         }
-        #[cfg(all(feature = "oltp", feature="v2"))] {
+        #[cfg(all(feature = "oltp", feature = "v2"))]
+        {
             route = route.service(
-                web::resource("/{payment_id}/saved_payment_methods").route(web::get().to(list_customer_payment_method_for_payment)),
+                web::resource("/{payment_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_for_payment)),
             )
         }
         route

@@ -227,7 +227,7 @@ impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
         #[cfg(feature = "v2")]
         let card = match item.payment_method_data {
             Some(api_types::PaymentMethodListData::Card(card)) => Some(CardDetails::from(card)),
-            _ => None
+            _ => None,
         };
         Self {
             #[cfg(not(feature = "v2"))]

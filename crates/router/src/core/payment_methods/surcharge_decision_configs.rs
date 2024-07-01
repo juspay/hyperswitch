@@ -325,15 +325,16 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         #[cfg(feature = "v2")]
         let card_network = match &customer_payment_method.payment_method_data {
             Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => card
-           .scheme.as_ref()
-            .map(|scheme| {
-                scheme
-                    .clone()
-                    .parse_enum("CardNetwork")
-                    .change_context(ConfigError::DslExecutionError)
-            })
-            .transpose()?,
-            _ => None
+                .scheme
+                .as_ref()
+                .map(|scheme| {
+                    scheme
+                        .clone()
+                        .parse_enum("CardNetwork")
+                        .change_context(ConfigError::DslExecutionError)
+                })
+                .transpose()?,
+            _ => None,
         };
 
         backend_input.payment_method.card_network = card_network;
