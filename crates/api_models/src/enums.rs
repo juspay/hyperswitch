@@ -78,6 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    // Bamboraapac, commented for template
     Bankofamerica,
     Billwerk,
     Bitpay,
