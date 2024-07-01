@@ -84,13 +84,17 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>>
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(None)
+        Ok(types::PaymentMethodTokenResult {
+            payment_method_token_result: Ok(None),
+            is_payment_method_tokenization_performed: false,
+        })
     }
 
     async fn preprocessing_steps<'a>(
