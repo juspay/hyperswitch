@@ -22,6 +22,7 @@ use api_models::{
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     consts,
+    crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
     types::MinorUnit,
@@ -66,7 +67,7 @@ use crate::{
             types::{decrypt, encrypt_optional, AsyncLift},
         },
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -467,8 +468,9 @@ pub async fn add_payment_method_data(
                         };
 
                         let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                        let pm_data_encrypted =
-                            create_encrypted_data(&key_store, updated_pmd).await;
+                        let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                            .await
+                            .map(|details| details.into());
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
                             payment_method_data: pm_data_encrypted,
@@ -689,7 +691,9 @@ pub async fn add_payment_method(
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd).await;
+                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
+                        .await
+                        .map(|details| details.into());
 
                     let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                         payment_method_data: pm_data_encrypted,
@@ -763,7 +767,10 @@ pub async fn insert_payment_method(
         .card
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details).await;
+    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details)
+        .await
+        .map(|details| details.into());
+
     create_payment_method(
         db,
         &req,
@@ -943,7 +950,9 @@ pub async fn update_customer_payment_method(
             let updated_pmd = updated_card
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-            let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd).await;
+            let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                .await
+                .map(|details| details.into());
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted,
@@ -1316,11 +1325,15 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
-                .await
-                .change_context(errors::VaultError::FetchPaymentMethodFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            locker_choice,
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
@@ -1369,11 +1382,15 @@ pub async fn call_to_locker_hs<'a>(
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
 
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::SaveCardFailed)
-                .attach_printable("Error getting decrypted response payload")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting decrypted response payload")?;
         let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
             .parse_struct("StoreCardResp")
             .change_context(errors::VaultError::ResponseDeserializationFailed)?;
@@ -1450,11 +1467,15 @@ pub async fn get_card_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload =
-            payment_methods::get_decrypted_response_payload(jwekey, jwe_body, Some(locker_choice))
-                .await
-                .change_context(errors::VaultError::FetchCardFailed)
-                .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(locker_choice),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchCardFailed)?;
@@ -1504,6 +1525,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             jwekey,
             jwe_body,
             Some(api_enums::LockerChoice::HyperswitchCardVault),
+            locker.decryption_scheme.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2227,12 +2249,13 @@ pub async fn list_payment_methods(
         .then_some(billing_address.as_ref())
         .flatten();
 
-    let req = api_models::payments::PaymentsRequest::foreign_from((
+    let req = api_models::payments::PaymentsRequest::foreign_try_from((
         payment_attempt.as_ref(),
+        payment_intent.as_ref(),
         shipping_address.as_ref(),
         billing_address_for_calculating_required_fields,
         customer.as_ref(),
-    ));
+    ))?;
     let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
@@ -4358,14 +4381,13 @@ pub async fn delete_payment_method(
 pub async fn create_encrypted_data<T>(
     key_store: &domain::MerchantKeyStore,
     data: Option<T>,
-) -> Option<Encryption>
+) -> Option<Encryptable<Secret<serde_json::Value>>>
 where
     T: Debug + serde::Serialize,
 {
     let key = key_store.key.get_inner().peek();
 
-    let encrypted_data: Option<Encryption> = data
-        .as_ref()
+    data.as_ref()
         .map(Encode::encode_to_value)
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)
@@ -4383,9 +4405,6 @@ where
             logger::error!(err=?err);
             None
         })
-        .map(|details| details.into());
-
-    encrypted_data
 }
 
 pub async fn list_countries_currencies_for_connector_payment_method(
