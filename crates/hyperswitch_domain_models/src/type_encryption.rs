@@ -22,6 +22,7 @@ use {
     },
     router_env::logger,
 };
+
 #[async_trait]
 pub trait TypeEncryption<
     T,
@@ -160,10 +161,11 @@ impl<
             let decrypted = match result {
                 Ok(decrypted_data) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::DecodingFailed)?
+                    Err(errors::CryptoError::DecodingFailed)
                 }
             };
 
@@ -263,6 +265,7 @@ impl<
             let decrypted = match result {
                 Ok(decrypted_data) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
@@ -390,6 +393,7 @@ impl<
             let decrypted = match result {
                 Ok(decrypted_data) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
@@ -492,6 +496,7 @@ impl<
             let decrypted = match result {
                 Ok(decrypted_data) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
@@ -616,10 +621,11 @@ impl<
             let decrypted = match result {
                 Ok(decrypted_data) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::DecodingFailed)?
+                    Err(errors::CryptoError::DecodingFailed)
                 }
             };
             match decrypted {
@@ -714,6 +720,7 @@ impl<
             let decrypted = match result {
                 Ok(response) => {
                     ForeignTryFrom::foreign_try_from((encrypted_data.clone(), response))
+                        .map_err(|_| errors::CryptoError::DecodingFailed)
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);

@@ -5,6 +5,7 @@ use core::fmt;
 use base64::Engine;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
+use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -249,11 +250,12 @@ impl<S: Strategy<String> + Send> DecryptedDataConversion<String, S>
         value: &DecryptedData,
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
+        let string = String::from_utf8(value.clone().inner().peek().clone()).map_err(|err| {
+            logger::error!("Decryption error {:?}", err);
+            errors::CryptoError::DecodingFailed
+        })?;
         Ok(Self::new(
-            Secret::new(
-                String::from_utf8(value.clone().inner().peek().clone())
-                    .change_context(errors::CryptoError::DecodingFailed)?,
-            ),
+            Secret::new(string),
             encryption.clone().into_inner(),
         ))
     }
@@ -266,13 +268,11 @@ impl<S: Strategy<serde_json::Value> + Send> DecryptedDataConversion<serde_json::
         value: &DecryptedData,
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
-        Ok(Self::new(
-            Secret::new(
-                serde_json::from_slice(value.clone().inner().peek())
-                    .change_context(errors::CryptoError::DecodingFailed)?,
-            ),
-            encryption.clone().into_inner(),
-        ))
+        let val = serde_json::from_slice(value.clone().inner().peek()).map_err(|err| {
+            logger::error!("Decryption error {:?}", err);
+            errors::CryptoError::DecodingFailed
+        })?;
+        Ok(Self::new(Secret::new(val), encryption.clone().into_inner()))
     }
 }
 
