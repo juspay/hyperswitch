@@ -119,7 +119,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         } else {
             Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
-                is_payment_method_tokenization_performed: true,
+                is_payment_method_tokenization_performed: false,
             })
         }
     }
