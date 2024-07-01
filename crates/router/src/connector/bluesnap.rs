@@ -610,11 +610,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         let req_amount = data.request.minor_amount;
         let req_currency = data.request.currency;
 
-        let apple_pay_amount = connector_utils::convert_amount(
-            self.apple_pay_google_pay_amount_converter,
-            req_amount,
-            req_currency,
-        )?;
+        let apple_pay_amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
 
         types::RouterData::foreign_try_from((
             types::ResponseRouterData {

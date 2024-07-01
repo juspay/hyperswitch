@@ -573,6 +573,7 @@ mod test {
     }
 }
 
+/// Denotes the retry action
 #[derive(
     Debug,
     serde::Deserialize,

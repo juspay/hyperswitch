@@ -12,7 +12,8 @@ use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::payment_attempt::PaymentAttempt,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
+    type_encryption::decrypt,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -26,6 +27,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
+        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -245,8 +247,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         };
 
         let payment_intent_new = Self::make_payment_intent(
+            state,
             &payment_id,
             merchant_account,
+            merchant_key_store,
             money,
             request,
             shipping_address
@@ -560,7 +564,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
@@ -628,16 +632,30 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
+        let raw_customer_details = customer
+            .map(|customer| CustomerData::try_from(customer.clone()))
+            .transpose()?;
+
+        // Updation of Customer Details for the cases where both customer_id and specific customer
+        // details are provided in Payment Create Request
+        let customer_details = raw_customer_details
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, raw_customer_details).await
+            })
+            .await;
+
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
                 payment_data.payment_intent,
-                storage::PaymentIntentUpdate::ReturnUrlUpdate {
+                storage::PaymentIntentUpdate::PaymentCreateUpdate {
                     return_url: None,
                     status,
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    customer_details,
                     updated_by: storage_scheme.to_string(),
                 },
                 key_store,
@@ -815,7 +833,7 @@ impl PaymentCreate {
             additional_pm_data = payment_method_info
                 .as_ref()
                 .async_map(|pm_info| async {
-                    domain::types::decrypt::<serde_json::Value, masking::WithType>(
+                    decrypt::<serde_json::Value, masking::WithType>(
                         pm_info.payment_method_data.clone(),
                         key_store.key.get_inner().peek(),
                     )
@@ -956,8 +974,10 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
+        _state: &SessionState,
         payment_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -1023,6 +1043,30 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
+        // Derivation of directly supplied Customer data in our Payment Create Request
+        let raw_customer_details = if request.customer_id.is_none()
+            && (request.name.is_some()
+                || request.email.is_some()
+                || request.phone.is_some()
+                || request.phone_country_code.is_some())
+        {
+            Some(CustomerData {
+                name: request.name.clone(),
+                phone: request.phone.clone(),
+                email: request.email.clone(),
+                phone_country_code: request.phone_country_code.clone(),
+            })
+        } else {
+            None
+        };
+
+        // Encrypting our Customer Details to be stored in Payment Intent
+        let customer_details = if raw_customer_details.is_some() {
+            create_encrypted_data(key_store, raw_customer_details).await
+        } else {
+            None
+        };
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -1070,6 +1114,7 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
+            customer_details,
         })
     }
 
