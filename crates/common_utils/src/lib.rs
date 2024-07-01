@@ -6,7 +6,7 @@ use masking::{PeekInterface, Secret};
 
 use crate::{
     consts::ID_LENGTH,
-    id_type::{CustomerId, MerchantReferenceId},
+    id_type::{CustomerId, LengthId},
 };
 
 pub mod access_token;
@@ -206,15 +206,15 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 }
 
 /// Generate a MerchantRefId with the default length
-fn generate_merchant_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
     prefix: &str,
-) -> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
-    MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+) -> LengthId<MAX_LENGTH, MIN_LENGTH> {
+    LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
 }
 
 /// Generate a customer id with default length
 pub fn generate_customer_id_of_default_length() -> CustomerId {
-    CustomerId::new(generate_merchant_ref_id_with_default_length("cus"))
+    CustomerId::new(generate_ref_id_with_default_length("cus"))
 }
 
 /// Generate a nanoid with the given prefix and a default length
@@ -270,7 +270,7 @@ mod nanoid_tests {
 
     #[test]
     fn test_generate_merchant_ref_id_with_default_length() {
-        let ref_id = MerchantReferenceId::<
+        let ref_id = LengthId::<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >::from(generate_id_with_default_len("def").into());

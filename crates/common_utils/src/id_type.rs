@@ -1,4 +1,5 @@
 //! Common ID types
+//! The id type can be used to create specific id types with custom behaviour
 
 use std::{
     borrow::Cow,
@@ -6,6 +7,7 @@ use std::{
 };
 
 mod customer;
+mod merchant;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -20,13 +22,18 @@ use thiserror::Error;
 
 use crate::{fp_utils::when, generate_id_with_default_len};
 
+#[inline]
+fn is_valid_id_character(input_char: &char) -> bool {
+    input_char.is_ascii_alphanumeric() || matches!(input_char, '_' | '-')
+}
+
 /// This functions checks for the input string to contain valid characters
 /// Returns Some(char) if there are any invalid characters, else None
 fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> {
     input_string
         .trim()
         .chars()
-        .find(|char| !char.is_ascii_alphanumeric() && !matches!(char, '_' | '-'))
+        .find(|char| !is_valid_id_character(char))
 }
 
 #[derive(Debug, PartialEq, Serialize, Clone, Eq)]
@@ -74,14 +81,14 @@ impl AlphaNumericId {
     }
 }
 
-/// A common type of id that can be used for merchant reference ids
+/// A common type of id that can be used for reference ids with length constraint
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub(crate) struct MerchantReferenceId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
+pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 
 /// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Deserialize, Serialize, Error, PartialEq, Eq)]
-pub(crate) enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
+pub(crate) enum LengthIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
     #[error("the maximum allowed length for this field is {MAX_LENGTH}")]
     /// Maximum length of string violated
     MaxLengthViolated,
@@ -95,32 +102,32 @@ pub(crate) enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH:
     AlphanumericIdError(AlphaNumericIdError),
 }
 
-impl From<AlphaNumericIdError> for MerchantReferenceIdError<0, 0> {
+impl From<AlphaNumericIdError> for LengthIdError<0, 0> {
     fn from(alphanumeric_id_error: AlphaNumericIdError) -> Self {
         Self::AlphanumericIdError(alphanumeric_id_error)
     }
 }
 
-impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
+impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
     pub fn from(
         input_string: Cow<'static, str>,
-    ) -> Result<Self, MerchantReferenceIdError<MAX_LENGTH, MIN_LENGTH>> {
+    ) -> Result<Self, LengthIdError<MAX_LENGTH, MIN_LENGTH>> {
         let trimmed_input_string = input_string.trim().to_string();
         let length_of_input_string = u8::try_from(trimmed_input_string.len())
-            .map_err(|_| MerchantReferenceIdError::MaxLengthViolated)?;
+            .map_err(|_| LengthIdError::MaxLengthViolated)?;
 
         when(length_of_input_string > MAX_LENGTH, || {
-            Err(MerchantReferenceIdError::MaxLengthViolated)
+            Err(LengthIdError::MaxLengthViolated)
         })?;
 
         when(length_of_input_string < MIN_LENGTH, || {
-            Err(MerchantReferenceIdError::MinLengthViolated)
+            Err(LengthIdError::MinLengthViolated)
         })?;
 
         let alphanumeric_id = match AlphaNumericId::from(trimmed_input_string.into()) {
             Ok(valid_alphanumeric_id) => valid_alphanumeric_id,
-            Err(error) => Err(MerchantReferenceIdError::AlphanumericIdError(error))?,
+            Err(error) => Err(LengthIdError::AlphanumericIdError(error))?,
         };
 
         Ok(Self(alphanumeric_id))
@@ -133,7 +140,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH,
 }
 
 impl<'de, const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deserialize<'de>
-    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+    for LengthId<MAX_LENGTH, MIN_LENGTH>
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -145,7 +152,7 @@ impl<'de, const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deserialize<'de>
 }
 
 impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
-    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+    for LengthId<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
     String: ToSql<sql_types::Text, DB>,
@@ -155,16 +162,14 @@ where
     }
 }
 
-impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display
-    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
-{
+impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display for LengthId<MAX_LENGTH, MIN_LENGTH> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0 .0)
     }
 }
 
 impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
-    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+    for LengthId<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
     String: FromSql<sql_types::Text, DB>,
@@ -235,7 +240,7 @@ mod merchant_reference_id_tests {
     #[test]
     fn test_valid_reference_id() {
         let parsed_merchant_reference_id =
-            serde_json::from_str::<MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>>(VALID_REF_ID_JSON);
+            serde_json::from_str::<LengthId<MAX_LENGTH, MIN_LENGTH>>(VALID_REF_ID_JSON);
 
         dbg!(&parsed_merchant_reference_id);
 
@@ -244,18 +249,16 @@ mod merchant_reference_id_tests {
 
     #[test]
     fn test_invalid_ref_id() {
-        let parsed_merchant_reference_id = serde_json::from_str::<
-            MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>,
-        >(INVALID_REF_ID_JSON);
+        let parsed_merchant_reference_id =
+            serde_json::from_str::<LengthId<MAX_LENGTH, MIN_LENGTH>>(INVALID_REF_ID_JSON);
 
         assert!(parsed_merchant_reference_id.is_err());
     }
 
     #[test]
     fn test_invalid_ref_id_error_message() {
-        let parsed_merchant_reference_id = serde_json::from_str::<
-            MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>,
-        >(INVALID_REF_ID_JSON);
+        let parsed_merchant_reference_id =
+            serde_json::from_str::<LengthId<MAX_LENGTH, MIN_LENGTH>>(INVALID_REF_ID_JSON);
 
         let expected_error_message =
             r#"value `cus abcdefghijklmnopqrstuv` contains invalid character ` `"#.to_string();
@@ -269,9 +272,8 @@ mod merchant_reference_id_tests {
 
     #[test]
     fn test_invalid_ref_id_length() {
-        let parsed_merchant_reference_id = serde_json::from_str::<
-            MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>,
-        >(INVALID_REF_ID_LENGTH);
+        let parsed_merchant_reference_id =
+            serde_json::from_str::<LengthId<MAX_LENGTH, MIN_LENGTH>>(INVALID_REF_ID_LENGTH);
 
         dbg!(&parsed_merchant_reference_id);
 
@@ -285,15 +287,11 @@ mod merchant_reference_id_tests {
     #[test]
     fn test_invalid_ref_id_length_error_type() {
         let parsed_merchant_reference_id =
-            MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::from(INVALID_REF_ID_LENGTH.into());
+            LengthId::<MAX_LENGTH, MIN_LENGTH>::from(INVALID_REF_ID_LENGTH.into());
 
         dbg!(&parsed_merchant_reference_id);
 
-        assert!(
-            parsed_merchant_reference_id.is_err_and(|error_type| matches!(
-                error_type,
-                MerchantReferenceIdError::MaxLengthViolated
-            ))
-        );
+        assert!(parsed_merchant_reference_id
+            .is_err_and(|error_type| matches!(error_type, LengthIdError::MaxLengthViolated)));
     }
 }
