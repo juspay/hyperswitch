@@ -7,9 +7,9 @@ use crate::{
     dense_map::DenseMap,
     error::{self, AnalysisTrace, GraphError},
     types::{
-        CheckingContext, CycleCheck, DomainId, DomainIdentifier, DomainInfo, Edge, EdgeId,
+        CheckingContext, CycleCheck, DomainId, DomainIdentifier, DomainInfo, Edge, EdgeId, GetSize,
         Memoization, Metadata, Node, NodeId, NodeType, NodeValue, Relation, RelationResolution,
-        Strength, ValueNode,
+        Size, Strength, ValueNode,
     },
 };
 
@@ -587,6 +587,20 @@ where
         }
 
         Ok(node_builder.build())
+    }
+}
+
+impl<'a, V> GetSize for ConstraintGraph<'a, V>
+where
+    V: ValueNode + GetSize,
+{
+    fn get_size(&self) -> Size {
+        self.domain.get_size()
+            + self.domain_identifier_map.get_size()
+            + self.nodes.get_size()
+            + self.edges.get_size()
+            + self.value_map.get_size()
+            + self.node_info.get_size()
     }
 }
 

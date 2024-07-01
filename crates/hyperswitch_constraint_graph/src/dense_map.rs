@@ -1,5 +1,7 @@
 use std::{fmt, iter, marker::PhantomData, ops, slice, vec};
 
+use crate::types::{GetSize, Size};
+
 pub trait EntityId {
     fn get_id(&self) -> usize;
     fn with_id(id: usize) -> Self;
@@ -238,5 +240,14 @@ where
             data: Vec::from_iter(iter),
             _marker: PhantomData,
         }
+    }
+}
+
+impl<K, V> GetSize for DenseMap<K, V>
+where
+    V: GetSize,
+{
+    fn get_size(&self) -> Size {
+        self.data.get_size()
     }
 }
