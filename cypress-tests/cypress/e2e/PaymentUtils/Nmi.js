@@ -361,11 +361,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 501,

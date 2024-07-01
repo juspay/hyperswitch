@@ -1084,6 +1084,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None
         };
 
+        let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
@@ -1255,6 +1256,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         session_expiry,
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
+                        customer_details,
                     },
                     &m_key_store,
                     storage_scheme,
