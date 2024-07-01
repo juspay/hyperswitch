@@ -1,7 +1,7 @@
-use api_models::analytics::{
+use api_models::{analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
-};
+}, enums::IntentStatus};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -70,7 +70,7 @@ where
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
             .switch()?;
         query_builder
-            .add_custom_filter_clause("status", "succeeded", FilterTypes::Equal)
+            .add_custom_filter_clause("status", IntentStatus::Succeeded, FilterTypes::Equal)
             .switch()?;
         time_range
             .set_filter_clause(&mut query_builder)

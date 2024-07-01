@@ -1,16 +1,16 @@
-use api_models::analytics::{
+use api_models::{analytics::{
     payment_intents::{
         PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
     },
     Granularity, TimeRange,
-};
+}, enums::IntentStatus};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::PaymentIntentMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window, FilterTypes},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -66,7 +66,12 @@ where
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
-
+        query_builder
+            .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
+            .switch()?;
+        query_builder
+            .add_custom_filter_clause("status", IntentStatus::Succeeded, FilterTypes::Equal)
+            .switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
