@@ -1528,22 +1528,22 @@ where
         _ => (),
     };
 
-    let (pm_token, mut should_continue_further) = router_data
+    let payment_method_token_response = router_data
         .add_payment_method_token(
             state,
             &connector,
             &tokenization_action,
-            is_retry_payment,
             should_continue_further,
         )
         .await?;
-    if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
-                payment_method_token,
-            )),
+
+    let mut should_continue_further =
+        tokenization::update_router_data_with_payment_method_token_result(
+            payment_method_token_response,
+            &mut router_data,
+            is_retry_payment,
+            should_continue_further,
         );
-    };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,

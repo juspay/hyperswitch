@@ -106,9 +106,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
-        is_retry_payment: bool,
         should_continue_payment: bool,
-    ) -> RouterResult<(Option<String>, bool)> {
+    ) -> RouterResult<types::PaymentMethodTokenResult> {
         let request = self.request.clone();
         tokenization::add_payment_method_token(
             state,
@@ -116,7 +115,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             tokenization_action,
             self,
             types::PaymentMethodTokenizationData::try_from(request)?,
-            is_retry_payment,
             should_continue_payment,
         )
         .await
