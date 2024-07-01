@@ -174,7 +174,7 @@ pub struct ShippingName {
     full_name: Option<Secret<String>>,
 }
 
-#[derive( Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CardRequest {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
@@ -229,7 +229,7 @@ pub enum ShippingPreference {
     GetFromFile,
 }
 
-#[derive( Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
@@ -248,22 +248,21 @@ pub enum PaypalSetupMandatesResponse {
     PaypalSetupTokenResponse(Box<PaypalSetupTokenResponse>),
 }
 
-#[derive( Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaypalSetupTokenResponse {
     id: String,
     customer: Customer,
     status: PaypalOrderStatus,
-   payment_source: ZeroMandateSourceItem,
-   links: Vec<PaypalLinks>
-    
+    payment_source: ZeroMandateSourceItem,
+    links: Vec<PaypalLinks>,
 }
 #[derive(Debug, Serialize)]
 pub struct PaypalZeroMandateRequest {
     payment_source: ZeroMandateSourceItem,
 }
 
-#[derive(Debug,Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Customer {
     id: String,
 }
@@ -276,7 +275,7 @@ pub struct Customer {
 //     PAYER_ACTION_REQUIRED
 // }
 
-#[derive( Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ZeroMandateSourceItem {
     Card(CardRequest),
@@ -288,30 +287,22 @@ pub enum ZeroMandateSourceItem {
 }
 impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::SetupMandateRouterData,
-    ) -> Result<Self, Self::Error> {
-    
-
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let payment_source = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-
-                    
-                    ZeroMandateSourceItem::Card(CardRequest {
-                        billing_address: None,
-                        expiry: Some(ccard.get_expiry_date_as_mmyyyy("-")),
-                        name: ccard.nick_name.unwrap_or_default(),
-                        number: Some(ccard.card_number),
-                        security_code:Some(ccard.card_cvc),
-                        attributes: None,
-                                // number: ccard.card_number,
-                                // expiration_month: ccard.card_exp_month,
-                                // expiration_year: ccard.card_exp_year,
-                                // security_code: Some(ccard.card_cvc),
-                                // card_type,
-                            })
-                    
-                
+                ZeroMandateSourceItem::Card(CardRequest {
+                    billing_address: None,
+                    expiry: Some(ccard.get_expiry_date_as_mmyyyy("-")),
+                    name: ccard.nick_name.unwrap_or_default(),
+                    number: Some(ccard.card_number),
+                    security_code: Some(ccard.card_cvc),
+                    attributes: None,
+                    // number: ccard.card_number,
+                    // expiration_month: ccard.card_exp_month,
+                    // expiration_year: ccard.card_exp_year,
+                    // security_code: Some(ccard.card_cvc),
+                    // card_type,
+                })
             }
 
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -322,10 +313,7 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
                                 experience_context: ContextStruct {
                                     return_url: item.request.return_url.clone(),
                                     cancel_url: item.request.return_url.clone(),
-                                    shipping_preference: if item
-                                        .get_optional_shipping()
-                                        .is_some()
-                                    {
+                                    shipping_preference: if item.get_optional_shipping().is_some() {
                                         ShippingPreference::SetProvidedAddress
                                     } else {
                                         ShippingPreference::GetFromFile
@@ -338,7 +326,7 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
                     );
 
                     payment_source
-                },
+                }
                 domain::WalletData::ApplePay(_)
                 | domain::WalletData::GooglePay(_)
                 | domain::WalletData::AliPayQr(_)
@@ -385,7 +373,7 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?
             }
-            };
+        };
 
         // let processing_information = ProcessingInformation {
         //     capture: Some(false),
@@ -398,17 +386,11 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
         // };
         Ok(Self { payment_source })
     }
-    
 }
 
 impl<F, T>
     TryFrom<
-        types::ResponseRouterData<
-            F,
-            PaypalSetupMandatesResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        types::ResponseRouterData<F, PaypalSetupMandatesResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -429,33 +411,26 @@ impl<F, T>
                     //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
                     mandate_status = enums::AttemptStatus::Charged
                 }
-               
 
                 let connector_response = info_response.as_ref();
 
                 Ok(Self {
                     status: mandate_status,
-                    response:
-                   
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                info_response.id.clone(),
-                            ),
-                            redirection_data: None,
-                            mandate_reference,
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: Some(
-                                info_response
-                                    .id
-                                    .clone(),
-                            ),
-                            incremental_authorization_allowed: Some(
-                                mandate_status == enums::AttemptStatus::Authorized,
-                            ),
-                            charge_id: None,
-                        }),
-                
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            info_response.id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(info_response.id.clone()),
+                        incremental_authorization_allowed: Some(
+                            mandate_status == enums::AttemptStatus::Authorized,
+                        ),
+                        charge_id: None,
+                    }),
+
                     connector_response,
                     ..item.data
                 })
@@ -463,7 +438,6 @@ impl<F, T>
         }
     }
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct PaypalVaultStruct {
