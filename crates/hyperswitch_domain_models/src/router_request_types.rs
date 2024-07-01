@@ -71,6 +71,8 @@ pub struct AuthoriseIntegrityObject {
     pub amount: MinorUnit,
     /// Authorise currency
     pub currency: storage_enums::Currency,
+    /// Automatic capture amount
+    pub capture_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,6 +105,15 @@ pub struct PaymentsCaptureData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptureIntegrityObject {
+    /// capture amount
+    pub capture_amount: Option<MinorUnit>,
+    /// capture currency
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, Default)]

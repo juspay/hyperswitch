@@ -44,15 +44,12 @@ pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merc
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    apple_pay_google_pay_amount_converter:
-        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
         }
     }
 }

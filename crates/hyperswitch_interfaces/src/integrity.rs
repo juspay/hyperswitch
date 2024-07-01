@@ -1,6 +1,7 @@
 use common_utils::errors::IntegrityCheckError;
 use hyperswitch_domain_models::router_request_types::{
-    AuthoriseIntegrityObject, PaymentsAuthorizeData, PaymentsSyncData, SyncIntegrityObject,
+    AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentsAuthorizeData, PaymentsCaptureData,
+    PaymentsSyncData, SyncIntegrityObject,
 };
 
 /// Connector Integrity trait to check connector data integrity
@@ -34,6 +35,30 @@ pub trait CheckIntegrity<Request, T> {
 }
 
 impl<T, Request> CheckIntegrity<Request, T> for PaymentsAuthorizeData
+where
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T>,
+{
+    fn check_integrity(
+        &self,
+        request: &Request,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        match request.get_response_integrity_object() {
+            Some(res_integrity_object) => {
+                let req_integrity_object = request.get_request_integrity_object();
+                T::compare(
+                    req_integrity_object,
+                    res_integrity_object,
+                    connector_transaction_id,
+                )
+            }
+            None => Ok(()),
+        }
+    }
+}
+
+impl<T, Request> CheckIntegrity<Request, T> for PaymentsCaptureData
 where
     T: FlowIntegrity,
     Request: GetIntegrityObject<T>,
@@ -98,6 +123,10 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
             mismatched_fields.push("currency".to_string());
         }
 
+        if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
+            mismatched_fields.push("capture_amount".to_string());
+        }
+
         if mismatched_fields.is_empty() {
             Ok(())
         } else {
@@ -141,6 +170,49 @@ impl FlowIntegrity for SyncIntegrityObject {
     }
 }
 
+impl FlowIntegrity for CaptureIntegrityObject {
+    type IntegrityObject = Self;
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
+            mismatched_fields.push("amount".to_string());
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push("currency".to_string());
+        }
+
+        if mismatched_fields.is_empty() {
+            Ok(())
+        } else {
+            let field_names = mismatched_fields.join(", ");
+
+            Err(IntegrityCheckError {
+                field_names,
+                connector_transaction_id,
+            })
+        }
+    }
+}
+
+impl GetIntegrityObject<CaptureIntegrityObject> for PaymentsCaptureData {
+    fn get_response_integrity_object(&self) -> Option<CaptureIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> CaptureIntegrityObject {
+        CaptureIntegrityObject {
+            capture_amount: Some(self.minor_amount_to_capture),
+            currency: self.currency,
+        }
+    }
+}
+
 impl GetIntegrityObject<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
     fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
         self.integrity_object.clone()
@@ -150,6 +222,7 @@ impl GetIntegrityObject<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
         AuthoriseIntegrityObject {
             amount: self.minor_amount,
             currency: self.currency,
+            capture_amount: Some(self.minor_amount),
         }
     }
 }

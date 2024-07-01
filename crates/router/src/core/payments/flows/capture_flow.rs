@@ -60,7 +60,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let resp = services::execute_connector_processing_step(
+        let mut new_router_data = services::execute_connector_processing_step(
             state,
             connector_integration,
             &self,
@@ -70,7 +70,16 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         .await
         .to_payment_failed_response()?;
 
-        Ok(resp)
+        println!("initiate capture integrity");
+        // Initiating Integrity check
+        let integrity_result = helpers::check_integrity_based_on_flow(
+            &new_router_data.request,
+            &new_router_data.response,
+        );
+        println!("integrity_result {:?}", integrity_result);
+        new_router_data.integrity_check = integrity_result;
+
+        Ok(new_router_data)
     }
 
     async fn add_access_token<'a>(

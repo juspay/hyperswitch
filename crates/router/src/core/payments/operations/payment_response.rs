@@ -880,6 +880,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             unified_message: None,
                             connector_transaction_id,
                             payment_method_data: None,
+                            authentication_type: None,
                         }),
                     )
                 }

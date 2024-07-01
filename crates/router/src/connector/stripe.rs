@@ -681,15 +681,26 @@ impl
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            response.amount_received,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -1026,6 +1037,7 @@ impl
                             self.amount_converter,
                             response.amount,
                             response.currency.clone(),
+                            Some(response.amount_captured),
                         )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
@@ -1053,6 +1065,7 @@ impl
                             self.amount_converter,
                             response.amount,
                             response.currency.clone(),
+                            response.amount_received,
                         )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
@@ -1080,6 +1093,7 @@ impl
                     self.amount_converter,
                     response.amount,
                     response.currency.clone(),
+                    response.amount_received,
                 )?;
 
                 event_builder.map(|i| i.set_response_body(&response));
