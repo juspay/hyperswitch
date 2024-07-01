@@ -1680,7 +1680,7 @@ pub enum CybersourcePaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
-    StatusNotRecieved,
+    StatusNotReceived,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -1725,7 +1725,7 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::ServerError => Self::Failure,
             CybersourcePaymentStatus::PendingAuthentication => Self::AuthenticationPending,
             CybersourcePaymentStatus::PendingReview
-            | CybersourcePaymentStatus::StatusNotRecieved
+            | CybersourcePaymentStatus::StatusNotReceived
             | CybersourcePaymentStatus::Challenge
             | CybersourcePaymentStatus::Accepted => Self::Pending,
         }
@@ -2015,7 +2015,7 @@ impl<F>
                     info_response
                         .status
                         .clone()
-                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        .map_or(CybersourcePaymentStatus::StatusNotReceived, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2553,7 +2553,7 @@ impl<F>
                     info_response
                         .status
                         .clone()
-                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        .map_or(CybersourcePaymentStatus::StatusNotReceived, |status| status),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2619,7 +2619,7 @@ impl<F>
                     info_response
                         .status
                         .clone()
-                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        .map_or(CybersourcePaymentStatus::StatusNotReceived, |status| status),
                     true,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2661,7 +2661,7 @@ impl<F>
                     info_response
                         .status
                         .clone()
-                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        .map_or(CybersourcePaymentStatus::StatusNotReceived, |status| status),
                     false,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
@@ -2712,7 +2712,7 @@ impl<F, T>
                     info_response
                         .status
                         .clone()
-                        .map_or(CybersourcePaymentStatus::StatusNotRecieved, |status| status),
+                        .map_or(CybersourcePaymentStatus::StatusNotReceived, |status| status),
                     false,
                 ));
                 if matches!(mandate_status, enums::AttemptStatus::Authorized) {
