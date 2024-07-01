@@ -94,7 +94,10 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           globalState.get("connectorId")
         );
-        createConnectorBody.connector_account_details = authDetails;
+        createConnectorBody.connector_account_details =
+          authDetails.connector_account_details;
+        createConnectorBody.metadata = authDetails?.metadata;
+
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
@@ -140,15 +143,6 @@ Cypress.Commands.add(
           `${connectorName}_payout`
         );
 
-        let sourceBalanceAccount = null;
-        if (authDetails && typeof authDetails === "object") {
-          // Specific to `AdyenPlatform` payout connector
-          // If the connector has source_balance_account in creds file, set it in the body and remove it from authDetails
-          sourceBalanceAccount = authDetails.source_balance_account;
-          delete authDetails.source_balance_account;
-        }
-        authDetails = authDetails;
-
         // If the connector does not have payout connector creds in creds file, set payoutsExecution to false
         if (authDetails === null) {
           globalState.set("payoutsExecution", false);
@@ -157,9 +151,10 @@ Cypress.Commands.add(
           globalState.set("payoutsExecution", true);
         }
 
-        createConnectorBody.connector_account_details = authDetails;
-        createConnectorBody.metadata.source_balance_account =
-          sourceBalanceAccount;
+        createConnectorBody.connector_account_details =
+          authDetails.connector_account_details;
+        createConnectorBody.metadata = authDetails?.metadata;
+
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
