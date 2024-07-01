@@ -16,7 +16,7 @@ use crate::{
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsRejectRequest, PaymentsRequest,
         PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        RedirectionResponse,
+        RedirectionResponse, PaymentsManualUpdateRequest
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
