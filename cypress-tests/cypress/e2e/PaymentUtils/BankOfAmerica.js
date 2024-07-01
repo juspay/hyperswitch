@@ -202,8 +202,8 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
-        },
+        mandate_data: singleUseMandateData,
+      },
       Response: {
         status: 200,
         body: {
@@ -217,7 +217,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -228,11 +228,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -243,11 +243,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -258,11 +258,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -273,11 +273,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -292,7 +292,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -307,7 +307,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -318,11 +318,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,

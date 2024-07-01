@@ -33,7 +33,6 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    unimplemented_payment_method,
     utils::OptionExt,
 };
 
@@ -1761,9 +1760,11 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
 
                 let payment_method_token = match payment_method_token {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                        unimplemented_payment_method!("Apple Pay", "Simplified", "Stripe"),
-                    )?,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                        })?
+                    }
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {

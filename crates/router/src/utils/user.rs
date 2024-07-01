@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_enums::UserAuthType;
+use common_utils::errors::CustomResult;
 use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -206,7 +207,7 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
         .attach_printable("Failed to get redis connection")
 }
 
-impl ForeignFrom<user_api::AuthConfig> for common_enums::UserAuthType {
+impl ForeignFrom<user_api::AuthConfig> for UserAuthType {
     fn foreign_from(from: user_api::AuthConfig) -> Self {
         match from {
             user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
@@ -244,8 +245,7 @@ pub async fn decrypt_oidc_private_config(
     .into_inner()
     .expose();
 
-    private_config
-        .parse_value("OpenIdConnectPrivateConfig")
+    serde_json::from_value::<user_api::OpenIdConnectPrivateConfig>(private_config)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("unable to parse OpenIdConnectPrivateConfig")
 }
@@ -285,4 +285,11 @@ fn get_oidc_key(oidc_state: &str) -> String {
 
 pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String {
     format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
+}
+
+pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
+    match auth_type {
+        UserAuthType::OpenIdConnect => true,
+        UserAuthType::Password | UserAuthType::MagicLink => false,
+    }
 }

@@ -207,7 +207,7 @@ fn perform_condition_analyses(
 
 fn perform_context_analyses(
     context: &types::ConjunctiveContext<'_>,
-    knowledge_graph: &ConstraintGraph<'_, dir::DirValue>,
+    knowledge_graph: &ConstraintGraph<dir::DirValue>,
 ) -> Result<(), types::AnalysisError> {
     perform_condition_analyses(context)?;
     let mut memo = Memoization::new();
@@ -222,7 +222,7 @@ fn perform_context_analyses(
 
 pub fn analyze<O: EuclidAnalysable + EuclidDirFilter>(
     program: ast::Program<O>,
-    knowledge_graph: Option<&ConstraintGraph<'_, dir::DirValue>>,
+    knowledge_graph: Option<&ConstraintGraph<dir::DirValue>>,
 ) -> Result<vir::ValuedProgram<O>, types::AnalysisError> {
     let dir_program = ast::lowering::lower_program(program)?;
 

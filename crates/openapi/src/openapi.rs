@@ -350,6 +350,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsUpdateRequest,
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
+        api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,

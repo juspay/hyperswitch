@@ -251,6 +251,28 @@ impl AmountConvertor for StringMinorUnitForConnector {
     }
 }
 
+/// Core required conversion type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForCore;
+impl AmountConvertor for StringMajorUnitForCore {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
 /// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct StringMajorUnitForConnector;

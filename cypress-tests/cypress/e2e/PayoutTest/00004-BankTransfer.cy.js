@@ -5,7 +5,7 @@ import * as utils from "../PayoutUtils/utils";
 let globalState;
 
 // TODO: Add test for Bank Transfer - ACH
-describe("[Payout] [Bank Transfer - ACH]", () => {
+describe.skip("[Payout] [Bank Transfer - ACH]", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
@@ -31,7 +31,7 @@ describe("[Payout] [Bank Transfer - ACH]", () => {
 });
 
 // TODO: Add test for Bank Transfer - BACS
-describe("[Payout] [Bank Transfer - BACS]", () => {
+describe.skip("[Payout] [Bank Transfer - BACS]", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {

@@ -83,6 +83,100 @@ export const getCustomExchange = (overrides) => {
 
 export const payment_methods_enabled = [
   {
+    payment_method: "bank_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "blik",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "eps",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "ideal",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "giropay",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "local_bank_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "przelewy24",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sofort",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_transfer",
+    payment_method_types: [
+      {
+        payment_method_type: "pix",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "card",
     payment_method_types: [
       {
@@ -124,85 +218,60 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "bank_transfer",
+    payment_method: "real_time_payment",
     payment_method_types: [
       {
-        payment_method_type: "pix",
-        minimum_amount: 0,
+        payment_method_type: "duit_now",
+        minimum_amount: 1,
         maximum_amount: 68607706,
-        recurring_enabled: false,
+        recurring_enabled: true,
         installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "fps",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "prompt_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "viet_qr",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
       },
     ],
   },
   {
-    payment_method: "bank_redirect",
+    payment_method: "upi",
     payment_method_types: [
       {
-        payment_method_type: "ideal",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
+        payment_method_type: "upi_collect",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
         installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
       },
       {
-        payment_method_type: "giropay",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
+        payment_method_type: "upi_intent",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
         installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "sofort",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "eps",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "blik",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "przelewy24",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
       },
     ],
   },
@@ -224,89 +293,49 @@ export const connectorDetails = {
         },
       },
     }),
-    "3DSManualCapture": {
+    "3DSManualCapture": getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    "3DSAutoCapture": {
+    }),
+    "3DSAutoCapture": getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    No3DSManualCapture: {
+    }),
+    No3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    No3DSAutoCapture: {
+    }),
+    No3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-    Capture: {
+    }),
+    Capture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
-        },
-      },
-    },
-    PartialCapture: {
+    }),
+    PartialCapture: getCustomExchange({
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
-        },
-      },
-    },
-    Void: {
+    }),
+    Void: getCustomExchange({
       Request: {},
       Response: {
         status: 400,
@@ -319,61 +348,28 @@ export const connectorDetails = {
           },
         },
       },
-    },
-    Refund: {
+    }),
+    Refund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    PartialRefund: {
+    }),
+    PartialRefund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    SyncRefund: {
+    }),
+    SyncRefund: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
+    }),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
@@ -791,6 +787,43 @@ export const connectorDetails = {
             country: "PL",
             first_name: "john",
             last_name: "doe",
+          },
+        },
+      },
+    }),
+  },
+  upi_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    UpiCollect: getCustomExchange({
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
+        payment_method_data: {
+          upi: {
+            upi_collect: {
+              vpa_id: "successtest@ita",
+            },
+          },
+        },
+      },
+    }),
+    UpiIntent: getCustomExchange({
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_intent",
+        payment_method_data: {
+          upi: {
+            upi_intent: {},
           },
         },
       },

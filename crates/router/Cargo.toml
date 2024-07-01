@@ -9,7 +9,8 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls"]
+tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm"]
 stripe = ["dep:serde_qs"]
@@ -77,6 +78,8 @@ ring = "0.17.8"
 roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
+rustls = "0.22"
+rustls-pemfile = "2"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 serde_path_to_error = "0.1.16"

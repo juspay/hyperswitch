@@ -548,6 +548,64 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmUpiCall",
+  (confirmBody, req_data, res_data, confirm, globalState) => {
+    const paymentId = globalState.get("paymentID");
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
+    confirmBody.confirm = confirm;
+    confirmBody.client_secret = globalState.get("clientSecret");
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      expect(res_data.status).to.equal(response.status);
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        if (
+          response.body.capture_method === "automatic" ||
+          response.body.capture_method === "manual"
+        ) {
+          if (response.body.payment_method_type === "upi_collect") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          } else if (response.body.payment_method_type === "upi_intent") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("qr_code_fetch_url");
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.qr_code_fetch_url
+            );
+          }
+        } else {
+          defaultErrorHandler(response, res_data);
+        }
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "createConfirmPaymentTest",
   (
     createConfirmPaymentBody,
@@ -1103,11 +1161,27 @@ Cypress.Commands.add(
   "handleBankTransferRedirection",
   (globalState, payment_method_type, expected_redirection) => {
     let connectorId = globalState.get("connectorId");
+    let expected_url = new URL(expected_redirection);
     let redirection_url = new URL(globalState.get("nextActionUrl"));
     cy.log(payment_method_type);
     handleRedirection(
       "bank_transfer",
-      { redirection_url, expected_redirection },
+      { redirection_url, expected_url },
+      connectorId,
+      payment_method_type
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleUpiRedirection",
+  (globalState, payment_method_type, expected_redirection) => {
+    let connectorId = globalState.get("connectorId");
+    let expected_url = new URL(expected_redirection);
+    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    handleRedirection(
+      "upi",
+      { redirection_url, expected_url },
       connectorId,
       payment_method_type
     );

@@ -34,7 +34,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           this.skip();
         }
       });
-      
+
       it("Create No 3DS Payment Intent", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"

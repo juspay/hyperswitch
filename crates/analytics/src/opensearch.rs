@@ -371,7 +371,7 @@ pub struct OpenSearchQueryBuilder {
     pub query: String,
     pub offset: Option<i64>,
     pub count: Option<i64>,
-    pub filters: Vec<(String, String)>,
+    pub filters: Vec<(String, Vec<String>)>,
 }
 
 impl OpenSearchQueryBuilder {
@@ -391,7 +391,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn add_filter_clause(&mut self, lhs: String, rhs: String) -> QueryResult<()> {
+    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
         self.filters.push((lhs, rhs));
         Ok(())
     }
@@ -403,7 +403,7 @@ impl OpenSearchQueryBuilder {
         let mut filters = self
             .filters
             .iter()
-            .map(|(k, v)| json!({"match_phrase" : {k : v}}))
+            .map(|(k, v)| json!({"terms" : {k : v}}))
             .collect::<Vec<Value>>();
 
         query.append(&mut filters);

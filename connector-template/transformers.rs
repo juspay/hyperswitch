@@ -1,42 +1,38 @@
 use serde::{Deserialize, Serialize};
 use masking::Secret;
+use common_utils::types::{StringMinorUnit};
 use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self, domain, api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
 impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
+    From<(
+        StringMinorUnit,
         T,
     )> for {{project-name | downcase | pascal_case}}RouterData<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
+    fn from(
+        (amount, item): (
+            StringMinorUnit,
             T,
         ),
-    ) -> Result<Self, Self::Error> {
+    ) -> Self {
          //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Ok(Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {
-    amount: i64,
+    amount: StringMinorUnit,
     card: {{project-name | downcase | pascal_case}}Card
 }
 
@@ -62,7 +58,7 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::Paymen
                     complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.amount.to_owned(),
+                    amount: item.amount.clone(),
                     card,
                 })
             }
@@ -141,7 +137,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {
-    pub amount: MinorUnit
+    pub amount: StringMinorUnit
 }
 
 impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {

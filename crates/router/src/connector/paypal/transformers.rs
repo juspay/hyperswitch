@@ -2211,7 +2211,7 @@ pub struct OrderErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalOrderErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<OrderErrorDetails>>,
@@ -2225,7 +2225,7 @@ pub struct ErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<ErrorDetails>>,
@@ -2287,21 +2287,24 @@ pub enum PaypalResource {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
-    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub disputed_transactions: Vec<DisputeTransaction>,
     pub dispute_amount: OrderAmount,
-    pub dispute_outcome: DisputeOutcome,
+    pub dispute_outcome: Option<DisputeOutcome>,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub seller_response_due_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub update_time: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct DisputeTransaction {
-    pub reference_id: String,
+    pub seller_transaction_id: String,
 }
 
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]

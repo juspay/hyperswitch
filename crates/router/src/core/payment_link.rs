@@ -5,6 +5,7 @@ use common_utils::{
         DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
 };
 use error_stack::ResultExt;
 use futures::future;
@@ -14,6 +15,7 @@ use time::PrimitiveDateTime;
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
+    get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     routes::SessionState,
     services,
     types::{
@@ -121,9 +123,15 @@ pub async fn initiate_payment_link_flow(
         payment_intent.currency,
         payment_intent.client_secret.clone(),
     )?;
-    let amount = currency
-        .to_currency_base_unit(payment_intent.amount.get_amount_as_i64())
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+
+    let required_conversion_type = StringMajorUnitForCore;
+
+    let amount = required_conversion_type
+        .convert(payment_intent.amount, currency)
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
     let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
@@ -325,6 +333,7 @@ fn validate_order_details(
     Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    let required_conversion_type = StringMajorUnitForCore;
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -356,10 +365,11 @@ fn validate_order_details(
                         .product_img_link
                         .clone_from(&order.product_img_link)
                 };
-                order_details_amount_string.amount =
-                    currency
-                        .to_currency_base_unit(order.amount)
-                        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+                order_details_amount_string.amount = required_conversion_type
+                    .convert(MinorUnit::new(order.amount), currency)
+                    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "StringMajorUnit",
+                    })?;
                 order_details_amount_string.product_name =
                     capitalize_first_char(&order.product_name.clone());
                 order_details_amount_string.quantity = order.quantity;
@@ -386,9 +396,11 @@ pub fn get_payment_link_config_based_on_priority(
     business_link_config: Option<serde_json::Value>,
     merchant_name: String,
     default_domain_name: String,
+    payment_link_config_id: Option<String>,
 ) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
 {
-    let (domain_name, business_config) = if let Some(business_config) = business_link_config {
+    let (domain_name, business_theme_configs) = if let Some(business_config) = business_link_config
+    {
         let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
             .parse_value("BusinessPaymentLinkConfig")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -402,73 +414,32 @@ pub fn get_payment_link_config_based_on_priority(
                 .clone()
                 .map(|d_name| format!("https://{}", d_name))
                 .unwrap_or_else(|| default_domain_name.clone()),
-            Some(extracted_value.config),
+            payment_link_config_id
+                .and_then(|id| {
+                    extracted_value
+                        .business_specific_configs
+                        .as_ref()
+                        .and_then(|specific_configs| specific_configs.get(&id).cloned())
+                })
+                .or(extracted_value.default_config),
         )
     } else {
         (default_domain_name, None)
     };
 
-    let theme = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.config.theme.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.theme.clone())
-        })
-        .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
-
-    let logo = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.config.logo.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.logo.clone())
-        })
-        .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
-
-    let seller_name = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.config.seller_name.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.seller_name.clone())
-        })
-        .unwrap_or(merchant_name.clone());
-
-    let sdk_layout = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| pc_config.config.sdk_layout.clone())
-        .or_else(|| {
-            business_config
-                .as_ref()
-                .and_then(|business_config| business_config.sdk_layout.clone())
-        })
-        .unwrap_or(DEFAULT_SDK_LAYOUT.to_owned());
-
-    let display_sdk_only = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| {
-            pc_config.config.display_sdk_only.or_else(|| {
-                business_config
-                    .as_ref()
-                    .and_then(|business_config| business_config.display_sdk_only)
-            })
-        })
-        .unwrap_or(DEFAULT_DISPLAY_SDK_ONLY);
-
-    let enabled_saved_payment_method = payment_create_link_config
-        .as_ref()
-        .and_then(|pc_config| {
-            pc_config.config.enabled_saved_payment_method.or_else(|| {
-                business_config
-                    .as_ref()
-                    .and_then(|business_config| business_config.enabled_saved_payment_method)
-            })
-        })
-        .unwrap_or(DEFAULT_ENABLE_SAVED_PAYMENT_METHOD);
+    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+        payment_create_link_config,
+        business_theme_configs,
+        (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
+        (logo, DEFAULT_MERCHANT_LOGO.to_string()),
+        (seller_name, merchant_name.clone()),
+        (sdk_layout, DEFAULT_SDK_LAYOUT.to_owned()),
+        (display_sdk_only, DEFAULT_DISPLAY_SDK_ONLY),
+        (
+            enabled_saved_payment_method,
+            DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
+        )
+    );
 
     let payment_link_config = admin_types::PaymentLinkConfig {
         theme,
@@ -567,9 +538,13 @@ pub async fn get_payment_link_status(
                 field_name: "currency",
             })?;
 
-    let amount = currency
-        .to_currency_base_unit(payment_attempt.net_amount.get_amount_as_i64())
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+    let required_conversion_type = StringMajorUnitForCore;
+
+    let amount = required_conversion_type
+        .convert(payment_attempt.net_amount, currency)
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);

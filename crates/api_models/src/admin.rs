@@ -857,9 +857,11 @@ pub struct ToggleAllKVResponse {
     #[schema(example = true)]
     pub kv_enabled: bool,
 }
+
+/// Merchant connector details used to make payments.
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
-    /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
+    /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info, like encoded_data in this field. And do not send the string "null".
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
@@ -1157,9 +1159,14 @@ pub struct BusinessGenericLinkConfig {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct BusinessPaymentLinkConfig {
+    /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
+    /// Default payment link config for all future payment link
     #[serde(flatten)]
-    pub config: PaymentLinkConfigRequest,
+    #[schema(value_type = PaymentLinkConfigRequest)]
+    pub default_config: Option<PaymentLinkConfigRequest>,
+    /// list of configs for multi theme setup
+    pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

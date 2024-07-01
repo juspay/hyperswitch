@@ -221,7 +221,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn value_analysis(
@@ -230,7 +230,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn check_value_validity(
@@ -239,7 +239,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>>;
 
     fn key_value_analysis(
@@ -248,7 +248,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn assertion_analysis(
@@ -257,7 +257,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn negation_analysis(
@@ -266,25 +266,25 @@ pub trait CgraphExt {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn perform_context_analysis(
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 }
 
-impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
+impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
     fn key_analysis(
         &self,
         key: dir::DirKey,
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Key(key))
@@ -307,7 +307,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Value(val))
@@ -330,7 +330,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>> {
         let maybe_node_id = self.value_map.get(&cgraph::NodeValue::Value(val));
 
@@ -365,7 +365,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.key_analysis(val.get_key(), ctx, memo, cycle_map, domains)
             .and_then(|_| self.value_analysis(val, ctx, memo, cycle_map, domains))
@@ -377,7 +377,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         positive_ctx.iter().try_for_each(|(value, metadata)| {
             self.key_value_analysis((*value).clone(), analysis_ctx, memo, cycle_map, domains)
@@ -391,7 +391,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut keywise_metadata: FxHashMap<dir::DirKey, Vec<&Metadata>> = FxHashMap::default();
         let mut keywise_negation: FxHashMap<dir::DirKey, FxHashSet<&dir::DirValue>> =
@@ -449,7 +449,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut analysis_ctx = AnalysisContext::from_dir_values(
             ctx.iter()

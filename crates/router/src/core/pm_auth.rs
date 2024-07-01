@@ -421,6 +421,7 @@ async fn store_bank_details_in_payment_methods(
             let encrypted_data =
                 cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
+                    .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: Some(encrypted_data),
@@ -432,6 +433,7 @@ async fn store_bank_details_in_payment_methods(
             let encrypted_data =
                 cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
+                    .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let now = common_utils::date_time::now();

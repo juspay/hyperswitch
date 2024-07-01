@@ -18,7 +18,7 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
 use josekit::jwe;
@@ -44,7 +44,11 @@ use crate::{
         authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
-        payment_methods::{self, cards, vault},
+        payment_methods::{
+            self,
+            cards::{self, create_encrypted_data},
+            vault,
+        },
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
     },
@@ -1580,6 +1584,61 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
 
+    let temp_customer_data = if request_customer_details.name.is_some()
+        || request_customer_details.email.is_some()
+        || request_customer_details.phone.is_some()
+        || request_customer_details.phone_country_code.is_some()
+    {
+        Some(CustomerData {
+            name: request_customer_details.name.clone(),
+            email: request_customer_details.email.clone(),
+            phone: request_customer_details.phone.clone(),
+            phone_country_code: request_customer_details.phone_country_code.clone(),
+        })
+    } else {
+        None
+    };
+
+    // Updation of Customer Details for the cases where both customer_id and specific customer
+    // details are provided in Payment Update Request
+    let raw_customer_details = payment_data
+        .payment_intent
+        .customer_details
+        .clone()
+        .map(|customer_details_encrypted| {
+            customer_details_encrypted
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+        })
+        .transpose()
+        .change_context(errors::StorageError::DeserializationFailed)
+        .attach_printable("Failed to parse customer data from payment intent")?
+        .map(|parsed_customer_data| CustomerData {
+            name: request_customer_details
+                .name
+                .clone()
+                .or(parsed_customer_data.name.clone()),
+            email: request_customer_details
+                .email
+                .clone()
+                .or(parsed_customer_data.email.clone()),
+            phone: request_customer_details
+                .phone
+                .clone()
+                .or(parsed_customer_data.phone.clone()),
+            phone_country_code: request_customer_details
+                .phone_country_code
+                .clone()
+                .or(parsed_customer_data.phone_country_code.clone()),
+        })
+        .or(temp_customer_data);
+
+    payment_data.payment_intent.customer_details = raw_customer_details
+        .clone()
+        .async_and_then(|_| async { create_encrypted_data(key_store, raw_customer_details).await })
+        .await;
+
     let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
@@ -3062,6 +3121,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3121,6 +3181,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3179,6 +3240,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

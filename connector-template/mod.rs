@@ -1,9 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 
+use common_utils::{
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector}
+};
+use super::utils::{self as connector_utils};
 use crate::{
     events::connector_api_logs::ConnectorEvent,
     configs::settings,
@@ -22,8 +25,18 @@ use crate::{
 
 use transformers as {{project-name | downcase}};
 
-#[derive(Debug, Clone)]
-pub struct {{project-name | downcase | pascal_case}};
+#[derive(Clone)]
+pub struct {{project-name | downcase | pascal_case}} {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync)
+}
+
+impl {{project-name | downcase | pascal_case}} {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector
+        }
+    }
+}
 
 impl api::Payment for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
@@ -164,13 +177,17 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
         let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
-                &self.get_currency_unit(),
-                req.request.currency,
-                req.request.amount,
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
+                amount,
                 req,
-            ))?;
+            ));
         let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -391,13 +408,17 @@ impl
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
         let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
-                &self.get_currency_unit(),
-                req.request.currency,
-                req.request.refund_amount,
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
+                refund_amount,
                 req,
-            ))?;
+            ));
         let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
