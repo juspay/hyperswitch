@@ -200,11 +200,65 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     );
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers)
-        .shutdown_timeout(server.shutdown_timeout)
-        .run();
+
+    let server_builder =
+        actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
+            .bind((server.host.as_str(), server.port))?
+            .workers(server.workers)
+            .shutdown_timeout(server.shutdown_timeout);
+
+    #[cfg(feature = "tls")]
+    let server = match server.tls {
+        None => server_builder.run(),
+        Some(tls_conf) => {
+            let cert_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.certificate).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+            let key_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.private_key).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+
+            let cert_chain = rustls_pemfile::certs(cert_file)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            let mut keys = rustls_pemfile::pkcs8_private_keys(key_file)
+                .map(|key| key.map(rustls::pki_types::PrivateKeyDer::Pkcs8))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            // exit if no keys could be parsed
+            if keys.is_empty() {
+                return Err(errors::ApplicationError::InvalidConfigurationValueError(
+                    "Could not locate PKCS8 private keys.".into(),
+                ));
+            }
+
+            let config_builder = rustls::ServerConfig::builder().with_no_client_auth();
+            let config = config_builder
+                .with_single_cert(cert_chain, keys.remove(0))
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            server_builder
+                .bind_rustls_0_22(
+                    (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
+                    config,
+                )?
+                .run()
+        }
+    };
+
+    #[cfg(not(feature = "tls"))]
+    let server = server_builder.run();
+
     let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
