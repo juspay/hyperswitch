@@ -209,10 +209,10 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
 
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
     fn foreign_from(from: &user_api::AuthConfig) -> Self {
-        match from {
-            &user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
-            &user_api::AuthConfig::Password => Self::Password,
-            &user_api::AuthConfig::MagicLink => Self::MagicLink,
+        match *from {
+            user_api::AuthConfig::OpenIdConnect { .. } => Self::OpenIdConnect,
+            user_api::AuthConfig::Password => Self::Password,
+            user_api::AuthConfig::MagicLink => Self::MagicLink,
         }
     }
 }
@@ -227,7 +227,7 @@ pub async fn construct_public_and_private_db_configs(
             public_config,
         } => {
             let private_config_value = serde_json::to_value(private_config.clone())
-                .change_context(UserErrors::AuthConfigParsingError)
+                .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to convert auth config to json")?;
 
             let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
@@ -242,12 +242,12 @@ pub async fn construct_public_and_private_db_configs(
                 Some(encrypted_config.into()),
                 Some(
                     serde_json::to_value(public_config.clone())
-                        .change_context(UserErrors::AuthConfigParsingError)
+                        .change_context(UserErrors::InternalServerError)
                         .attach_printable("Failed to convert auth config to json")?,
                 ),
             ))
         }
-        _ => Ok((None, None)),
+        user_api::AuthConfig::Password | user_api::AuthConfig::MagicLink => Ok((None, None)),
     }
 }
 
