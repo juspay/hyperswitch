@@ -17,6 +17,7 @@ use external_services::{
         secrets_management::SecretsManagementConfig,
     },
 };
+pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
@@ -105,6 +106,7 @@ pub struct Settings<S: SecretState> {
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub generic_link: GenericLink,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
@@ -122,12 +124,14 @@ pub struct Settings<S: SecretState> {
     pub unmasked_headers: UnmaskedHeaders,
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+    pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
+    pub global_tenant: GlobalTenant,
 }
 
 impl Multitenancy {
@@ -152,6 +156,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -160,6 +165,12 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
+    }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
     }
 }
 
@@ -194,6 +205,27 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLink {
+    pub payment_method_collect: GenericLinkEnvConfig,
+    pub payout_link: GenericLinkEnvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLinkEnvConfig {
+    pub sdk_url: String,
+    pub expiry: u32,
+    pub ui_config: GenericLinkEnvUiConfig,
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLinkEnvUiConfig {
+    pub logo: String,
+    pub merchant_name: Secret<String>,
+    pub theme: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -452,6 +484,7 @@ pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -464,6 +497,16 @@ pub struct Locker {
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
+    pub decryption_scheme: DecryptionScheme,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub enum DecryptionScheme {
+    #[default]
+    #[serde(rename = "RSA-OAEP")]
+    RsaOaep,
+    #[serde(rename = "RSA-OAEP-256")]
+    RsaOaep256,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -504,6 +547,8 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub shutdown_timeout: u64,
+    #[cfg(feature = "tls")]
+    pub tls: Option<ServerTls>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -542,116 +587,6 @@ impl From<Database> for storage_impl::config::Database {
 #[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct Connectors {
-    pub aci: ConnectorParams,
-    #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
-    pub adyenplatform: ConnectorParams,
-    #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
-    pub airwallex: ConnectorParams,
-    pub applepay: ConnectorParams,
-    pub authorizedotnet: ConnectorParams,
-    pub bambora: ConnectorParams,
-    pub bankofamerica: ConnectorParams,
-    pub billwerk: ConnectorParams,
-    pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
-    pub boku: ConnectorParams,
-    pub braintree: ConnectorParams,
-    pub cashtocode: ConnectorParams,
-    pub checkout: ConnectorParams,
-    pub coinbase: ConnectorParams,
-    pub cryptopay: ConnectorParams,
-    pub cybersource: ConnectorParams,
-    pub dlocal: ConnectorParams,
-    #[cfg(feature = "dummy_connector")]
-    pub dummyconnector: ConnectorParams,
-    pub ebanx: ConnectorParams,
-    pub fiserv: ConnectorParams,
-    pub forte: ConnectorParams,
-    pub globalpay: ConnectorParams,
-    pub globepay: ConnectorParams,
-    pub gocardless: ConnectorParams,
-    pub gpayments: ConnectorParams,
-    pub helcim: ConnectorParams,
-    pub iatapay: ConnectorParams,
-    pub klarna: ConnectorParams,
-    pub mifinity: ConnectorParams,
-    pub mollie: ConnectorParams,
-    pub multisafepay: ConnectorParams,
-    pub netcetera: ConnectorParams,
-    pub nexinets: ConnectorParams,
-    pub nmi: ConnectorParams,
-    pub noon: ConnectorParamsWithModeType,
-    pub nuvei: ConnectorParams,
-    pub opayo: ConnectorParams,
-    pub opennode: ConnectorParams,
-    pub payeezy: ConnectorParams,
-    pub payme: ConnectorParams,
-    pub payone: ConnectorParams,
-    pub paypal: ConnectorParams,
-    pub payu: ConnectorParams,
-    pub placetopay: ConnectorParams,
-    pub powertranz: ConnectorParams,
-    pub prophetpay: ConnectorParams,
-    pub rapyd: ConnectorParams,
-    pub riskified: ConnectorParams,
-    pub shift4: ConnectorParams,
-    pub signifyd: ConnectorParams,
-    pub square: ConnectorParams,
-    pub stax: ConnectorParams,
-    pub stripe: ConnectorParamsWithFileUploadUrl,
-    pub threedsecureio: ConnectorParams,
-    pub trustpay: ConnectorParamsWithMoreUrls,
-    pub tsys: ConnectorParams,
-    pub volt: ConnectorParams,
-    pub wise: ConnectorParams,
-    pub worldline: ConnectorParams,
-    pub worldpay: ConnectorParams,
-    pub zen: ConnectorParams,
-    pub zsl: ConnectorParams,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParams {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithModeType {
-    pub base_url: String,
-    pub secondary_base_url: Option<String>,
-    /// Can take values like Test or Live for Noon
-    pub key_mode: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithMoreUrls {
-    pub base_url: String,
-    pub base_url_bank_redirects: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithFileUploadUrl {
-    pub base_url: String,
-    pub base_url_file_upload: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
-#[serde(default)]
-pub struct ConnectorParamsWithSecondaryBaseUrl {
-    pub base_url: String,
-    pub secondary_base_url: String,
 }
 
 #[cfg(feature = "kv_store")]
@@ -716,6 +651,11 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UserAuthMethodSettings {
+    pub encryption_key: Secret<String>,
+}
+
 impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -749,7 +689,13 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
+                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
 
             )
             .build()?;
@@ -814,6 +760,8 @@ impl Settings<SecuredSecret> {
         self.secrets_management
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+        self.generic_link.payment_method_collect.validate()?;
+        self.generic_link.payout_link.validate()?;
         Ok(())
     }
 }
@@ -878,6 +826,19 @@ pub struct PayPalOnboarding {
     pub client_secret: Secret<String>,
     pub partner_id: Secret<String>,
     pub enabled: bool,
+}
+
+#[cfg(feature = "tls")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerTls {
+    /// Port to host the TLS secure server on
+    pub port: u16,
+    /// Use a different host (optional) (defaults to the host provided in [`Server`] config)
+    pub host: Option<String>,
+    /// private key file path associated with TLS (path to the private key file (`pem` format))
+    pub private_key: PathBuf,
+    /// certificate file associated with TLS (path to the certificate file (`pem` format))
+    pub certificate: PathBuf,
 }
 
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>

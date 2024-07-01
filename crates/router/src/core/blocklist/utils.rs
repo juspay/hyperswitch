@@ -303,6 +303,7 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
@@ -407,6 +408,7 @@ where
                 merchant_decision: Some(MerchantDecision::Rejected.to_string()),
                 updated_by: merchant_account.storage_scheme.to_string(),
             },
+            key_store,
             merchant_account.storage_scheme,
         )
         .await

@@ -78,6 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    // Bamboraapac, commented for template
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -89,6 +90,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
+    // Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -197,6 +199,7 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -251,6 +254,7 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            // | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
@@ -570,6 +574,7 @@ mod test {
     }
 }
 
+/// Denotes the retry action
 #[derive(
     Debug,
     serde::Deserialize,
