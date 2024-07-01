@@ -1,4 +1,4 @@
-use common_utils::{id_type, types::MinorUnit, crypto::Encryptable};
+use common_utils::{crypto::Encryptable, id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use masking::Secret;
@@ -32,7 +32,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>
+    pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
