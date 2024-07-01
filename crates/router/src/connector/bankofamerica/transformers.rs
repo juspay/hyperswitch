@@ -941,10 +941,12 @@ impl
             specification_version: three_ds_info.three_ds_data.specification_version,
         });
 
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
 
         Ok(Self {
             processing_information,
@@ -976,10 +978,12 @@ impl
         let payment_information = PaymentInformation::try_from(&ccard)?;
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
 
         Ok(Self {
             processing_information,
@@ -1017,10 +1021,12 @@ impl
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let payment_information = PaymentInformation::try_from(&apple_pay_data)?;
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
         let ucaf_collection_indicator = match apple_pay_wallet_data
             .payment_method
             .network
@@ -1068,10 +1074,12 @@ impl
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
 
         Ok(Self {
             processing_information,
@@ -1132,7 +1140,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                     let merchant_defined_information =
                                         item.router_data.request.metadata.clone().map(|metadata| {
                                             Vec::<MerchantDefinedInformation>::foreign_from(
-                                                metadata.peek().to_owned(),
+                                                metadata,
                                             )
                                         });
                                     let ucaf_collection_indicator = match apple_pay_data
@@ -1307,10 +1315,12 @@ impl
                 payment_instrument,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
         Ok(Self {
             processing_information,
             payment_information,
@@ -2610,10 +2620,12 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let merchant_defined_information =
-            value.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = value
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -2653,10 +2665,12 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
-        let merchant_defined_information =
-            value.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = value
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(|metadata| Vec::<MerchantDefinedInformation>::foreign_from(metadata));
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),

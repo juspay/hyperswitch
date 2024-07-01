@@ -1839,7 +1839,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 }
             });
 
-        let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
+        let meta_data =
+            get_transaction_metadata(item.request.metadata.clone().map(Into::into), order_id);
 
         // We pass browser_info only when payment_data exists.
         // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
@@ -3333,7 +3334,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for ChargesReques
             let amount = data.1;
             let order_id = value.connector_request_reference_id.clone();
             let meta_data = Some(get_transaction_metadata(
-                value.request.metadata.clone(),
+                value.request.metadata.clone().map(Into::into),
                 order_id,
             ));
             Ok(Self {
