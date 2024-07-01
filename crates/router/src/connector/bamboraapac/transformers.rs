@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData, RouterData},
     core::{errors, mandate::MandateBehaviour},
-    types::{self, domain, storage::enums},
+    types::{self, domain, storage::enums, transformers::ForeignFrom},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -37,13 +37,14 @@ pub fn get_payment_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Vec<
 fn get_transaction_body(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
     let amount = req.request.get_amount();
     let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let transaction_type = get_transaction_type(req.request.capture_method)?;
     let card_info = get_card_data(req)?;
     let transaction_data = format!(
         r#"
         <Transaction>
             <CustRef>{}</CustRef>
             <Amount>{}</Amount>
-            <TrnType>1</TrnType>
+            <TrnType>{}</TrnType>
             <AccountNumber>{}</AccountNumber>
             {}
             <Security>
@@ -54,6 +55,7 @@ fn get_transaction_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Stri
     "#,
         req.connector_request_reference_id.to_owned(),
         amount,
+        transaction_type,
         auth_details.account_number.peek(),
         card_info,
         auth_details.username.peek(),
@@ -91,6 +93,14 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
         }
     };
     Ok(card_data)
+}
+
+fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<u8, Error> {
+    match capture_method {
+        Some(enums::CaptureMethod::Automatic) => Ok(1),
+        Some(enums::CaptureMethod::Manual) => Ok(2),
+        _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
+    }
 }
 
 pub struct BamboraapacAuthType {
@@ -151,24 +161,36 @@ pub struct PaymentResponse {
     declined_message: Option<String>,
 }
 
-fn get_attempt_status(response_code: u8) -> enums::AttemptStatus {
+fn get_attempt_status(
+    response_code: u8,
+    capture_method: Option<enums::CaptureMethod>,
+) -> enums::AttemptStatus {
     match response_code {
-        0 => enums::AttemptStatus::Charged,
+        0 => match capture_method {
+            Some(enums::CaptureMethod::Automatic) => enums::AttemptStatus::Charged,
+            Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
+            _ => enums::AttemptStatus::Pending,
+        },
         _ => enums::AttemptStatus::Failure,
     }
 }
 
-impl<F, T>
+impl<F>
     TryFrom<
-        types::ResponseRouterData<F, BamboraapacPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             BamboraapacPaymentsResponse,
-            T,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -189,7 +211,7 @@ impl<F, T>
         // transaction approved
         if response_code == 0 {
             Ok(Self {
-                status: get_attempt_status(response_code),
+                status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
@@ -208,7 +230,7 @@ impl<F, T>
         // transaction failed
         else {
             Ok(Self {
-                status: get_attempt_status(response_code),
+                status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Err(types::ErrorResponse {
                     status_code: item.http_code,
                     code: item
@@ -233,6 +255,214 @@ impl<F, T>
                 ..item.data
             })
         }
+    }
+}
+
+// capture body in soap format
+pub fn get_capture_body(req: &types::PaymentsCaptureRouterData) -> Result<Vec<u8>, Error> {
+    let receipt = req.request.connector_transaction_id.to_owned();
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let body = format!(
+        r#"
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Body>
+                    <dts:SubmitSingleCapture>
+                        <dts:trnXML>
+                            <![CDATA[
+                                <Capture>
+                                        <Receipt>{}</Receipt>
+                                        <Amount>{}</Amount>
+                                        <Security>
+                                                <UserName>{}</UserName>
+                                                <Password>{}</Password>
+                                        </Security>
+                                </Capture>	
+                            ]]>    
+                        </dts:trnXML>
+                    </dts:SubmitSingleCapture>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
+        receipt,
+        req.request.amount_to_capture,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(body.as_bytes().to_vec())
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .response_code;
+        let connector_transaction_id = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .receipt;
+        // transaction approved
+        if response_code == 0 {
+            Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        connector_transaction_id.to_owned(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(connector_transaction_id),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+        // transaction failed
+        else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    status_code: item.http_code,
+                    code: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_code
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            })
+        }
+    }
+}
+
+// refund body in soap format
+pub fn get_refund_body(req: &types::RefundExecuteRouterData) -> Result<Vec<u8>, Error> {
+    let receipt = req.request.connector_transaction_id.to_owned();
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let body = format!(
+        r#"
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <dts:SubmitSingleRefund>
+                        <dts:trnXML>
+                            <![CDATA[
+                            <Refund>
+                                <Receipt>{}</Receipt>
+                                <Amount>{}</Amount>
+                                <Security>
+                                    <UserName>{}</UserName>
+                                    <Password>{}</Password>
+                                </Security> 
+                            </Refund>
+                            ]]>    
+                        </dts:trnXML>
+                    </dts:SubmitSingleRefund>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
+        receipt,
+        req.request.refund_amount,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(body.as_bytes().to_vec())
+}
+
+impl ForeignFrom<u8> for enums::RefundStatus {
+    fn foreign_from(item: u8) -> Self {
+        match item {
+            0 => Self::Success,
+            1 => Self::Failure,
+            _ => Self::Pending,
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
+    > for types::RouterData<F, types::RefundsData, types::RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .response_code;
+        let connector_refund_id = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .receipt;
+
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: connector_refund_id.to_owned(),
+                refund_status: enums::RefundStatus::foreign_from(response_code),
+            }),
+            ..item.data
+        })
     }
 }
 
