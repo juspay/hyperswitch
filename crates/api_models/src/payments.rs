@@ -469,6 +469,9 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
+    /// custom payment link config id set at business profile send only if business_specific_configs is configured
+    pub payment_link_config_id: Option<String>,
+
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
@@ -5034,7 +5037,7 @@ pub enum PaymentLinkData<'a> {
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -5055,7 +5058,7 @@ pub struct PaymentLinkDetails {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkStatusDetails {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,
     pub payment_id: String,
     pub merchant_logo: String,
@@ -5129,7 +5132,8 @@ pub struct PaymentLinkListResponse {
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentLinkConfigRequest>)]
-    pub config: admin::PaymentLinkConfigRequest,
+    /// Theme config for the particular payment
+    pub theme_config: admin::PaymentLinkConfigRequest,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -5141,7 +5145,7 @@ pub struct OrderDetailsWithStringAmount {
     #[schema(example = 1)]
     pub quantity: u16,
     /// the amount per quantity of product
-    pub amount: String,
+    pub amount: StringMajorUnit,
     /// Product Image link
     pub product_img_link: Option<String>,
 }
