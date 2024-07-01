@@ -1,16 +1,22 @@
-use api_models::{analytics::{
-    payment_intents::{
-        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
+use api_models::{
+    analytics::{
+        payment_intents::{
+            PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
+        },
+        Granularity, TimeRange,
     },
-    Granularity, TimeRange,
-}, enums::IntentStatus};
+    enums::IntentStatus,
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::PaymentIntentMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window, FilterTypes},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 

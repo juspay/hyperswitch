@@ -1,7 +1,10 @@
-use api_models::{analytics::{
-    payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-    Granularity, TimeRange,
-}, enums::IntentStatus};
+use api_models::{
+    analytics::{
+        payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
+        Granularity, TimeRange,
+    },
+    enums::IntentStatus,
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
