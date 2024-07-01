@@ -125,7 +125,7 @@ pub struct Settings<S: SecretState> {
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
-    pub decision: DecisionConfig,
+    pub decision: Option<DecisionConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

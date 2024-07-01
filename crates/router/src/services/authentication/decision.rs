@@ -77,6 +77,12 @@ pub async fn add_api_key(
     key_id: String,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
+    let decision_config = if let Some(config) = &state.conf.decision {
+        config
+    } else {
+        return Ok(());
+    };
+
     let rule = RuleRequest {
         tag: state.tenant.name.clone(),
         expiry,
@@ -91,7 +97,7 @@ pub async fn add_api_key(
 
     let mut request = common_utils::request::Request::new(
         RULE_ADD_METHOD,
-        &(state.conf.decision.base_url.clone() + DECISION_ENDPOINT),
+        &(decision_config.base_url.clone() + DECISION_ENDPOINT),
     );
 
     request.set_body(RequestContent::Json(Box::new(rule)));
@@ -120,6 +126,12 @@ pub async fn add_publishable_key(
     merchant_id: String,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
+    let decision_config = if let Some(config) = &state.conf.decision {
+        config
+    } else {
+        return Ok(());
+    };
+
     let rule = RuleRequest {
         tag: state.tenant.name.clone(),
         expiry,
@@ -131,7 +143,7 @@ pub async fn add_publishable_key(
 
     let mut request = common_utils::request::Request::new(
         RULE_ADD_METHOD,
-        &(state.conf.decision.base_url.clone() + DECISION_ENDPOINT),
+        &(decision_config.base_url.clone() + DECISION_ENDPOINT),
     );
 
     request.set_body(RequestContent::Json(Box::new(rule)));
@@ -158,6 +170,12 @@ pub async fn revoke_api_key(
     state: &SessionState,
     api_key: Secret<String>,
 ) -> CustomResult<(), ApiClientError> {
+    let decision_config = if let Some(config) = &state.conf.decision {
+        config
+    } else {
+        return Ok(());
+    };
+
     let rule = RuleDeleteRequest {
         tag: state.tenant.name.clone(),
         variant: AuthType::ApiKey { api_key },
@@ -165,7 +183,7 @@ pub async fn revoke_api_key(
 
     let mut request = common_utils::request::Request::new(
         RULE_DELETE_METHOD,
-        &(state.conf.decision.base_url.clone() + DECISION_ENDPOINT),
+        &(decision_config.base_url.clone() + DECISION_ENDPOINT),
     );
 
     request.set_body(RequestContent::Json(Box::new(rule)));
