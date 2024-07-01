@@ -4,6 +4,7 @@ use api_models::payouts;
 use common_utils::{
     ext_traits::{Encode, OptionExt},
     link_utils,
+    types::{AmountConvertor, StringMajorUnitForConnector},
 };
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
@@ -102,9 +103,9 @@ pub async fn initiate_payout_link(
         // Initiate Payout link flow
         (_, link_utils::PayoutLinkStatus::Initiated) => {
             let customer_id = link_data.customer_id;
-            let amount = payout
-                .destination_currency
-                .to_currency_base_unit(payout.amount)
+            let required_amount_type = StringMajorUnitForConnector;
+            let amount = required_amount_type
+                .convert(payout.amount, payout.destination_currency)
                 .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
             // Fetch customer
             let customer = db
