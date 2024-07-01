@@ -3,7 +3,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, RouterData},
+    connector::utils::{self, CardData, PaymentsCancelRequestData, RouterData},
     core::{errors, mandate::MandateBehaviour},
     types::{self, domain, storage::enums, transformers::ForeignFrom},
 };
@@ -463,6 +463,118 @@ impl<F>
             }),
             ..item.data
         })
+    }
+}
+
+// void body in soap format
+pub fn get_void_body(req: &types::PaymentsCancelRouterData) -> Result<Vec<u8>, Error> {
+    let receipt = req.request.connector_transaction_id.to_owned();
+    let amount = req.request.get_amount()?;
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let body = format!(
+        r#"
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <dts:SubmitSingleVoid>
+                        <dts:trnXML>
+                            <![CDATA[
+                                <Void>
+                                    <Receipt>{}</Receipt>
+                                    <Amount>{}</Amount>
+                                    <Security>
+                                        <UserName>{}</UserName>
+                                        <Password>{}</Password>
+                                    </Security> 
+                                </Void>
+                            ]]>    
+                        </dts:trnXML>
+                    </dts:SubmitSingleVoid>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
+        receipt,
+        amount,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(body.as_bytes().to_vec())
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .response_code;
+
+        // transaction voided
+        if response_code == 0 {
+            Ok(Self {
+                status: enums::AttemptStatus::Voided,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+        // transaction failed
+        else {
+            Ok(Self {
+                status: enums::AttemptStatus::VoidFailed,
+                response: Err(types::ErrorResponse {
+                    status_code: item.http_code,
+                    code: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_code
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
