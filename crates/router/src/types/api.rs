@@ -430,7 +430,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
                 enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
-                enums::Connector::Iatapay => Ok(ConnectorEnum::Old(Box::new(&connector::Iatapay))),
+                enums::Connector::Iatapay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
+                }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
@@ -480,7 +482,9 @@ impl ConnectorData {
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }
-                enums::Connector::Paypal => Ok(ConnectorEnum::Old(Box::new(&connector::Paypal))),
+                enums::Connector::Paypal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
