@@ -1,7 +1,8 @@
 pub mod transformers;
 
 use common_utils::{self, ext_traits::XmlExt};
-use error_stack::{report, ResultExt};
+use error_stack::{report, Report, ResultExt};
+use hyperswitch_interfaces::consts;
 use transformers as bamboraapac;
 
 use crate::{
@@ -15,7 +16,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, RequestContent, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Clone)]
@@ -83,22 +84,33 @@ impl ConnectorCommon for Bamboraapac {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bamboraapac::BamboraapacErrorResponse = res
-            .response
-            .parse_struct("BamboraapacErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            bamboraapac::BamboraapacErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("BamboraapacErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_response=?response_data);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response_data
+                        .declined_code
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: response_data.declined_message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "bamboaraapac")
+            }
+        }
     }
 }
 

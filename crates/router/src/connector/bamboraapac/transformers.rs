@@ -580,8 +580,6 @@ impl<F>
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraapacErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub declined_code: Option<String>,
+    pub declined_message: Option<String>,
 }
