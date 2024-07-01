@@ -126,10 +126,7 @@ impl ConnectorCommon for Threedsecureio {
             }
             Err(err) => {
                 router_env::logger::error!(deserialization_error =? err);
-                utils::handle_json_response_deserialization_failure(
-                    res,
-                    "threedsecureio".to_owned(),
-                )
+                utils::handle_json_response_deserialization_failure(res, "threedsecureio")
             }
         }
     }

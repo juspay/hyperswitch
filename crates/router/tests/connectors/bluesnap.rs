@@ -17,12 +17,12 @@ static CONNECTOR: BluesnapTest = BluesnapTest {};
 impl utils::Connector for BluesnapTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bluesnap;
-        types::api::ConnectorData {
-            connector: Box::new(Bluesnap::new()),
-            connector_name: types::Connector::Bluesnap,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Bluesnap::new()),
+            types::Connector::Bluesnap,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {

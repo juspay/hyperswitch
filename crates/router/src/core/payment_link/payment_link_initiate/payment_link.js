@@ -216,18 +216,18 @@ function boot() {
         "quantity": null
       });
     }
+  }
 
-    if (paymentDetails.merchant_name) {
-      document.title = "Payment requested by " + paymentDetails.merchant_name;
-    }
+  if (paymentDetails.merchant_name) {
+    document.title = "Payment requested by " + paymentDetails.merchant_name;
+  }
 
-    if (paymentDetails.merchant_logo) {
-      var link = document.createElement("link");
-      link.rel = "icon";
-      link.href = paymentDetails.merchant_logo;
-      link.type = "image/x-icon";
-      document.head.appendChild(link);
-    }
+  if (paymentDetails.merchant_logo) {
+    var link = document.createElement("link");
+    link.rel = "icon";
+    link.href = paymentDetails.merchant_logo;
+    link.type = "image/x-icon";
+    document.head.appendChild(link);
   }
   // Render UI
 

@@ -12,7 +12,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
@@ -57,6 +57,7 @@ pub async fn refund_create_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -154,10 +155,7 @@ pub async fn trigger_refund_to_gateway(
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            routed_through.clone(),
-        )],
+        &add_attributes([("connector", routed_through.clone())]),
     );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -184,13 +182,19 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         charges,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_router_data=?router_data);
 
@@ -203,8 +207,7 @@ pub async fn trigger_refund_to_gateway(
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
             api::Execute,
             types::RefundsData,
             types::RefundsResponseData,
@@ -280,10 +283,7 @@ pub async fn trigger_refund_to_gateway(
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
-                    &[metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    )],
+                    &add_attributes([("connector", connector.connector_name.to_string())]),
                 )
             }
             storage::RefundUpdate::Update {
@@ -363,6 +363,7 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_payment_id_merchant_id(
             payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -446,7 +447,7 @@ pub async fn sync_refund_with_gateway(
         &state.conf.connectors,
         &connector_id,
         api::GetToken::Connector,
-        payment_attempt.connector.clone(),
+        payment_attempt.merchant_connector_id.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
@@ -464,13 +465,19 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         None,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
@@ -483,8 +490,7 @@ pub async fn sync_refund_with_gateway(
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
             api::RSync,
             types::RefundsData,
             types::RefundsResponseData,
@@ -1121,6 +1127,7 @@ pub async fn trigger_refund_execute_workflow(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
+                    &key_store,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1246,11 +1253,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::request::add_attributes("flow", "Refund")],
-    );
+    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &add_attributes([("flow", "Refund")]));
 
     Ok(response)
 }

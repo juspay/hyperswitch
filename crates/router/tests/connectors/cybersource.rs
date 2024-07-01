@@ -13,12 +13,12 @@ impl ConnectorActions for Cybersource {}
 impl utils::Connector for Cybersource {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cybersource;
-        api::ConnectorData {
-            connector: Box::new(&Cybersource),
-            connector_name: types::Connector::Cybersource,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Cybersource),
+            types::Connector::Cybersource,
+            api::GetToken::Connector,
+            None,
+        )
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
@@ -49,7 +49,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
@@ -202,7 +202,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: domain::PaymentMethodData::Card(domain::Card {
-                    card_cvc: Secret::new("2131233213".to_string()),
+                    card_cvc: Secret::new("9123456789".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..get_default_payment_authorize_data().unwrap()

@@ -2,6 +2,7 @@ use common_utils::id_type;
 use serde;
 use utoipa::ToSchema;
 
+/// ephemeral_key for the customer_id mentioned
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
 pub struct EphemeralKeyCreateResponse {
     /// customer_id to which this ephemeral key belongs to

@@ -16,6 +16,7 @@ describe("Account Create flow test", () => {
   it("merchant-create-call-test", () => {
     cy.merchantCreateCallTest(merchantCreateBody, globalState);
   });
+
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
   });

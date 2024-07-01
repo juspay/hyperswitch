@@ -12,28 +12,34 @@ use crate::{
     },
 };
 
-pub enum DomainIdOrIdentifier<'a> {
+pub enum DomainIdOrIdentifier {
     DomainId(DomainId),
-    DomainIdentifier(DomainIdentifier<'a>),
+    DomainIdentifier(DomainIdentifier),
 }
 
-impl<'a> From<&'a str> for DomainIdOrIdentifier<'a> {
-    fn from(value: &'a str) -> Self {
+impl From<String> for DomainIdOrIdentifier {
+    fn from(value: String) -> Self {
         Self::DomainIdentifier(DomainIdentifier::new(value))
     }
 }
 
-impl From<DomainId> for DomainIdOrIdentifier<'_> {
+impl From<DomainIdentifier> for DomainIdOrIdentifier {
+    fn from(value: DomainIdentifier) -> Self {
+        Self::DomainIdentifier(value)
+    }
+}
+
+impl From<DomainId> for DomainIdOrIdentifier {
     fn from(value: DomainId) -> Self {
         Self::DomainId(value)
     }
 }
 #[derive(Debug)]
-pub struct ConstraintGraphBuilder<'a, V: ValueNode> {
-    domain: DenseMap<DomainId, DomainInfo<'a>>,
+pub struct ConstraintGraphBuilder<V: ValueNode> {
+    domain: DenseMap<DomainId, DomainInfo>,
     nodes: DenseMap<NodeId, Node<V>>,
     edges: DenseMap<EdgeId, Edge>,
-    domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
+    domain_identifier_map: FxHashMap<DomainIdentifier, DomainId>,
     value_map: FxHashMap<NodeValue<V>, NodeId>,
     edges_map: FxHashMap<(NodeId, NodeId, Option<DomainId>), EdgeId>,
     node_info: DenseMap<NodeId, Option<&'static str>>,
@@ -41,7 +47,7 @@ pub struct ConstraintGraphBuilder<'a, V: ValueNode> {
 }
 
 #[allow(clippy::new_without_default)]
-impl<'a, V> ConstraintGraphBuilder<'a, V>
+impl<V> ConstraintGraphBuilder<V>
 where
     V: ValueNode,
 {
@@ -58,7 +64,7 @@ where
         }
     }
 
-    pub fn build(self) -> ConstraintGraph<'a, V> {
+    pub fn build(self) -> ConstraintGraph<V> {
         ConstraintGraph {
             domain: self.domain,
             domain_identifier_map: self.domain_identifier_map,
@@ -72,7 +78,7 @@ where
 
     fn retrieve_domain_from_identifier(
         &self,
-        domain_ident: DomainIdentifier<'_>,
+        domain_ident: DomainIdentifier,
     ) -> Result<DomainId, GraphError<V>> {
         self.domain_identifier_map
             .get(&domain_ident)
@@ -82,7 +88,7 @@ where
 
     pub fn make_domain(
         &mut self,
-        domain_identifier: &'a str,
+        domain_identifier: String,
         domain_description: &str,
     ) -> Result<DomainId, GraphError<V>> {
         let domain_identifier = DomainIdentifier::new(domain_identifier);
@@ -93,7 +99,7 @@ where
             .map_or_else(
                 || {
                     let domain_id = self.domain.push(DomainInfo {
-                        domain_identifier,
+                        domain_identifier: domain_identifier.clone(),
                         domain_description: domain_description.to_string(),
                     });
                     self.domain_identifier_map
@@ -123,7 +129,7 @@ where
         })
     }
 
-    pub fn make_edge<'short, T: Into<DomainIdOrIdentifier<'short>>>(
+    pub fn make_edge<T: Into<DomainIdOrIdentifier>>(
         &mut self,
         pred_id: NodeId,
         succ_id: NodeId,
@@ -188,7 +194,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<&str>,
+        domain: Option<String>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -202,7 +208,13 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation, strength) in nodes {
-            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain)?;
+            self.make_edge(
+                *node_id,
+                aggregator_id,
+                *strength,
+                *relation,
+                domain.clone(),
+            )?;
         }
 
         Ok(aggregator_id)
@@ -213,7 +225,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<&str>,
+        domain: Option<String>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -227,7 +239,13 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation, strength) in nodes {
-            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain)?;
+            self.make_edge(
+                *node_id,
+                aggregator_id,
+                *strength,
+                *relation,
+                domain.clone(),
+            )?;
         }
 
         Ok(aggregator_id)

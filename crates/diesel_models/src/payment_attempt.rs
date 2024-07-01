@@ -8,9 +8,8 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_attempt)]
+#[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id))]
 pub struct PaymentAttempt {
-    pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
@@ -312,6 +311,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -350,6 +350,15 @@ pub enum PaymentAttemptUpdate {
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
         updated_by: String,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 
@@ -742,6 +751,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => Self {
                 connector: connector.map(Some),
                 status: Some(status),
@@ -755,6 +765,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -880,6 +891,24 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => Self {
+                status,
+                error_code: error_code.map(Some),
+                error_message: error_message.map(Some),
+                error_reason: error_reason.map(Some),
+                updated_by,
+                unified_code: unified_code.map(Some),
+                unified_message: unified_message.map(Some),
                 ..Default::default()
             },
         }

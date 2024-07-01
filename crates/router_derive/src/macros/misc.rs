@@ -52,6 +52,7 @@ pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStre
 
     let expansion = quote::quote! {
         impl #struct_name {
+            /// Validates that the configuration provided for the `parent_field` does not contain empty or default values
             pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
                 #(#function_expansions)*
                 Ok(())

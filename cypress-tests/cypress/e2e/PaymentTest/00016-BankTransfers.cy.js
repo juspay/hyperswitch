@@ -6,8 +6,6 @@ import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 let globalState;
 
 describe("Bank Transfers", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -18,13 +16,15 @@ describe("Bank Transfers", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   context("Bank transfer - Pix forward flow", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"

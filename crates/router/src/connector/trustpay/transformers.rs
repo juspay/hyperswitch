@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
+    types::StringMajorUnit,
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -24,21 +25,13 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct TrustpayRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for TrustpayRouterData<T> {
+impl<T> TryFrom<(StringMajorUnit, T)> for TrustpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -97,7 +90,7 @@ pub struct References {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Amount {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
 }
 
@@ -147,7 +140,7 @@ pub struct CallbackURLs {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestCards {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub pan: cards::CardNumber,
     pub cvv: Secret<String>,
@@ -273,7 +266,7 @@ fn get_card_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     browser_info: &BrowserInformation,
     params: TrustpayMandatoryParams,
-    amount: String,
+    amount: StringMajorUnit,
     ccard: &domain::payments::Card,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
@@ -353,7 +346,7 @@ fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &domain::BankRedirectData,
     params: TrustpayMandatoryParams,
-    amount: String,
+    amount: StringMajorUnit,
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let pm = TrustpayPaymentMethod::try_from(bank_redirection_data)?;
@@ -1016,7 +1009,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentRequest {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     // If true, Apple Pay will be initialized
     pub init_apple_pay: Option<bool>,
@@ -1084,7 +1077,7 @@ pub struct GooglePayTransactionInfo {
     pub country_code: api_models::enums::CountryAlpha2,
     pub currency_code: api_models::enums::Currency,
     pub total_price_status: String,
-    pub total_price: String,
+    pub total_price: StringMajorUnit,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1123,6 +1116,7 @@ pub struct GpayTokenizationSpecification {
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
+    pub assurance_details_required: Option<bool>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1154,7 +1148,7 @@ pub struct TrustpayApplePayResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayTotalInfo {
     pub label: String,
-    pub amount: String,
+    pub amount: StringMajorUnit,
 }
 
 impl<F>
@@ -1215,12 +1209,13 @@ pub fn get_apple_pay_session<F, T>(
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
             session_token: Some(types::api::SessionToken::ApplePay(Box::new(
                 api_models::payments::ApplepaySessionTokenResponse {
-                    session_token_data:
+                    session_token_data: Some(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                             api_models::payments::ThirdPartySdkSessionResponse {
                                 secrets: secrets.to_owned().into(),
                             },
                         ),
+                    ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
@@ -1343,6 +1338,7 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
             allowed_card_networks: value.allowed_card_networks,
             billing_address_required: None,
             billing_address_parameters: None,
+            assurance_details_required: value.assurance_details_required,
         }
     }
 }
@@ -1390,7 +1386,7 @@ impl From<ApplePayTotalInfo> for api_models::payments::AmountInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayRefundRequestCards {
     instance_id: String,
-    amount: String,
+    amount: StringMajorUnit,
     currency: String,
     reference: String,
 }

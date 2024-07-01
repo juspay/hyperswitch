@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use common_utils::types::MinorUnit;
 use euclid_macros::EnumNums;
 use serde::{Deserialize, Serialize};
 use strum::VariantNames;
@@ -191,7 +192,7 @@ pub struct MetadataValue {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NumValue {
-    pub number: i64,
+    pub number: MinorUnit,
     pub refinement: Option<NumValueRefinement>,
 }
 
@@ -291,11 +292,11 @@ mod global_type_tests {
     #[test]
     fn test_num_value_fits_greater_than() {
         let val1 = NumValue {
-            number: 10,
+            number: MinorUnit::new(10),
             refinement: Some(NumValueRefinement::GreaterThan),
         };
         let val2 = NumValue {
-            number: 30,
+            number: MinorUnit::new(30),
             refinement: Some(NumValueRefinement::GreaterThan),
         };
 
@@ -305,11 +306,11 @@ mod global_type_tests {
     #[test]
     fn test_num_value_fits_less_than() {
         let val1 = NumValue {
-            number: 30,
+            number: MinorUnit::new(30),
             refinement: Some(NumValueRefinement::LessThan),
         };
         let val2 = NumValue {
-            number: 10,
+            number: MinorUnit::new(10),
             refinement: Some(NumValueRefinement::LessThan),
         };
 

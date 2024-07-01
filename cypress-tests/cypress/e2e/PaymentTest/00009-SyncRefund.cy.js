@@ -2,12 +2,19 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import refundBody from "../../fixtures/refund-flow-body.json";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import getConnectorDetails from "../PaymentUtils/utils";
+import * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - Sync Refund flow test", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -17,12 +24,6 @@ describe("Card - Sync Refund flow test", () => {
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
   });
 
   it("create-payment-call-test", () => {

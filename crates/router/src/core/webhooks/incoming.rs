@@ -10,7 +10,7 @@ use api_models::{
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
@@ -25,13 +25,14 @@ use crate::{
     logger,
     routes::{
         app::{ReqState, SessionStateInfo},
-        lock_utils,
-        metrics::request::add_attributes,
-        SessionState,
+        lock_utils, SessionState,
     },
-    services::{self, authentication as auth},
+    services::{
+        self, authentication as auth, connector_integration_interface::ConnectorEnum,
+        ConnectorValidation,
+    },
     types::{
-        api::{self, mandates::MandateResponseExt},
+        api::{self, mandates::MandateResponseExt, ConnectorCommon, IncomingWebhook},
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
@@ -376,7 +377,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 key_store,
                 webhook_details,
                 source_verified,
-                connector,
+                &connector,
                 &request_details,
                 event_type,
             ))
@@ -418,7 +419,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     source_verified,
                     event_type,
                     &request_details,
-                    connector,
+                    &connector,
                     object_ref_id,
                     business_profile,
                     merchant_connector_account,
@@ -567,10 +568,7 @@ async fn payments_incoming_webhook_flow(
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         &metrics::CONTEXT,
                         1,
-                        &[add_attributes(
-                            "merchant_id",
-                            merchant_account.merchant_id.clone(),
-                        )],
+                        &add_attributes([("merchant_id", merchant_account.merchant_id.clone())]),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
                 }
@@ -973,7 +971,7 @@ async fn external_authentication_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-    connector: &(dyn api::Connector + Sync),
+    connector: &ConnectorEnum,
     object_ref_id: api::ObjectReferenceId,
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_connector_account: domain::MerchantConnectorAccount,
@@ -1347,7 +1345,7 @@ async fn disputes_incoming_webhook_flow(
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-    connector: &(dyn api::Connector + Sync),
+    connector: &ConnectorEnum,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
@@ -1540,7 +1538,7 @@ fn get_connector_by_connector_name(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_id: Option<String>,
-) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
+) -> CustomResult<(ConnectorEnum, String), errors::ApiErrorResponse> {
     let authentication_connector =
         api_models::enums::convert_authentication_connector(connector_name);
     #[cfg(feature = "frm")]
@@ -1550,7 +1548,7 @@ fn get_connector_by_connector_name(
             let frm_connector_data =
                 api::FraudCheckConnectorData::get_connector_by_name(connector_name)?;
             return Ok((
-                *frm_connector_data.connector,
+                frm_connector_data.connector,
                 frm_connector_data.connector_name.to_string(),
             ));
         }
@@ -1579,7 +1577,7 @@ fn get_connector_by_connector_name(
             connector_data.connector_name.to_string(),
         )
     };
-    Ok((*connector, connector_name))
+    Ok((connector, connector_name))
 }
 
 /// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
@@ -1592,7 +1590,7 @@ async fn fetch_optional_mca_and_connector(
 ) -> CustomResult<
     (
         Option<domain::MerchantConnectorAccount>,
-        &'static (dyn api::Connector + Sync),
+        ConnectorEnum,
         String,
     ),
     errors::ApiErrorResponse,

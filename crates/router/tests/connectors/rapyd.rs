@@ -15,12 +15,12 @@ impl ConnectorActions for Rapyd {}
 impl utils::Connector for Rapyd {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Rapyd;
-        types::api::ConnectorData {
-            connector: Box::new(&Rapyd),
-            connector_name: types::Connector::Rapyd,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Rapyd),
+            types::Connector::Rapyd,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

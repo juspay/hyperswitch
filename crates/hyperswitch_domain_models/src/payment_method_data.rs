@@ -206,6 +206,17 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
+    //assurance_details of the card
+    pub assurance_details: Option<GooglePayAssuranceDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GooglePayAssuranceDetails {
+    ///indicates that Cardholder possession validation has been performed
+    pub card_holder_authenticated: bool,
+    /// indicates that identification and verifications (ID&V) was performed
+    pub account_verified: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -623,6 +634,12 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
             info: GooglePayPaymentMethodInfo {
                 card_network: value.info.card_network,
                 card_details: value.info.card_details,
+                assurance_details: value.info.assurance_details.map(|info| {
+                    GooglePayAssuranceDetails {
+                        card_holder_authenticated: info.card_holder_authenticated,
+                        account_verified: info.account_verified,
+                    }
+                }),
             },
             tokenization_data: GpayTokenizationData {
                 token_type: value.tokenization_data.token_type,

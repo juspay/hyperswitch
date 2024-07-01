@@ -14,13 +14,13 @@ impl ConnectorActions for OpayoTest {}
 impl utils::Connector for OpayoTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Opayo;
-        types::api::ConnectorData {
-            connector: Box::new(&Opayo),
+        utils::construct_connector_data_old(
+            Box::new(&Opayo),
             // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
-            connector_name: types::Connector::DummyConnector1,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+            types::Connector::DummyConnector1,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

@@ -21,6 +21,7 @@ impl VerifyConnector for connector::Paypal {
 
         let request = connector_data
             .connector
+            .get_connector_integration()
             .build_request(&router_data, &state.conf.connectors)
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payment request cannot be built".to_string(),
@@ -35,6 +36,7 @@ impl VerifyConnector for connector::Paypal {
             Ok(res) => Some(
                 connector_data
                     .connector
+                    .get_connector_integration()
                     .handle_response(&router_data, None, res)
                     .change_context(errors::ApiErrorResponse::InternalServerError)?
                     .response
@@ -44,9 +46,13 @@ impl VerifyConnector for connector::Paypal {
             Err(response_data) => {
                 Self::handle_access_token_error_response::<
                     api::AccessTokenAuth,
+                    types::AccessTokenFlowData,
                     types::AccessTokenRequestData,
                     types::AccessToken,
-                >(connector_data.connector, response_data)
+                >(
+                    connector_data.connector.get_connector_integration(),
+                    response_data,
+                )
                 .await
             }
         }

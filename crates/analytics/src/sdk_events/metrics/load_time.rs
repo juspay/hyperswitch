@@ -36,7 +36,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
         let dimensions = dimensions.to_vec();
 
         for dim in dimensions.iter() {

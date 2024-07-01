@@ -946,7 +946,7 @@ fn get_pmd_based_on_payment_method_type(
                     .and_then(|billing_data| billing_data.get_optional_country()),
             }),
         ),
-        Some(api_enums::PaymentMethodType::LocalBankTransfer) => {
+        Some(api_enums::PaymentMethodType::LocalBankRedirect) => {
             Some(payments::PaymentMethodData::BankRedirect(
                 payments::BankRedirectData::LocalBankRedirect {},
             ))

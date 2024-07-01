@@ -97,12 +97,9 @@ impl PaymentAttemptInterface for MockDb {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
-        #[allow(clippy::as_conversions)]
-        let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
         let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
-            id,
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
             attempt_id: payment_attempt.attempt_id,

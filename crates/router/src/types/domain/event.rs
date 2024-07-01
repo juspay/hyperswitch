@@ -1,7 +1,7 @@
 use common_utils::crypto::OptionalEncryptableSecretString;
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
-    events::EventUpdateInternal,
+    events::{EventMetadata, EventUpdateInternal},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -28,6 +28,7 @@ pub struct Event {
     pub request: OptionalEncryptableSecretString,
     pub response: OptionalEncryptableSecretString,
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
+    pub metadata: Option<EventMetadata>,
 }
 
 #[derive(Debug)]
@@ -74,6 +75,7 @@ impl super::behaviour::Conversion for Event {
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
+            metadata: self.metadata,
         })
     }
 
@@ -107,6 +109,7 @@ impl super::behaviour::Conversion for Event {
                     .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
                 delivery_attempt: item.delivery_attempt,
+                metadata: item.metadata,
             })
         }
         .await
@@ -132,6 +135,7 @@ impl super::behaviour::Conversion for Event {
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
+            metadata: self.metadata,
         })
     }
 }

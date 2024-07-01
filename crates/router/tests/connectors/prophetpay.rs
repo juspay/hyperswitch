@@ -10,12 +10,12 @@ impl ConnectorActions for ProphetpayTest {}
 impl utils::Connector for ProphetpayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Prophetpay;
-        types::api::ConnectorData {
-            connector: Box::new(&Prophetpay),
-            connector_name: types::Connector::Prophetpay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Prophetpay),
+            types::Connector::Prophetpay,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

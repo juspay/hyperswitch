@@ -1,12 +1,13 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 
 pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 
 use crate::{
-    core::errors::sample_data::SampleDataResult,
+    core::errors::sample_data::{SampleDataError, SampleDataResult},
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     utils::user::sample_data::generate_sample_data,
@@ -21,8 +22,18 @@ pub async fn generate_sample_data_for_user(
     let sample_data =
         generate_sample_data(&state, req, user_from_token.merchant_id.as_str()).await?;
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(SampleDataError::InternalServerError)
+        .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
+
     let (payment_intents, payment_attempts, refunds): (
-        Vec<PaymentIntentNew>,
+        Vec<PaymentIntent>,
         Vec<PaymentAttemptBatchNew>,
         Vec<RefundNew>,
     ) = sample_data.into_iter().fold(
@@ -39,7 +50,7 @@ pub async fn generate_sample_data_for_user(
 
     state
         .store
-        .insert_payment_intents_batch_for_sample_data(payment_intents)
+        .insert_payment_intents_batch_for_sample_data(payment_intents, &key_store)
         .await
         .switch()?;
     state
@@ -64,9 +75,19 @@ pub async fn delete_sample_data_for_user(
 ) -> SampleDataApiResponse<()> {
     let merchant_id_del = user_from_token.merchant_id.as_str();
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(SampleDataError::InternalServerError)
+        .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
+
     state
         .store
-        .delete_payment_intents_for_sample_data(merchant_id_del)
+        .delete_payment_intents_for_sample_data(merchant_id_del, &key_store)
         .await
         .switch()?;
     state

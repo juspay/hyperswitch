@@ -3,6 +3,7 @@ pub use hyperswitch_domain_models::router_flow_types::files::{Retrieve, Upload};
 use masking::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+pub use super::files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2};
 use super::ConnectorCommon;
 use crate::{
     core::errors,

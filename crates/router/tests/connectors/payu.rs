@@ -10,12 +10,12 @@ impl ConnectorActions for Payu {}
 impl Connector for Payu {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payu;
-        types::api::ConnectorData {
-            connector: Box::new(&Payu),
-            connector_name: types::Connector::Payu,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Payu),
+            types::Connector::Payu,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
@@ -96,6 +96,7 @@ async fn should_authorize_gpay_payment() {
                         info: domain::GooglePayPaymentMethodInfo {
                             card_network: "VISA".to_string(),
                             card_details: "1234".to_string(),
+                            assurance_details: None,
                         },
                         tokenization_data: domain::GpayTokenizationData {
                             token_type: "payu".to_string(),

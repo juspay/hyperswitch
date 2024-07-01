@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use time::OffsetDateTime;
@@ -13,7 +13,7 @@ pub struct KafkaPayout<'a> {
     pub profile_id: &'a String,
     pub payout_method_id: Option<&'a String>,
     pub payout_type: Option<storage_enums::PayoutType>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<&'a String>,

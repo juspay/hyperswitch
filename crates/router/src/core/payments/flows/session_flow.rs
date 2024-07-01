@@ -1,8 +1,13 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnitForConnector},
+};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -60,14 +65,12 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
         business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &add_attributes([("connector", connector.connector_name.to_string())]),
         );
         self.decide_flow(
             state,
@@ -75,6 +78,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             Some(true),
             call_connector_action,
             business_profile,
+            header_payload,
         )
         .await
     }
@@ -84,8 +88,10 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         state: &routes::SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 }
 
@@ -151,6 +157,7 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &storage::business_profile::BusinessProfile,
+    header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -184,9 +191,10 @@ async fn create_applepay_session_token(
         // Get payment request data , apple pay session request and merchant keys
         let (
             payment_request_data,
-            apple_pay_session_request,
+            apple_pay_session_request_optional,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+            apple_pay_merchant_identifier,
             merchant_business_country,
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
@@ -209,7 +217,7 @@ async fn create_applepay_session_token(
                     let merchant_business_country = session_token_data.merchant_business_country;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        merchant_identifier,
+                        merchant_identifier.clone(),
                         session_token_data,
                     );
 
@@ -229,9 +237,10 @@ async fn create_applepay_session_token(
 
                     (
                         payment_request_data,
-                        apple_pay_session_request,
+                        Ok(apple_pay_session_request),
                         apple_pay_merchant_cert,
                         apple_pay_merchant_cert_key,
+                        merchant_identifier,
                         merchant_business_country,
                     )
                 }
@@ -251,6 +260,7 @@ async fn create_applepay_session_token(
                         apple_pay_session_request,
                         session_token_data.certificate.clone(),
                         session_token_data.certificate_keys,
+                        session_token_data.merchant_identifier,
                         merchant_business_country,
                     )
                 }
@@ -269,7 +279,11 @@ async fn create_applepay_session_token(
                     apple_pay_metadata.payment_request_data,
                     apple_pay_session_request,
                     apple_pay_metadata.session_token_data.certificate.clone(),
-                    apple_pay_metadata.session_token_data.certificate_keys,
+                    apple_pay_metadata
+                        .session_token_data
+                        .certificate_keys
+                        .clone(),
+                    apple_pay_metadata.session_token_data.merchant_identifier,
                     merchant_business_country,
                 )
             }
@@ -319,48 +333,63 @@ async fn create_applepay_session_token(
             amount_info,
             payment_request_data,
             router_data.request.to_owned(),
-            apple_pay_session_request.merchant_identifier.as_str(),
+            apple_pay_merchant_identifier.as_str(),
             merchant_business_country,
             required_billing_contact_fields,
             required_shipping_contact_fields,
         )?;
 
-        let applepay_session_request = build_apple_pay_session_request(
-            state,
-            apple_pay_session_request,
-            apple_pay_merchant_cert,
-            apple_pay_merchant_cert_key,
-        )?;
-        let response = services::call_connector_api(
-            state,
-            applepay_session_request,
-            "create_apple_pay_session_token",
-        )
-        .await;
+        let apple_pay_session_response = match (
+            header_payload.browser_name,
+            header_payload.x_client_platform,
+        ) {
+            (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
+            | (None, None) => {
+                let apple_pay_session_request = apple_pay_session_request_optional
+                    .attach_printable("Failed to obtain apple pay session request")?;
+                let applepay_session_request = build_apple_pay_session_request(
+                    state,
+                    apple_pay_session_request,
+                    apple_pay_merchant_cert,
+                    apple_pay_merchant_cert_key,
+                )?;
 
-        // logging the error if present in session call response
-        log_session_response_if_error(&response);
+                let response = services::call_connector_api(
+                    state,
+                    applepay_session_request,
+                    "create_apple_pay_session_token",
+                )
+                .await;
 
-        let apple_pay_session_response = response
-            .ok()
-            .and_then(|apple_pay_res| {
-                apple_pay_res
-                    .map(|res| {
-                        let response: Result<
-                            payment_types::NoThirdPartySdkSessionResponse,
-                            Report<common_utils::errors::ParsingError>,
-                        > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+                // logging the error if present in session call response
+                log_session_response_if_error(&response);
 
-                        // logging the parsing failed error
-                        if let Err(error) = response.as_ref() {
-                            logger::error!(?error);
-                        };
-
-                        response.ok()
-                    })
+                response
                     .ok()
-            })
-            .flatten();
+                    .and_then(|apple_pay_res| {
+                        apple_pay_res
+                            .map(|res| {
+                                let response: Result<
+                                    payment_types::NoThirdPartySdkSessionResponse,
+                                    Report<common_utils::errors::ParsingError>,
+                                > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+
+                                // logging the parsing failed error
+                                if let Err(error) = response.as_ref() {
+                                    logger::error!(?error);
+                                };
+
+                                response.ok()
+                            })
+                            .ok()
+                    })
+                    .flatten()
+            }
+            _ => {
+                logger::debug!("Skipping apple pay session call based on the browser name");
+                None
+            }
+        };
 
         let session_response =
             apple_pay_session_response.map(payment_types::ApplePaySessionResponse::NoThirdPartySdk);
@@ -390,28 +419,33 @@ fn get_session_request_for_simplified_apple_pay(
 
 fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
-) -> payment_types::ApplepaySessionRequest {
-    payment_types::ApplepaySessionRequest {
+) -> RouterResult<payment_types::ApplepaySessionRequest> {
+    let initiative_context = session_token_data
+        .initiative_context
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get initiative_context for apple pay session call")?;
+    Ok(payment_types::ApplepaySessionRequest {
         merchant_identifier: session_token_data.merchant_identifier.clone(),
         display_name: session_token_data.display_name.clone(),
-        initiative: session_token_data.initiative.clone(),
-        initiative_context: session_token_data.initiative_context,
-    }
+        initiative: session_token_data.initiative.to_string(),
+        initiative_context,
+    })
 }
 
 fn get_apple_pay_amount_info(
     label: &str,
     session_data: types::PaymentsSessionData,
 ) -> RouterResult<payment_types::AmountInfo> {
+    let required_amount_type = StringMajorUnitForConnector;
+    let apple_pay_amount = required_amount_type
+        .convert(session_data.minor_amount, session_data.currency)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for applePay".to_string(),
+        })?;
     let amount_info = payment_types::AmountInfo {
         label: label.to_string(),
         total_type: Some("final".to_string()),
-        amount: session_data
-            .currency
-            .to_currency_base_unit(session_data.amount)
-            .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Failed to convert currency to base unit".to_string(),
-            })?,
+        amount: apple_pay_amount,
     };
 
     Ok(amount_info)
@@ -456,7 +490,7 @@ fn create_apple_pay_session_response(
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: payment_types::SessionToken::ApplePay(Box::new(
                     payment_types::ApplepaySessionTokenResponse {
-                        session_token_data: response,
+                        session_token_data: Some(response),
                         payment_request_data: apple_pay_payment_request,
                         connector: connector_name,
                         delayed_session_token: delayed_response,
@@ -471,7 +505,18 @@ fn create_apple_pay_session_response(
         }),
         None => Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                session_token: payment_types::SessionToken::ApplePay(Box::new(
+                    payment_types::ApplepaySessionTokenResponse {
+                        session_token_data: None,
+                        payment_request_data: apple_pay_payment_request,
+                        connector: connector_name,
+                        delayed_session_token: delayed_response,
+                        sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                        connector_reference_id: None,
+                        connector_sdk_public_key: None,
+                        connector_merchant_id: None,
+                    },
+                )),
             }),
             ..router_data.clone()
         }),
@@ -548,22 +593,21 @@ fn create_gpay_session_token(
                 },
             )
             .collect();
-
+        let required_amount_type = StringMajorUnitForConnector;
+        let google_pay_amount = required_amount_type
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert amount to string major unit for googlePay".to_string(),
+            })?;
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
             currency_code: router_data.request.currency,
             total_price_status: "Final".to_string(),
-            total_price: router_data
-                .request
-                .currency
-                .to_currency_base_unit(router_data.request.amount)
-                .attach_printable(
-                    "Cannot convert given amount to base currency denomination".to_string(),
-                )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "amount",
-                })?,
+            total_price: google_pay_amount,
         };
 
         let required_shipping_contact_fields =
@@ -646,6 +690,7 @@ where
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>;
 }
 
@@ -694,20 +739,27 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {
                 create_gpay_session_token(state, self, connector, business_profile)
             }
             api::GetToken::ApplePayMetadata => {
-                create_applepay_session_token(state, self, connector, business_profile).await
+                create_applepay_session_token(
+                    state,
+                    self,
+                    connector,
+                    business_profile,
+                    header_payload,
+                )
+                .await
             }
             api::GetToken::PaypalSdkMetadata => {
                 create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::Connector => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,

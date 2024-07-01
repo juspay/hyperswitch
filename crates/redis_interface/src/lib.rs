@@ -68,6 +68,7 @@ impl RedisClient {
 
 pub struct SubscriberClient {
     inner: fred::clients::SubscriberClient,
+    pub is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
 }
 
 impl SubscriberClient {
@@ -83,7 +84,10 @@ impl SubscriberClient {
             .wait_for_connect()
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
-        Ok(Self { inner: client })
+        Ok(Self {
+            inner: client,
+            is_subscriber_handler_spawned: Arc::new(atomic::AtomicBool::new(false)),
+        })
     }
 }
 

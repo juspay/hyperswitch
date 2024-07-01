@@ -38,6 +38,10 @@ pub trait TenantConfig: Send + Sync {
     fn get_redis_key_prefix(&self) -> &str;
 }
 
+pub trait ClickHouseConfig: TenantConfig + Send + Sync {
+    fn get_clickhouse_database(&self) -> &str;
+}
+
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueStrategy {

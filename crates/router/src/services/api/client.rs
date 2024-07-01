@@ -80,7 +80,7 @@ fn get_base_client(
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
-pub(super) fn create_client(
+pub fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
     client_certificate: Option<masking::Secret<String>>,

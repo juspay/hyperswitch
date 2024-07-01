@@ -58,7 +58,6 @@ const SESSION_ID: &str = "session_id";
 pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
-    set.insert(MESSAGE);
     set.insert(HOSTNAME);
     set.insert(PID);
     set.insert(ENV);
@@ -81,6 +80,7 @@ pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
 pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
+    set.insert(MESSAGE);
     set.insert(FLOW);
     set.insert(MERCHANT_AUTH);
     set.insert(MERCHANT_ID);
@@ -163,7 +163,7 @@ where
     pub fn new_with_implicit_entries(
         service: &str,
         dst_writer: W,
-        default_fields: HashMap<String, Value>,
+        mut default_fields: HashMap<String, Value>,
         formatter: F,
     ) -> Self {
         let pid = std::process::id();
@@ -174,6 +174,18 @@ where
         #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
+        default_fields.retain(|key, value| {
+            if !IMPLICIT_KEYS.contains(key.as_str()) {
+                true
+            } else {
+                tracing::warn!(
+                    ?key,
+                    ?value,
+                    "Attempting to log a reserved entry. It won't be added to the logs"
+                );
+                false
+            }
+        });
 
         Self {
             dst_writer,
@@ -196,9 +208,8 @@ where
         map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         metadata: &Metadata<'_>,
         span: Option<&SpanRef<'_, S>>,
-        storage: Option<&Storage<'_>>,
+        storage: &Storage<'_>,
         name: &str,
-        message: &str,
     ) -> Result<(), std::io::Error>
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
@@ -206,7 +217,6 @@ where
         let is_extra = |s: &str| !IMPLICIT_KEYS.contains(s);
         let is_extra_implicit = |s: &str| is_extra(s) && EXTRA_IMPLICIT_KEYS.contains(s);
 
-        map_serializer.serialize_entry(MESSAGE, &message)?;
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
         map_serializer.serialize_entry(ENV, &self.env)?;
@@ -228,30 +238,30 @@ where
 
         // Write down implicit default entries.
         for (key, value) in self.default_fields.iter() {
-            if !IMPLICIT_KEYS.contains(key.as_str()) {
-                map_serializer.serialize_entry(key, value)?;
-            } else {
-                tracing::warn!("{} is a reserved field. Skipping it.", key);
-            }
+            map_serializer.serialize_entry(key, value)?;
         }
 
         #[cfg(feature = "log_custom_entries_to_extra")]
         let mut extra = serde_json::Map::default();
         let mut explicit_entries_set: HashSet<&str> = HashSet::default();
         // Write down explicit event's entries.
-        if let Some(storage) = storage {
-            for (key, value) in storage.values.iter() {
-                if is_extra_implicit(key) {
-                    #[cfg(feature = "log_extra_implicit_fields")]
-                    map_serializer.serialize_entry(key, value)?;
-                    explicit_entries_set.insert(key);
-                } else if is_extra(key) {
-                    #[cfg(feature = "log_custom_entries_to_extra")]
-                    extra.insert(key.to_string(), value.clone());
-                    #[cfg(not(feature = "log_custom_entries_to_extra"))]
-                    map_serializer.serialize_entry(key, value)?;
-                    explicit_entries_set.insert(key);
-                }
+        for (key, value) in storage.values.iter() {
+            if is_extra_implicit(key) {
+                #[cfg(feature = "log_extra_implicit_fields")]
+                map_serializer.serialize_entry(key, value)?;
+                explicit_entries_set.insert(key);
+            } else if is_extra(key) {
+                #[cfg(feature = "log_custom_entries_to_extra")]
+                extra.insert(key.to_string(), value.clone());
+                #[cfg(not(feature = "log_custom_entries_to_extra"))]
+                map_serializer.serialize_entry(key, value)?;
+                explicit_entries_set.insert(key);
+            } else {
+                tracing::warn!(
+                    ?key,
+                    ?value,
+                    "Attempting to log a reserved entry. It won't be added to the logs"
+                );
             }
         }
 
@@ -269,7 +279,11 @@ where
                         #[cfg(not(feature = "log_custom_entries_to_extra"))]
                         map_serializer.serialize_entry(key, value)?;
                     } else {
-                        tracing::debug!("{} is a reserved entry. Skipping it.", key);
+                        tracing::warn!(
+                            ?key,
+                            ?value,
+                            "Attempting to log a reserved entry. It won't be added to the logs"
+                        );
                     }
                 }
             }
@@ -305,14 +319,15 @@ where
             serde_json::Serializer::with_formatter(&mut buffer, self.formatter.clone());
         let mut map_serializer = serializer.serialize_map(None)?;
         let message = Self::span_message(span, ty);
+        let mut storage = Storage::default();
+        storage.record_value("message", message.into());
 
         self.common_serialize(
             &mut map_serializer,
             span.metadata(),
             Some(span),
-            None,
+            &storage,
             span.name(),
-            &message,
         )?;
 
         map_serializer.end()?;
@@ -337,16 +352,9 @@ where
         event.record(&mut storage);
 
         let name = span.map_or("?", SpanRef::name);
-        let message = Self::event_message(span, event, &storage);
+        Self::event_message(span, event, &mut storage);
 
-        self.common_serialize(
-            &mut map_serializer,
-            event.metadata(),
-            *span,
-            Some(&storage),
-            name,
-            &message,
-        )?;
+        self.common_serialize(&mut map_serializer, event.metadata(), *span, &storage, name)?;
 
         map_serializer.end()?;
         Ok(buffer)
@@ -374,32 +382,20 @@ where
     fn event_message<S>(
         span: &Option<&SpanRef<'_, S>>,
         event: &Event<'_>,
-        storage: &Storage<'_>,
-    ) -> String
-    where
+        storage: &mut Storage<'_>,
+    ) where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         // Get value of kept "message" or "target" if does not exist.
-        let mut message = storage
+        let message = storage
             .values
-            .get("message")
-            .and_then(|v| match v {
-                Value::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or_else(|| event.metadata().target())
-            .to_owned();
+            .entry("message")
+            .or_insert_with(|| event.metadata().target().into());
 
         // Prepend the span name to the message if span exists.
-        if let Some(span) = span {
-            message = format!(
-                "{} {}",
-                Self::span_message(span, RecordType::Event),
-                message,
-            );
+        if let (Some(span), Value::String(a)) = (span, message) {
+            *a = format!("{} {}", Self::span_message(span, RecordType::Event), a,);
         }
-
-        message
     }
 }
 

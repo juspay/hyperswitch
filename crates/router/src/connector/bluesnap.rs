@@ -33,6 +33,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -603,11 +604,20 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let req_amount = data.request.minor_amount;
+        let req_currency = data.request.currency;
+
+        let apple_pay_amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            apple_pay_amount,
+        ))
     }
 
     fn get_error_response(

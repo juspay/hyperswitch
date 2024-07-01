@@ -2,13 +2,12 @@ import captureBody from "../../fixtures/capture-flow-body.json";
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import getConnectorDetails from "../PaymentUtils/utils";
+import * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - SingleUse Mandates flow test", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -19,15 +18,17 @@ describe("Card - SingleUse Mandates flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -65,6 +66,14 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -130,6 +139,14 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Create No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[

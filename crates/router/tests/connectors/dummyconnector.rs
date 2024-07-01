@@ -13,12 +13,12 @@ impl ConnectorActions for DummyConnectorTest {}
 impl utils::Connector for DummyConnectorTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::DummyConnector;
-        types::api::ConnectorData {
-            connector: Box::new(&DummyConnector::<1>),
-            connector_name: types::Connector::DummyConnector1,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&DummyConnector::<1>),
+            types::Connector::DummyConnector1,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

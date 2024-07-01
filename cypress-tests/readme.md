@@ -159,7 +159,7 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     } else {
       cy.task(
         "cli_log",
-        "x-request-id is not available in the response headers",
+        "x-request-id is not available in the response headers"
       );
     }
     expect(response.headers["content-type"]).to.include("application/json");

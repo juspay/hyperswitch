@@ -1,8 +1,10 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -27,8 +29,18 @@ use crate::{
     utils::{ByteSliceExt, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Cashtocode;
+#[derive(Clone)]
+pub struct Cashtocode {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Cashtocode {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Cashtocode {}
 impl api::PaymentSession for Cashtocode {}
@@ -227,7 +239,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_req = cashtocode::CashtocodePaymentsRequest::try_from((req, amount))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

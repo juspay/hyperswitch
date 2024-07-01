@@ -10,12 +10,12 @@ impl ConnectorActions for GocardlessTest {}
 impl utils::Connector for GocardlessTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Gocardless;
-        types::api::ConnectorData {
-            connector: Box::new(&Gocardless),
-            connector_name: types::Connector::Gocardless,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Gocardless),
+            types::Connector::Gocardless,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

@@ -134,6 +134,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             unified_message: None,
                             connector_transaction_id: None,
                             payment_method_data: None,
+                            authentication_type: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -149,6 +150,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .update_payment_intent(
                             payment_data.payment_intent,
                             payment_intent_update,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await

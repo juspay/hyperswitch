@@ -19,7 +19,6 @@ describe("Routing Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-     
     });
   });
 
@@ -71,7 +70,7 @@ describe("Routing Test", () => {
         res_data,
         "priority",
         routing_data,
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -105,7 +104,7 @@ describe("Routing Test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);

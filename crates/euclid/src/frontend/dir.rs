@@ -5,6 +5,7 @@ pub mod transformers;
 
 use strum::IntoEnumIterator;
 
+// use common_utils::types::MinorUnit;
 use crate::{enums as euclid_enums, frontend::ast, types};
 
 #[macro_export]
@@ -26,7 +27,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -74,7 +75,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};

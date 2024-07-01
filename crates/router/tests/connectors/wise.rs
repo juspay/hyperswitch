@@ -17,22 +17,22 @@ impl ConnectorActions for WiseTest {}
 impl utils::Connector for WiseTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
-        api::ConnectorData {
-            connector: Box::new(&Adyen),
-            connector_name: types::Connector::Adyen,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Adyen),
+            types::Connector::Adyen,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_payout_data(&self) -> Option<api::ConnectorData> {
         use router::connector::Wise;
-        Some(api::ConnectorData {
-            connector: Box::new(&Wise),
-            connector_name: types::Connector::Wise,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        })
+        Some(utils::construct_connector_data_old(
+            Box::new(&Wise),
+            types::Connector::Wise,
+            api::GetToken::Connector,
+            None,
+        ))
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

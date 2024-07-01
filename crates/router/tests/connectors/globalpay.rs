@@ -15,12 +15,12 @@ static CONNECTOR: Globalpay = Globalpay {};
 impl Connector for Globalpay {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Globalpay;
-        api::ConnectorData {
-            connector: Box::new(&Globalpay),
-            connector_name: types::Connector::Globalpay,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Globalpay),
+            types::Connector::Globalpay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {

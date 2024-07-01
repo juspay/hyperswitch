@@ -310,6 +310,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                         )
                     }
                 }
+                storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow => Ok(Box::new(
+                    workflows::payment_method_status_update::PaymentMethodStatusUpdateWorkflow,
+                )),
             }
         };
 

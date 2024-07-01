@@ -2,7 +2,7 @@ use common_utils::{errors::ValidationError, ext_traits::ValueExt};
 use diesel_models::{
     enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
 };
-use router_env::logger;
+use router_env::{logger, metrics::add_attributes};
 use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
 use crate::{
@@ -130,7 +130,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+                &add_attributes([("flow", "ApiKeyExpiry")]),
             );
         }
 

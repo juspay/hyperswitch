@@ -140,6 +140,17 @@ where
             .map_into_boxed_body()
         }
 
+        Ok(api::ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).to_string();
+            match services::generic_link_response::build_generic_link_html(*boxed_generic_link_data)
+            {
+                Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                Err(_) => {
+                    api::http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
+        }
+
         Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {

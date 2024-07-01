@@ -542,6 +542,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::Payment => Ok("payment_attempt".to_string()),
             Self::Refund => Ok("refund".to_string()),
             Self::SdkEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("SdkEventsAudit table is not implemented for Sqlx"))?,
+            Self::SdkEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("SdkEvents table is not implemented for Sqlx"))?,
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
@@ -550,6 +552,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
+            Self::ActivePaymentsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ActivePaymentsAnalytics table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
@@ -607,6 +611,15 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
+            Self::DistinctCount { field, alias } => {
+                format!(
+                    "count(distinct {}){}",
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to distinct count aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }

@@ -22,6 +22,11 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .primary_business_details
             .parse_value("primary_business_details")?;
 
+        let pm_collect_link_config: Option<api_models::admin::BusinessCollectLinkConfig> = item
+            .pm_collect_link_config
+            .map(|config| config.parse_value("pm_collect_link_config"))
+            .transpose()?;
+
         Ok(Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
@@ -46,6 +51,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
+            pm_collect_link_config,
         })
     }
 }
@@ -78,6 +84,12 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                 .authentication_connector_details
                 .map(|authentication_connector_details| {
                     authentication_connector_details.parse_value("AuthenticationDetails")
+                })
+                .transpose()?,
+            payout_link_config: item
+                .payout_link_config
+                .map(|payout_link_config| {
+                    payout_link_config.parse_value("BusinessPayoutLinkConfig")
                 })
                 .transpose()?,
             use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
@@ -183,6 +195,14 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "authentication_connector_details",
+                })?,
+            payout_link_config: request
+                .payout_link_config
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
                 })?,
             is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
             is_extended_card_info_enabled: None,

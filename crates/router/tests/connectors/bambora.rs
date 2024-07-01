@@ -14,12 +14,12 @@ impl ConnectorActions for BamboraTest {}
 impl utils::Connector for BamboraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bambora;
-        types::api::ConnectorData {
-            connector: Box::new(&Bambora),
-            connector_name: types::Connector::Bambora,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Bambora),
+            types::Connector::Bambora,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

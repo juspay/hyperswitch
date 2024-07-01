@@ -71,6 +71,7 @@ pub async fn initiate_payment_link(
             initiate_payment_link_flow(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -144,6 +145,7 @@ pub async fn payment_link_status(
             get_payment_link_status(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )

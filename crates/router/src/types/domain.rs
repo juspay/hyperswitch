@@ -1,10 +1,15 @@
 mod address;
-pub mod behaviour;
+pub mod behaviour {
+    pub use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
+}
+
 mod customer;
 mod event;
 mod merchant_account;
 mod merchant_connector_account;
-mod merchant_key_store;
+mod merchant_key_store {
+    pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+}
 pub mod payments;
 pub mod types;
 #[cfg(feature = "olap")]

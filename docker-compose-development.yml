@@ -25,6 +25,12 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   redis-standalone:
     image: redis:7
@@ -32,6 +38,12 @@ services:
       - router_net
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   migration_runner:
     image: rust:latest
@@ -64,6 +76,11 @@ services:
     environment:
       - CARGO_HOME=/cargo_cache
       - CARGO_TARGET_DIR=/cargo_build_cache
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:

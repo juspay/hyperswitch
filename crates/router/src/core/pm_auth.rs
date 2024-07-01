@@ -98,6 +98,7 @@ pub async fn create_link_token(
     let payment_intent = oss_helpers::verify_payment_intent_time_and_client_secret(
         &*state.store,
         &merchant_account,
+        &key_store,
         payload.client_secret,
     )
     .await?;
@@ -280,6 +281,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_intent_by_payment_id_merchant_id(
             &payload.payment_id,
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -419,6 +421,7 @@ async fn store_bank_details_in_payment_methods(
             let encrypted_data =
                 cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
+                    .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: Some(encrypted_data),
@@ -430,6 +433,7 @@ async fn store_bank_details_in_payment_methods(
             let encrypted_data =
                 cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
+                    .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let now = common_utils::date_time::now();

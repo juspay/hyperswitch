@@ -26,7 +26,7 @@ pub async fn generate_access_token(state: SessionState) -> RouterResult<types::A
     connector::Paypal::get_access_token(
         &state,
         verify_connector_types::VerifyConnectorData {
-            connector: *boxed_connector,
+            connector: boxed_connector,
             connector_auth,
             card_details: verify_connector_utils::get_test_card_details(connector)?.ok_or(
                 ApiErrorResponse::FlowNotSupported {

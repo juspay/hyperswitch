@@ -33,7 +33,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
 
         query_builder
             .add_select_column(Aggregate::Count {

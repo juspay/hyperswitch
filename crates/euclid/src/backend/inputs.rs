@@ -19,7 +19,7 @@ pub struct PaymentMethodInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentInput {
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: enums::Currency,
     pub authentication_type: Option<enums::AuthenticationType>,
     pub card_bin: Option<String>,

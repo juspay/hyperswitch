@@ -102,6 +102,7 @@ pub trait UpdateTracker<D, F: Clone>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         frm_data: D,
         payment_data: &mut payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,

@@ -22,7 +22,7 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
     pub email: Option<pii::Email>,
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "9999999999")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
     #[schema(max_length = 255, example = "First Customer")]
@@ -52,7 +52,7 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
     pub email: crypto::OptionalEncryptableEmail,
     /// The customer's phone number
-    #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
+    #[schema(value_type = Option<String>,max_length = 255, example = "9123456789")]
     pub phone: crypto::OptionalEncryptablePhone,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]

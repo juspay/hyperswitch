@@ -1,8 +1,8 @@
 use api_models::enums;
 use base64::Engine;
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -27,23 +27,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for PaypalRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for PaypalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -76,13 +66,13 @@ pub enum PaypalPaymentIntent {
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct OrderRequestAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
     pub breakdown: AmountBreakdown,
 }
 
@@ -90,11 +80,11 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
     fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
         Self {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             breakdown: AmountBreakdown {
                 item_total: OrderAmount {
                     currency_code: item.router_data.request.currency,
-                    value: item.amount.to_owned(),
+                    value: item.amount.clone(),
                 },
             },
         }
@@ -140,7 +130,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
             quantity: 1,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_string(),
+                value: item.amount.clone(),
             },
         }
     }
@@ -1564,7 +1554,7 @@ pub enum PaypalPayoutDataType {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize)]
 pub struct PayoutAmount {
-    value: String,
+    value: StringMajorUnit,
     currency: storage_enums::Currency,
 }
 
@@ -1593,7 +1583,7 @@ impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for P
         item: &PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let amount = PayoutAmount {
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             currency: item.router_data.request.destination_currency,
         };
 
@@ -1726,7 +1716,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsCaptureRouterData>>
     ) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
         };
         Ok(Self {
             amount,
@@ -1907,7 +1897,7 @@ impl<F> TryFrom<&PaypalRouterData<&types::RefundsRouterData<F>>> for PaypalRefun
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_owned(),
+                value: item.amount.clone(),
             },
         })
     }

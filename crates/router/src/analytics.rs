@@ -4,7 +4,7 @@ pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core,
-        errors::AnalyticsError, lambda_utils::invoke_lambda,
+        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
         AnalyticsFlow,
     };
@@ -12,21 +12,22 @@ pub mod routes {
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-        GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
+        GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
+        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
     use crate::{
-        core::api_locking,
+        consts::opensearch::OPENSEARCH_INDEX_PERMISSIONS,
+        core::{api_locking, errors::user::UserErrors},
         db::user::UserInterface,
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthenticationData},
-            authorization::permissions::Permission,
+            authentication::{self as auth, AuthenticationData, UserFromToken},
+            authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
         types::domain::UserEmail,
@@ -69,6 +70,10 @@ pub mod routes {
                     .service(
                         web::resource("metrics/sdk_events")
                             .route(web::post().to(get_sdk_event_metrics)),
+                    )
+                    .service(
+                        web::resource("metrics/active_payments")
+                            .route(web::post().to(get_active_payments_metrics)),
                     )
                     .service(
                         web::resource("filters/sdk_events")
@@ -126,7 +131,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain: analytics::AnalyticsDomain, _| async {
+            |_, _: (), domain: analytics::AnalyticsDomain, _| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)
@@ -234,6 +239,43 @@ pub mod routes {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.publishable_key.as_ref(),
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetActivePaymentsMetricRequest` element.
+    pub async fn get_active_payments_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetActivePaymentsMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetActivePaymentsMetricRequest");
+        let flow = AnalyticsFlow::GetActivePaymentsMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::active_payments::get_metrics(
+                    &state.pool,
+                    auth.merchant_account.publishable_key.as_ref(),
+                    Some(&auth.merchant_account.merchant_id),
                     req,
                 )
                 .await
@@ -653,11 +695,25 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
+                let accessible_indexes: Vec<_> = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
+                    .map(|(i, _)| *i)
+                    .collect();
+
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_id,
+                    accessible_indexes,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -674,24 +730,33 @@ pub mod routes {
         json_payload: web::Json<GetSearchRequest>,
         index: web::Path<SearchIndex>,
     ) -> impl Responder {
+        let index = index.into_inner();
         let flow = AnalyticsFlow::GetSearchResults;
         let indexed_req = GetSearchRequestWithIndex {
             search_req: json_payload.into_inner(),
-            index: index.into_inner(),
+            index,
         };
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             indexed_req,
-            |state, auth: AuthenticationData, req, _| async move {
-                analytics::search::search_results(
-                    &state.opensearch_client,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
+                let _ = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(ind, _)| *ind == index)
+                    .find(|i| i.1.iter().any(|p| permissions.contains(p)))
+                    .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
+                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

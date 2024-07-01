@@ -47,7 +47,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -197,7 +202,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _mechant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, PaymentsCancelRequest>, PaymentData<F>)>
@@ -231,6 +236,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,
+                key_store,
                 storage_scheme,
             )
             .await

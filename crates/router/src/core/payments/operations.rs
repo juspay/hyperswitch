@@ -183,6 +183,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -226,6 +227,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
@@ -322,6 +324,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -394,6 +397,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -467,6 +471,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -529,6 +534,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

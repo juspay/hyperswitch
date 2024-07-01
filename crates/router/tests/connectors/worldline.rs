@@ -18,12 +18,12 @@ struct WorldlineTest;
 impl ConnectorActions for WorldlineTest {}
 impl utils::Connector for WorldlineTest {
     fn get_data(&self) -> types::api::ConnectorData {
-        types::api::ConnectorData {
-            connector: Box::new(&Worldline),
-            connector_name: types::Connector::Worldline,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Worldline),
+            types::Connector::Worldline,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

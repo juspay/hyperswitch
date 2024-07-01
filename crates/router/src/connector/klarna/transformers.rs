@@ -1,6 +1,7 @@
 use api_models::payments;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -84,6 +85,23 @@ pub struct KlarnaPaymentsRequest {
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
+    authorized_payment_method: Option<AuthorizedPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthorizedPaymentMethod {
+    #[serde(rename = "type")]
+    payment_type: String,
+}
+
+impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
+    fn from(item: AuthorizedPaymentMethod) -> Self {
+        Self::PayLater {
+            klarna_sdk: Some(KlarnaSdkResponse {
+                payment_type: Some(item.payment_type),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -236,6 +254,17 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
+            match item.response.authorized_payment_method {
+                Some(authorized_payment_method) => {
+                    types::AdditionalPaymentMethodConnectorResponse::from(authorized_payment_method)
+                }
+                None => {
+                    types::AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk: None }
+                }
+            },
+        );
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -253,6 +282,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 item.response.fraud_status,
                 item.data.request.is_auto_capture()?,
             )),
+            connector_response: Some(connector_response),
             ..item.data
         })
     }

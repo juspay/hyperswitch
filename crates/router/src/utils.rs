@@ -29,6 +29,7 @@ use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
+use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -196,12 +197,14 @@ pub async fn find_payment_intent_from_payment_id_type(
     db: &dyn StorageInterface,
     payment_id_type: payments::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -218,6 +221,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             db.find_payment_intent_by_payment_id_merchant_id(
                 &attempt.payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -235,6 +239,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             db.find_payment_intent_by_payment_id_merchant_id(
                 &attempt.payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -250,6 +255,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     db: &dyn StorageInterface,
     refund_id_type: webhooks::RefundIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     connector_name: &str,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let refund = match refund_id_type {
@@ -282,6 +288,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     db.find_payment_intent_by_payment_id_merchant_id(
         &attempt.payment_id,
         &merchant_account.merchant_id,
+        key_store,
         merchant_account.storage_scheme,
     )
     .await
@@ -292,6 +299,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     db: &dyn StorageInterface,
     mandate_id_type: webhooks::MandateIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let mandate = match mandate_id_type {
         webhooks::MandateIdType::MandateId(mandate_id) => db
@@ -317,6 +325,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
         &merchant_account.merchant_id,
+        key_store,
         merchant_account.storage_scheme,
     )
     .await
@@ -492,8 +501,13 @@ pub async fn get_mca_from_object_reference_id(
                 get_mca_from_payment_intent(
                     db,
                     merchant_account,
-                    find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
-                        .await?,
+                    find_payment_intent_from_payment_id_type(
+                        db,
+                        payment_id_type,
+                        merchant_account,
+                        key_store,
+                    )
+                    .await?,
                     key_store,
                     connector_name,
                 )
@@ -507,6 +521,7 @@ pub async fn get_mca_from_object_reference_id(
                         db,
                         refund_id_type,
                         merchant_account,
+                        key_store,
                         connector_name,
                     )
                     .await?,
@@ -519,8 +534,13 @@ pub async fn get_mca_from_object_reference_id(
                 get_mca_from_payment_intent(
                     db,
                     merchant_account,
-                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
-                        .await?,
+                    find_payment_intent_from_mandate_id_type(
+                        db,
+                        mandate_id_type,
+                        merchant_account,
+                        key_store,
+                    )
+                    .await?,
                     key_store,
                     connector_name,
                 )
@@ -553,12 +573,12 @@ pub async fn get_mca_from_object_reference_id(
 // validate json format for the error
 pub fn handle_json_response_deserialization_failure(
     res: types::Response,
-    connector: String,
+    connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("connector", connector)],
+        &add_attributes([("connector", connector)]),
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
@@ -781,24 +801,24 @@ pub fn add_apple_pay_flow_metrics(
             domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
         }
     }
@@ -817,26 +837,26 @@ pub fn add_apple_pay_payment_status_metrics(
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     ),
             }
         }
@@ -847,25 +867,25 @@ pub fn add_apple_pay_payment_status_metrics(
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[
-                        metrics::request::add_attributes(
+                    &add_attributes([
+                        (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                    ],
+                        ("merchant_id", merchant_id.to_owned()),
+                    ]),
                 ),
             }
         }

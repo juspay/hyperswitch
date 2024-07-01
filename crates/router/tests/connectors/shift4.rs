@@ -14,12 +14,12 @@ impl ConnectorActions for Shift4Test {}
 impl utils::Connector for Shift4Test {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Shift4;
-        types::api::ConnectorData {
-            connector: Box::new(&Shift4),
-            connector_name: types::Connector::Shift4,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Shift4),
+            types::Connector::Shift4,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

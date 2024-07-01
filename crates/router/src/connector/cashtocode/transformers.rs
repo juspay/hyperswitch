@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 pub use common_utils::request::Method;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email};
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email, types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -16,7 +18,7 @@ use crate::{
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     transaction_id: String,
     user_id: Secret<id_type::CustomerId>,
     currency: enums::Currency,
@@ -48,9 +50,11 @@ fn get_mid(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest {
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (item, amount): (&types::PaymentsAuthorizeRouterData, FloatMajorUnit),
+    ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
         let url = item.request.get_router_return_url()?;
         let mid = get_mid(
@@ -60,10 +64,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
         )?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
-                amount: utils::to_currency_base_unit_asf64(
-                    item.request.amount,
-                    item.request.currency,
-                )?,
+                amount,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
                 user_id: Secret::new(customer_id.to_owned()),
@@ -192,7 +193,7 @@ pub struct CashtocodePaymentsResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
 }
 
 fn get_redirect_form_data(
@@ -330,7 +331,7 @@ pub struct CashtocodeErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]

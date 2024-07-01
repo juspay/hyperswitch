@@ -70,6 +70,8 @@
                   "listen": "test",
                   "script": {
                     "exec": [
+                      "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+                      "",
                       "// Validate status 2xx",
                       "pm.test(\"[POST]::/user/connect_account - Status code is 2xx\", function () {",
                       "  pm.response.to.be.success;",
@@ -93,6 +95,7 @@
                       "  pm.expect(jsonData).to.have.property(\"is_email_sent\");",
                       "  pm.expect(jsonData.is_email_sent).to.be.true;",
                       "});",
+                      "",
                       ""
                     ],
                     "type": "text/javascript"
@@ -157,6 +160,8 @@
                   "listen": "test",
                   "script": {
                     "exec": [
+                      "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+                      "",
                       "// Validate status 2xx",
                       "pm.test(\"[POST]::/user/v2/signin - Status code is 2xx\", function () {",
                       "  pm.response.to.be.success;",
@@ -231,6 +236,8 @@
                   "listen": "test",
                   "script": {
                     "exec": [
+                      "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+                      "",
                       "// Validate status code is 4xx Bad Request",
                       "pm.test(\"[POST]::/user/v2/signin - Status code is 401\", function () {",
                       "  pm.response.to.have.status(401);",
@@ -289,6 +296,8 @@
                   "listen": "test",
                   "script": {
                     "exec": [
+                      "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+                      "",
                       "// Validate status 2xx",
                       "pm.test(\"[POST]::user/v2/signin?token_only=true - Status code is 2xx\", function () {",
                       "  pm.response.to.be.success;",
@@ -360,6 +369,8 @@
                   "listen": "test",
                   "script": {
                     "exec": [
+                      "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+                      "",
                       "// Validate status 4xx",
                       "pm.test(\"[POST]::/user/v2/signin?token_only=true - Status code is 401\", function () {",
                       "  pm.response.to.have.status(401);",

@@ -330,6 +330,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
         payment_data: &mut payments::PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
@@ -520,6 +521,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                         merchant_decision,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
+                    key_store,
                     frm_data.merchant_account.storage_scheme,
                 )
                 .await

@@ -10,12 +10,12 @@ impl ConnectorActions for VoltTest {}
 impl utils::Connector for VoltTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Volt;
-        types::api::ConnectorData {
-            connector: Box::new(&Volt),
-            connector_name: types::Connector::Volt,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Volt),
+            types::Connector::Volt,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

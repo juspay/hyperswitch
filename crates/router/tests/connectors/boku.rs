@@ -10,12 +10,12 @@ impl ConnectorActions for BokuTest {}
 impl utils::Connector for BokuTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Boku;
-        types::api::ConnectorData {
-            connector: Box::new(&Boku),
-            connector_name: types::Connector::Boku,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Boku),
+            types::Connector::Boku,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

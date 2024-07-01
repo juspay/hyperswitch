@@ -9,12 +9,12 @@ impl ConnectorActions for NetceteraTest {}
 impl utils::Connector for NetceteraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Netcetera;
-        types::api::ConnectorData {
-            connector: Box::new(&Netcetera),
-            connector_name: types::Connector::Netcetera,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Netcetera),
+            types::Connector::Netcetera,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

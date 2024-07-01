@@ -28,6 +28,7 @@ pub mod metrics;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+pub mod payout_link;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -54,8 +55,6 @@ pub mod webhooks;
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
-#[cfg(feature = "payouts")]
-pub use self::app::Payouts;
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub use self::app::Recon;
 pub use self::app::{
@@ -66,6 +65,8 @@ pub use self::app::{
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
+#[cfg(feature = "payouts")]
+pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]

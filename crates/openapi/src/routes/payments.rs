@@ -35,7 +35,7 @@
                     "customer": {
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9999999999",
+                      "phone": "9123456789",
                       "email": "john@example.com"
                     },
                     "description": "Its my first payment request",
@@ -181,7 +181,7 @@
                         "last_name": "Doe"
                       },
                       "phone": {
-                        "number": "8056594427",
+                        "number": "9123456789",
                         "country_code": "+91"
                       }
                     }
@@ -191,7 +191,7 @@
         ),
     ),
     responses(
-        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
@@ -257,7 +257,7 @@ pub fn payments_retrieve() {}
                     "last_name": "Doe"
                 },
                 "phone": {
-                    "number": "8056594427",
+                    "number": "9123456789",
                     "country_code": "+91"
                 }
               },
@@ -268,7 +268,7 @@ pub fn payments_retrieve() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment updated", body = PaymentsResponse),
+        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
@@ -326,7 +326,7 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsResponse),
+        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",

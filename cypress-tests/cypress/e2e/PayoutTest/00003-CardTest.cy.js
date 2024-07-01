@@ -4,7 +4,7 @@ import * as utils from "../PayoutUtils/utils";
 
 let globalState;
 
-describe("Card - Auto Fulfill", () => {
+describe("[Payout] Cards", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
@@ -18,17 +18,18 @@ describe("Card - Auto Fulfill", () => {
     });
   });
 
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   beforeEach(function () {
     if (!should_continue) {
       this.skip();
     }
   });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   context("Payout Card with Auto Fulfill", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -43,6 +44,7 @@ describe("Card - Auto Fulfill", () => {
         true,
         globalState
       );
+
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -53,6 +55,8 @@ describe("Card - Auto Fulfill", () => {
   });
 
   context("Payout Card with Manual Fulfill - Create Confirm", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -88,6 +92,8 @@ describe("Card - Auto Fulfill", () => {
   });
 
   context("Payout Card with Manual Fulfill - Create Intent + Confirm", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("create-payout-call", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"

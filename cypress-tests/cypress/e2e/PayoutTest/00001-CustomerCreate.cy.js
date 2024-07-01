@@ -9,9 +9,11 @@ describe("Customer Create flow test", () => {
       globalState = new State(state);
     });
   });
+
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
+
   it("customer-create-call-test", () => {
     cy.createCustomerCallTest(customerCreateBody, globalState);
   });

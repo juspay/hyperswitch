@@ -342,7 +342,7 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 }
 
 /// Get the delay based on the retry count
-fn get_delay<'a>(
+pub fn get_delay<'a>(
     retry_count: i32,
     frequencies: impl IntoIterator<Item = &'a (i32, i32)>,
 ) -> Option<i32> {

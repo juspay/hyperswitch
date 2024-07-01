@@ -2,10 +2,11 @@ use std::str::FromStr;
 
 use api_models::{
     enums::{
-        Connector, PaymentMethod, PaymentMethodType,
-        PaymentMethodType::{AliPay, ApplePay, GooglePay, Klarna, Paypal, WeChatPay},
+        Connector, PaymentMethod,
+        PaymentMethodType::{self, AliPay, ApplePay, GooglePay, Klarna, Paypal, WeChatPay},
     },
     payment_methods, payments,
+    refunds::MinorUnit,
 };
 
 use crate::common_config::{
@@ -21,8 +22,8 @@ impl DashboardRequestPayload {
         payment_methods::RequestPaymentMethodTypes {
             payment_method_type,
             card_networks: Some(card_provider),
-            minimum_amount: Some(0),
-            maximum_amount: Some(68607706),
+            minimum_amount: Some(MinorUnit::zero()),
+            maximum_amount: Some(MinorUnit::new(68607706)),
             recurring_enabled: true,
             installment_payment_enabled: false,
             accepted_currencies: None,
@@ -74,8 +75,8 @@ impl DashboardRequestPayload {
             let data = payment_methods::RequestPaymentMethodTypes {
                 payment_method_type: method_type.payment_method_type,
                 card_networks: None,
-                minimum_amount: Some(0),
-                maximum_amount: Some(68607706),
+                minimum_amount: Some(MinorUnit::zero()),
+                maximum_amount: Some(MinorUnit::new(68607706)),
                 recurring_enabled: true,
                 installment_payment_enabled: false,
                 accepted_currencies: method_type.accepted_currencies,
@@ -113,8 +114,8 @@ impl DashboardRequestPayload {
                                     let data = payment_methods::RequestPaymentMethodTypes {
                                         payment_method_type: payment_type,
                                         card_networks: Some(vec![method.payment_method_type]),
-                                        minimum_amount: Some(0),
-                                        maximum_amount: Some(68607706),
+                                        minimum_amount: Some(MinorUnit::zero()),
+                                        maximum_amount: Some(MinorUnit::new(68607706)),
                                         recurring_enabled: true,
                                         installment_payment_enabled: false,
                                         accepted_currencies: method.accepted_currencies,
@@ -316,6 +317,7 @@ impl DashboardRequestPayload {
                                 ],
                                 billing_address_required: None,
                                 billing_address_parameters: None,
+                                assurance_details_required: Some(true),
                             };
                         let allowed_payment_methods = payments::GpayAllowedPaymentMethods {
                             payment_method_type: String::from("CARD"),
