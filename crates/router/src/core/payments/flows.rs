@@ -1218,6 +1218,7 @@ default_imp_for_payouts_retrieve!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
