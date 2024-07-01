@@ -251,16 +251,13 @@ pub async fn construct_public_and_private_db_configs(
     }
 }
 
-pub fn parse_oidc_public_config(
-    public_config: Option<serde_json::Value>,
-) -> UserResult<Option<user_api::OpenIdConnectPublicConfig>> {
-    public_config
-        .map(|config| {
-            serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(config)
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Unable to parse OpenIdConnectPublicConfig")
-        })
-        .transpose()
+pub fn parse_value<T>(value: serde_json::Value, type_name: &str) -> UserResult<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    serde_json::from_value::<T>(value)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable(format!("Unable to parse {}", type_name))
 }
 
 pub async fn decrypt_oidc_private_config(

@@ -2058,9 +2058,16 @@ pub async fn create_user_authentication_method(
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
         let is_extra_identifier_same = match &req.auth_method {
             user_api::AuthConfig::OpenIdConnect { public_config, .. } => {
-                let db_auth_name =
-                    utils::user::parse_oidc_public_config(db_auth_method.public_config)?
-                        .map(|config| config.name);
+                let db_auth_name = db_auth_method
+                    .public_config
+                    .map(|config| {
+                        utils::user::parse_value::<user_api::OpenIdConnectPublicConfig>(
+                            config,
+                            "OpenIdConnectPublicConfig",
+                        )
+                    })
+                    .transpose()?
+                    .map(|config| config.name);
                 let req_auth_name = public_config.name;
                 db_auth_name.is_some_and(|name| name == req_auth_name)
             }
@@ -2144,7 +2151,12 @@ pub async fn list_user_authentication_methods(
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
                     (common_enums::UserAuthType::OpenIdConnect, config) => {
-                        let open_id_public_config = utils::user::parse_oidc_public_config(config)?;
+                        let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
+                            config
+                                .map(|config| {
+                                    utils::user::parse_value(config, "OpenIdConnectPublicConfig")
+                                })
+                                .transpose()?;
                         if let Some(public_config) = open_id_public_config {
                             Ok(Some(public_config.name))
                         } else {
