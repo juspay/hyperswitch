@@ -6821,6 +6821,15 @@
             "properties": {
               "domain_name": {
                 "type": "string",
+                "description": "Custom domain name to be used for hosting the link in your own domain",
+                "nullable": true
+              },
+              "business_specific_configs": {
+                "type": "object",
+                "description": "list of configs for multi theme setup",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+                },
                 "nullable": true
               }
             }
@@ -14978,6 +14987,11 @@
             ],
             "nullable": true
           },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -15309,6 +15323,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "profile_id": {
@@ -16351,6 +16370,11 @@
             ],
             "nullable": true
           },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
@@ -17357,6 +17381,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "surcharge_details": {
