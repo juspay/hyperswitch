@@ -3,7 +3,6 @@
 use core::fmt;
 
 use base64::Engine;
-use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 use router_env::logger;
 use rustc_hash::FxHashMap;
