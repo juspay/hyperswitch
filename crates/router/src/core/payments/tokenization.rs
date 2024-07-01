@@ -7,7 +7,7 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
@@ -210,14 +210,17 @@ where
                 });
 
                 let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
+                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details)
+                        .await
+                        .map(|details| details.into());
 
                 let encrypted_payment_method_billing_address =
                     payment_methods::cards::create_encrypted_data(
                         key_store,
                         payment_method_billing_address,
                     )
-                    .await;
+                    .await
+                    .map(|details| details.into());
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
@@ -468,21 +471,34 @@ where
                                         ))?
                                 };
 
+                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(
+                                    &existing_pm,
+                                    key_store.key.peek(),
+                                    state,
+                                )
+                                .await?;
+
                                 let updated_card = Some(CardDetailFromLocker {
                                     scheme: existing_pm.scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
-                                    issuer_country: card.card_issuing_country,
+                                    issuer_country: card
+                                        .card_issuing_country
+                                        .or(existing_pm_data.issuer_country),
                                     card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
                                     expiry_year: Some(card.card_exp_year),
                                     card_token: None,
                                     card_fingerprint: None,
-                                    card_holder_name: card.card_holder_name,
-                                    nick_name: card.nick_name,
-                                    card_network: card.card_network,
-                                    card_issuer: card.card_issuer,
-                                    card_type: card.card_type,
+                                    card_holder_name: card
+                                        .card_holder_name
+                                        .or(existing_pm_data.card_holder_name),
+                                    nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                                    card_network: card
+                                        .card_network
+                                        .or(existing_pm_data.card_network),
+                                    card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                                    card_type: card.card_type.or(existing_pm_data.card_type),
                                     saved_to_locker: true,
                                 });
 
@@ -496,7 +512,8 @@ where
                                         key_store,
                                         updated_pmd,
                                     )
-                                    .await;
+                                    .await
+                                    .map(|details| details.into());
 
                                 let pm_update =
                                     storage::PaymentMethodUpdate::PaymentMethodDataUpdate {

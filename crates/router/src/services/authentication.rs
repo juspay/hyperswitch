@@ -1,4 +1,6 @@
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "payouts")]
+use api_models::payouts;
 use api_models::{
     payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
     payments,
@@ -260,6 +262,20 @@ where
 }
 
 #[async_trait]
+impl<A, T> AuthenticateAndFetch<Option<T>, A> for NoAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        _state: &A,
+    ) -> RouterResult<(Option<T>, AuthenticationType)> {
+        Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuth
 where
     A: SessionStateInfo + Sync,
@@ -362,6 +378,40 @@ where
                 origin: payload.origin.clone(),
                 path: payload.path,
             },
+            AuthenticationType::SinglePurposeJwt {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<UserFromSinglePurposeToken>, A> for SinglePurposeJWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<UserFromSinglePurposeToken>, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        Ok((
+            Some(UserFromSinglePurposeToken {
+                user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
+                path: payload.path,
+            }),
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
                 purpose: payload.purpose,
@@ -946,6 +996,12 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
+#[cfg(feature = "payouts")]
+impl ClientSecretFetch for payouts::PayoutCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
 
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1028,7 +1084,6 @@ where
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
