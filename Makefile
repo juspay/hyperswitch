@@ -118,7 +118,7 @@ hack:
 # Assumes `diesel_cli` is already installed.
 #
 # Usage :
-#	make migrate [database-url=<PSQL connection string>]
+#	make migrate [database-url=<PSQL connection string>] [locked-schema=<yes|no>]
 
 # This proceeds as follows:
 # 	Creates a temporary migrations directory, cleans it up if it already exists
@@ -130,18 +130,20 @@ migrate:
 
 	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
 	diesel migration run --migration-dir=$(ROOT_DIR)/tmp/migrations \
-		$(if $(strip $(database-url)),--database-url="$(database-url)",)
+		$(if $(strip $(database-url)),--database-url="$(database-url)",) \
+		$(if $(strip $(call eq,$(locked-schema),yes)),--locked-schema,)
 
 	rm -r $(ROOT_DIR)/tmp/migrations
 	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true
 
-revert_migrate: 
+redo_migrate: 
 	mkdir -p $(ROOT_DIR)/tmp/migrations
 	find $(ROOT_DIR)/tmp/migrations/ -mindepth 1 -delete
 
 	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
-	diesel migration revert --all --migration-dir=$(ROOT_DIR)/tmp/migrations \
-		$(if $(strip $(database-url)),--database-url="$(database-url)",)
+	diesel migration redo --all --migration-dir=$(ROOT_DIR)/tmp/migrations \
+		$(if $(strip $(database-url)),--database-url="$(database-url)",) \
+		$(if $(strip $(call eq,$(locked-schema),yes)),--locked-schema,)
 
 	rm -r $(ROOT_DIR)/tmp/migrations
 	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true	
