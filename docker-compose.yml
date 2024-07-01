@@ -164,8 +164,8 @@ services:
       - HYPERSWITCH_CLIENT_URL=http://localhost:9050
       - SELF_SERVER_URL=http://localhost:5252
       - SDK_ENV=local
-      - ENV_LOGGING_URL=http://localhost:3100
-    labels:  
+      - ENV_LOGGING_URL=http://localhost:3103
+    labels:
       logs: "promtail"
 
   ### Control Center
@@ -405,6 +405,7 @@ services:
     ports:
       - "8686"
       - "9598"
+      - "3103:3103"
     profiles:
       - olap
     environment:

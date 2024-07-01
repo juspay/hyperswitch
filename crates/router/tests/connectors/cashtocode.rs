@@ -13,7 +13,7 @@ impl utils::Connector for CashtocodeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Cashtocode;
         utils::construct_connector_data_old(
-            Box::new(&Cashtocode),
+            Box::new(Cashtocode::new()),
             types::Connector::Cashtocode,
             types::api::GetToken::Connector,
             None,

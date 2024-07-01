@@ -15,7 +15,7 @@ impl utils::Connector for TrustpayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Trustpay;
         utils::construct_connector_data_old(
-            Box::new(&Trustpay),
+            Box::new(Trustpay::new()),
             types::Connector::Trustpay,
             api::GetToken::Connector,
             None,

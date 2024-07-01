@@ -1,3 +1,5 @@
+console.log("[LOG]::x-request-id - " + pm.response.headers.get("x-request-id"));
+
 // Validate status 2xx
 pm.test("[POST]::/user/connect_account - Status code is 2xx", function () {
   pm.response.to.be.success;
@@ -21,3 +23,4 @@ pm.test("[POST]::/user/connect_account - Response contains is_email_sent", funct
   pm.expect(jsonData).to.have.property("is_email_sent");
   pm.expect(jsonData.is_email_sent).to.be.true;
 });
+
