@@ -1629,8 +1629,9 @@ impl api::IncomingWebhook for Paypal {
             transformers::PaypalResource::PaypalCardWebhooks(_)
             | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
             | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
-                Err(errors::ConnectorError::ResponseDeserializationFailed).attach_printable("Expected Dispute webhooks,but found other webhooks")?
-            },
+                Err(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
             transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
                 Ok(api::disputes::DisputePayload {
                     amount: connector_utils::to_currency_lower_unit(
