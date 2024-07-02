@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use common_utils::new_type;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
-    link_utils, pii,
+    id_type, link_utils, pii,
 };
+#[cfg(feature = "v2")]
+use masking::ExposeOptionInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
@@ -22,12 +26,13 @@ pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
@@ -72,7 +77,7 @@ pub struct MerchantAccountCreate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
@@ -93,12 +98,49 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The id of the organization to which the merchant belongs to
+    /// The id of the organization to which the merchant belongs to, if not passed an organization is created
     pub organization_id: Option<String>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+}
+
+#[cfg(not(feature = "v2"))]
+impl MerchantAccountCreate {
+    pub fn get_merchant_id(&self) -> id_type::MerchantId {
+        self.merchant_id.clone()
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantAccountCreate {
+    /// Name of the Merchant Account
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<Secret<new_type::MerchantName>>,
+
+    /// Details about the merchant
+    pub merchant_details: Option<MerchantDetails>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<MerchantAccountMetadata>,
+
+    /// The id of the organization to which the merchant belongs to
+    pub organization_id: String,
+}
+
+#[cfg(feature = "v2")]
+impl MerchantAccountCreate {
+    pub fn get_merchant_id(&self) -> id_type::MerchantId {
+        self.merchant_name
+            .clone()
+            .expose_option()
+            .map(id_type::MerchantId::from_merchant_name)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -196,10 +238,11 @@ pub struct MerchantAccountUpdate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
 
     /// Name of the Merchant Account
@@ -285,6 +328,40 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct MerchantAccountResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: String,
+
+    /// Name of the Merchant Account
+    #[schema(value_type = Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: OptionalEncryptableName,
+
+    /// Details about the merchant
+    #[schema(value_type = Option<MerchantDetails>)]
+    pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
+
+    /// API key that will be used for server side API access
+    #[schema(example = "AH3423bkjbkjdsfbkj")]
+    pub publishable_key: String,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The id of the organization which the merchant is associated with
+    pub organization_id: String,
+
+    ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
+    pub is_recon_enabled: bool,
+
+    /// Used to indicate the status of the recon module for a merchant account
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

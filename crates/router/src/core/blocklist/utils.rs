@@ -210,7 +210,7 @@ pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
     merchant_id: &str,
 ) -> RouterResult<String> {
-    let key = get_merchant_fingerprint_secret_key(merchant_id);
+    let key = utils::get_merchant_fingerprint_secret_key(merchant_id);
     let config_fetch_result = state.store.find_config_by_key(&key).await;
 
     match config_fetch_result {
@@ -238,10 +238,6 @@ pub async fn get_merchant_fingerprint_secret(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error fetching merchant fingerprint secret"),
     }
-}
-
-fn get_merchant_fingerprint_secret_key(merchant_id: &str) -> String {
-    format!("fingerprint_secret_{merchant_id}")
 }
 
 async fn duplicate_check_insert_bin(

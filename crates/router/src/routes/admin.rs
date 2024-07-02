@@ -8,21 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-/// Merchant Account - Create
-///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
-#[utoipa::path(
-    post,
-    path = "/accounts",
-    request_body= MerchantAccountCreate,
-    responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
-        (status = 400, description = "Invalid data")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Create a Merchant Account",
-    security(("admin_api_key" = []))
-)]
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -41,6 +27,7 @@ pub async fn merchant_account_create(
     ))
     .await
 }
+
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.

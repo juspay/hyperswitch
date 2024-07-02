@@ -559,7 +559,7 @@ Never share your secret api keys. Keep them guarded and secure.
 )]
 // Bypass clippy lint for not being constructed
 #[allow(dead_code)]
-pub struct ApiDoc;
+pub(crate) struct ApiDoc;
 
 struct SecurityAddon;
 
