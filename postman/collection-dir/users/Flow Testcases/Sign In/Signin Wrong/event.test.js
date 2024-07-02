@@ -1,3 +1,5 @@
+console.log("[LOG]::x-request-id - " + pm.response.headers.get("x-request-id"));
+
 // Validate status code is 4xx Bad Request
 pm.test("[POST]::/user/v2/signin - Status code is 401", function () {
   pm.response.to.have.status(401);

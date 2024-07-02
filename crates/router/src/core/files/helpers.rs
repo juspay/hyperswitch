@@ -131,8 +131,7 @@ pub async fn retrieve_file_from_connector(
         api::GetToken::Connector,
         file_metadata.merchant_connector_id.clone(),
     )?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
         types::RetrieveFileResponse,
@@ -279,8 +278,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
                     api::Upload,
                     types::UploadFileRequestData,
                     types::UploadFileResponse,

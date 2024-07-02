@@ -22,6 +22,8 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
+#[cfg(feature = "frm")]
+pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -31,7 +33,7 @@ pub use hyperswitch_domain_models::{
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
         WebhookSourceVerifyData,
     },
     router_request_types::{
@@ -541,6 +543,11 @@ impl Capturable for PaymentsSyncData {
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
     pub connector_supports_access_token: bool,
+}
+
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
