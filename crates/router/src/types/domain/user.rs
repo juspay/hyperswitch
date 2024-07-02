@@ -4,9 +4,10 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
-};
+use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
+
+#[cfg(not(feature = "v2"))]
+use common_utils::id_type;
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
