@@ -67,8 +67,9 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    errors::RouterResult,
 };
+#[cfg(feature = "partial-auth")]
+use crate::errors::RouterResult;
 
 #[derive(Clone)]
 pub struct ReqState {

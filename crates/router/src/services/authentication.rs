@@ -34,13 +34,16 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
-        metrics,
     },
     routes::app::SessionStateInfo,
     services::api,
     types::domain,
     utils::OptionExt,
 };
+
+#[cfg(feature = "partial-auth")]
+use crate::core::metrics;
+
 pub mod blacklist;
 pub mod cookies;
 
@@ -381,7 +384,7 @@ where
 #[async_trait]
 impl<A, I> AuthenticateAndFetch<AuthenticationData, A> for HeaderAuth<I>
 where
-    A: SessionStateInfo + Send,
+    A: SessionStateInfo + Send + Sync,
     I: AuthenticateAndFetch<AuthenticationData, A> + Sync,
 {
     async fn authenticate_and_fetch(
@@ -470,6 +473,7 @@ where
     }
 }
 
+#[cfg(feature = "partial-auth")]
 async fn construct_authentication_data<A>(
     state: &A,
     merchant_id: &str,
@@ -1217,7 +1221,7 @@ impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     }
 }
 
-pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync>(
+pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
@@ -1242,7 +1246,7 @@ pub fn check_client_secret_and_get_auth<T>(
     api::AuthFlow,
 )>
 where
-    T: SessionStateInfo + Sync,
+    T: SessionStateInfo + Sync + Send,
     ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
@@ -1279,7 +1283,7 @@ pub async fn get_ephemeral_or_other_auth<T>(
     bool,
 )>
 where
-    T: SessionStateInfo + Sync,
+    T: SessionStateInfo + Sync + Send,
     ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
     EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
@@ -1301,7 +1305,7 @@ where
     }
 }
 
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync>(
+pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
