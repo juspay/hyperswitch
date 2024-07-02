@@ -89,7 +89,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     ..Default::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(Secret::new("8056594427".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+351".to_string()),
                 }),
                 email: None,

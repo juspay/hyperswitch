@@ -57,6 +57,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
+        _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,
@@ -106,7 +107,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>> {
+        should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult> {
         let request = self.request.clone();
         tokenization::add_payment_method_token(
             state,
@@ -114,6 +116,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             tokenization_action,
             self,
             types::PaymentMethodTokenizationData::try_from(request)?,
+            should_continue_payment,
         )
         .await
     }

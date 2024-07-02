@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_invalid_card_number_masking() {
-        let secret: Secret<String, CardNumberStrategy> = Secret::new("1234567890".to_string());
+        let secret: Secret<String, CardNumberStrategy> = Secret::new("9123456789".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 

@@ -169,7 +169,7 @@ impl From<payout_models::PayoutCreateResponse> for StripePayoutResponse {
     fn from(res: payout_models::PayoutCreateResponse) -> Self {
         Self {
             id: res.payout_id,
-            amount: res.amount,
+            amount: res.amount.get_amount_as_i64(),
             currency: res.currency.to_string(),
             payout_type: res.payout_type,
             status: StripePayoutStatus::from(res.status),

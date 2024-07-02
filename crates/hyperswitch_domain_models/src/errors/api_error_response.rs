@@ -275,6 +275,8 @@ pub enum ApiErrorResponse {
     MissingTenantId,
     #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
     InvalidTenant { tenant_id: String },
+    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
+    AmountConversionFailed { amount_type: &'static str },
 }
 
 #[derive(Clone)]
@@ -612,6 +614,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidTenant { tenant_id }  => {
                 AER::InternalServerError(ApiError::new("HE", 6, format!("Invalid Tenant {tenant_id}"), None))
+            }
+            Self::AmountConversionFailed { amount_type }  => {
+                AER::InternalServerError(ApiError::new("HE", 6, format!("Failed to convert amount to {amount_type} type"), None))
             }
         }
     }
