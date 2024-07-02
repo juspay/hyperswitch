@@ -114,9 +114,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .get_payment_method_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
+        let mut should_avoid_saving = false;
 
         if let Some(payment_method_info) = &payment_data.payment_method_info {
             if payment_data.payment_intent.off_session.is_none() && resp.response.is_ok() {
+                should_avoid_saving = resp.request.payment_method_type
+                    == Some(enums::PaymentMethodType::ApplePay)
+                    || resp.request.payment_method_type
+                        == Some(enums::PaymentMethodType::GooglePay);
                 payment_methods::cards::update_last_used_at(
                     payment_method_info,
                     state,
@@ -178,6 +183,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             // The mandate is created on connector's end.
             let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
+            Ok(())
+        } else if should_avoid_saving {
+            if let Some(pm_info) = &payment_data.payment_method_info {
+                payment_data.payment_attempt.payment_method_id =
+                    Some(pm_info.payment_method_id.clone());
+            };
             Ok(())
         } else {
             // Save card flow
