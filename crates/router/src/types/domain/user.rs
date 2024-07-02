@@ -8,6 +8,7 @@ use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::Merchant
 
 #[cfg(not(feature = "v2"))]
 use common_utils::id_type;
+
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
