@@ -372,10 +372,10 @@ merchant_id="Merchant Id"
 [[braintree.debit]]
   payment_method_type = "UnionPay"
 
-[braintree.connector_auth.SignatureKey]
+[braintree.connector_auth.BodyKey]
 api_key="Public Key"
-key1="Merchant Id"
-api_secret="Private Key"
+key1="Private Key"
+
 [braintree.connector_webhook_details]
 merchant_secret="Source verification key"
 [braintree.metadata]

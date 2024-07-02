@@ -1924,9 +1924,7 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
         }
         api_enums::Connector::Braintree => {
             braintree::transformers::BraintreeAuthType::try_from(val)?;
-            braintree::braintree_graphql_transformers::BraintreeMeta::try_from(
-                connector_meta_data,
-            )?;
+            braintree::transformers::BraintreeMeta::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Cashtocode => {
