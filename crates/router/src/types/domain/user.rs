@@ -4,7 +4,9 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
+use common_utils::{
+    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
+};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -399,7 +401,9 @@ impl NewUserMerchant {
 
         #[cfg(not(feature = "v2"))]
         let merchant_account_create_request = admin_api::MerchantAccountCreate {
-            merchant_id: self.get_merchant_id(),
+            merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())
+                .change_context(UserErrors::CompanyNameParsingError)
+                .attach_printable("Unable to convert")?,
             metadata: None,
             locker_id: None,
             return_url: None,

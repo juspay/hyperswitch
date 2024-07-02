@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
-    link_utils, pii,
+    id_type, link_utils, pii,
 };
 
 #[cfg(feature = "v2")]
-use common_utils::{id_type, new_type};
+use common_utils::new_type;
 
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
@@ -35,7 +35,7 @@ pub struct MerchantAccountListRequest {
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
@@ -111,7 +111,7 @@ pub struct MerchantAccountCreate {
 
 #[cfg(not(feature = "v2"))]
 impl MerchantAccountCreate {
-    pub fn get_merchant_id(&self) -> String {
+    pub fn get_merchant_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
     }
 }
