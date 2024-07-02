@@ -458,7 +458,7 @@ pub struct StripeSetupIntentResponse {
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
-    pub metadata: Option<secret::SecretSerdeValue>,
+    pub metadata: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
     pub customer: Option<id_type::CustomerId>,

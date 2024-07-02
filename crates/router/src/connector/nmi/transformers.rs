@@ -1,12 +1,7 @@
 use api_models::webhooks;
 use cards::CardNumber;
 use common_enums::CountryAlpha2;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::XmlExt,
-    pii::{self, Email},
-    types::FloatMajorUnit,
-};
+use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -431,8 +426,8 @@ pub struct NmiMerchantDefinedField {
 }
 
 impl NmiMerchantDefinedField {
-    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
-        let metadata_as_string = metadata.peek().to_string();
+    pub fn new(metadata: &serde_json::Value) -> Self {
+        let metadata_as_string = metadata.to_string();
         let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
             serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
         let inner = hash_map

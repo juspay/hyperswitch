@@ -21,7 +21,7 @@ pub struct PaymentIntent {
     pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
