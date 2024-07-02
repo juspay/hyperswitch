@@ -37,7 +37,7 @@ sources:
   local_file_logs:
     type: file
     include:
-      - path: "/var/log/router/**/*.log*"
+      - path: "logs/*"
     start_at_beginning: true
     read_from_head: true
     ignore_older: 0s
