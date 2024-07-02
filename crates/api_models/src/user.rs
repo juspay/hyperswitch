@@ -280,3 +280,100 @@ pub struct VerifyRecoveryCodeRequest {
 pub struct RecoveryCodes {
     pub recovery_codes: Vec<Secret<String>>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthConfig {
+    OpenIdConnect {
+        private_config: OpenIdConnectPrivateConfig,
+        public_config: OpenIdConnectPublicConfig,
+    },
+    MagicLink,
+    Password,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPrivateConfig {
+    pub base_url: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPublicConfig {
+    pub name: OpenIdProvider,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OpenIdProvider {
+    Okta,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OpenIdConnect {
+    pub name: OpenIdProvider,
+    pub base_url: String,
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateUserAuthenticationMethodRequest {
+    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
+    pub auth_method: AuthConfig,
+    pub allow_signup: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateUserAuthenticationMethodRequest {
+    pub id: String,
+    // TODO: When adding more fields make config and new fields option
+    pub auth_method: AuthConfig,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetUserAuthenticationMethodsRequest {
+    pub auth_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
+    pub auth_method: AuthMethodDetails,
+    pub allow_signup: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthMethodDetails {
+    #[serde(rename = "type")]
+    pub auth_type: common_enums::UserAuthType,
+    pub name: Option<OpenIdProvider>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetSsoAuthUrlRequest {
+    pub id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SsoSignInRequest {
+    pub state: Secret<String>,
+    pub code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthIdQueryParam {
+    pub auth_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthSelectRequest {
+    pub id: String,
+}
