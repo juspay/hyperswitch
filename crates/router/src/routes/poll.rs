@@ -39,7 +39,7 @@ pub async fn retrieve_poll_status(
         &req,
         poll_id,
         |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.merchant_account),
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -1,4 +1,5 @@
 pub mod types;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
@@ -72,7 +73,7 @@ pub async fn setup_intents_create(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

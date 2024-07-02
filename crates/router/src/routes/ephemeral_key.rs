@@ -24,7 +24,7 @@ pub async fn ephemeral_key_create(
         |state, auth, req, _| {
             helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.merchant_id)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -43,7 +43,7 @@ pub async fn ephemeral_key_delete(
         &req,
         payload,
         |state, _, req, _| helpers::delete_ephemeral_key(state, req),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     )
     .await
