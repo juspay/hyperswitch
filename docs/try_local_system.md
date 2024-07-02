@@ -71,6 +71,7 @@ Check the Table Of Contents to jump to the relevant section.
 ### Running additional services
 
 The default behaviour for docker compose only runs the following services:
+
 1. postgres
 2. redis (standalone)
 3. hyperswitch server
@@ -102,10 +103,11 @@ involved, check out the [architecture document][architecture].
 
 - To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
 
-   ```shell
-   docker compose --profile olap up -d
-   ```
-   You can read more about using the data services [here][data-docs]
+  ```shell
+  docker compose --profile olap up -d
+  ```
+
+  You can read more about using the data services [here][data-docs]
 
 - You can also specify multiple profile names by specifying the `--profile` flag
   multiple times.
@@ -476,10 +478,12 @@ Once you're done with setting up the dependencies, proceed with
    cd hyperswitch
    ```
 
-3. Run database migrations using `diesel_cli`:
+3. Run database migrations:
+
+   Note that this requires `diesel_cli` to be installed
 
    ```shell
-   diesel migration --database-url postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME run
+   make migrate database-url=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
    ```
 
 Once you're done with setting up the database, proceed with
