@@ -537,17 +537,8 @@ merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
 card = ["credit", "debit"]
 
-[payout_filters.adyen]
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
-paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
+[payout_method_filters.adyenplatform]
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP" }
 
-[payout_filters.adyenplatform]
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
-
-[payout_filters.stripe]
+[payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
-
-[payout_filters.wise]
-ach = { country = "US", currency = "USD" }
-bacs = { country = "GB", currency = "GBP" }
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }

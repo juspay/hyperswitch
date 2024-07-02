@@ -268,7 +268,7 @@ pub async fn filter_payout_methods(
     let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let payout_filter_config = &state.conf.payout_filters.clone();
+    let payout_filter_config = &state.conf.payout_method_filters.clone();
     for mca in &filtered_mca {
         let payout_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
