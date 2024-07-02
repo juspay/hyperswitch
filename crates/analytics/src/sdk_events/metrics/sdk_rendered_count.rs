@@ -7,6 +7,7 @@ use api_models::analytics::{
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::SdkEventMetricRow;
 use crate::{
@@ -35,7 +36,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
         let dimensions = dimensions.to_vec();
@@ -111,7 +112,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
+                HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

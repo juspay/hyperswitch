@@ -6,6 +6,7 @@ use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::RefundMetricRow;
 use crate::{
@@ -34,7 +35,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
+    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
     where
         T: AnalyticsDataSource + super::RefundMetricAnalytics,
     {
@@ -115,7 +116,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>,
+                HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

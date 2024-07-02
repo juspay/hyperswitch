@@ -5,6 +5,7 @@ use api_models::analytics::{
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::DisputeMetricRow;
 use crate::{
@@ -32,7 +33,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
     where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
@@ -111,7 +112,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>,
+                HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

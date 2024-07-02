@@ -3,6 +3,7 @@ use api_models::analytics::{
     Granularity,
 };
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -13,7 +14,7 @@ mod active_payments;
 
 use active_payments::ActivePayments;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ActivePaymentsMetricRow {
     pub count: Option<i64>,
 }
@@ -31,7 +32,7 @@ where
         publishable_key: &str,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -54,7 +55,7 @@ where
         publishable_key: &str,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,

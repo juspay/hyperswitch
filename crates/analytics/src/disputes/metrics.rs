@@ -13,6 +13,7 @@ use api_models::{
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use self::{
     dispute_status_metric::DisputeStatusMetric, total_amount_disputed::TotalAmountDisputed,
@@ -22,7 +23,7 @@ use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
-#[derive(Debug, Eq, PartialEq, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, Hash)]
 pub struct DisputeMetricRow {
     pub dispute_stage: Option<DBEnumWrapper<storage_enums::DisputeStage>>,
     pub dispute_status: Option<DBEnumWrapper<storage_enums::DisputeStatus>>,
@@ -55,7 +56,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -76,7 +77,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         match self {
             Self::TotalAmountDisputed => {
                 TotalAmountDisputed::default()

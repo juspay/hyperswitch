@@ -3,6 +3,7 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -27,7 +28,7 @@ use frictionless_flow_count::FrictionlessFlowCount;
 use frictionless_success_count::FrictionlessSuccessCount;
 use three_ds_sdk_count::ThreeDsSdkCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
     pub count: Option<i64>,
     pub time_bucket: Option<String>,
@@ -47,7 +48,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -67,7 +68,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
             Self::ThreeDsSdkCount => {
                 ThreeDsSdkCount

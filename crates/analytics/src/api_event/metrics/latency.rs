@@ -4,6 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
+use std::collections::HashSet;
 use time::PrimitiveDateTime;
 
 use super::ApiEventMetricRow;
@@ -36,7 +37,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ApiEvents);
 
         query_builder
@@ -120,7 +121,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>,
+                HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

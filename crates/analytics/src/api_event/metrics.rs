@@ -19,8 +19,9 @@ use latency::MaxLatency;
 use status_code_count::StatusCodeCount;
 
 use self::latency::LatencyAvg;
+use std::collections::HashSet;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ApiEventMetricRow {
     pub latency: Option<u64>,
     pub api_count: Option<u64>,
@@ -46,7 +47,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -67,7 +68,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
             Self::Latency => {
                 MaxLatency
@@ -92,6 +93,7 @@ where
                         pool,
                     )
                     .await
+
             }
             Self::StatusCodeCount => {
                 StatusCodeCount

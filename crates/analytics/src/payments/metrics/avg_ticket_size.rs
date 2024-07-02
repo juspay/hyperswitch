@@ -6,6 +6,7 @@ use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::{PaymentMetric, PaymentMetricRow};
 use crate::{
@@ -34,7 +35,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
 
         for dim in dimensions.iter() {
@@ -130,7 +131,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
+                HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

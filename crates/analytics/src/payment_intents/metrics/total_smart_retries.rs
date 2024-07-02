@@ -7,6 +7,7 @@ use api_models::analytics::{
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::PaymentIntentMetricRow;
 use crate::{
@@ -38,7 +39,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
 
@@ -117,7 +118,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
+                HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

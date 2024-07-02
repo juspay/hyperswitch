@@ -3,6 +3,7 @@ use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{Currency, IntentStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
@@ -19,7 +20,7 @@ pub async fn get_payment_intent_filter_for_dimension<T>(
     merchant: &String,
     time_range: &TimeRange,
     pool: &T,
-) -> FiltersResult<Vec<PaymentIntentFilterRow>>
+) -> FiltersResult<HashSet<PaymentIntentFilterRow>>
 where
     T: AnalyticsDataSource + PaymentIntentFilterAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -42,14 +43,18 @@ where
 
     query_builder.set_distinct();
 
-    query_builder
+    let result: Vec<PaymentIntentFilterRow> = query_builder
         .execute_query::<PaymentIntentFilterRow, _>(pool)
         .await
         .change_context(FiltersError::QueryBuildingError)?
-        .change_context(FiltersError::QueryExecutionFailure)
+        .change_context(FiltersError::QueryExecutionFailure)?;
+
+    let result_set: HashSet<PaymentIntentFilterRow> = result.into_iter().collect();
+
+    Ok(result_set)
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize, Hash)]
 pub struct PaymentIntentFilterRow {
     pub status: Option<DBEnumWrapper<IntentStatus>>,
     pub currency: Option<DBEnumWrapper<Currency>>,

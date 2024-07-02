@@ -4,6 +4,7 @@ use api_models::analytics::{
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -27,7 +28,7 @@ use success_rate::PaymentSuccessRate;
 
 use self::retries_count::RetriesCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct PaymentMetricRow {
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
     pub status: Option<DBEnumWrapper<storage_enums::AttemptStatus>>,
@@ -60,7 +61,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -81,7 +82,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
                 PaymentSuccessRate

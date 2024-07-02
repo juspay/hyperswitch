@@ -7,6 +7,7 @@ use api_models::analytics::{
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -23,7 +24,7 @@ use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
 use total_smart_retries::TotalSmartRetries;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct PaymentIntentMetricRow {
     pub status: Option<DBEnumWrapper<storage_enums::IntentStatus>>,
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
@@ -50,7 +51,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>;
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -71,7 +72,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
         match self {
             Self::SuccessfulSmartRetries => {
                 SuccessfulSmartRetries

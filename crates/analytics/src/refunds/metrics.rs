@@ -19,7 +19,9 @@ use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
-#[derive(Debug, Eq, PartialEq, serde::Deserialize)]
+use std::collections::HashSet;
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, Hash)]
 pub struct RefundMetricRow {
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
     pub refund_status: Option<DBEnumWrapper<storage_enums::RefundStatus>>,
@@ -53,7 +55,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>>;
+    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -74,7 +76,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
+    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         match self {
             Self::RefundSuccessRate => {
                 RefundSuccessRate::default()

@@ -2,6 +2,7 @@ use api_models::analytics::{active_payments::ActivePaymentsMetricsBucketIdentifi
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use super::ActivePaymentsMetricRow;
 use crate::{
@@ -28,7 +29,7 @@ where
         publishable_key: &str,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -59,7 +60,7 @@ where
             .into_iter()
             .map(|i| Ok((ActivePaymentsMetricsBucketIdentifier::new(None), i)))
             .collect::<error_stack::Result<
-                Vec<(
+                HashSet<(
                     ActivePaymentsMetricsBucketIdentifier,
                     ActivePaymentsMetricRow,
                 )>,

@@ -5,6 +5,7 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use time::PrimitiveDateTime;
+use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -29,7 +30,7 @@ use payment_methods_call_count::PaymentMethodsCallCount;
 use sdk_initiated_count::SdkInitiatedCount;
 use sdk_rendered_count::SdkRenderedCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct SdkEventMetricRow {
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -57,7 +58,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -78,7 +79,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
             Self::PaymentAttempts => {
                 PaymentAttempts
