@@ -1,9 +1,6 @@
-import captureBody from "../../fixtures/capture-flow-body.json";
-import citConfirmBody from "../../fixtures/create-mandate-cit.json";
-import createPaymentBody from "../../fixtures/create-payment-body";
-import pmIdConfirmBody from "../../fixtures/create-pm-id-mit.json";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import * as fixtures from "../../fixtures/imports";
 
 let globalState;
 
@@ -42,7 +39,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createPaymentIntentTest(
-          createPaymentBody,
+          fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
@@ -62,7 +59,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           7000,
@@ -76,7 +73,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
     }
   );
@@ -99,7 +102,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createPaymentIntentTest(
-          createPaymentBody,
+          fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
@@ -119,7 +122,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           6500,
@@ -139,13 +142,25 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
     }
   );
@@ -170,7 +185,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           7000,
@@ -184,10 +199,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
     }
   );
@@ -212,7 +239,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           6500,
@@ -232,13 +259,25 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT 1", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 6500, true, "manual", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          6500,
+          true,
+          "manual",
+          globalState
+        );
       });
 
       it("mit-capture-call-test", () => {
@@ -248,13 +287,25 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 6500, true, "manual", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          6500,
+          true,
+          "manual",
+          globalState
+        );
       });
 
       it("mit-capture-call-test", () => {
@@ -264,7 +315,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -291,7 +348,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           7000,
@@ -305,15 +362,27 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = citConfirmBody["return_url"];
+        let expected_redirection = fixtures.citConfirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
     }
   );
@@ -338,7 +407,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           6500,
@@ -352,7 +421,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = citConfirmBody["return_url"];
+        let expected_redirection = fixtures.citConfirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
@@ -363,13 +432,25 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT", () => {
-        cy.mitUsingPMId(pmIdConfirmBody, 7000, true, "automatic", globalState);
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
       });
     }
   );
