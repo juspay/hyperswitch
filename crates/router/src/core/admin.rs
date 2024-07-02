@@ -456,6 +456,7 @@ pub async fn update_business_profile_cascade(
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
+            collect_billing_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
         };
 
@@ -1723,6 +1724,8 @@ pub async fn update_business_profile(
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
         collect_shipping_details_from_wallet_connector: request
             .collect_shipping_details_from_wallet_connector,
+        collect_billing_details_from_wallet_connector: request
+            .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
     };
 
