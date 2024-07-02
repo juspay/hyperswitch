@@ -86,13 +86,15 @@ where
     S: Strategy<Vec<u8>>,
 {
     fn from((map, identifier): (FxHashMap<String, Secret<Vec<u8>, S>>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        for (key, value) in map.iter() {
-            group.insert(
-                key.clone(),
-                DecryptedData(StrongSecret::new(value.clone().expose())),
-            );
-        }
+        let group = map
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    DecryptedData(StrongSecret::new(value.expose())),
+                )
+            })
+            .collect();
         Self {
             identifier,
             data: DecryptedDataGroup(group),
@@ -145,15 +147,17 @@ where
     fn from(
         (map, identifier): (FxHashMap<String, Secret<serde_json::Value, S>>, Identifier),
     ) -> Self {
-        let mut group = FxHashMap::default();
-        for (key, value) in map.into_iter() {
-            group.insert(
-                key.clone(),
-                DecryptedData(StrongSecret::new(
-                    value.clone().expose().to_string().as_bytes().to_vec(),
-                )),
-            );
-        }
+        let group = map
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    DecryptedData(StrongSecret::new(
+                        value.clone().expose().to_string().as_bytes().to_vec(),
+                    )),
+                )
+            })
+            .collect();
         Self {
             data: DecryptedDataGroup(group),
             identifier,
@@ -166,15 +170,17 @@ where
     S: Strategy<String>,
 {
     fn from((map, identifier): (FxHashMap<String, Secret<String, S>>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        for (key, value) in map.into_iter() {
-            group.insert(
-                key.clone(),
-                DecryptedData(StrongSecret::new(
-                    value.clone().expose().as_bytes().to_vec(),
-                )),
-            );
-        }
+        let group = map
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    DecryptedData(StrongSecret::new(
+                        value.clone().expose().as_bytes().to_vec(),
+                    )),
+                )
+            })
+            .collect();
         Self {
             data: DecryptedDataGroup(group),
             identifier,
@@ -208,16 +214,19 @@ where
     fn foreign_from(
         (masked_data, response): (FxHashMap<String, Secret<T, S>>, EncryptDataResponse),
     ) -> Self {
-        let mut encrypted = Self::default();
-        for (k, v) in response.data.0.iter() {
-            masked_data.get(k).map(|inner| {
-                encrypted.insert(
-                    k.clone(),
-                    Encryptable::new(inner.clone(), v.data.peek().clone().into()),
-                )
-            });
-        }
-        encrypted
+        response
+            .data
+            .0
+            .into_iter()
+            .flat_map(|(k, v)| {
+                masked_data.get(&k).map(|inner| {
+                    (
+                        k.clone(),
+                        Encryptable::new(inner.clone(), v.data.peek().clone().into()),
+                    )
+                })
+            })
+            .collect()
     }
 }
 
