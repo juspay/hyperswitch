@@ -81,6 +81,16 @@ services:
     volumes:
       - ../config:/etc/grafana
 
+  vector:
+    image: timberio/vector:latest
+    volumes:
+      - ../logs:/var/log/router
+      - ../config/vector.yaml:/etc/vector/vector.yaml
+    command: vector --config /etc/vector/vector.yaml
+    networks:
+      - loki
+    restart: unless-stopped
+
   # router-sc:
   #   image: rust:latest
   #   ports:
