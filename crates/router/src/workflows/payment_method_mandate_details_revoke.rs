@@ -1,4 +1,7 @@
 use common_utils::ext_traits::ValueExt;
+use diesel_models::process_tracker::business_status::{
+    COMPLETED_BY_PT, NOT_IMPLEMENTED_FOR_THE_CONNECTOR, RETRIES_EXCEEDED,
+};
 use error_stack::ResultExt;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
@@ -17,9 +20,6 @@ use crate::{
         api::{ConnectorData, GetToken},
         storage,
     },
-};
-use diesel_models::process_tracker::business_status::{
-    COMPLETED_BY_PT, NOT_IMPLEMENTED_FOR_THE_CONNECTOR, RETRIES_EXCEEDED,
 };
 
 pub struct PaymentMethodMandateDetailsRevokeWorkflow;
