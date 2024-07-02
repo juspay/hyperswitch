@@ -225,6 +225,7 @@ pub async fn generate_sample_data(
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: Default::default(),
+            billing_address_details: None,
             customer_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {

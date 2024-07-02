@@ -59,6 +59,7 @@ pub struct PaymentIntent {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub billing_address_details: Option<Encryption>,
     pub customer_details: Option<Encryption>,
 }
 
@@ -115,6 +116,7 @@ pub struct PaymentIntentNew {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub billing_address_details: Option<Encryption>,
     pub customer_details: Option<Encryption>,
 }
 
@@ -250,6 +252,7 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub billing_address_details: Option<Encryption>,
     pub customer_details: Option<Encryption>,
 }
 
@@ -286,6 +289,7 @@ impl PaymentIntentUpdate {
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            billing_address_details,
             customer_details,
         } = self.into();
         PaymentIntent {
@@ -324,6 +328,7 @@ impl PaymentIntentUpdate {
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
             frm_metadata: frm_metadata.or(source.frm_metadata),
+            billing_address_details: billing_address_details.or(source.billing_address_details),
             customer_details: customer_details.or(source.customer_details),
             ..source
         }

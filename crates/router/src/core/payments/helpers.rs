@@ -3131,6 +3131,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            billing_address_details: None,
             customer_details: None,
         };
         let req_cs = Some("1".to_string());
@@ -3191,6 +3192,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            billing_address_details: None,
             customer_details: None,
         };
         let req_cs = Some("1".to_string());
@@ -3250,6 +3252,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
+            billing_address_details: None,
             customer_details: None,
         };
         let req_cs = Some("1".to_string());

@@ -2936,7 +2936,9 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, Setter, PartialEq, ToSchema,
+)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
