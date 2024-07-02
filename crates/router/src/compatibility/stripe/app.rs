@@ -1,7 +1,9 @@
-use actix_web::{web, Scope};
-
+#[cfg(not(feature = "v2"))]
 use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
+#[cfg(feature = "v2")]
+use super::{payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
 use crate::routes::{self, mandates, webhooks};
+use actix_web::{web, Scope};
 
 pub struct PaymentIntents;
 

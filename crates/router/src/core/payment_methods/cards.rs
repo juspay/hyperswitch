@@ -3595,7 +3595,7 @@ pub async fn list_customer_payment_method(
                     get_bank_from_hs_locker(
                         state,
                         &key_store,
-                        Some(parent_payment_method_token.clone()),
+                        Some(&parent_payment_method_token),
                         &pm.customer_id,
                         &pm.merchant_id,
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
@@ -3735,6 +3735,27 @@ pub async fn list_customer_payment_method(
         customer_payment_methods: customer_pms,
         is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
     };
+
+    Box::pin(perform_surcharge_ops(
+        payment_intent,
+        state,
+        merchant_account,
+        key_store,
+        &mut response,
+    ))
+    .await?;
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+async fn perform_surcharge_ops(
+    payment_intent: Option<storage::PaymentIntent>,
+    state: &routes::SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    response: &mut api::CustomerPaymentMethodsListResponse,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    let db = &*state.store;
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
@@ -3751,7 +3772,6 @@ pub async fn list_customer_payment_method(
         })
         .await
         .transpose()?;
-
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
@@ -3774,7 +3794,6 @@ pub async fn list_customer_payment_method(
         &merchant_account.merchant_id,
     )
     .await?;
-
     if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
         .zip(payment_intent)
         .zip(business_profile)
@@ -3787,12 +3806,12 @@ pub async fn list_customer_payment_method(
             &business_profile,
             &payment_attempt,
             payment_intent,
-            &mut response,
+            response,
         )
         .await?;
     }
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -3986,10 +4005,10 @@ pub async fn list_customer_payment_method(
 
         let pmd = if let Some(card) = payment_method_retrieval_context.card_details {
             Some(api::PaymentMethodListData::Card(card))
-        } else if let Some(bank) = payment_method_retrieval_context.bank_transfer_details {
-            Some(api::PaymentMethodListData::Bank(bank))
         } else {
-            None
+            payment_method_retrieval_context
+                .bank_transfer_details
+                .map(api::PaymentMethodListData::Bank)
         };
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
@@ -4077,65 +4096,15 @@ pub async fn list_customer_payment_method(
         customer_payment_methods: customer_pms,
         is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
     };
-    let payment_attempt = if is_payment_associated {
-        payment_intent
-            .as_ref()
-            .async_map(|payment_intent| async {
-                state
-                    .store
-                    .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                        &payment_intent.payment_id,
-                        &merchant_account.merchant_id,
-                        &payment_intent.active_attempt.get_id(),
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })
-            .await
-            .transpose()?
-    } else {
-        None
-    };
 
-    let profile_id = payment_intent
-        .as_ref()
-        .async_map(|payment_intent| async {
-            crate::core::utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
-        })
-        .await
-        .transpose()?;
-
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        profile_id.as_ref(),
-        &merchant_account.merchant_id,
-    )
-    .await?;
-
-    if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
-        .zip(payment_intent)
-        .zip(business_profile)
-        .map(|((pa, pi), bp)| (pa, pi, bp))
-    {
-        call_surcharge_decision_management_for_saved_card(
-            state,
-            &merchant_account,
-            &key_store,
-            &business_profile,
-            &payment_attempt,
+    if is_payment_associated {
+        Box::pin(perform_surcharge_ops(
             payment_intent,
+            state,
+            merchant_account,
+            key_store,
             &mut response,
-        )
+        ))
         .await?;
     }
 

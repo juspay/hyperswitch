@@ -4,9 +4,10 @@ pub mod payment_intents;
 pub mod refunds;
 pub mod setup_intents;
 pub mod webhooks;
+#[cfg(not(feature = "v2"))]
 use actix_web::{web, Scope};
 pub mod errors;
-
+#[cfg(not(feature = "v2"))]
 use crate::routes;
 pub struct StripeApis;
 

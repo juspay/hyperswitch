@@ -3,6 +3,9 @@ use api_models::{
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
+#[cfg(not(feature = "v2"))]
+use common_utils::{ext_traits::StringExt, types as common_utils_types};
+#[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{OptionExt, StringExt},
     types as common_utils_types,
