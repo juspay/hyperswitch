@@ -7228,7 +7228,6 @@
       },
       "CaptureStatus": {
         "type": "string",
-        "description": "The status of the capture",
         "enum": [
           "started",
           "charged",

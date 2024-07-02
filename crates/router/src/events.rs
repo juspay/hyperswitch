@@ -23,6 +23,7 @@ pub mod outgoing_webhook_logs;
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
     PaymentIntent,
+    FraudCheck,
     PaymentAttempt,
     Refund,
     ApiLogs,

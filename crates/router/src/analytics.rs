@@ -14,9 +14,10 @@ pub mod routes {
         },
         GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
         GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
@@ -55,6 +56,9 @@ pub mod routes {
                                 .route(web::post().to(get_payment_filters)),
                         )
                         .service(
+                            web::resource("filters/frm").route(web::post().to(get_frm_filters)),
+                        )
+                        .service(
                             web::resource("filters/refunds")
                                 .route(web::post().to(get_refund_filters)),
                         )
@@ -86,6 +90,9 @@ pub mod routes {
                         .service(
                             web::resource("metrics/auth_events")
                                 .route(web::post().to(get_auth_event_metrics)),
+                        )
+                        .service(
+                            web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
                         )
                         .service(
                             web::resource("api_event_logs").route(web::get().to(get_api_events)),
@@ -263,6 +270,38 @@ pub mod routes {
                 )
                 .await
                 .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetFrmMetricRequest` element.
+    pub async fn get_frm_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetFrmMetricRequest; 1]>,
+    ) -> impl Responder {
+        #[allow(clippy::expect_used)]
+        // safety: This shouldn't panic owing to the data type
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetFrmMetricRequest");
+        let flow = AnalyticsFlow::GetFrmMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::frm::get_metrics(&state.pool, &auth.merchant_account.merchant_id, req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -451,6 +490,28 @@ pub mod routes {
                 )
                 .await
                 .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_frm_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetFrmFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetFrmFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req: GetFrmFilterRequest, _| async move {
+                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

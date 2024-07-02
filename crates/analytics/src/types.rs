@@ -15,6 +15,7 @@ use crate::errors::AnalyticsError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
+    Frm,
     PaymentIntents,
     AuthEvents,
     SdkEvents,
@@ -26,6 +27,7 @@ pub enum AnalyticsDomain {
 pub enum AnalyticsCollection {
     Payment,
     Refund,
+    FraudCheck,
     SdkEvents,
     SdkEventsAnalytics,
     ApiEvents,

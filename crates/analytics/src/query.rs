@@ -6,6 +6,7 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
         payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
@@ -19,7 +20,7 @@ use api_models::{
     refunds::RefundStatus,
 };
 use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
@@ -372,10 +373,12 @@ impl_to_sql_for_to_string!(
     &PaymentDimensions,
     &PaymentIntentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
     PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
@@ -383,9 +386,11 @@ impl_to_sql_for_to_string!(
     AttemptStatus,
     IntentStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
     Flow,
     &String,
     &bool,
