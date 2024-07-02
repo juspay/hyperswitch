@@ -18,6 +18,9 @@ use crate::{
         storage,
     },
 };
+use diesel_models::process_tracker::business_status::{
+    COMPLETED_BY_PT, NOT_IMPLEMENTED_FOR_THE_CONNECTOR, RETRIES_EXCEEDED,
+};
 
 pub struct PaymentMethodMandateDetailsRevokeWorkflow;
 
@@ -33,7 +36,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
             .tracking_data
             .clone()
             .parse_value::<storage::PaymentMethodMandateRevokeTrackingData>(
-            "PaymentMethodMandateDetailsRevokeWorkflow",
+            "PaymentMethodMandateRevokeTrackingData",
         )?;
 
         let key_store = db
@@ -93,7 +96,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
         match response.response {
             Ok(_mandate) => {
                 db.as_scheduler()
-                    .finish_process_with_business_status(process, "COMPLETED_BY_PT")
+                    .finish_process_with_business_status(process, COMPLETED_BY_PT)
                     .await?;
             }
             Err(err) => {
@@ -102,7 +105,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                     db.as_scheduler()
                         .finish_process_with_business_status(
                             process,
-                            "NOT IMPLEMENTED FOR THE CONNECTOR",
+                            NOT_IMPLEMENTED_FOR_THE_CONNECTOR,
                         )
                         .await?;
                 } else {
@@ -123,7 +126,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                             .map_err(Into::<errors::ProcessTrackerError>::into)?,
                         None => db
                             .as_scheduler()
-                            .finish_process_with_business_status(process, "RETRIES_EXCEEDED")
+                            .finish_process_with_business_status(process, RETRIES_EXCEEDED)
                             .await
                             .map_err(Into::<errors::ProcessTrackerError>::into)?,
                     };

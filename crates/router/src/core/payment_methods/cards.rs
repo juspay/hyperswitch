@@ -3795,7 +3795,8 @@ pub async fn get_mca_status(
     }
     Ok(false)
 }
-pub async fn get_all_mcas(
+
+async fn get_all_mcas(
     db: &dyn db::StorageInterface,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
