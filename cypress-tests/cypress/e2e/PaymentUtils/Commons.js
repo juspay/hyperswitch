@@ -41,6 +41,40 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 /*
 `getDefaultExchange` contains the default Request and Response to be considered if none provided.
 `getCustomExchange` takes in 2 optional fields named as Request and Response.
@@ -64,6 +98,22 @@ const getDefaultExchange = () => ({
   },
 });
 
+const getUnsupportedExchange = () => ({
+  Request: {
+    currency: "EUR",
+  },
+  Response: {
+    status: 400,
+    body: {
+      error: {
+        type: "invalid_request",
+        message: `Payment method type not supported`,
+        code: "HE_03",
+      },
+    },
+  },
+});
+
 // Const to get PaymentExchange with overridden properties
 export const getCustomExchange = (overrides) => {
   const defaultExchange = getDefaultExchange();
@@ -79,6 +129,11 @@ export const getCustomExchange = (overrides) => {
       ...(overrides.Response || {}),
     },
   };
+};
+
+// Function to update the default status code
+export const updateDefaultStatusCode = () => {
+  return getUnsupportedExchange().Response;
 };
 
 export const payment_methods_enabled = [
@@ -278,306 +333,6 @@ export const payment_methods_enabled = [
 ];
 
 export const connectorDetails = {
-  card_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    "3DSManualCapture": getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
-    "3DSAutoCapture": getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
-    No3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
-    No3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
-    Capture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
-    PartialCapture: getCustomExchange({
-      Request: {},
-    }),
-    Void: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            code: "IR_16",
-            message:
-              "You cannot cancel this payment because it has status processing",
-            type: "invalid_request",
-          },
-        },
-      },
-    }),
-    Refund: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
-    PartialRefund: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
-    SyncRefund: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
-    MandateSingleUse3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateSingleUse3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateSingleUseNo3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateMultiUseNo3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateMultiUse3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    MandateMultiUse3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    ZeroAuthMandate: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
-    SaveCardUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-    SaveCardUseNo3DSManualCapture: getCustomExchange({
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
-      Request: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
-      Request: {
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
-      Request: {
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-    }),
-  },
   bank_transfer_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -792,6 +547,311 @@ export const connectorDetails = {
       },
     }),
   },
+  card_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    "3DSManualCapture": getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    "3DSAutoCapture": getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    No3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    No3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+    }),
+    PartialCapture: getCustomExchange({
+      Request: {},
+    }),
+    Void: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+          capture_method: "manual",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+    }),
+    MandateSingleUse3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+    }),
+    MandateSingleUse3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+    }),
+    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+    }),
+    MandateSingleUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+    }),
+    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+    }),
+    MandateMultiUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+    }),
+    MandateMultiUse3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+    }),
+    MandateMultiUse3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+    }),
+    ZeroAuthMandate: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+    }),
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+  },
   upi_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -811,7 +871,7 @@ export const connectorDetails = {
         payment_method_data: {
           upi: {
             upi_collect: {
-              vpa_id: "successtest@ita",
+              vpa_id: "successtest@iata",
             },
           },
         },

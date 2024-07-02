@@ -141,7 +141,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_creation",
+            status: "requires_confirmation",
             payout_type: "bank",
           },
         },
