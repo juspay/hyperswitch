@@ -56,6 +56,7 @@ pub async fn initiate_payment_link_flow(
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_id,
             &key_store,
@@ -512,6 +513,7 @@ pub async fn get_payment_link_status(
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_id,
             &key_store,

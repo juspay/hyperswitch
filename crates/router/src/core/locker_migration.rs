@@ -21,6 +21,7 @@ pub async fn rust_locker_migration(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -28,13 +29,13 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let domain_customers = db
-        .list_customers_by_merchant_id(merchant_id, &key_store)
+        .list_customers_by_merchant_id(&state, merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

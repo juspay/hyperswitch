@@ -1,18 +1,19 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto, date_time,
+    crypto::{self, Encryptable},
+    date_time,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-use diesel_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
+use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::{
-    behaviour,
-    types::{self, AsyncLift},
-};
+use super::{behaviour, types};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -73,8 +74,10 @@ impl behaviour::Conversion for CustomerAddress {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -84,7 +87,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -117,8 +120,10 @@ impl behaviour::Conversion for PaymentAddress {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -129,7 +134,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -180,36 +185,45 @@ impl behaviour::Conversion for Address {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
-        async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: other.id,
-                address_id: other.address_id,
-                city: other.city,
-                country: other.country,
-                line1: other.line1.async_lift(inner_decrypt).await?,
-                line2: other.line2.async_lift(inner_decrypt).await?,
-                line3: other.line3.async_lift(inner_decrypt).await?,
-                state: other.state.async_lift(inner_decrypt).await?,
-                zip: other.zip.async_lift(inner_decrypt).await?,
-                first_name: other.first_name.async_lift(inner_decrypt).await?,
-                last_name: other.last_name.async_lift(inner_decrypt).await?,
-                phone_number: other.phone_number.async_lift(inner_decrypt).await?,
-                country_code: other.country_code,
-                created_at: other.created_at,
-                modified_at: other.modified_at,
-                updated_by: other.updated_by,
-                merchant_id: other.merchant_id,
-                email: other.email.async_lift(inner_decrypt_email).await?,
-            })
-        }
+        let identifier = Identifier::Merchant(other.merchant_id.clone());
+        let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(
+            state,
+            diesel_models::Address::to_encryptable(other.clone()),
+            identifier.clone(),
+            key.peek(),
+        )
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting".to_string(),
+        })?;
+        let encryptable_address = diesel_models::Address::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting".to_string(),
+            })?;
+        Ok(Self {
+            id: other.id,
+            address_id: other.address_id,
+            city: other.city,
+            country: other.country,
+            line1: encryptable_address.line1,
+            line2: encryptable_address.line2,
+            line3: encryptable_address.line3,
+            state: encryptable_address.state,
+            zip: encryptable_address.zip,
+            first_name: encryptable_address.first_name,
+            last_name: encryptable_address.last_name,
+            phone_number: encryptable_address.phone_number,
+            country_code: other.country_code,
+            created_at: other.created_at,
+            modified_at: other.modified_at,
+            updated_by: other.updated_by,
+            merchant_id: other.merchant_id,
+            email: encryptable_address.email,
         })
     }
 

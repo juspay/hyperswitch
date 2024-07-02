@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 default = ["olap", "payouts"]
+encryption_service =[]
 olap = []
 payouts = ["api_models/payouts"]
 
@@ -29,6 +30,8 @@ async-trait = "0.1.79"
 error-stack = "0.4.1"
 http = "0.2.12"
 mime = "0.3.17"
+rdkafka = "0.36.2"
+rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 serde_with = "3.7.0"

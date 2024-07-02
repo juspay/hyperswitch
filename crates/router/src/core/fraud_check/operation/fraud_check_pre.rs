@@ -16,7 +16,6 @@ use crate::{
         },
         payments,
     },
-    db::StorageInterface,
     errors,
     routes::app::ReqState,
     types::{
@@ -218,7 +217,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
 impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
         payment_data: &mut payments::PaymentData<F>,
@@ -337,6 +336,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
             }),
         };
 
+        let db = &*state.store;
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db
                 .update_fraud_check_response_with_attempt_id(

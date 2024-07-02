@@ -1,6 +1,7 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
     date_time,
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -32,14 +33,17 @@ impl super::behaviour::Conversion for UserKeyStore {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
+        let identifier = Identifier::User(item.user_id.clone());
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key.peek(), GcmAes256)
+            key: Encryptable::decrypt_via_api(state, item.key, identifier, key.peek(), GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

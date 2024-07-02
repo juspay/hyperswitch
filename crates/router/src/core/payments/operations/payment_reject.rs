@@ -48,6 +48,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -79,7 +80,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -89,7 +90,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         .await?;
 
         let billing_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -99,7 +100,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
-            db,
+            state,
             payment_attempt.payment_method_billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -234,6 +235,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent,
                 intent_status_update,
                 key_store,

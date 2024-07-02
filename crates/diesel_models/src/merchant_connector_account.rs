@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use common_utils::pii;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_connector_account};
+use crate::{enums as storage_enums, schema::merchant_connector_account};
 
 #[derive(
     Clone,

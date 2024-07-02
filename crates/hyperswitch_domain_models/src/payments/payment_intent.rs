@@ -2,7 +2,7 @@ use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     id_type, pii,
-    types::MinorUnit,
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -13,6 +13,7 @@ use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
+        state: &KeyManagerState,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
@@ -21,6 +22,7 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
+        state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -28,6 +30,7 @@ pub trait PaymentIntentInterface {
 
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         payment_id: &str,
         merchant_id: &str,
         merchant_key_store: &MerchantKeyStore,
@@ -43,6 +46,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -52,6 +56,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
@@ -61,6 +66,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,

@@ -55,6 +55,7 @@ pub async fn refund_create_core(
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &req.payment_id,
             merchant_id,
             &key_store,
@@ -362,6 +363,7 @@ pub async fn refund_retrieve_core(
     let payment_id = refund.payment_id.as_str();
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             payment_id,
             merchant_id,
             &key_store,
@@ -1004,6 +1006,7 @@ pub async fn sync_refund_with_gateway_workflow(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            state,
             &refund_core.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1011,7 +1014,7 @@ pub async fn sync_refund_with_gateway_workflow(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(state, &refund_core.merchant_id, &key_store)
         .await?;
 
     let response = Box::pin(refund_retrieve_core(
@@ -1090,13 +1093,14 @@ pub async fn trigger_refund_execute_workflow(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            state,
             &refund_core.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(state, &refund_core.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1111,7 +1115,7 @@ pub async fn trigger_refund_execute_workflow(
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let merchant_account = db
-                .find_merchant_account_by_merchant_id(&refund.merchant_id, &key_store)
+                .find_merchant_account_by_merchant_id(state, &refund.merchant_id, &key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1127,6 +1131,7 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
+                    &(state.into()),
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
                     &key_store,

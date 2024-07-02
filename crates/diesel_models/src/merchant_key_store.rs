@@ -1,8 +1,8 @@
-use common_utils::custom_serde;
+use common_utils::{custom_serde, encryption::Encryption};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, schema::merchant_key_store};
+use crate::schema::merchant_key_store;
 
 #[derive(
     Clone,

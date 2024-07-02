@@ -19,7 +19,6 @@ use crate::{
         },
         payments,
     },
-    db::StorageInterface,
     errors,
     routes::app::ReqState,
     services::{self, api},
@@ -329,13 +328,14 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
 impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
         payment_data: &mut payments::PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
+        let db = &*state.store;
         let frm_check_update = match frm_router_data.response {
             FrmResponse::Sale(response) => match response {
                 Err(err) => Some(FraudCheckUpdate::ErrorUpdate {
@@ -515,6 +515,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
 
             payment_data.payment_intent = db
                 .update_payment_intent(
+                    &state.into(),
                     payment_data.payment_intent.clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,

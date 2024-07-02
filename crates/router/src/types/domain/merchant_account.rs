@@ -1,12 +1,13 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
+    encryption::Encryption,
     ext_traits::ValueExt,
     pii,
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use diesel_models::{
-    encryption::Encryption, enums::MerchantStorageScheme,
-    merchant_account::MerchantAccountUpdateInternal,
+    enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -188,12 +189,15 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
+        let identifier = Identifier::Merchant(item.merchant_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -204,11 +208,15 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| {
+                        types::decrypt(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| {
+                        types::decrypt(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,

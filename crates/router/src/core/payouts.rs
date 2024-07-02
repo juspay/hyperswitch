@@ -700,6 +700,7 @@ pub async fn payouts_list_core(
             Ok(payout_attempt) => {
                 match db
                     .find_customer_by_customer_id_merchant_id(
+                        &state,
                         &payouts.customer_id,
                         merchant_id,
                         &key_store,
@@ -790,7 +791,14 @@ pub async fn payouts_filtered_list_core(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
-        match domain::Customer::convert_back(c, &key_store.key).await {
+        match domain::Customer::convert_back(
+            &(&state).into(),
+            c,
+            &key_store.key,
+            key_store.merchant_id.clone(),
+        )
+        .await
+        {
             Ok(domain_cust) => Some((p, pa, domain_cust)),
             Err(err) => {
                 logger::warn!(
@@ -1055,6 +1063,7 @@ pub async fn create_recipient(
                     {
                         payout_data.customer_details = Some(
                             db.update_customer_by_customer_id_merchant_id(
+                                state,
                                 customer_id,
                                 merchant_id,
                                 customer,
@@ -1983,7 +1992,7 @@ pub async fn payout_create_db_entries(
 
     // Get or create address
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
-        db,
+        state,
         req.billing.as_ref(),
         None,
         merchant_id,
@@ -2135,7 +2144,7 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
-        db,
+        state,
         None,
         Some(&payouts.address_id.to_owned()),
         merchant_id,
@@ -2148,6 +2157,7 @@ pub async fn make_payout_data(
 
     let customer_details = db
         .find_customer_optional_by_customer_id_merchant_id(
+            state,
             &payouts.customer_id.to_owned(),
             merchant_id,
             key_store,

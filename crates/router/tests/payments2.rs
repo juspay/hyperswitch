@@ -52,6 +52,7 @@ async fn payments_create_core() {
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state,
             "juspay_merchant",
             &state.store.get_master_key().to_vec().into(),
         )
@@ -60,7 +61,7 @@ async fn payments_create_core() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
+        .find_merchant_account_by_merchant_id(&state, "juspay_merchant", &key_store)
         .await
         .unwrap();
 
@@ -247,6 +248,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state,
             "juspay_merchant",
             &state.store.get_master_key().to_vec().into(),
         )
@@ -255,7 +257,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
+        .find_merchant_account_by_merchant_id(&state, "juspay_merchant", &key_store)
         .await
         .unwrap();
 

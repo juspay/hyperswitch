@@ -16,10 +16,7 @@ use crate::{
             PaymentAddress,
         },
     },
-    routes::{
-        app::{ReqState, StorageInterface},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -59,6 +56,7 @@ impl<F: Send + Clone>
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -179,7 +177,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b SessionState,
+        state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -224,7 +222,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_intent.amount,
         };
-        let authorization = db
+        let authorization = state
             .store
             .insert_authorization(authorization_new.clone())
             .await
@@ -236,9 +234,10 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             })
             .attach_printable("failed while inserting new authorization")?;
         // Update authorization_count in payment_intent
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {
                     authorization_count: new_authorization_count,
@@ -295,7 +294,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _db: &dyn StorageInterface,
+        _state: &SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,

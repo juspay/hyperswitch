@@ -149,7 +149,7 @@ pub async fn create_routing_config(
         .await?;
 
         helpers::validate_connectors_in_routing_config(
-            db,
+            &state,
             &key_store,
             &merchant_account.merchant_id,
             &profile_id,
@@ -237,7 +237,7 @@ pub async fn create_routing_config(
             let key =
                 cache::CacheKind::Routing(format!("dsl_{}", &merchant_account.merchant_id).into());
 
-            helpers::update_merchant_active_algorithm_ref(db, &key_store, key, algorithm_ref)
+            helpers::update_merchant_active_algorithm_ref(&state, &key_store, key, algorithm_ref)
                 .await?;
         }
 

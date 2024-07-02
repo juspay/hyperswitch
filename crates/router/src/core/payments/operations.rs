@@ -28,7 +28,6 @@ pub use self::{
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    db::StorageInterface,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -117,7 +116,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -258,7 +257,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -273,7 +272,7 @@ where
         Ok((
             Box::new(self),
             helpers::get_customer_from_details(
-                db,
+                state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
                 payment_data,
@@ -340,7 +339,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -355,7 +354,7 @@ where
         Ok((
             Box::new(self),
             helpers::get_customer_from_details(
-                db,
+                state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
                 payment_data,
@@ -413,7 +412,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -428,7 +427,7 @@ where
         Ok((
             Box::new(self),
             helpers::get_customer_from_details(
-                db,
+                state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
                 payment_data,
@@ -487,7 +486,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _db: &dyn StorageInterface,
+        _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,

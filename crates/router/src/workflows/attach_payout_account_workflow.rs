@@ -34,13 +34,14 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                state,
                 merchant_id.as_ref(),
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(state, &merchant_id, &key_store)
             .await?;
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);

@@ -15,6 +15,7 @@ use common_utils::{
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
     generate_id,
+    types::keymanager::Identifier,
 };
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
@@ -96,7 +97,7 @@ pub async fn create_link_token(
     > = connector.connector.get_connector_integration();
 
     let payment_intent = oss_helpers::verify_payment_intent_time_and_client_secret(
-        &*state.store,
+        &state,
         &merchant_account,
         &key_store,
         payload.client_secret,
@@ -107,7 +108,7 @@ pub async fn create_link_token(
         .as_ref()
         .async_map(|pi| async {
             oss_helpers::get_address_by_id(
-                &*state.store,
+                &state,
                 pi.billing_address_id.clone(),
                 &key_store,
                 &pi.payment_id,
@@ -125,6 +126,7 @@ pub async fn create_link_token(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &state,
             merchant_account.merchant_id.as_str(),
             &selected_config.mca_id,
             &key_store,
@@ -219,6 +221,7 @@ pub async fn exchange_token_core(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &state,
             merchant_account.merchant_id.as_str(),
             &config.mca_id,
             &key_store,
@@ -279,6 +282,7 @@ async fn store_bank_details_in_payment_methods(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payload.payment_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -311,7 +315,9 @@ async fn store_bank_details_in_payment_methods(
     for pm in payment_methods {
         if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
             let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
+                &(&state).into(),
                 pm.payment_method_data.clone(),
+                Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
@@ -419,7 +425,7 @@ async fn store_bank_details_in_payment_methods(
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&state, &key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
@@ -430,7 +436,7 @@ async fn store_bank_details_in_payment_methods(
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&state, &key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
@@ -674,12 +680,13 @@ pub async fn retrieve_payment_method_from_auth_service(
     )?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&payment_intent.merchant_id, key_store)
+        .find_merchant_account_by_merchant_id(state, &payment_intent.merchant_id, key_store)
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            state,
             &payment_intent.merchant_id,
             &auth_token.connector_details.mca_id,
             key_store,
@@ -726,7 +733,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     }
 
     let address = oss_helpers::get_address_by_id(
-        &*state.store,
+        state,
         payment_intent.billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id,

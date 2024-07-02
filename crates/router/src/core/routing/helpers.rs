@@ -15,6 +15,7 @@ use storage_impl::redis::cache;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
+    routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
@@ -186,7 +187,7 @@ pub async fn update_routing_algorithm(
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
 pub async fn update_merchant_active_algorithm_ref(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     config_key: cache::CacheKind<'_>,
     algorithm_id: routing_types::RoutingAlgorithmRef,
@@ -217,8 +218,9 @@ pub async fn update_merchant_active_algorithm_ref(
         default_profile: None,
         payment_link_config: None,
     };
-
+    let db = &*state.store;
     db.update_specific_fields_in_merchant(
+        state,
         &key_store.merchant_id,
         merchant_account_update,
         key_store,
@@ -299,14 +301,16 @@ pub async fn update_business_profile_active_algorithm_ref(
 }
 
 pub async fn validate_connectors_in_routing_config(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
     profile_id: &str,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
-    let all_mcas = db
+    let all_mcas = &*state
+        .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            state,
             merchant_id,
             true,
             key_store,

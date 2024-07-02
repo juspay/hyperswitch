@@ -162,7 +162,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
-            &*state.store,
+            state,
             &mut payment_data,
             customer_details,
             &key_store,
@@ -205,8 +205,6 @@ where
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
         let mut frm_info = None;
-        #[cfg(feature = "frm")]
-        let db = &*state.store;
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
@@ -214,7 +212,6 @@ where
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
             Box::pin(frm_core::call_frm_before_connector_call(
-                db,
                 &operation,
                 &merchant_account,
                 &mut payment_data,
@@ -1158,6 +1155,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 &merchant_id,
                 &merchant_key_store,
@@ -2672,7 +2670,7 @@ pub async fn list_payments(
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
-        db,
+        &state,
         &constraints,
         merchant_id,
         &key_store,
@@ -2744,6 +2742,7 @@ pub async fn apply_filters_on_payments(
     let db = state.store.as_ref();
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
+            &(&state).into(),
             &merchant.merchant_id,
             &constraints.clone().into(),
             &merchant_key_store,
@@ -2797,6 +2796,7 @@ pub async fn get_filters_for_payments(
     let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
+            &(&state).into(),
             &merchant.merchant_id,
             &time_range,
             &merchant_key_store,
@@ -3906,6 +3906,7 @@ pub async fn payment_external_authentication(
     let payment_id = req.payment_id;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             merchant_id,
             &key_store,
@@ -3939,6 +3940,7 @@ pub async fn payment_external_authentication(
             state
                 .store
                 .find_customer_by_customer_id_merchant_id(
+                    &state,
                     customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
@@ -3961,7 +3963,7 @@ pub async fn payment_external_authentication(
     let currency = payment_attempt.currency.get_required_value("currency")?;
     let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.shipping_address_id.as_deref(),
         merchant_id,
@@ -3972,7 +3974,7 @@ pub async fn payment_external_authentication(
     )
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.billing_address_id.as_deref(),
         merchant_id,

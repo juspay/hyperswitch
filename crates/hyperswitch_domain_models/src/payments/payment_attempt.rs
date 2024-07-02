@@ -2,7 +2,7 @@ use api_models::enums::Connector;
 use common_enums as storage_enums;
 use common_utils::{
     errors::{CustomResult, ValidationError},
-    types::MinorUnit,
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -519,8 +519,10 @@ impl behaviour::Conversion for PaymentIntent {
     }
 
     async fn convert_back(
+        _state: &KeyManagerState,
         storage_model: Self::DstType,
         _key: &masking::Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
