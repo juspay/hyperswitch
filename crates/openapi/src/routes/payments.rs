@@ -1,12 +1,12 @@
 /// Payments - Create
 ///
-/// **Creates a payment object when amount and currency are passed.** 
-/// 
+/// **Creates a payment object when amount and currency are passed.**
+///
 /// This API is also used to create a mandate by passing the `mandate_object`.
 ///
 /// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request **by attaching a payment method, setting `confirm=true` and `capture_method = automatic`** in the *Payments/Create API* request.
-/// 
-/// Otherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests - 
+///
+/// Otherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests -
 ///
 /// 1. Payments - Create
 ///
@@ -17,7 +17,7 @@
 /// 4. Payments - Capture.
 ///
 /// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
-/// 
+///
 /// This page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.
 #[utoipa::path(
     post,
