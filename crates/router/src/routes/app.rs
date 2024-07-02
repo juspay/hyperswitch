@@ -903,7 +903,11 @@ pub struct PaymentMethods;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
+        #[cfg(feature = "v2")]
+        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+        #[cfg(not(feature = "v2"))]
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
+
         #[cfg(feature = "olap")]
         {
             route = route.service(
@@ -919,7 +923,6 @@ impl PaymentMethods {
                         .route(web::post().to(create_payment_method_api))
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
-                .service(web::resource("/v2").route(web::post().to(create_payment_method_api_v2)))
                 .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
                 )
@@ -941,14 +944,19 @@ impl PaymentMethods {
                         .route(web::post().to(save_payment_method_api)),
                 )
                 .service(
-                    web::resource("/v2/{payment_method_id}/save")
-                        .route(web::post().to(save_payment_method_api_v2)),
-                )
-                .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
                 )
                 .service(
                     web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
+                )
+        }
+        #[cfg(all(feature = "oltp", feature = "v2"))]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(create_payment_method_api)))
+                .service(
+                    web::resource("/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api)),
                 )
         }
         route

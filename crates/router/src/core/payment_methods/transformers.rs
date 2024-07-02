@@ -321,6 +321,11 @@ pub fn mk_add_bank_response_hs(
         payment_method_id: bank_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        #[cfg(not(feature = "v2"))]
+        bank_transfer: Some(bank),
+        #[cfg(not(feature = "v2"))]
+        card: None,
+        #[cfg(feature = "v2")]
         payment_method_data: Some(api::PaymentMethodResponseData::BankTransfer(bank)),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
@@ -365,6 +370,11 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        #[cfg(all(feature = "payouts", not(feature = "v2")))]
+        bank_transfer: None,
+        #[cfg(not(feature = "v2"))]
+        card: Some(card),
+        #[cfg(feature = "v2")]
         payment_method_data: Some(api::PaymentMethodResponseData::Card(card)),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),

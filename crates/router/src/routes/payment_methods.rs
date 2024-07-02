@@ -38,7 +38,6 @@ pub async fn create_payment_method_api(
                 req,
                 auth.merchant_account,
                 auth.key_store,
-                false,
             ))
             .await
         },
@@ -48,35 +47,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
-pub async fn create_payment_method_api_v2(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
-) -> HttpResponse {
-    let flow = Flow::PaymentMethodsCreate;
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth, req, _| async move {
-            Box::pin(cards::get_client_secret_or_add_payment_method(
-                state,
-                req,
-                auth.merchant_account,
-                auth.key_store,
-                true,
-            ))
-            .await
-        },
-        &auth::ApiKeyAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
+#[cfg(not(feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(
     state: web::Data<AppState>,
@@ -112,8 +83,9 @@ pub async fn save_payment_method_api(
     .await
 }
 
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
-pub async fn save_payment_method_api_v2(
+pub async fn save_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
@@ -133,7 +105,7 @@ pub async fn save_payment_method_api_v2(
         &req,
         payload,
         |state, auth, req, _| {
-            Box::pin(cards::add_payment_method_v2(
+            Box::pin(cards::add_payment_method(
                 state,
                 req,
                 auth.merchant_account,

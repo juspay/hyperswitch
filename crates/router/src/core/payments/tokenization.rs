@@ -205,12 +205,15 @@ where
                     .await?
                 };
 
-                let pm_card_details = match resp.payment_method_data.as_ref() {
-                    Some(api::PaymentMethodResponseData::Card(card)) => Some(
-                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())),
+                #[cfg(feature = "v2")]
+                let pm_card_details = match &resp.payment_method_data {
+                    Some(api::PaymentMethodResponseData::Card(card_data)) => Some(
+                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card_data.clone())),
                     ),
                     _ => None,
                 };
+                #[cfg(not(feature = "v2"))]
+                let pm_card_details = resp.card.clone().map(CardDetailsPaymentMethod::from);
 
                 let pm_data_encrypted =
                     payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
@@ -673,7 +676,12 @@ async fn skip_saving_card_in_locker(
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
+                #[cfg(feature = "v2")]
                 payment_method_data: Some(api::PaymentMethodResponseData::Card(card_detail)),
+                #[cfg(not(feature = "v2"))]
+                card: Some(card_detail),
+                #[cfg(all(feature = "payouts", not(feature = "v2")))]
+                bank_transfer: None,
                 recurring_enabled: false,
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -700,7 +708,12 @@ async fn skip_saving_card_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                #[cfg(feature = "v2")]
                 payment_method_data: None,
+                #[cfg(not(feature = "v2"))]
+                card: None,
+                #[cfg(all(feature = "payouts", not(feature = "v2")))]
+                bank_transfer: None,
             };
             Ok((payment_method_response, None))
         }
@@ -750,7 +763,12 @@ pub async fn save_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                #[cfg(feature = "v2")]
                 payment_method_data: None,
+                #[cfg(not(feature = "v2"))]
+                card: None,
+                #[cfg(all(feature = "payouts", not(feature = "v2")))]
+                bank_transfer: None,
             };
             Ok((payment_method_response, None))
         }

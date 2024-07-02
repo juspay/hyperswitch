@@ -84,6 +84,11 @@ impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMetho
             payment_method_id: item.payment_method_id,
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
+            #[cfg(all(feature = "payouts", not(feature = "v2")))]
+            bank_transfer: None,
+            #[cfg(not(feature = "v2"))]
+            card: None,
+            #[cfg(feature = "v2")]
             payment_method_data: None,
             recurring_enabled: false,
             installment_payment_enabled: false,
