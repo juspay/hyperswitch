@@ -10,7 +10,7 @@ use crate::{
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::{metrics, SessionState},
-    services::ApplicationResponse,
+    services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
@@ -148,6 +148,26 @@ pub async fn create_api_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
 
+    let state_inner = state.clone();
+    let hashed_api_key = api_key.hashed_api_key.clone();
+    let merchant_id_inner = merchant_id.clone();
+    let key_id = api_key.key_id.clone();
+    let expires_at = api_key.expires_at;
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_api_key(
+                &state_inner,
+                hashed_api_key.into_inner().into(),
+                merchant_id_inner,
+                key_id,
+                expires_at.map(authentication::decision::convert_expiry),
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
+
     metrics::API_KEY_CREATED.add(
         &metrics::CONTEXT,
         1,
@@ -277,6 +297,25 @@ pub async fn update_api_key(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
+    let state_inner = state.clone();
+    let hashed_api_key = api_key.hashed_api_key.clone();
+    let key_id_inner = api_key.key_id.clone();
+    let expires_at = api_key.expires_at;
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_api_key(
+                &state_inner,
+                hashed_api_key.into_inner().into(),
+                merchant_id.clone(),
+                key_id_inner,
+                expires_at.map(authentication::decision::convert_expiry),
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
+
     #[cfg(feature = "email")]
     {
         let expiry_reminder_days = state.conf.api_keys.get_inner().expiry_reminder_days.clone();
@@ -402,10 +441,29 @@ pub async fn revoke_api_key(
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
+
+    let api_key = store
+        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+
     let revoked = store
         .revoke_api_key(merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+
+    if let Some(api_key) = api_key {
+        let hashed_api_key = api_key.hashed_api_key;
+        let state = state.clone();
+
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::revoke_api_key(&state, hashed_api_key.into_inner().into())
+                    .await
+            },
+            authentication::decision::REVOKE,
+        );
+    }
 
     metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 

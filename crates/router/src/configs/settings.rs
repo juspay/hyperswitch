@@ -125,6 +125,7 @@ pub struct Settings<S: SecretState> {
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
+    pub decision: Option<DecisionConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -144,6 +145,11 @@ impl Multitenancy {
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DecisionConfig {
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
