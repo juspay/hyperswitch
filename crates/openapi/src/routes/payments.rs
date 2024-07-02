@@ -1,10 +1,12 @@
 /// Payments - Create
 ///
-/// **Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.
+/// **Creates a payment object when amount and currency are passed.** 
+/// 
+/// This API is also used to create a mandate by passing the `mandate_object`.
 ///
-/// To completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.
-///
-/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:
+/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request **by attaching a payment method, setting `confirm=true` and `capture_method = automatic`** in the *Payments/Create API* request.
+/// 
+/// Otherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests - 
 ///
 /// 1. Payments - Create
 ///
@@ -14,7 +16,9 @@
 ///
 /// 4. Payments - Capture.
 ///
-/// Use the client secret returned in this API along with your publishable key to make subsequent API calls from your client
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
+/// 
+/// This page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.
 #[utoipa::path(
     post,
     path = "/payments",
@@ -87,7 +91,7 @@
                     "setup_future_usage": "off_session",
                     "mandate_data": {
                       "customer_acceptance": {
-                        "acceptance_type": "offline",
+                        "acceptance_type": "online",
                         "accepted_at": "1963-05-03T04:07:52.723Z",
                         "online": {
                           "ip_address": "127.0.0.1",
@@ -102,7 +106,7 @@
                       }
                     },
                     "customer_acceptance": {
-                      "acceptance_type": "offline",
+                      "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
                       "online": {
                         "ip_address": "127.0.0.1",
@@ -141,6 +145,14 @@
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
                         "card_cvc": "123"
+                      }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
                     },
                     "setup_future_usage": "off_session"
@@ -312,7 +324,7 @@ pub fn payments_update() {}
                 }
               },
               "customer_acceptance": {
-                "acceptance_type": "offline",
+                "acceptance_type": "online",
                 "accepted_at": "1963-05-03T04:07:52.723Z",
                 "online": {
                   "ip_address": "127.0.0.1",

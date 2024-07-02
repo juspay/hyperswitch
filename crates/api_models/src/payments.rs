@@ -251,12 +251,12 @@ pub struct PaymentsRequest {
     #[mandatory_in(PaymentsCreateRequest = Currency)]
     pub currency: Option<api_enums::Currency>,
 
-    /// The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.
+    /// The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
+    /// that have been done by a single merchant. The value for this field can be shared in the request itself else it will be auto generated and returned in the API response.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
@@ -272,15 +272,17 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub merchant_id: Option<String>,
 
+    /// Details of the routing configuration for that payment
     #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
         "type": "single",
         "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
     pub routing: Option<serde_json::Value>,
 
-    /// This allows to manually select a connector with which the payment can go through
+    /// This allows to manually select a connector with which the payment can go through.
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
+
 
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
@@ -298,7 +300,7 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub capture_on: Option<PrimitiveDateTime>,
 
-    /// Whether to confirm the payment (if applicable)
+    /// Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself. 
     #[schema(default = false, example = true)]
     pub confirm: Option<bool>,
 
@@ -341,7 +343,7 @@ pub struct PaymentsRequest {
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
 
-    /// The URL to redirect after the completion of the operation
+    /// The URL to to page to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
@@ -355,7 +357,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
-    /// Provide a reference to a stored payment method
+    /// As Hyperswitch tokenises the sensitive details about the payments method, it provides the payment_token as a reference to a stored payment method, ensuring that the sensitive details are not exposed in any manner.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
 
@@ -462,18 +464,17 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub feature_metadata: Option<FeatureMetadata>,
 
-    /// Whether to get the payment link (if applicable)
+    /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(default = false, example = true)]
     pub payment_link: Option<bool>,
 
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
-    /// custom payment link config id set at business profile send only if business_specific_configs is configured
+    /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
     pub payment_link_config_id: Option<String>,
 
-    /// The business profile to use for this payment, if not passed the default business profile
-    /// associated with the merchant account will be used.
+    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     pub profile_id: Option<String>,
 
@@ -485,7 +486,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
 
-    ///Request for an incremental authorization
+    ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     pub request_incremental_authorization: Option<bool>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -493,7 +494,7 @@ pub struct PaymentsRequest {
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// additional data related to some frm(Fraud Risk Management) connectors
+    /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
@@ -535,7 +536,7 @@ impl PaymentsRequest {
     }
 }
 
-/// details of surcharge applied on this payment, if applicable
+/// Details of surcharge applied on this payment, if applicable
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
@@ -629,7 +630,7 @@ pub struct PaymentAttemptResponse {
     pub currency: Option<enums::Currency>,
     /// The connector used for the payment
     pub connector: Option<String>,
-    /// If there was an error while calling the connector the error message is received here
+    /// If there was an error while calling the connector, the error message is received here
     pub error_message: Option<String>,
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
@@ -642,15 +643,15 @@ pub struct PaymentAttemptResponse {
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<enums::AuthenticationType>,
-    /// If the payment was cancelled the reason provided here
+    /// If the payment was cancelled the reason will be provided here
     pub cancellation_reason: Option<String>,
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     pub mandate_id: Option<String>,
-    /// If there was an error while calling the connectors the code is received here
+    /// If there was an error while calling the connectors the error code is received here
     pub error_code: Option<String>,
     /// Provide a reference to a stored payment method
     pub payment_token: Option<String>,
-    /// additional data related to some connectors
+    /// Additional data related to some connectors
     pub connector_metadata: Option<serde_json::Value>,
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
@@ -658,12 +659,12 @@ pub struct PaymentAttemptResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<enums::PaymentMethodType>,
-    /// reference to the payment at connector side
+    /// Reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
-    /// error code unified across the connectors is received here if there was an error while calling connector
+    /// (This field is not live yet)Error code unified across the connectors is received here if there was an error while calling connector
     pub unified_code: Option<String>,
-    /// error message unified across the connectors is received here if there was an error while calling connector
+    /// (This field is not live yet)Error message unified across the connectors is received here if there was an error while calling connector
     pub unified_message: Option<String>,
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
     pub client_source: Option<String>,
@@ -675,7 +676,7 @@ pub struct PaymentAttemptResponse {
     Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
 )]
 pub struct CaptureResponse {
-    /// unique identifier for the capture
+    /// Unique identifier for the capture
     pub capture_id: String,
     /// The status of the capture
     #[schema(value_type = CaptureStatus, example = "charged")]
@@ -688,11 +689,11 @@ pub struct CaptureResponse {
     pub currency: Option<enums::Currency>,
     /// The connector used for the payment
     pub connector: String,
-    /// unique identifier for the parent attempt on which this capture is made
+    /// Unique identifier for the parent attempt on which this capture is made
     pub authorized_attempt_id: String,
-    /// A unique identifier for a capture provided by the connector
+    /// A unique identifier for this capture provided by the connector
     pub connector_capture_id: Option<String>,
-    /// sequence number of this capture
+    /// Sequence number of this capture, in the series of captures made for the parent attempt
     pub capture_sequence: i16,
     /// If there was an error while calling the connector the error message is received here
     pub error_message: Option<String>,
@@ -700,7 +701,7 @@ pub struct CaptureResponse {
     pub error_code: Option<String>,
     /// If there was an error while calling the connectors the reason is received here
     pub error_reason: Option<String>,
-    /// reference to the capture at connector side
+    /// Reference to the capture at connector side
     pub reference_id: Option<String>,
 }
 
@@ -854,6 +855,7 @@ impl MandateIds {
     }
 }
 
+/// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -911,7 +913,7 @@ impl Default for MandateType {
     }
 }
 
-/// We will be Passing this "CustomerAcceptance" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client
+/// This "CustomerAcceptance" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CustomerAcceptance {
@@ -3383,7 +3385,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<RefundResponse>>)]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
-    /// List of dispute that happened on this intent
+    /// List of disputes that happened on this intent
     #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
     pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
@@ -3486,7 +3488,7 @@ pub struct PaymentsResponse {
     /// Additional information required for redirection
     pub next_action: Option<NextActionData>,
 
-    /// If the payment was cancelled the reason provided here
+    /// If the payment was cancelled the reason will be provided here
     pub cancellation_reason: Option<String>,
 
     /// If there was an error while calling the connectors the code is received here
@@ -3548,11 +3550,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// additional data related to some connectors
+    /// Additional data related to some connectors
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
-    /// additional data that might be required by hyperswitch
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
@@ -3565,10 +3567,10 @@ pub struct PaymentsResponse {
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
-    /// details of surcharge applied on this payment
+    /// Details of surcharge applied on this payment
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
-    /// total number of attempts associated with this payment
+    /// Total number of attempts associated with this payment
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
@@ -3605,10 +3607,10 @@ pub struct PaymentsResponse {
     /// The browser information used for this payment
     pub browser_info: Option<serde_json::Value>,
 
-    /// Identifier for Payment Method
+    /// Identifier for Payment Method used for the payment
     pub payment_method_id: Option<String>,
 
-    /// Payment Method Status
+    /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 
@@ -4250,7 +4252,7 @@ pub struct ApplepaySessionRequest {
     pub initiative_context: String,
 }
 
-/// additional data related to some connectors
+/// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
@@ -5127,7 +5129,7 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
-/// custom payment link config for the particular payment
+/// Configure a custom payment link for the particular payment
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
