@@ -1,15 +1,15 @@
-use api_models::{enums, payment_methods::Card, payouts};
+use api_models::{customers::CustomerRequestWithEmail, enums, payment_methods::Card, payouts};
 use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
     generate_customer_id_of_default_length, id_type,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use masking::{PeekInterface, Secret};
 use router_env::logger;
-use rustc_hash::FxHashMap;
 
 use super::PayoutData;
 use crate::{
@@ -612,27 +612,28 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
-            let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
-            map.insert("name".to_string(), customer_details.name.clone());
-            map.insert("phone".to_string(), customer_details.phone.clone());
-            let encrypted_data =
-                domain_types::batch_encrypt_optional(&state.into(), map, identifier.clone(), key)
-                    .await
+            let encrypted_data = batch_encrypt(
+                &state.into(),
+                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
+                    name: customer_details.name.clone(),
+                    email: customer_details.email.clone(),
+                    phone: customer_details.phone.clone(),
+                }),
+                Identifier::Merchant(key_store.merchant_id.clone()),
+                key,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let encryptable_customer =
+                CustomerRequestWithEmail::from_encryptable(encrypted_data)
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: encrypted_data.get("name").cloned(),
-                email: domain_types::encrypt_optional(
-                    &state.into(),
-                    customer_details.email.to_owned().map(|e| e.expose()),
-                    identifier.clone(),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: encrypted_data.get("phone").cloned(),
+                name: encryptable_customer.name,
+                email: encryptable_customer.email,
+                phone: encryptable_customer.phone,
                 description: None,
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,

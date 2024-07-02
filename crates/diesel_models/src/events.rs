@@ -1,5 +1,9 @@
-use common_utils::{custom_serde, encryption::Encryption};
+use common_utils::{
+    crypto::OptionalEncryptableSecretString, custom_serde, encryption::Encryption,
+    types::keymanager::ToEncryptable,
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -53,4 +57,33 @@ pub struct Event {
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
+}
+
+pub struct EventWithEncryption {
+    pub request: Option<Encryption>,
+    pub response: Option<Encryption>,
+}
+
+pub struct EncryptableEvent {
+    pub request: OptionalEncryptableSecretString,
+    pub response: OptionalEncryptableSecretString,
+}
+
+impl ToEncryptable<EncryptableEvent, Secret<String>, Encryption> for EventWithEncryption {
+    fn to_encryptable(self) -> rustc_hash::FxHashMap<String, Encryption> {
+        let mut map = rustc_hash::FxHashMap::default();
+        self.request.map(|x| map.insert("request".to_string(), x));
+        self.response.map(|x| map.insert("response".to_string(), x));
+        map
+    }
+
+    fn from_encryptable(
+        hashmap: rustc_hash::FxHashMap<String, common_utils::crypto::Encryptable<Secret<String>>>,
+    ) -> common_utils::errors::CustomResult<EncryptableEvent, common_utils::errors::ParsingError>
+    {
+        Ok(EncryptableEvent {
+            request: hashmap.get("request").cloned(),
+            response: hashmap.get("response").cloned(),
+        })
+    }
 }

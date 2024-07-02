@@ -850,19 +850,23 @@ where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
-    record_operation_time(
-        crypto::Encryptable::batch_encrypt_via_api(
-            state,
-            inner,
-            identifier,
-            key,
-            crypto::GcmAes256,
-        ),
-        &metrics::ENCRYPTION_TIME,
-        &metrics::CONTEXT,
-        &[],
-    )
-    .await
+    if !inner.is_empty() {
+        record_operation_time(
+            crypto::Encryptable::batch_encrypt_via_api(
+                state,
+                inner,
+                identifier,
+                key,
+                crypto::GcmAes256,
+            ),
+            &metrics::ENCRYPTION_TIME,
+            &metrics::CONTEXT,
+            &[],
+        )
+        .await
+    } else {
+        Ok(FxHashMap::default())
+    }
 }
 
 #[inline]
@@ -881,25 +885,6 @@ where
         .async_map(|f| encrypt(state, f, identifier, key))
         .await
         .transpose()
-}
-
-#[inline]
-pub async fn batch_encrypt_optional<E: Clone, S>(
-    state: &KeyManagerState,
-    inner: FxHashMap<String, Option<Secret<E, S>>>,
-    identifier: Identifier,
-    key: &[u8],
-) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
-where
-    Secret<E, S>: Send,
-    S: masking::Strategy<E>,
-    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
-{
-    let mut masked_data = FxHashMap::default();
-    for (k, v) in inner {
-        v.map(|masked| masked_data.insert(k, masked));
-    }
-    batch_encrypt(state, masked_data, identifier, key).await
 }
 
 #[inline]
@@ -925,23 +910,6 @@ where
 }
 
 #[inline]
-pub async fn batch_decrypt_optional<T: Clone, S: masking::Strategy<T>>(
-    state: &KeyManagerState,
-    inner: FxHashMap<String, Option<Encryption>>,
-    identifier: Identifier,
-    key: &[u8],
-) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
-where
-    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
-{
-    let mut encrypted_data = FxHashMap::default();
-    for (k, v) in inner {
-        v.map(|encrypted| encrypted_data.insert(k, encrypted));
-    }
-    batch_decrypt(state, encrypted_data, identifier, key).await
-}
-
-#[inline]
 pub async fn batch_decrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Encryption>,
@@ -952,19 +920,23 @@ where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
-    record_operation_time(
-        crypto::Encryptable::batch_decrypt_via_api(
-            state,
-            inner,
-            identifier,
-            key,
-            crypto::GcmAes256,
-        ),
-        &metrics::ENCRYPTION_TIME,
-        &metrics::CONTEXT,
-        &[],
-    )
-    .await
+    if !inner.is_empty() {
+        record_operation_time(
+            crypto::Encryptable::batch_decrypt_via_api(
+                state,
+                inner,
+                identifier,
+                key,
+                crypto::GcmAes256,
+            ),
+            &metrics::ENCRYPTION_TIME,
+            &metrics::CONTEXT,
+            &[],
+        )
+        .await
+    } else {
+        Ok(FxHashMap::default())
+    }
 }
 
 pub(crate) mod metrics {

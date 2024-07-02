@@ -1,14 +1,14 @@
 use common_utils::{
     crypto::OptionalEncryptableSecretString,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
     events::EventUpdateInternal,
+    EventWithEncryption,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-use rustc_hash::FxHashMap;
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -90,15 +90,24 @@ impl super::behaviour::Conversion for Event {
     where
         Self: Sized,
     {
-        let identifier = Identifier::Merchant(key_store_ref_id.clone());
-        let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
-        map.insert("request".to_string(), item.request.clone());
-        map.insert("response".to_string(), item.response.clone());
-        let decrypted = types::batch_decrypt_optional(state, map, identifier, key.peek())
-            .await
-            .change_context(ValidationError::InvalidValue {
+        let decrypted = types::batch_decrypt(
+            state,
+            EventWithEncryption::to_encryptable(EventWithEncryption {
+                request: item.request.clone(),
+                response: item.response.clone(),
+            }),
+            Identifier::Merchant(key_store_ref_id.clone()),
+            key.peek(),
+        )
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting event data".to_string(),
+        })?;
+        let encryptable_event = EventWithEncryption::from_encryptable(decrypted).change_context(
+            ValidationError::InvalidValue {
                 message: "Failed while decrypting event data".to_string(),
-            })?;
+            },
+        )?;
         Ok(Self {
             event_id: item.event_id,
             event_type: item.event_type,
@@ -112,8 +121,8 @@ impl super::behaviour::Conversion for Event {
             primary_object_created_at: item.primary_object_created_at,
             idempotent_event_id: item.idempotent_event_id,
             initial_attempt_id: item.initial_attempt_id,
-            request: decrypted.get("request").cloned(),
-            response: decrypted.get("response").cloned(),
+            request: encryptable_event.request,
+            response: encryptable_event.response,
             delivery_attempt: item.delivery_attempt,
         })
     }

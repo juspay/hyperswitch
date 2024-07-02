@@ -17,6 +17,7 @@ diesel = { version = "2.1.5", features = ["postgres", "serde_json", "time", "64-
 error-stack = "0.4.1"
 frunk = "0.4.2"
 frunk_core = "0.4.2"
+rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }

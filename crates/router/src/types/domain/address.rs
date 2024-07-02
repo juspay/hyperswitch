@@ -5,7 +5,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
@@ -13,10 +13,7 @@ use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::{
-    behaviour,
-    types::{self, AsyncLift},
-};
+use super::{behaviour, types};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -193,45 +190,40 @@ impl behaviour::Conversion for Address {
         key: &Secret<Vec<u8>>,
         _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
-        async {
-            let identifier = Identifier::Merchant(other.merchant_id.clone());
-            let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
-            map.insert("line1".to_string(), other.line1.clone());
-            map.insert("line2".to_string(), other.line2.clone());
-            map.insert("line3".to_string(), other.line3.clone());
-            map.insert("zip".to_string(), other.zip.clone());
-            map.insert("state".to_string(), other.state.clone());
-            map.insert("fn".to_string(), other.first_name.clone());
-            map.insert("ln".to_string(), other.last_name.clone());
-            map.insert("phone".to_string(), other.phone_number.clone());
-            let decrypted: FxHashMap<String, Encryptable<Secret<String>>> =
-                types::batch_decrypt_optional(state, map, identifier.clone(), key.peek()).await?;
-            let inner_decrypt_email =
-                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: other.id,
-                address_id: other.address_id,
-                city: other.city,
-                country: other.country,
-                line1: decrypted.get("line1").cloned(),
-                line2: decrypted.get("line2").cloned(),
-                line3: decrypted.get("line3").cloned(),
-                state: decrypted.get("state").cloned(),
-                zip: decrypted.get("zip").cloned(),
-                first_name: decrypted.get("fn").cloned(),
-                last_name: decrypted.get("ln").cloned(),
-                phone_number: decrypted.get("phone").cloned(),
-                country_code: other.country_code,
-                created_at: other.created_at,
-                modified_at: other.modified_at,
-                updated_by: other.updated_by,
-                merchant_id: other.merchant_id,
-                email: other.email.async_lift(inner_decrypt_email).await?,
-            })
-        }
+        let identifier = Identifier::Merchant(other.merchant_id.clone());
+        let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(
+            state,
+            diesel_models::Address::to_encryptable(other.clone()),
+            identifier.clone(),
+            key.peek(),
+        )
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting".to_string(),
+        })?;
+        let encryptable_address = diesel_models::Address::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting".to_string(),
+            })?;
+        Ok(Self {
+            id: other.id,
+            address_id: other.address_id,
+            city: other.city,
+            country: other.country,
+            line1: encryptable_address.line1,
+            line2: encryptable_address.line2,
+            line3: encryptable_address.line3,
+            state: encryptable_address.state,
+            zip: encryptable_address.zip,
+            first_name: encryptable_address.first_name,
+            last_name: encryptable_address.last_name,
+            phone_number: encryptable_address.phone_number,
+            country_code: other.country_code,
+            created_at: other.created_at,
+            modified_at: other.modified_at,
+            updated_by: other.updated_by,
+            merchant_id: other.merchant_id,
+            email: encryptable_address.email,
         })
     }
 

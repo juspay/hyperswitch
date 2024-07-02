@@ -10,10 +10,11 @@ use common_utils::{
     crypto,
     ext_traits::{ConfigExt, Encode},
     id_type,
-    pii::{self, Email},
-    types::MinorUnit,
+    pii::{self, Email, EmailStrategy},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
-use masking::{PeekInterface, Secret};
+use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -2970,6 +2971,72 @@ impl AddressDetails {
         } else {
             self
         }
+    }
+}
+
+pub struct AddressDetailsWithPhone {
+    pub address: Option<AddressDetails>,
+    pub phone_number: Option<Secret<String>>,
+    pub email: Option<Email>,
+}
+
+pub struct EncryptableAddressDetails {
+    pub line1: crypto::OptionalEncryptableSecretString,
+    pub line2: crypto::OptionalEncryptableSecretString,
+    pub line3: crypto::OptionalEncryptableSecretString,
+    pub state: crypto::OptionalEncryptableSecretString,
+    pub zip: crypto::OptionalEncryptableSecretString,
+    pub first_name: crypto::OptionalEncryptableSecretString,
+    pub last_name: crypto::OptionalEncryptableSecretString,
+    pub phone_number: crypto::OptionalEncryptableSecretString,
+    pub email: crypto::OptionalEncryptableEmail,
+}
+
+impl ToEncryptable<EncryptableAddressDetails, Secret<String>, Secret<String>>
+    for AddressDetailsWithPhone
+{
+    fn from_encryptable(
+        hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+    ) -> common_utils::errors::CustomResult<
+        EncryptableAddressDetails,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(EncryptableAddressDetails {
+            line1: hashmap.get("line1").cloned(),
+            line2: hashmap.get("line2").cloned(),
+            line3: hashmap.get("line3").cloned(),
+            state: hashmap.get("state").cloned(),
+            zip: hashmap.get("zip").cloned(),
+            first_name: hashmap.get("first_name").cloned(),
+            last_name: hashmap.get("last_name").cloned(),
+            phone_number: hashmap.get("phone_number").cloned(),
+            email: hashmap.get("email").cloned().map(|x| {
+                let inner: Secret<String, EmailStrategy> = x.clone().into_inner().switch_strategy();
+                crypto::Encryptable::new(inner, x.into_encrypted())
+            }),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Secret<String>> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        self.address.map(|address| {
+            address.line1.map(|x| map.insert("line1".to_string(), x));
+            address.line2.map(|x| map.insert("line2".to_string(), x));
+            address.line3.map(|x| map.insert("line3".to_string(), x));
+            address.state.map(|x| map.insert("state".to_string(), x));
+            address.zip.map(|x| map.insert("zip".to_string(), x));
+            address
+                .first_name
+                .map(|x| map.insert("first_name".to_string(), x));
+            address
+                .last_name
+                .map(|x| map.insert("last_name".to_string(), x));
+        });
+        self.email
+            .map(|x| map.insert("email".to_string(), x.expose().switch_strategy()));
+        self.phone_number
+            .map(|x| map.insert("phone_number".to_string(), x));
+        map
     }
 }
 

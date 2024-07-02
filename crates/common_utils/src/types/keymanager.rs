@@ -465,3 +465,13 @@ impl<'de> Deserialize<'de> for EncryptedData {
         deserializer.deserialize_str(EncryptedDataVisitor)
     }
 }
+
+/// A trait which converts the struct to Hashmap required for encryption and back to struct
+pub trait ToEncryptable<T, S: Clone, E>: Sized {
+    /// Serializes the type to a hashmap
+    fn to_encryptable(self) -> FxHashMap<String, E>;
+    /// Deserializes the hashmap back to the type
+    fn from_encryptable(
+        hashmap: FxHashMap<String, Encryptable<S>>,
+    ) -> CustomResult<T, errors::ParsingError>;
+}

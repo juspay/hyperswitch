@@ -1,8 +1,9 @@
 use std::{borrow::Cow, str::FromStr};
 
 use api_models::{
+    customers::CustomerRequestWithEmail,
     mandates::RecurringDetails,
-    payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
+    payments::{AddressDetailsWithPhone, CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_utils::{
@@ -10,7 +11,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type, pii,
     types::{
-        keymanager::{Identifier, KeyManagerState},
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -30,7 +31,6 @@ use openssl::{
     symm::{decrypt_aead, Cipher},
 };
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
-use rustc_hash::FxHashMap;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -139,95 +139,46 @@ pub async fn create_or_update_address_for_payment_by_request(
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
-                let identifier = Identifier::Merchant(merchant_key_store.merchant_id.clone());
-                let address_details = address.address.as_ref();
-                let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
-                map.insert(
-                    "line1".to_string(),
-                    address_details.and_then(|ad| ad.line1.as_ref()).cloned(),
-                );
-                map.insert(
-                    "line2".to_string(),
-                    address_details.and_then(|ad| ad.line2.as_ref()).cloned(),
-                );
-                map.insert(
-                    "line3".to_string(),
-                    address_details.and_then(|ad| ad.line3.as_ref()).cloned(),
-                );
-                map.insert(
-                    "zip".to_string(),
-                    address_details.and_then(|ad| ad.zip.as_ref()).cloned(),
-                );
-                map.insert(
-                    "state".to_string(),
-                    address_details.and_then(|ad| ad.state.as_ref()).cloned(),
-                );
-                map.insert(
-                    "fn".to_string(),
-                    address_details
-                        .and_then(|ad| ad.first_name.as_ref())
-                        .cloned(),
-                );
-                map.insert(
-                    "ln".to_string(),
-                    address_details
-                        .and_then(|ad| ad.last_name.as_ref())
-                        .cloned(),
-                );
-                map.insert(
-                    "phone".to_string(),
-                    address
-                        .phone
-                        .as_ref()
-                        .and_then(|phone| phone.number.as_ref())
-                        .cloned(),
-                );
-                let key_manager_state: KeyManagerState = session_state.into();
-                let encrypted_data =
-                    types::batch_encrypt_optional(&key_manager_state, map, identifier.clone(), key)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address")?;
-                let address_update = async {
-                    Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
-                        storage::AddressUpdate::Update {
-                            city: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.city.clone()),
-                            country: address.address.as_ref().and_then(|value| value.country),
-                            line1: encrypted_data.get("line1").cloned(),
-                            line2: encrypted_data.get("line2").cloned(),
-                            line3: encrypted_data.get("line3").cloned(),
-                            state: encrypted_data.get("state").cloned(),
-                            zip: encrypted_data.get("zip").cloned(),
-                            first_name: encrypted_data.get("fn").cloned(),
-                            last_name: encrypted_data.get("ln").cloned(),
-                            phone_number: encrypted_data.get("phone").cloned(),
-                            country_code: address
-                                .phone
-                                .as_ref()
-                                .and_then(|value| value.country_code.clone()),
-                            updated_by: storage_scheme.to_string(),
-                            email: address
-                                .email
-                                .as_ref()
-                                .cloned()
-                                .async_lift(|inner| {
-                                    types::encrypt_optional(
-                                        &key_manager_state,
-                                        inner.map(|inner| inner.expose()),
-                                        identifier.clone(),
-                                        key,
-                                    )
-                                })
-                                .await?,
-                        },
-                    )
-                }
+                let encrypted_data = types::batch_encrypt(
+                    &session_state.into(),
+                    AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
+                        address: address.address.clone(),
+                        phone_number: address
+                            .phone
+                            .as_ref()
+                            .and_then(|phone| phone.number.clone()),
+                        email: address.email.clone(),
+                    }),
+                    Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                    key,
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
+                let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address")?;
+                let address_update = storage::AddressUpdate::Update {
+                    city: address
+                        .address
+                        .as_ref()
+                        .and_then(|value| value.city.clone()),
+                    country: address.address.as_ref().and_then(|value| value.country),
+                    line1: encryptable_address.line1,
+                    line2: encryptable_address.line2,
+                    line3: encryptable_address.line3,
+                    state: encryptable_address.state,
+                    zip: encryptable_address.zip,
+                    first_name: encryptable_address.first_name,
+                    last_name: encryptable_address.last_name,
+                    phone_number: encryptable_address.phone_number,
+                    country_code: address
+                        .phone
+                        .as_ref()
+                        .and_then(|value| value.country_code.clone()),
+                    updated_by: storage_scheme.to_string(),
+                    email: encryptable_address.email,
+                };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
                         session_state,
@@ -374,82 +325,41 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = &address.address.as_ref();
-        let mut map = FxHashMap::with_capacity_and_hasher(8, Default::default());
-        map.insert(
-            "line1".to_string(),
-            address_details.and_then(|ad| ad.line1.as_ref()).cloned(),
-        );
-        map.insert(
-            "line2".to_string(),
-            address_details.and_then(|ad| ad.line2.as_ref()).cloned(),
-        );
-        map.insert(
-            "line3".to_string(),
-            address_details.and_then(|ad| ad.line3.as_ref()).cloned(),
-        );
-        map.insert(
-            "zip".to_string(),
-            address_details.and_then(|ad| ad.zip.as_ref()).cloned(),
-        );
-        map.insert(
-            "state".to_string(),
-            address_details.and_then(|ad| ad.state.as_ref()).cloned(),
-        );
-        map.insert(
-            "fn".to_string(),
-            address_details
-                .and_then(|ad| ad.first_name.as_ref())
-                .cloned(),
-        );
-        map.insert(
-            "ln".to_string(),
-            address_details
-                .and_then(|ad| ad.last_name.as_ref())
-                .cloned(),
-        );
-        map.insert(
-            "phone".to_string(),
-            address
-                .phone
-                .as_ref()
-                .and_then(|phone| phone.number.as_ref())
-                .cloned(),
-        );
-        let identifier = Identifier::Merchant(merchant_id.to_string());
-        let key_manager_state: KeyManagerState = session_state.into();
-        let encrypted_data =
-            types::batch_encrypt_optional(&key_manager_state, map, identifier.clone(), key).await?;
+        let encrypted_data = types::batch_encrypt(
+            &session_state.into(),
+            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
+                address: address_details.cloned(),
+                phone_number: address
+                    .phone
+                    .as_ref()
+                    .and_then(|phone| phone.number.clone()),
+                email: address.email.clone(),
+            }),
+            Identifier::Merchant(merchant_id.to_string()),
+            key,
+        )
+        .await?;
+        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
+            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             id: None,
-            phone_number: encrypted_data.get("phone").cloned(),
+            phone_number: encryptable_address.phone_number,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
             country: address_details.and_then(|address_details| address_details.country),
-            line1: encrypted_data.get("line1").cloned(),
-            line2: encrypted_data.get("line2").cloned(),
-            line3: encrypted_data.get("line3").cloned(),
-            state: encrypted_data.get("state").cloned(),
+            line1: encryptable_address.line1,
+            line2: encryptable_address.line2,
+            line3: encryptable_address.line3,
+            state: encryptable_address.state,
             created_at: common_utils::date_time::now(),
-            first_name: encrypted_data.get("fn").cloned(),
-            last_name: encrypted_data.get("ln").cloned(),
+            first_name: encryptable_address.first_name,
+            last_name: encryptable_address.last_name,
             modified_at: common_utils::date_time::now(),
-            zip: encrypted_data.get("zip").cloned(),
+            zip: encryptable_address.zip,
             updated_by: storage_scheme.to_string(),
-            email: address
-                .email
-                .as_ref()
-                .cloned()
-                .async_lift(|inner| {
-                    types::encrypt_optional(
-                        &key_manager_state,
-                        inner.map(|inner| inner.expose()),
-                        identifier.clone(),
-                        key,
-                    )
-                })
-                .await?,
+            email: encryptable_address.email,
         })
     }
     .await
@@ -1587,15 +1497,22 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
-            let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-            let mut map = FxHashMap::with_capacity_and_hasher(2, Default::default());
-            map.insert("name".to_string(), request_customer_details.name.clone());
-            map.insert("phone".to_string(), request_customer_details.phone.clone());
-            let encrypted_data =
-                types::batch_encrypt_optional(&key_manager_state, map, identifier.clone(), key)
-                    .await
-                    .change_context(errors::StorageError::SerializationFailed)
-                    .attach_printable("Failed while encrypting Customer while Update")?;
+            let encrypted_data = types::batch_encrypt(
+                &key_manager_state,
+                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
+                    name: request_customer_details.name.clone(),
+                    email: request_customer_details.email.clone(),
+                    phone: request_customer_details.phone.clone(),
+                }),
+                Identifier::Merchant(key_store.merchant_id.clone()),
+                key,
+            )
+            .await
+            .change_context(errors::StorageError::SerializationFailed)
+            .attach_printable("Failed while encrypting Customer while Update")?;
+            let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                .change_context(errors::StorageError::SerializationFailed)
+                .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
                     // Update the customer data if new data is passed in the request
@@ -1604,34 +1521,16 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         | request_customer_details.phone.is_some()
                         | request_customer_details.phone_country_code.is_some()
                     {
-                        let customer_update = async {
-                            Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
-                                Update {
-                                    name: encrypted_data.get("name").cloned(),
-                                    email: request_customer_details
-                                        .email
-                                        .clone()
-                                        .async_lift(|inner| {
-                                            types::encrypt_optional(
-                                                &key_manager_state,
-                                                inner.map(|inner| inner.expose()),
-                                                identifier.clone(),
-                                                key,
-                                            )
-                                        })
-                                        .await?,
-                                    phone: Box::new(encrypted_data.get("phone").cloned()),
-                                    phone_country_code: request_customer_details.phone_country_code,
-                                    description: None,
-                                    connector_customer: None,
-                                    metadata: None,
-                                    address_id: None,
-                                },
-                            )
-                        }
-                        .await
-                        .change_context(errors::StorageError::SerializationFailed)
-                        .attach_printable("Failed while encrypting Customer while Update")?;
+                        let customer_update = Update {
+                            name: encryptable_customer.name,
+                            email: encryptable_customer.email,
+                            phone: Box::new(encryptable_customer.phone),
+                            phone_country_code: request_customer_details.phone_country_code,
+                            description: None,
+                            connector_customer: None,
+                            metadata: None,
+                            address_id: None,
+                        };
 
                         db.update_customer_by_customer_id_merchant_id(
                             state,
@@ -1648,44 +1547,23 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     }
                 }
                 None => {
-                    let new_customer = async {
-                        let key = key_store.key.get_inner().peek();
-                        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
-                            domain::Customer {
-                                customer_id,
-                                merchant_id: merchant_id.to_string(),
-                                name: encrypted_data.get("name").cloned(),
-                                email: request_customer_details
-                                    .email
-                                    .clone()
-                                    .async_lift(|inner| {
-                                        types::encrypt_optional(
-                                            &key_manager_state,
-                                            inner.map(|inner| inner.expose()),
-                                            identifier.clone(),
-                                            key,
-                                        )
-                                    })
-                                    .await?,
-                                phone: encrypted_data.get("phone").cloned(),
-                                phone_country_code: request_customer_details
-                                    .phone_country_code
-                                    .clone(),
-                                description: None,
-                                created_at: common_utils::date_time::now(),
-                                id: None,
-                                metadata: None,
-                                modified_at: common_utils::date_time::now(),
-                                connector_customer: None,
-                                address_id: None,
-                                default_payment_method_id: None,
-                                updated_by: None,
-                            },
-                        )
-                    }
-                    .await
-                    .change_context(errors::StorageError::SerializationFailed)
-                    .attach_printable("Failed while encrypting Customer while insert")?;
+                    let new_customer = domain::Customer {
+                        customer_id,
+                        merchant_id: merchant_id.to_string(),
+                        name: encryptable_customer.name,
+                        email: encryptable_customer.email,
+                        phone: encryptable_customer.phone,
+                        phone_country_code: request_customer_details.phone_country_code.clone(),
+                        description: None,
+                        created_at: common_utils::date_time::now(),
+                        id: None,
+                        metadata: None,
+                        modified_at: common_utils::date_time::now(),
+                        connector_customer: None,
+                        address_id: None,
+                        default_payment_method_id: None,
+                        updated_by: None,
+                    };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(state, new_customer, key_store, storage_scheme)
                         .await

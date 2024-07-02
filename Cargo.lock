@@ -2573,6 +2573,7 @@ dependencies = [
  "masking",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "strum 0.26.2",

@@ -1,5 +1,13 @@
-use common_utils::{encryption::Encryption, id_type};
+use common_utils::{
+    crypto::{self, Encryptable},
+    encryption::Encryption,
+    id_type,
+    pii::EmailStrategy,
+    types::keymanager::ToEncryptable,
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::{Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -52,6 +60,62 @@ pub struct Address {
     pub payment_id: Option<String>,
     pub updated_by: String,
     pub email: Option<Encryption>,
+}
+
+#[derive(Clone)]
+// Intermediate struct to convert HashMap to Address
+pub struct EncryptableAddress {
+    pub line1: crypto::OptionalEncryptableSecretString,
+    pub line2: crypto::OptionalEncryptableSecretString,
+    pub line3: crypto::OptionalEncryptableSecretString,
+    pub state: crypto::OptionalEncryptableSecretString,
+    pub zip: crypto::OptionalEncryptableSecretString,
+    pub first_name: crypto::OptionalEncryptableSecretString,
+    pub last_name: crypto::OptionalEncryptableSecretString,
+    pub phone_number: crypto::OptionalEncryptableSecretString,
+    pub email: crypto::OptionalEncryptableEmail,
+}
+
+impl ToEncryptable<EncryptableAddress, Secret<String>, Encryption> for Address {
+    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        self.line1.map(|x| map.insert("line1".to_string(), x));
+        self.line2.map(|x| map.insert("line2".to_string(), x));
+        self.line3.map(|x| map.insert("line3".to_string(), x));
+        self.zip.map(|x| map.insert("zip".to_string(), x));
+        self.state.map(|x| map.insert("state".to_string(), x));
+        self.first_name
+            .map(|x| map.insert("first_name".to_string(), x));
+        self.last_name
+            .map(|x| map.insert("last_name".to_string(), x));
+        self.phone_number
+            .map(|x| map.insert("phone_number".to_string(), x));
+        self.email.map(|x| map.insert("email".to_string(), x));
+        map
+    }
+
+    fn from_encryptable(
+        hashmap: FxHashMap<String, Encryptable<Secret<String>>>,
+    ) -> common_utils::errors::CustomResult<EncryptableAddress, common_utils::errors::ParsingError>
+    {
+        Ok(EncryptableAddress {
+            line1: hashmap.get("line1").cloned(),
+            line2: hashmap.get("line2").cloned(),
+            line3: hashmap.get("line3").cloned(),
+            zip: hashmap.get("zip").cloned(),
+            state: hashmap.get("state").cloned(),
+            first_name: hashmap.get("first_name").cloned(),
+            last_name: hashmap.get("last_name").cloned(),
+            phone_number: hashmap.get("phone_number").cloned(),
+            email: hashmap.get("email").cloned().map(|email| {
+                let encryptable: Encryptable<Secret<String, EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
+        })
+    }
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
