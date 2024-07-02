@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::analytics::{
     payments::{
@@ -34,7 +34,7 @@ use crate::{
 pub enum TaskType {
     MetricTask(
         PaymentMetrics,
-        CustomResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>, AnalyticsError>,
+        CustomResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>, AnalyticsError>,
     ),
     DistributionTask(
         PaymentDistributions,

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -32,7 +34,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
+    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
     where
         T: AnalyticsDataSource + super::RefundMetricAnalytics,
     {
@@ -110,7 +112,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>,
+                HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

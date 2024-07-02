@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -13,7 +15,7 @@ mod active_payments;
 
 use active_payments::ActivePayments;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ActivePaymentsMetricRow {
     pub count: Option<i64>,
 }
@@ -32,7 +34,7 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -56,7 +58,7 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,

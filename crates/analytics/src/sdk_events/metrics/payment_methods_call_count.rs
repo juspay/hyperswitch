@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetricsBucketIdentifier, SdkEventNames,
@@ -35,7 +37,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
         let dimensions = dimensions.to_vec();
@@ -119,7 +121,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
+                HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

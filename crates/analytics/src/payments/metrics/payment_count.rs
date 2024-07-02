@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -33,7 +35,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
 
         for dim in dimensions.iter() {
@@ -115,7 +117,7 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<Vec<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     active_payments::ActivePaymentsMetricsBucketIdentifier, Granularity, TimeRange,
 };
@@ -31,7 +33,7 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -79,7 +81,7 @@ where
             .into_iter()
             .map(|i| Ok((ActivePaymentsMetricsBucketIdentifier::new(None), i)))
             .collect::<error_stack::Result<
-                Vec<(
+                HashSet<(
                     ActivePaymentsMetricsBucketIdentifier,
                     ActivePaymentsMetricRow,
                 )>,
