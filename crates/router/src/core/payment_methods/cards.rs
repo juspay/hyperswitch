@@ -4094,8 +4094,6 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
-        let intent_created = payment_intent.as_ref().map(|intent| intent.created_at);
-
         if is_payment_associated {
             let token = parent_payment_method_token
                 .as_ref()
@@ -4106,8 +4104,13 @@ pub async fn list_customer_payment_method(
                 .cloned()
                 .get_required_value("PaymentTokenData")?;
 
+            let intent_fulfillment_time = business_profile
+                .as_ref()
+                .and_then(|b_profile| b_profile.intent_fulfillment_time)
+                .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
             ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
-                .insert(intent_created, hyperswitch_token_data, state)
+                .insert(intent_fulfillment_time, hyperswitch_token_data, state)
                 .await?;
 
             if let Some(metadata) = pma.metadata {
@@ -4118,29 +4121,28 @@ pub async fn list_customer_payment_method(
                         "Failed to deserialize metadata to PaymentmethodMetadata struct",
                     )?;
 
+                    let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
+
+                for pm_metadata in pm_metadata_vec.payment_method_tokenization {
+                    let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
+                    .parse_value("PaymentMethodMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to deserialize metadata to PaymentmethodMetadata struct",
+                    )?;
+
                 for pm_metadata in pm_metadata_vec.payment_method_tokenization {
                     let key = format!(
                         "pm_token_{}_{}_{}",
-                        token, pma.payment_method, pm_metadata.0
+                        parent_payment_method_token, pma.payment_method, pm_metadata.0
                     );
-                    let current_datetime_utc = common_utils::date_time::now();
-                    let time_elapsed = current_datetime_utc
-                        - payment_intent
-                            .as_ref()
-                            .map(|intent| intent.created_at)
-                            .unwrap_or_else(|| current_datetime_utc);
 
-                    let redis_conn = state
-                        .store
-                        .get_redis_conn()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get redis connection")?;
                     redis_conn
-                        .set_key_with_expiry(
-                            &key,
-                            pm_metadata.1,
-                            consts::TOKEN_TTL - time_elapsed.whole_seconds(),
-                        )
+                        .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
                         .await
                         .change_context(errors::StorageError::KVError)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
