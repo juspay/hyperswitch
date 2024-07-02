@@ -10,8 +10,6 @@ mod customer;
 mod merchant;
 
 pub use customer::CustomerId;
-pub use merchant::MerchantId;
-
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -19,6 +17,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+pub use merchant::MerchantId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

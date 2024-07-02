@@ -1,17 +1,14 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use common_utils::new_type;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
     id_type, link_utils, pii,
 };
-
-#[cfg(feature = "v2")]
-use common_utils::new_type;
-
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
-
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
