@@ -107,7 +107,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
-        run: diesel migration run
+        run: make migrate locked-schema=yes
 
       - name: Install newman from fork
         run: npm ci
