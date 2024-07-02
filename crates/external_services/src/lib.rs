@@ -43,3 +43,12 @@ pub mod metrics {
     #[cfg(feature = "aws_kms")]
     histogram_metric!(AWS_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for AWS KMS encryption time (in sec)
 }
+
+// Mutually Exclusive - Feature Flags
+//
+// This are some feature flags that shouldn't be used together
+
+#[cfg(all(feature = "kms", feature = "hashicorp-vault"))]
+compile_error!(
+    "feature \"kms\" and feature \"hashicorp-vault\" cannot be enabled at the same time"
+);
