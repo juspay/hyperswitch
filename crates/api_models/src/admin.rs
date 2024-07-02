@@ -3,9 +3,13 @@ use std::collections::HashMap;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
-    link_utils, pii,
+    id_type, link_utils, pii,
 };
-use masking::Secret;
+
+#[cfg(feature = "v2")]
+use common_utils::new_type;
+
+use masking::{ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -102,17 +106,20 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
+#[cfg(not(feature = "v2"))]
+impl MerchantAccountCreate {
+    pub fn get_merchant_id(&self) -> String {
+        self.merchant_id.clone()
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
-    /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
-
     /// Name of the Merchant Account
-    #[schema(value_type= Option<String>, example = "NewAge Retailer")]
-    pub merchant_name: Option<Secret<String>>,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<Secret<new_type::MerchantName>>,
 
     /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
@@ -123,6 +130,17 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: String,
+}
+
+#[cfg(feature = "v2")]
+impl MerchantAccountCreate {
+    pub fn get_merchant_id(&self) -> id_type::MerchantId {
+        self.merchant_name
+            .clone()
+            .expose_option()
+            .map(id_type::MerchantId::from_merchant_name)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

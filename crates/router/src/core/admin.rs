@@ -90,7 +90,7 @@ pub async fn create_merchant_account(
     let master_key = db.get_master_key();
 
     let key_store = domain::MerchantKeyStore {
-        merchant_id: req.merchant_id.clone(),
+        merchant_id: req.get_merchant_id().get_string_repr().to_owned(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -387,10 +387,17 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount {
-                    merchant_id: self.merchant_id,
+                    merchant_id: self.get_merchant_id().get_string_repr().to_owned(),
                     merchant_name: self
                         .merchant_name
-                        .async_lift(|inner| domain_types::encrypt_optional(inner, key.peek()))
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                inner.map(|merchant_name| {
+                                    merchant_name.map(|merchant_name| merchant_name.into_inner())
+                                }),
+                                key.peek(),
+                            )
+                        })
                         .await?,
                     merchant_details: merchant_details
                         .async_lift(|inner| domain_types::encrypt_optional(inner, key.peek()))

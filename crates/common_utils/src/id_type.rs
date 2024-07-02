@@ -10,6 +10,8 @@ mod customer;
 mod merchant;
 
 pub use customer::CustomerId;
+pub use merchant::MerchantId;
+
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -136,6 +138,11 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
     /// Generate a new MerchantRefId of default length with the given prefix
     pub fn new(prefix: &str) -> Self {
         Self(AlphaNumericId::new(prefix))
+    }
+
+    /// Use this function only if you are sure that the length is within the range
+    pub(crate) fn new_unchecked(alphanumeric_id: AlphaNumericId) -> Self {
+        Self(alphanumeric_id)
     }
 }
 
