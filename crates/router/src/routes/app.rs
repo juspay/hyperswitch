@@ -224,7 +224,11 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+        let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
+            conf,
+            &*secret_management_client,
+        ))
+        .await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf

@@ -197,6 +197,7 @@ where
         &validate_result,
         &key_store,
         &customer,
+        Some(&business_profile),
     )
     .await?;
 
@@ -1440,6 +1441,7 @@ where
         &merchant_connector_account,
         key_store,
         customer,
+        Some(business_profile),
     )
     .await?;
     *payment_data = pd;
@@ -2306,6 +2308,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -2372,6 +2375,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
@@ -2390,6 +2394,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
 
@@ -2431,6 +2436,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -2449,6 +2455,7 @@ where
                     validate_result.storage_scheme,
                     merchant_key_store,
                     customer,
+                    business_profile,
                 )
                 .await?;
             payment_data.payment_method_data = payment_method_data;
