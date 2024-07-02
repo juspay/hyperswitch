@@ -1465,7 +1465,6 @@ impl
                 self, req, connectors,
             )?)
             .build();
-
         Ok(Some(request))
     }
 
@@ -1546,11 +1545,11 @@ impl api::IncomingWebhook for Paypal {
             }
             paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource
-                            .dispute_transactions
+                            .disputed_transactions
                             .first()
-                            .map(|transaction| transaction.reference_id.clone())
+                            .map(|transaction| transaction.seller_transaction_id.clone())
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1567,17 +1566,17 @@ impl api::IncomingWebhook for Paypal {
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let outcome = match payload.event_type {
-            PaypalWebhookEventType::CustomerDisputeCreated
-            | PaypalWebhookEventType::CustomerDisputeResolved
-            | PaypalWebhookEventType::CustomerDisputedUpdated
-            | PaypalWebhookEventType::RiskDisputeCreated => Some(
+            PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
                     .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
                     .outcome_code,
             ),
-            PaypalWebhookEventType::PaymentAuthorizationCreated
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureCompleted
@@ -1622,27 +1621,37 @@ impl api::IncomingWebhook for Paypal {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
-        let payload: paypal::PaypalDisputeWebhooks = request
+        let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
-            .parse_struct("PaypalDisputeWebhooks")
+            .parse_struct("PaypalWebhooksBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api::disputes::DisputePayload {
-            amount: connector_utils::to_currency_lower_unit(
-                payload.dispute_amount.value.get_amount_as_string(),
-                payload.dispute_amount.currency_code,
-            )?,
-            currency: payload.dispute_amount.currency_code.to_string(),
-            dispute_stage: api_models::enums::DisputeStage::from(
-                payload.dispute_life_cycle_stage.clone(),
-            ),
-            connector_status: payload.status.to_string(),
-            connector_dispute_id: payload.dispute_id,
-            connector_reason: payload.reason,
-            connector_reason_code: payload.external_reason_code,
-            challenge_required_by: payload.seller_response_due_date,
-            created_at: payload.create_time,
-            updated_at: payload.update_time,
-        })
+        match webhook_payload.resource {
+            transformers::PaypalResource::PaypalCardWebhooks(_)
+            | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
+            | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
+                Err(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
+            transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                Ok(api::disputes::DisputePayload {
+                    amount: connector_utils::to_currency_lower_unit(
+                        payload.dispute_amount.value.get_amount_as_string(),
+                        payload.dispute_amount.currency_code,
+                    )?,
+                    currency: payload.dispute_amount.currency_code.to_string(),
+                    dispute_stage: api_models::enums::DisputeStage::from(
+                        payload.dispute_life_cycle_stage.clone(),
+                    ),
+                    connector_status: payload.status.to_string(),
+                    connector_dispute_id: payload.dispute_id,
+                    connector_reason: payload.reason.clone(),
+                    connector_reason_code: payload.reason,
+                    challenge_required_by: None,
+                    created_at: payload.create_time,
+                    updated_at: payload.update_time,
+                })
+            }
+        }
     }
 }
 
