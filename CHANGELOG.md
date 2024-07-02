@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.02.0
+
+### Features
+
+- **analytics:** Add v2 payment analytics (payment-intents analytics) ([#5150](https://github.com/juspay/hyperswitch/pull/5150)) ([`9fc525d`](https://github.com/juspay/hyperswitch/commit/9fc525d49849e160345902beecac01d3a2f4c70f))
+- **connector:** [Bambora Apac] Template for integration ([#5062](https://github.com/juspay/hyperswitch/pull/5062)) ([`1b89463`](https://github.com/juspay/hyperswitch/commit/1b8946321befb3a3a79c5fe2acf6b255b8930940))
+- **globalsearch:** Implement tag-based filters in global search ([#5151](https://github.com/juspay/hyperswitch/pull/5151)) ([`4314fcd`](https://github.com/juspay/hyperswitch/commit/4314fcd17309a1c0d82b1b65eb867f913b72fbd7))
+- **payment_link:** Add multiple custom css support in business level ([#5137](https://github.com/juspay/hyperswitch/pull/5137)) ([`ecc6c00`](https://github.com/juspay/hyperswitch/commit/ecc6c00d4aaa034f96eae76c64024d56bb5fa173))
+- **tls:** Add support for https in actix web ([#5089](https://github.com/juspay/hyperswitch/pull/5089)) ([`2688d24`](https://github.com/juspay/hyperswitch/commit/2688d24d4963550ff3efee363194446a3c75cc59))
+
+### Bug Fixes
+
+- **connector:** [Paypal] dispute webhook deserialization failure ([#5111](https://github.com/juspay/hyperswitch/pull/5111)) ([`af2497b`](https://github.com/juspay/hyperswitch/commit/af2497b5012f048a4cf72b61712812bca534c17c))
+- **router:**
+  - Mark retry payment as failure if `connector_tokenization` fails ([#5114](https://github.com/juspay/hyperswitch/pull/5114)) ([`ecb8caf`](https://github.com/juspay/hyperswitch/commit/ecb8cafaed5a29e8ab204992a2f35102d2add09f))
+  - Rename the browser name header to `x-browser-name` ([#5162](https://github.com/juspay/hyperswitch/pull/5162)) ([`ff14e79`](https://github.com/juspay/hyperswitch/commit/ff14e79adf48a983855cf7abcc282bf556ecf2f9))
+
+### Refactors
+
+- **connector:** Add amount conversion framework to iatapay along with amount conversion code to connector template ([#4866](https://github.com/juspay/hyperswitch/pull/4866)) ([`8a33bd5`](https://github.com/juspay/hyperswitch/commit/8a33bd5e7368b4e863cbc58c73702f48567d39dc))
+
+### Miscellaneous Tasks
+
+- **ci:** Fix ci tests failing by removing them ([#5167](https://github.com/juspay/hyperswitch/pull/5167)) ([`4fbff39`](https://github.com/juspay/hyperswitch/commit/4fbff39906a57420cf5b8b4e1084bff1f82c070b))
+
+**Full Changelog:** [`2024.07.01.0...2024.07.02.0`](https://github.com/juspay/hyperswitch/compare/2024.07.01.0...2024.07.02.0)
+
+- - -
+
 ## 2024.07.01.0
 
 ### Features
