@@ -22,7 +22,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
-    /// ```
+    /// ```text
     /// get_original_amount()
     /// get_surcharge_amount()
     /// get_tax_on_surcharge_amount()

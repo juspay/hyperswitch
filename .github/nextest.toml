@@ -1,0 +1,11 @@
+[profile.default]
+status-level = "slow"
+final-status-level = "leak"
+failure-output = "final"
+fail-fast = false
+
+[profile.ci]
+retries = 2
+status-level = "all"
+failure-output = "immediate-final"
+fail-fast = false
