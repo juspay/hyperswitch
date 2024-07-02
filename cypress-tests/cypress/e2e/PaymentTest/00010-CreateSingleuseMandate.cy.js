@@ -137,7 +137,7 @@ describe("Card - SingleUse Mandates flow test", () => {
   );
 
   context(
-    "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test",
+    "Card - No threeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 

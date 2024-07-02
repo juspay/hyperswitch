@@ -75,6 +75,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        trigger_skip: true,
         body: {
           status: "requires_capture",
         },
@@ -89,6 +90,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        trigger_skip: true,
         body: {
           status: "processing",
         },
