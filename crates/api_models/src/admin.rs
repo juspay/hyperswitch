@@ -3,13 +3,16 @@ use std::collections::HashMap;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
-    id_type, link_utils, pii,
+    link_utils, pii,
 };
 
 #[cfg(feature = "v2")]
-use common_utils::new_type;
+use common_utils::{id_type, new_type};
 
-use masking::{ExposeOptionInterface, Secret};
+#[cfg(feature = "v2")]
+use masking::ExposeOptionInterface;
+
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -339,7 +342,7 @@ pub struct MerchantAccountResponse {
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    pub id: String,
 
     /// Name of the Merchant Account
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]

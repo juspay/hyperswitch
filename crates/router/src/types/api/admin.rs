@@ -62,7 +62,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         Ok(Self {
-            merchant_id: item.merchant_id,
+            id: item.merchant_id,
             merchant_name: item.merchant_name,
             merchant_details: item.merchant_details,
             publishable_key: item.publishable_key,
