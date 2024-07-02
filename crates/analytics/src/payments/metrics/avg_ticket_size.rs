@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -6,7 +8,6 @@ use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use super::{PaymentMetric, PaymentMetricRow};
 use crate::{

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::{
     analytics::{
         payment_intents::{
@@ -10,7 +12,6 @@ use api_models::{
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use super::PaymentIntentMetricRow;
 use crate::{
@@ -42,7 +43,8 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
 

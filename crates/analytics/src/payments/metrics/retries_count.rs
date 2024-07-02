@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::{
     analytics::{
         payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
@@ -8,7 +10,6 @@ use api_models::{
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use super::PaymentMetricRow;
 use crate::{

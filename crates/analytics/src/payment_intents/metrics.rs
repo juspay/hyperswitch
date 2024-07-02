@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payment_intents::{
         PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics,
@@ -7,7 +9,6 @@ use api_models::analytics::{
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
@@ -72,7 +73,8 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
         match self {
             Self::SuccessfulSmartRetries => {
                 SuccessfulSmartRetries

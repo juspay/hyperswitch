@@ -14,12 +14,13 @@ use crate::{
 mod api_count;
 pub mod latency;
 mod status_code_count;
+use std::collections::HashSet;
+
 use api_count::ApiCount;
 use latency::MaxLatency;
 use status_code_count::StatusCodeCount;
 
 use self::latency::LatencyAvg;
-use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ApiEventMetricRow {
@@ -93,7 +94,6 @@ where
                         pool,
                     )
                     .await
-
             }
             Self::StatusCodeCount => {
                 StatusCodeCount

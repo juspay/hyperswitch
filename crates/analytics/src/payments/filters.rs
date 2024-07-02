@@ -1,9 +1,11 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{payments::PaymentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AttemptStatus, AuthenticationType, Currency};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
+
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
@@ -51,8 +53,6 @@ where
     let result_set: HashSet<FilterRow> = result.into_iter().collect();
 
     Ok(result_set)
-
-    
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize, Hash)]

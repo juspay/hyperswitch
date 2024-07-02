@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
@@ -5,7 +7,6 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},

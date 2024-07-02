@@ -2,6 +2,8 @@ mod dispute_status_metric;
 mod total_amount_disputed;
 mod total_dispute_lost_amount;
 
+use std::collections::HashSet;
+
 use api_models::{
     analytics::{
         disputes::{
@@ -13,7 +15,6 @@ use api_models::{
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use self::{
     dispute_status_metric::DisputeStatusMetric, total_amount_disputed::TotalAmountDisputed,

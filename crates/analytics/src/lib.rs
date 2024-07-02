@@ -31,8 +31,7 @@ pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
 
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},

@@ -1,10 +1,11 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},

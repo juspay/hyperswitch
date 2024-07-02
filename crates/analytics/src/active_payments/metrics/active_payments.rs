@@ -1,8 +1,9 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{active_payments::ActivePaymentsMetricsBucketIdentifier, Granularity};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use super::ActivePaymentsMetricRow;
 use crate::{

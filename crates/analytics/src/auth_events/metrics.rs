@@ -1,9 +1,10 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},

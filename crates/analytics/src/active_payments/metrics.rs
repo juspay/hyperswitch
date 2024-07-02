@@ -1,9 +1,10 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
     Granularity,
 };
 use time::PrimitiveDateTime;
-use std::collections::HashSet;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
