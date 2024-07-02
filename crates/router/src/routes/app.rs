@@ -201,8 +201,6 @@ pub trait AppStateInfo {
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
-    // #[cfg(feature = "partial-auth")]
-    // fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])>;
 }
 
 #[cfg(feature = "partial-auth")]
