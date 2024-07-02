@@ -6,12 +6,7 @@ import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 let globalState;
 
 describe("Bank Redirect tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
-  });
-
+  
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });

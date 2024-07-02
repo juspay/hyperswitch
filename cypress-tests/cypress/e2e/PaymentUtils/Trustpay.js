@@ -104,14 +104,10 @@ export const connectorDetails = {
       Request: {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          card: successfulNo3DSCardDetails,
-          currency: "USD",
           customer_acceptance: null,
           setup_future_usage: "on_session",
           card: successfulNo3DSCardDetails,
           currency: "USD",
-          customer_acceptance: null,
-          setup_future_usage: "on_session",
         },
       },
       Response: {

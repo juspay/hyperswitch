@@ -93,6 +93,7 @@ export function defaultErrorHandler(response, response_data) {
     response.status === 400 &&
     response.body.error.message === "Payment method type not supported"
   ) {
+    // Update the default status from 501 to 400 as `unsupported payment method` error is the next common error after `not implemented` error
     response_data = updateDefaultStatusCode();
   }
 
