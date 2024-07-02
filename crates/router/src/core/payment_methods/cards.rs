@@ -2170,19 +2170,19 @@ pub async fn list_payment_methods(
 
                                 let inner_map = if let Some(mut inner_map) = pm {
                                     inner_map.insert(
-                                        payment_method_type.clone(),
+                                        *payment_method_type,
                                         inner_config.connector_name.clone(),
                                     );
                                     inner_map
                                 } else {
                                     HashMap::from([(
-                                        payment_method_type.clone(),
+                                        *payment_method_type,
                                         inner_config.connector_name.clone(),
                                     )])
                                 };
 
                                 pmt_to_auth_connector
-                                    .insert(inner_config.payment_method.clone(), inner_map);
+                                    .insert(inner_config.payment_method, inner_map);
                                 val.push(inner_config.clone());
                             }
                         });
