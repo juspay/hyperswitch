@@ -2656,10 +2656,6 @@ api_key="Api Key"
 [[adyen_payout.debit]]
   payment_method_type = "UnionPay"
 [[adyen_payout.bank_transfer]]
-  payment_method_type = "ach"
-[[adyen_payout.bank_transfer]]
-  payment_method_type = "bacs"
-[[adyen_payout.bank_transfer]]
   payment_method_type = "sepa"
 [[adyen_payout.wallet]]
   payment_method_type = "paypal"
