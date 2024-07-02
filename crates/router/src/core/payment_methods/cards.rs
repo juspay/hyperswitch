@@ -1407,14 +1407,31 @@ pub async fn call_to_locker_hs<'a>(
     Ok(stored_card)
 }
 
-pub async fn update_payment_method(
+pub async fn update_payment_method_metadata_and_last_used(
     db: &dyn db::StorageInterface,
     pm: payment_method::PaymentMethod,
-    pm_metadata: serde_json::Value,
+    pm_metadata: Option<serde_json::Value>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
-        metadata: Some(pm_metadata),
+    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
+        metadata: pm_metadata,
+        last_used_at: common_utils::date_time::now(),
+    };
+    db.update_payment_method(pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+pub async fn update_payment_method_and_last_used(
+    db: &dyn db::StorageInterface,
+    pm: payment_method::PaymentMethod,
+    payment_method_update: Option<Encryption>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+        payment_method_data: payment_method_update,
+        last_used_at: common_utils::date_time::now(),
     };
     db.update_payment_method(pm, pm_update, storage_scheme)
         .await
