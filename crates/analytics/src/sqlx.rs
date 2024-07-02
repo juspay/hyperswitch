@@ -9,7 +9,8 @@ use common_utils::{
     DbConnectionParams,
 };
 use diesel_models::enums::{
-    AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, IntentStatus, PaymentMethod, RefundStatus
+    AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, IntentStatus, PaymentMethod,
+    RefundStatus,
 };
 use error_stack::ResultExt;
 use sqlx::{

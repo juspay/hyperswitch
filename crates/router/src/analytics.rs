@@ -14,9 +14,10 @@ pub mod routes {
         },
         GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
         GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
-        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
@@ -54,8 +55,9 @@ pub mod routes {
                             web::resource("filters/payments")
                                 .route(web::post().to(get_payment_filters)),
                         )
-                        .service(web::resource("filters/frm").route(web::post().to(get_frm_filters)))
-
+                        .service(
+                            web::resource("filters/frm").route(web::post().to(get_frm_filters)),
+                        )
                         .service(
                             web::resource("filters/refunds")
                                 .route(web::post().to(get_refund_filters)),
@@ -89,8 +91,9 @@ pub mod routes {
                             web::resource("metrics/auth_events")
                                 .route(web::post().to(get_auth_event_metrics)),
                         )
-                        .service(web::resource("metrics/frm").route(web::post().to(get_frm_metrics)))
-
+                        .service(
+                            web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
+                        )
                         .service(
                             web::resource("api_event_logs").route(web::get().to(get_api_events)),
                         )
