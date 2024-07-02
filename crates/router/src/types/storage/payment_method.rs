@@ -3,7 +3,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::types::api::{self, payments};
 use api_models::{enums as api_enums, payment_methods};
 use common_utils::id_type;
 use diesel_models::enums;
@@ -11,6 +10,8 @@ pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
+
+use crate::types::api::{self, payments};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
