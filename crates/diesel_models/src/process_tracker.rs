@@ -209,6 +209,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodMandateDetailsRevokeWorkflow,
 }
 
 #[cfg(test)]
@@ -264,4 +265,8 @@ pub mod business_status {
 
     /// Business status set for newly created tasks.
     pub const PENDING: &str = "Pending";
+
+    /// The Revoke Mandate flow has not been implemented for the Connector
+    /// No further retries are required
+    pub const NOT_IMPLEMENTED_FOR_THE_CONNECTOR: &str = "NOT IMPLEMENTED FOR THE CONNECTOR";
 }

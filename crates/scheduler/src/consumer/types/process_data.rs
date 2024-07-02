@@ -82,3 +82,27 @@ impl Default for OutgoingWebhookRetryProcessTrackerMapping {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentMethodMandateRevokePTMapping {
+    pub default: RetryMapping,
+    pub connector_retry: HashMap<String, RetryMapping>,
+}
+impl Default for PaymentMethodMandateRevokePTMapping {
+    fn default() -> Self {
+        Self {
+            default: RetryMapping {
+                // 1st attempt happens after 1 minute
+                start_after: 60,
+
+                frequencies: vec![
+                    // 2nd and 3rd attempts happen at intervals of 5 minutes each
+                    (60 * 5, 2),
+                    // 4th, 5th, 6th, 7th and 8th attempts happen at intervals of 10 minutes each
+                    (60 * 10, 5),
+                ],
+            },
+            connector_retry: HashMap::new(),
+        }
+    }
+}

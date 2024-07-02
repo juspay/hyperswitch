@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use diesel_models::Mandate;
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 
 use crate::{
@@ -20,7 +19,10 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW: &str =
 pub async fn construct_mandate_revoke_router_data(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     merchant_account: &domain::MerchantAccount,
-    mandate: Mandate,
+    customer_id: id_type::CustomerId,
+    connector: String,
+    connector_mandate_id: Option<String>,
+    payment_id: Option<String>,
 ) -> CustomResult<types::MandateRevokeRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -29,11 +31,10 @@ pub async fn construct_mandate_revoke_router_data(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        customer_id: Some(mandate.customer_id),
+        customer_id: Some(customer_id),
         connector_customer: None,
-        connector: mandate.connector,
-        payment_id: mandate
-            .original_payment_id
+        connector,
+        payment_id: payment_id
             .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW.to_string()),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
@@ -57,8 +58,7 @@ pub async fn construct_mandate_revoke_router_data(
         connector_api_version: None,
         payment_method_status: None,
         request: types::MandateRevokeRequestData {
-            mandate_id: mandate.mandate_id,
-            connector_mandate_id: mandate.connector_mandate_id,
+            connector_mandate_id,
         },
         response: Err(types::ErrorResponse::get_not_implemented()),
         connector_request_reference_id:
