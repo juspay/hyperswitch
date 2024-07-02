@@ -78,6 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    // Bamboraapac, commented for template
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -198,6 +199,7 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
