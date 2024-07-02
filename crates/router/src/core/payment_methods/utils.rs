@@ -1,5 +1,5 @@
 use std::{str::FromStr, sync::Arc};
-:
+
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
@@ -14,7 +14,7 @@ use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 use crate::{configs::settings, routes::SessionState};
 
 pub fn make_pm_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_methods: &[serde_json::value::Value],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
@@ -40,22 +40,20 @@ pub fn make_pm_graph(
 pub async fn get_merchant_pm_filter_graph<'a>(
     state: &SessionState,
     key: &str,
-) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>>> {
+) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {
     PM_FILTERS_CGRAPH_CACHE
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(
-            CacheKey {
-                key: key.to_string(),
-                prefix: state.tenant.redis_key_prefix.clone(),
-            },
-        )
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>>(CacheKey {
+            key: key.to_string(),
+            prefix: state.tenant.redis_key_prefix.clone(),
+        })
         .await
 }
 
 pub async fn refresh_pm_filters_cache(
     state: &SessionState,
     key: &str,
-    graph: cgraph::ConstraintGraph<'static, dir::DirValue>,
-) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<'static, dir::DirValue>> {
+    graph: cgraph::ConstraintGraph<dir::DirValue>,
+) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>> {
     let pm_filter_graph = Arc::new(graph);
     PM_FILTERS_CGRAPH_CACHE
         .push(
@@ -70,7 +68,7 @@ pub async fn refresh_pm_filters_cache(
 }
 
 fn compile_pm_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     pm_enabled: PaymentMethodsEnabled,
     connector: String,
     config: &settings::ConnectorFilters,
@@ -247,7 +245,7 @@ fn compile_pm_graph(
                 .make_edge(
                     and_node_for_all_the_filters,
                     payment_method_type_value_node,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Normal,
                     cgraph::Relation::Positive,
                     None::<cgraph::DomainId>,
                 )
@@ -258,7 +256,7 @@ fn compile_pm_graph(
 }
 
 fn construct_capture_method_node(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_method_filters: &settings::PaymentMethodFilters,
     payment_method_type: &api_enums::PaymentMethodType,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
@@ -284,7 +282,7 @@ fn construct_capture_method_node(
 }
 
 fn construct_supported_connectors_for_update_mandate_node(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
     pmt: RequestPaymentMethodTypes,
     payment_method: &enums::PaymentMethod,
@@ -467,7 +465,7 @@ fn construct_supported_connectors_for_update_mandate_node(
 }
 
 fn construct_supported_connectors_for_mandate_node(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     eligible_connectors: Vec<api_enums::Connector>,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let payment_type_value_node = builder.make_value_node(
@@ -524,7 +522,7 @@ fn construct_supported_connectors_for_mandate_node(
 }
 
 // fn construct_card_network_nodes(
-//     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+//     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
 //     mca_card_networks: Vec<api_enums::CardNetwork>,
 // ) -> Result<Option<cgraph::NodeId>, KgraphError> {
 //     Ok(Some(
@@ -542,7 +540,7 @@ fn construct_supported_connectors_for_mandate_node(
 // }
 
 fn compile_accepted_countries_for_mca(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_method_type: &enums::PaymentMethodType,
     pm_countries: Option<admin::AcceptedCountries>,
     config: &settings::ConnectorFilters,
@@ -571,7 +569,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::DisableOnly(countries) => {
@@ -592,7 +590,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
@@ -628,7 +626,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     config_country_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
         }
@@ -641,7 +639,7 @@ fn compile_accepted_countries_for_mca(
 }
 
 fn compile_accepted_currency_for_mca(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_method_type: &enums::PaymentMethodType,
     pm_currency: Option<admin::AcceptedCurrencies>,
     config: &settings::ConnectorFilters,
@@ -665,7 +663,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     pm_object_currency_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCurrencies::DisableOnly(currency) => {
@@ -682,7 +680,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     pm_object_currency_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCurrencies::AllAccepted => return Ok(None),
@@ -720,7 +718,7 @@ fn compile_accepted_currency_for_mca(
                 agg_nodes.push((
                     config_currency_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
         }
