@@ -4128,26 +4128,17 @@ pub async fn list_customer_payment_method(
                     .attach_printable("Failed to get redis connection")?;
 
                 for pm_metadata in pm_metadata_vec.payment_method_tokenization {
-                    let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
-                        .parse_value("PaymentMethodMetadata")
+                    let key = format!(
+                        "pm_token_{}_{}_{}",
+                        token, pma.payment_method, pm_metadata.0
+                    );
+
+                    redis_conn
+                        .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
+                        .await
+                        .change_context(errors::StorageError::KVError)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to deserialize metadata to PaymentmethodMetadata struct",
-                        )?;
-
-                    for pm_metadata in pm_metadata_vec.payment_method_tokenization {
-                        let key = format!(
-                            "pm_token_{}_{}_{}",
-                            token, pma.payment_method, pm_metadata.0
-                        );
-
-                        redis_conn
-                            .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
-                            .await
-                            .change_context(errors::StorageError::KVError)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add data in redis")?;
-                    }
+                        .attach_printable("Failed to add data in redis")?;
                 }
             }
         }
