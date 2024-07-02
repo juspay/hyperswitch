@@ -41,6 +41,7 @@ pub struct BusinessProfile {
     pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -73,6 +74,7 @@ pub struct BusinessProfileNew {
     pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -102,6 +104,7 @@ pub struct BusinessProfileUpdateInternal {
     pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -128,6 +131,7 @@ pub enum BusinessProfileUpdate {
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
         collect_shipping_details_from_wallet_connector: Option<bool>,
+        collect_billing_details_from_wallet_connector: Option<bool>,
         is_connector_agnostic_mit_enabled: Option<bool>,
     },
     ExtendedCardInfoUpdate {
@@ -163,6 +167,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
+                collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name,
@@ -186,6 +191,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
+                collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
                 ..Default::default()
             },
@@ -235,6 +241,8 @@ impl From<BusinessProfileNew> for BusinessProfile {
             use_billing_as_payment_method_billing: new.use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector: new
                 .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: new
+                .collect_billing_details_from_wallet_connector,
         }
     }
 }
@@ -265,6 +273,7 @@ impl BusinessProfileUpdate {
             is_connector_agnostic_mit_enabled,
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -292,6 +301,7 @@ impl BusinessProfileUpdate {
             extended_card_info_config,
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector,
             ..source
         }
     }
