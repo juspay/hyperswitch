@@ -210,6 +210,22 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_keys(
+        &self,
+        keys: Vec<String>,
+    ) -> CustomResult<DelReply, errors::RedisError> {
+        let keys = keys
+            .iter()
+            .map(|key| self.add_prefix(key))
+            .collect::<Vec<_>>();
+
+        self.pool
+            .del(keys)
+            .await
+            .change_context(errors::RedisError::DeleteFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
         key: &str,

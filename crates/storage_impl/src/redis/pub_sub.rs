@@ -4,20 +4,19 @@ use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
-use crate::redis::cache::{
-    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, DECISION_MANAGER_CACHE,
-    ROUTING_CACHE, SURCHARGE_CACHE,
-};
+use crate::redis::cache::{self, CacheKind};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError>;
 
-    async fn publish<'a>(
+    async fn publish<'a, K>(
         &self,
         channel: &str,
-        key: CacheKind<'a>,
-    ) -> error_stack::Result<usize, redis_errors::RedisError>;
+        keys: K,
+    ) -> error_stack::Result<usize, redis_errors::RedisError>
+    where
+        K: IntoIterator<Item = CacheKind<'a>> + Send;
 
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError>;
 }
@@ -61,15 +60,33 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     }
 
     #[inline]
-    async fn publish<'a>(
+    async fn publish<'a, K>(
         &self,
         channel: &str,
-        key: CacheKind<'a>,
-    ) -> error_stack::Result<usize, redis_errors::RedisError> {
+        keys: K,
+    ) -> error_stack::Result<usize, redis_errors::RedisError>
+    where
+        K: IntoIterator<Item = CacheKind<'a>> + Send,
+    {
+        let mut keys_to_be_published_to_redis = Vec::new();
+        for key in keys {
+            keys_to_be_published_to_redis.push(
+                RedisValue::from(key)
+                    .as_string()
+                    .ok_or(redis_errors::RedisError::PublishError)
+                    .attach_printable("Failed to convert RedisValue to String")?,
+            )
+        }
+        let serialized_keys = serde_json::to_string(&keys_to_be_published_to_redis)
+            .change_context(redis_errors::RedisError::JsonSerializationFailed).attach_printable("Failed while serializing keys to be published to IMC invalidation channel as a String of json")?;
+
         self.publisher
-            .publish(channel, RedisValue::from(key).into_inner())
+            .publish(
+                channel,
+                RedisValue::from_string(serialized_keys).into_inner(),
+            )
             .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+            .change_context(redis_errors::RedisError::PublishError)
     }
 
     #[inline]
@@ -81,122 +98,24 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             logger::debug!("Received message on channel: {channel_name}");
 
             match channel_name.as_str() {
-                super::cache::IMC_INVALIDATION_CHANNEL => {
-                    let key = match CacheKind::try_from(RedisValue::new(message.value))
-                        .change_context(redis_errors::RedisError::OnMessageError)
+                cache::IMC_INVALIDATION_CHANNEL => {
+                    let keys_to_be_invalidated = match CacheKind::from_redis_value(RedisValue::new(
+                        message.value,
+                    ))
+                    .change_context(redis_errors::RedisError::OnMessageError)
                     {
                         Ok(value) => value,
                         Err(err) => {
-                            logger::error!(value_conversion_err=?err);
+                            logger::error!(value_conversion_err=?err, "Failed to parse the message on invalidation channel to CacheKind");
                             continue;
                         }
                     };
 
-                    let key = match key {
-                        CacheKind::Config(key) => {
-                            CONFIG_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::Accounts(key) => {
-                            ACCOUNTS_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::CGraph(key) => {
-                            CGRAPH_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::Routing(key) => {
-                            ROUTING_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::DecisionManager(key) => {
-                            DECISION_MANAGER_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::Surcharge(key) => {
-                            SURCHARGE_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            key
-                        }
-                        CacheKind::All(key) => {
-                            CONFIG_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            ACCOUNTS_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            CGRAPH_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            ROUTING_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            DECISION_MANAGER_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-                            SURCHARGE_CACHE
-                                .remove(CacheKey {
-                                    key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
-                                })
-                                .await;
-
-                            key
-                        }
-                    };
-
-                    self.delete_key(key.as_ref())
-                        .await
-                        .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
-                        .ok();
-
-                    logger::debug!(
-                        "Handled message on channel {channel_name} - Done invalidating {key}"
-                    );
+                    cache::invalidate_cache_entries(
+                        keys_to_be_invalidated,
+                        self.key_prefix.clone(),
+                    )
+                    .await;
                 }
                 _ => {
                     logger::debug!("Received message from unknown channel: {channel_name}");

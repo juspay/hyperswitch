@@ -43,6 +43,8 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
+    #[error("Type conversion error")]
+    TypeConversionError,
 }
 
 impl ErrorSwitch<DataStorageError> for StorageError {
@@ -91,6 +93,7 @@ impl Into<DataStorageError> for &StorageError {
                 RedisError::JsonDeserializationFailed => DataStorageError::DeserializationFailed,
                 i => DataStorageError::RedisError(format!("{:?}", i)),
             },
+            StorageError::TypeConversionError => DataStorageError::TypeConversionError,
         }
     }
 }

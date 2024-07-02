@@ -1,4 +1,9 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
+use std::{
+    any::Any,
+    borrow::Cow,
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -8,8 +13,9 @@ use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
+use redis_interface::{errors::RedisError, DelReply, RedisConnectionPool, RedisValue};
 use router_env::{
+    logger,
     metrics::add_attributes,
     tracing::{self, instrument},
 };
@@ -88,6 +94,7 @@ pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
 }
 
+#[derive(Debug, Clone)]
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
@@ -98,41 +105,84 @@ pub enum CacheKind<'a> {
     All(Cow<'a, str>),
 }
 
-impl<'a> From<CacheKind<'a>> for RedisValue {
-    fn from(kind: CacheKind<'a>) -> Self {
-        let value = match kind {
-            CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
-            CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
-            CacheKind::Routing(s) => format!("{ROUTING_CACHE_PREFIX},{s}"),
-            CacheKind::DecisionManager(s) => format!("{DECISION_MANAGER_CACHE_PREFIX},{s}"),
-            CacheKind::Surcharge(s) => format!("{SURCHARGE_CACHE_PREFIX},{s}"),
-            CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
-            CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
-        };
-        Self::from_string(value)
+impl<'a> CacheKind<'a> {
+    pub fn get_inner(&self) -> String {
+        match self {
+            Self::Config(s) => s.to_string(),
+            Self::Accounts(s) => s.to_string(),
+            Self::Routing(s) => s.to_string(),
+            Self::DecisionManager(s) => s.to_string(),
+            Self::Surcharge(s) => s.to_string(),
+            Self::CGraph(s) => s.to_string(),
+            Self::All(s) => s.to_string(),
+        }
+    }
+
+    pub fn from_redis_value(
+        value: RedisValue,
+    ) -> Result<Vec<Self>, Report<errors::ValidationError>> {
+        let value = value
+            .as_string()
+            .ok_or(errors::ValidationError::InvalidValue {
+                message: "Failed to convert Redis value of published message to String".into(),
+            })?;
+
+        let deserialized_keys: Vec<String> =
+            serde_json::from_str(&value).change_context(errors::ValidationError::InvalidValue {
+                message:
+                    "Failed to deserialize redis value from a json String in published message"
+                        .into(),
+            })?;
+
+        let mut redis_values = Vec::with_capacity(deserialized_keys.len());
+        for key in deserialized_keys {
+            let (cache_prefix, key) =
+                key.split_once(',')
+                    .ok_or(errors::ValidationError::InvalidValue {
+                        message: "Invalid key format in published message".into(),
+                    })?;
+            let redis_val: Result<CacheKind<'a>, Report<errors::ValidationError>> =
+                match cache_prefix {
+                    ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(key.to_string()))),
+                    CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(key.to_string()))),
+                    ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(key.to_string()))),
+                    DECISION_MANAGER_CACHE_PREFIX => {
+                        Ok(Self::DecisionManager(Cow::Owned(key.to_string())))
+                    }
+                    SURCHARGE_CACHE_PREFIX => Ok(Self::Surcharge(Cow::Owned(key.to_string()))),
+                    CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(key.to_string()))),
+                    ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(key.to_string()))),
+                    _ => Err(errors::ValidationError::InvalidValue {
+                        message: "Invalid cache prefix in published message".into(),
+                    }
+                    .into()),
+                };
+            redis_values.push(redis_val?);
+        }
+
+        Ok(redis_values)
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
-    type Error = Report<errors::ValidationError>;
-    fn try_from(kind: RedisValue) -> Result<Self, Self::Error> {
-        let validation_err = errors::ValidationError::InvalidValue {
-            message: "Invalid publish key provided in pubsub".into(),
+impl<'a> From<CacheKind<'a>> for RedisValue {
+    fn from(kind: CacheKind<'a>) -> Self {
+        Self::from_string(kind.to_string())
+    }
+}
+
+impl<'a> Display for CacheKind<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (cache_prefix, key) = match self {
+            CacheKind::Config(s) => (CONFIG_CACHE_PREFIX, s),
+            CacheKind::Accounts(s) => (ACCOUNTS_CACHE_PREFIX, s),
+            CacheKind::Routing(s) => (ROUTING_CACHE_PREFIX, s),
+            CacheKind::DecisionManager(s) => (DECISION_MANAGER_CACHE_PREFIX, s),
+            CacheKind::Surcharge(s) => (SURCHARGE_CACHE_PREFIX, s),
+            CacheKind::CGraph(s) => (CGRAPH_CACHE_PREFIX, s),
+            CacheKind::All(s) => (ALL_CACHE_PREFIX, s),
         };
-        let kind = kind.as_string().ok_or(validation_err.clone())?;
-        let split = kind.split_once(',').ok_or(validation_err.clone())?;
-        match split.0 {
-            ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
-            CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
-            ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(split.1.to_string()))),
-            DECISION_MANAGER_CACHE_PREFIX => {
-                Ok(Self::DecisionManager(Cow::Owned(split.1.to_string())))
-            }
-            SURCHARGE_CACHE_PREFIX => Ok(Self::Surcharge(Cow::Owned(split.1.to_string()))),
-            CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
-            ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
-            _ => Err(validation_err.into()),
-        }
+
+        write!(f, "{cache_prefix},{key}")
     }
 }
 
@@ -377,11 +427,37 @@ where
     Ok(data)
 }
 
+/// Executes a database call, redacts specified keys from redis,
+/// and publishes a message to a pub/sub channel for IMC invalidation.
+/// Returns the result of the database call.
 #[instrument(skip_all)]
-pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
+pub async fn db_call_with_redact_and_publish<'a, T, F, K, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
     keys: K,
-) -> CustomResult<usize, StorageError> {
+    fun: F,
+) -> CustomResult<T, StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+{
+    let data = fun().await?;
+
+    redact_from_redis_and_publish(store, keys).await?;
+
+    Ok(data)
+}
+
+/// Redacts specified keys from redis and publishes a message to a pub/sub channel
+/// for IMC invalidation
+#[instrument(skip_all)]
+pub async fn redact_from_redis_and_publish<'a, K>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    keys: K,
+) -> CustomResult<(), StorageError>
+where
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+{
     let redis_conn = store
         .get_redis_conn()
         .change_context(StorageError::RedisError(
@@ -389,49 +465,154 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
         ))
         .attach_printable("Failed to get redis connection")?;
 
-    let futures = keys.into_iter().map(|key| async {
-        redis_conn
-            .clone()
-            .publish(IMC_INVALIDATION_CHANNEL, key)
-            .await
-            .change_context(StorageError::KVError)
-    });
+    let redis_keys_to_be_deleted = keys
+        .clone()
+        .into_iter()
+        .map(|val| val.get_inner())
+        .collect::<Vec<_>>();
 
-    Ok(futures::future::try_join_all(futures)
-        .await?
-        .iter()
-        .sum::<usize>())
+    let no_of_keys_to_be_deleted = i64::try_from(redis_keys_to_be_deleted.len())
+        .change_context(StorageError::TypeConversionError)
+        .attach_printable("Failed to type cast from usize to i64")?;
+
+    match redis_conn.delete_keys(redis_keys_to_be_deleted).await {
+        Ok(DelReply::KeysDeleted(n)) if n <= no_of_keys_to_be_deleted => Ok(()),
+        Ok(DelReply::KeysDeleted(n)) => Err(StorageError::RedisError(
+            RedisError::InconsistentDeletions {
+                expected_deletions: no_of_keys_to_be_deleted,
+                actual_deletions: n,
+            }
+            .into(),
+        )),
+        Ok(DelReply::NoKeysDeleted) => Ok(()),
+        Err(err) => Err(StorageError::RedisError(err)),
+    }?;
+
+    publish_into_redact_channel(store, keys).await?;
+
+    Ok(())
 }
 
+/// Publishes the specified keys into a pub/sub channel for IMC invalidation.
 #[instrument(skip_all)]
-pub async fn publish_and_redact<'a, T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
-    key: CacheKind<'a>,
-    fun: F,
-) -> CustomResult<T, StorageError>
-where
-    F: FnOnce() -> Fut + Send,
-    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-{
-    let data = fun().await?;
-    publish_into_redact_channel(store, [key]).await?;
-    Ok(data)
-}
-
-#[instrument(skip_all)]
-pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
+pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
     store: &(dyn RedisConnInterface + Send + Sync),
     keys: K,
-    fun: F,
-) -> CustomResult<T, StorageError>
-where
-    F: FnOnce() -> Fut + Send,
-    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-    K: IntoIterator<Item = CacheKind<'a>> + Send,
-{
-    let data = fun().await?;
-    publish_into_redact_channel(store, keys).await?;
-    Ok(data)
+) -> CustomResult<(), StorageError> {
+    let redis_conn = store
+        .get_redis_conn()
+        .change_context(StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+
+    redis_conn
+        .clone()
+        .publish(IMC_INVALIDATION_CHANNEL, keys)
+        .await
+        .change_context(StorageError::KVError)?;
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn invalidate_cache_entries(
+    keys_to_be_invalidated: Vec<CacheKind<'_>>,
+    key_prefix: String,
+) {
+    for key in &keys_to_be_invalidated {
+        match key {
+            CacheKind::Config(key) => {
+                CONFIG_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::Accounts(key) => {
+                ACCOUNTS_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::CGraph(key) => {
+                CGRAPH_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::Routing(key) => {
+                ROUTING_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::DecisionManager(key) => {
+                DECISION_MANAGER_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::Surcharge(key) => {
+                SURCHARGE_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+            CacheKind::All(key) => {
+                CONFIG_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+                ACCOUNTS_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+                CGRAPH_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+                ROUTING_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+                DECISION_MANAGER_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+                SURCHARGE_CACHE
+                    .remove(CacheKey {
+                        key: key.to_string(),
+                        prefix: key_prefix.clone(),
+                    })
+                    .await;
+            }
+        };
+    }
+    logger::debug!(
+        "Handled message on channel {IMC_INVALIDATION_CHANNEL} - Done invalidating {keys_to_be_invalidated:?}",
+    );
 }
 
 #[cfg(test)]
