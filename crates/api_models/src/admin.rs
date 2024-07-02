@@ -268,10 +268,6 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<i64>,
-
     /// The organization id merchant is associated with
     pub organization_id: String,
 
@@ -920,8 +916,7 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
 
@@ -1010,8 +1005,7 @@ pub struct BusinessProfileResponse {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<i64>,
 
@@ -1095,8 +1089,7 @@ pub struct BusinessProfileUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
 

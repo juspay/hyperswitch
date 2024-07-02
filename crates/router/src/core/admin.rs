@@ -1520,6 +1520,11 @@ pub async fn create_business_profile(
     if let Some(session_expiry) = &request.session_expiry {
         helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
+
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1635,6 +1640,10 @@ pub async fn update_business_profile(
 
     if let Some(session_expiry) = &request.session_expiry {
         helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
+
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
     }
 
     let webhook_details = request
