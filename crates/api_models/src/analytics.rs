@@ -8,6 +8,7 @@ use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
+    payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
@@ -20,6 +21,7 @@ pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
 pub mod outgoing_webhook_event;
+pub mod payment_intents;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
@@ -116,6 +118,20 @@ pub struct GenerateReportRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetPaymentIntentMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<PaymentIntentDimensions>,
+    #[serde(default)]
+    pub filters: payment_intents::PaymentIntentFilters,
+    pub metrics: HashSet<PaymentIntentMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -184,6 +200,27 @@ pub struct PaymentFiltersResponse {
 #[serde(rename_all = "camelCase")]
 pub struct FilterValue {
     pub dimension: PaymentDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetPaymentIntentFiltersRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<PaymentIntentDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentIntentFiltersResponse {
+    pub query_data: Vec<PaymentIntentFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentIntentFilterValue {
+    pub dimension: PaymentIntentDimensions,
     pub values: Vec<String>,
 }
 

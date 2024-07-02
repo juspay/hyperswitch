@@ -41,6 +41,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional = true }
+url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
 

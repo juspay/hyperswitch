@@ -6821,6 +6821,15 @@
             "properties": {
               "domain_name": {
                 "type": "string",
+                "description": "Custom domain name to be used for hosting the link in your own domain",
+                "nullable": true
+              },
+              "business_specific_configs": {
+                "type": "object",
+                "description": "list of configs for multi theme setup",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+                },
                 "nullable": true
               }
             }
@@ -6893,7 +6902,7 @@
           "intent_fulfillment_time": {
             "type": "integer",
             "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
             "example": 900,
             "nullable": true,
             "minimum": 0
@@ -6950,7 +6959,16 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
             "nullable": true
           },
           "is_connector_agnostic_mit_enabled": {
@@ -7041,7 +7059,7 @@
           "intent_fulfillment_time": {
             "type": "integer",
             "format": "int64",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
             "example": 900,
             "nullable": true
           },
@@ -7099,7 +7117,16 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
             "nullable": true
           },
           "is_connector_agnostic_mit_enabled": {
@@ -9127,7 +9154,8 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
-            "description": "An array of associated payment method types"
+            "description": "An array of associated payment method types",
+            "uniqueItems": true
           }
         }
       },
@@ -11310,12 +11338,6 @@
                 "$ref": "#/components/schemas/RoutingAlgorithm"
               }
             ],
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true
           },
           "organization_id": {
@@ -14978,6 +15000,11 @@
             ],
             "nullable": true
           },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -15309,6 +15336,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "profile_id": {
@@ -16351,6 +16383,11 @@
             ],
             "nullable": true
           },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
@@ -17357,6 +17394,11 @@
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "payment_link_config_id": {
+            "type": "string",
+            "description": "custom payment link config id set at business profile send only if business_specific_configs is configured",
             "nullable": true
           },
           "surcharge_details": {
