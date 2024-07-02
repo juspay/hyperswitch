@@ -4,15 +4,6 @@ use common_utils::id_type;
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
-#[cfg(not(feature = "v2"))]
-use crate::{
-    compatibility::{stripe::errors, wrap},
-    core::{api_locking, customers, payment_methods::cards},
-    routes,
-    services::{api, authentication as auth},
-    types::api::{customers as customer_types, payment_methods},
-};
-
 #[cfg(feature = "v2")]
 use crate::{
     compatibility::{stripe::errors, wrap},
@@ -20,6 +11,14 @@ use crate::{
     routes,
     services::{api, authentication as auth},
     types::api::customers as customer_types,
+};
+#[cfg(not(feature = "v2"))]
+use crate::{
+    compatibility::{stripe::errors, wrap},
+    core::{api_locking, customers, payment_methods::cards},
+    routes,
+    services::{api, authentication as auth},
+    types::api::{customers as customer_types, payment_methods},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
