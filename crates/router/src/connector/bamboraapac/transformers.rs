@@ -578,6 +578,125 @@ impl<F>
     }
 }
 
+pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<u8>, Error> {
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let body = format!(
+        r#"
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <dts:QueryTransaction>
+                        <dts:queryXML>
+                            <![CDATA[
+                                <QueryTransaction>
+                                        <Criteria>
+                                            <AccountNumber>z{}</AccountNumber>
+                                            <CustRef>{}</CustRef>
+                                        </Criteria>
+                                        <Security>
+                                            <UserName>{}</UserName>
+                                            <Password>{}</Password>
+                                        </Security> 
+                            </QueryTransaction>	
+                            ]]>    
+                        </dts:queryXML>
+                    </dts:QueryTransaction>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
+        auth_details.account_number.peek(),
+        req.connector_request_reference_id,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(body.as_bytes().to_vec())
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .response_code;
+        let connector_transaction_id = item
+            .response
+            .body
+            .submit_single_payment_response
+            .submit_single_payment_result
+            .response
+            .receipt;
+        // transaction approved
+        if response_code == 0 {
+            Ok(Self {
+                status: get_attempt_status(response_code, item.data.request.capture_method),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        connector_transaction_id.to_owned(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(connector_transaction_id),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+        // transaction failed
+        else {
+            Ok(Self {
+                status: get_attempt_status(response_code, item.data.request.capture_method),
+                response: Err(types::ErrorResponse {
+                    status_code: item.http_code,
+                    code: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_code
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: item
+                        .response
+                        .body
+                        .submit_single_payment_response
+                        .submit_single_payment_result
+                        .response
+                        .declined_message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            })
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraapacErrorResponse {
     pub declined_code: Option<String>,

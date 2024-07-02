@@ -244,9 +244,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = bamboraapac::get_payment_sync_body(req)?;
+
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -260,27 +270,35 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsSyncRouterData,
+        data: &types::PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bamboraapac::BamboraapacPaymentsResponse = res
-            .response
-            .parse_struct("bamboraapac PaymentsSyncResponse")
+        let response_data = html_to_xml_string_conversion(
+            String::from_utf8(res.response.to_vec())
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        );
+
+        let response = response_data
+            .parse_xml::<bamboraapac::BamboraapacPaymentsResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        Err(errors::ConnectorError::NotSupported {
-            message: "".to_string(),
-            connector: "",
-        }
-        .into())
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
