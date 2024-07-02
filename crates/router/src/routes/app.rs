@@ -855,7 +855,11 @@ impl Refunds {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
-                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/{id}/manual-update")
+                        .route(web::put().to(refunds_manual_update)),
+                );
         }
         #[cfg(feature = "oltp")]
         {
