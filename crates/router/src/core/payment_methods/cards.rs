@@ -4138,7 +4138,7 @@ pub async fn list_customer_payment_method(
                     for pm_metadata in pm_metadata_vec.payment_method_tokenization {
                         let key = format!(
                             "pm_token_{}_{}_{}",
-                            parent_payment_method_token, pma.payment_method, pm_metadata.0
+                            token, pma.payment_method, pm_metadata.0
                         );
 
                         redis_conn
