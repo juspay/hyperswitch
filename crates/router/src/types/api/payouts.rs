@@ -5,12 +5,12 @@ pub use api_models::payouts::{
     PayoutRetrieveRequest, PixBankTransfer, SepaBankTransfer, Wallet as WalletPayout,
 };
 pub use hyperswitch_domain_models::router_flow_types::payouts::{
-    PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+    PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
 };
 
 pub use super::payouts_v2::{
     PayoutCancelV2, PayoutCreateV2, PayoutEligibilityV2, PayoutFulfillV2, PayoutQuoteV2,
-    PayoutRecipientAccountV2, PayoutRecipientV2, PayoutsV2,
+    PayoutRecipientAccountV2, PayoutRecipientV2, PayoutSyncV2, PayoutsV2,
 };
 use crate::{services::api, types};
 
@@ -46,5 +46,10 @@ pub trait PayoutRecipient:
 
 pub trait PayoutRecipientAccount:
     api::ConnectorIntegration<PoRecipientAccount, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+pub trait PayoutSync:
+    api::ConnectorIntegration<PoSync, types::PayoutsData, types::PayoutsResponseData>
 {
 }
