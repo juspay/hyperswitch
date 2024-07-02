@@ -1,9 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
-use time::PrimitiveDateTime;
 
 use super::app::{AppState, SessionState};
 use crate::{
@@ -484,7 +483,7 @@ impl ParentPaymentMethodToken {
     }
     pub async fn insert(
         &self,
-        intent_created_at: Option<PrimitiveDateTime>,
+        fulfillment_time: i64,
         token: PaymentTokenData,
         state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -497,14 +496,8 @@ impl ParentPaymentMethodToken {
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc - intent_created_at.unwrap_or(current_datetime_utc);
         redis_conn
-            .set_key_with_expiry(
-                &self.key_for_token,
-                token_json_str,
-                TOKEN_TTL - time_elapsed.whole_seconds(),
-            )
+            .set_key_with_expiry(&self.key_for_token, token_json_str, fulfillment_time)
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)

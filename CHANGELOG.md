@@ -4,6 +4,67 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.02.0
+
+### Features
+
+- **analytics:** Add v2 payment analytics (payment-intents analytics) ([#5150](https://github.com/juspay/hyperswitch/pull/5150)) ([`9fc525d`](https://github.com/juspay/hyperswitch/commit/9fc525d49849e160345902beecac01d3a2f4c70f))
+- **connector:** [Bambora Apac] Template for integration ([#5062](https://github.com/juspay/hyperswitch/pull/5062)) ([`1b89463`](https://github.com/juspay/hyperswitch/commit/1b8946321befb3a3a79c5fe2acf6b255b8930940))
+- **globalsearch:** Implement tag-based filters in global search ([#5151](https://github.com/juspay/hyperswitch/pull/5151)) ([`4314fcd`](https://github.com/juspay/hyperswitch/commit/4314fcd17309a1c0d82b1b65eb867f913b72fbd7))
+- **payment_link:** Add multiple custom css support in business level ([#5137](https://github.com/juspay/hyperswitch/pull/5137)) ([`ecc6c00`](https://github.com/juspay/hyperswitch/commit/ecc6c00d4aaa034f96eae76c64024d56bb5fa173))
+- **tls:** Add support for https in actix web ([#5089](https://github.com/juspay/hyperswitch/pull/5089)) ([`2688d24`](https://github.com/juspay/hyperswitch/commit/2688d24d4963550ff3efee363194446a3c75cc59))
+
+### Bug Fixes
+
+- **connector:** [Paypal] dispute webhook deserialization failure ([#5111](https://github.com/juspay/hyperswitch/pull/5111)) ([`af2497b`](https://github.com/juspay/hyperswitch/commit/af2497b5012f048a4cf72b61712812bca534c17c))
+- **router:**
+  - Mark retry payment as failure if `connector_tokenization` fails ([#5114](https://github.com/juspay/hyperswitch/pull/5114)) ([`ecb8caf`](https://github.com/juspay/hyperswitch/commit/ecb8cafaed5a29e8ab204992a2f35102d2add09f))
+  - Rename the browser name header to `x-browser-name` ([#5162](https://github.com/juspay/hyperswitch/pull/5162)) ([`ff14e79`](https://github.com/juspay/hyperswitch/commit/ff14e79adf48a983855cf7abcc282bf556ecf2f9))
+
+### Refactors
+
+- **connector:** Add amount conversion framework to iatapay along with amount conversion code to connector template ([#4866](https://github.com/juspay/hyperswitch/pull/4866)) ([`8a33bd5`](https://github.com/juspay/hyperswitch/commit/8a33bd5e7368b4e863cbc58c73702f48567d39dc))
+
+### Miscellaneous Tasks
+
+- **ci:** Fix ci tests failing by removing them ([#5167](https://github.com/juspay/hyperswitch/pull/5167)) ([`4fbff39`](https://github.com/juspay/hyperswitch/commit/4fbff39906a57420cf5b8b4e1084bff1f82c070b))
+
+**Full Changelog:** [`2024.07.01.0...2024.07.02.0`](https://github.com/juspay/hyperswitch/compare/2024.07.01.0...2024.07.02.0)
+
+- - -
+
+## 2024.07.01.0
+
+### Features
+
+- **core:** Customer_details storage in payment_intent ([#5007](https://github.com/juspay/hyperswitch/pull/5007)) ([`bb9a971`](https://github.com/juspay/hyperswitch/commit/bb9a97154c19eeadfdf17428c18d2facebe1dd3a))
+- **cypress:** Add iatapay connector ([#5093](https://github.com/juspay/hyperswitch/pull/5093)) ([`f03dc7a`](https://github.com/juspay/hyperswitch/commit/f03dc7a1c9bc72f402a0e7be9830329c95a2338b))
+
+### Bug Fixes
+
+- **connector:** [ADYEN] send `browser_info` for all the card and googlepay payments ([#5153](https://github.com/juspay/hyperswitch/pull/5153)) ([`a172cba`](https://github.com/juspay/hyperswitch/commit/a172cba5d3575e0648be65bae988f001408d671f))
+- **users:** Clear cookie and alter parsing for sso ([#5147](https://github.com/juspay/hyperswitch/pull/5147)) ([`6d9b37e`](https://github.com/juspay/hyperswitch/commit/6d9b37e8a2e91a0cf2e493dd48100bfeebadd926))
+
+### Refactors
+
+- **connector:** Added amount framework to paypal, payouts and routing ([#4865](https://github.com/juspay/hyperswitch/pull/4865)) ([`b08ce22`](https://github.com/juspay/hyperswitch/commit/b08ce22108a5f64d33430806a8bea034c5ccb44a))
+- **hyperswitch_constraint_graph:** Removal of lifetime from the Constraint Graph framework ([#5132](https://github.com/juspay/hyperswitch/pull/5132)) ([`6df8f06`](https://github.com/juspay/hyperswitch/commit/6df8f0646bd05c689071d8e02a3cf993fe8912f5))
+
+### Documentation
+
+- Api reference docs update for Payments - Create ([#4955](https://github.com/juspay/hyperswitch/pull/4955)) ([`f55cae2`](https://github.com/juspay/hyperswitch/commit/f55cae20af6977680b86275cd3de500079d274ee))
+
+### Miscellaneous Tasks
+
+- **cards:** Add configuration option to change the decryption scheme locker ([#5140](https://github.com/juspay/hyperswitch/pull/5140)) ([`d2626fa`](https://github.com/juspay/hyperswitch/commit/d2626fa3fe4216504fd0df216eea8462c87cce07))
+- **euclid_wasm:** Make field domain optional wasm ([#5154](https://github.com/juspay/hyperswitch/pull/5154)) ([`910fcc8`](https://github.com/juspay/hyperswitch/commit/910fcc89e24b8accd59a5a30021837222f803fa9))
+- **postman:** Update Postman collection files ([`b4351f5`](https://github.com/juspay/hyperswitch/commit/b4351f50d6b59c190bbd4ae7d1d28097a14148e0))
+- Fix ui-test configs ([#5152](https://github.com/juspay/hyperswitch/pull/5152)) ([`760fd3b`](https://github.com/juspay/hyperswitch/commit/760fd3b566f7a898cf79d50e5bdb4629ed3eca5f))
+
+**Full Changelog:** [`2024.06.28.0...2024.07.01.0`](https://github.com/juspay/hyperswitch/compare/2024.06.28.0...2024.07.01.0)
+
+- - -
+
 ## 2024.06.28.0
 
 ### Features
