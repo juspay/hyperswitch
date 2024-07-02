@@ -256,7 +256,7 @@ pub struct PaymentsRequest {
     pub amount_to_capture: Option<MinorUnit>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant. The value for this field can be shared in the request itself else it will be auto generated and returned in the API response.
+    /// that have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
