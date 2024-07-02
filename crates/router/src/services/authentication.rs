@@ -381,7 +381,7 @@ where
 #[async_trait]
 impl<A, I> AuthenticateAndFetch<AuthenticationData, A> for HeaderAuth<I>
 where
-    A: SessionStateInfo,
+    A: SessionStateInfo + Send,
     I: AuthenticateAndFetch<AuthenticationData, A> + Sync,
 {
     async fn authenticate_and_fetch(
