@@ -1,9 +1,7 @@
-import captureBody from "../../fixtures/capture-flow-body.json";
-import citConfirmBody from "../../fixtures/create-mandate-cit.json";
-import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
 import getConnectorDetails from "../PaymentUtils/utils";
 import * as utils from "../PaymentUtils/utils";
+import * as fixtures from "../../fixtures/imports";
 
 let globalState;
 
@@ -38,7 +36,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           7000,
@@ -53,7 +51,7 @@ describe("Card - MultiUse Mandates flow test", () => {
 
       it("Confirm No 3DS MIT", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
@@ -62,7 +60,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
       it("Confirm No 3DS MIT", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
@@ -92,7 +90,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           6500,
@@ -112,14 +110,20 @@ describe("Card - MultiUse Mandates flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT 1", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           6500,
           true,
           "manual",
@@ -134,14 +138,20 @@ describe("Card - MultiUse Mandates flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           6500,
           true,
           "manual",
@@ -156,7 +166,13 @@ describe("Card - MultiUse Mandates flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -183,7 +199,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           6500,
@@ -203,14 +219,20 @@ describe("Card - MultiUse Mandates flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         console.log("det -> " + data.card);
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Confirm No 3DS MIT", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           6500,
           true,
           "automatic",

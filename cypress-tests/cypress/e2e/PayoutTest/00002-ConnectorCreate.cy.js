@@ -1,5 +1,5 @@
-import createConnectorBody from "../../fixtures/create-connector-body.json";
 import State from "../../utils/State";
+import * as fixtures from "../../fixtures/imports";
 
 let globalState;
 describe("Connector Account Create flow test", () => {
@@ -14,6 +14,6 @@ describe("Connector Account Create flow test", () => {
   });
 
   it("connector-create-call-test", () => {
-    cy.createPayoutConnectorCallTest(createConnectorBody, globalState);
+    cy.createPayoutConnectorCallTest(fixtures.createConnectorBody, globalState);
   });
 });

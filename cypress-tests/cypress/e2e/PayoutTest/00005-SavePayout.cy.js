@@ -1,7 +1,6 @@
-import customerCreateBody from "../../fixtures/create-customer-body.json";
-import initialCreatePayoutBody from "../../fixtures/create-payout-confirm-body.json";
 import State from "../../utils/State";
 import * as utils from "../PayoutUtils/utils";
+import * as fixtures from "../../fixtures/imports";
 
 let globalState;
 let createPayoutBody;
@@ -35,11 +34,11 @@ describe("[Payout] Saved Card", () => {
 
     // This is needed to get customer payment methods
     beforeEach("seed global state", () => {
-      createPayoutBody = Cypress._.cloneDeep(initialCreatePayoutBody);
+      createPayoutBody = Cypress._.cloneDeep(fixtures.initialCreatePayoutBody);
     });
 
     it("create customer", () => {
-      cy.createCustomerCallTest(customerCreateBody, globalState);
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     it("create payment method", () => {
@@ -85,7 +84,7 @@ describe("[Payout] Saved Card", () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
       it("create customer", () => {
-        cy.createCustomerCallTest(customerCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       it("confirm-payout-call-with-auto-fulfill-test", () => {
@@ -166,11 +165,13 @@ describe("[Payout] Saved Bank transfer", () => {
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
       beforeEach("reset createPayoutBody", () => {
-        createPayoutBody = Cypress._.cloneDeep(initialCreatePayoutBody);
+        createPayoutBody = Cypress._.cloneDeep(
+          fixtures.initialCreatePayoutBody
+        );
       });
 
       it("create customer", () => {
-        cy.createCustomerCallTest(customerCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       it("create payment method", () => {
@@ -217,7 +218,7 @@ describe("[Payout] Saved Bank transfer", () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
       it("create customer", () => {
-        cy.createCustomerCallTest(customerCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       it("confirm-payout-call-with-auto-fulfill-test", () => {
