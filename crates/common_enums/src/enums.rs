@@ -19,6 +19,7 @@ pub mod diesel_exports {
     };
 }
 
+/// The status of the attempt
 #[derive(
     Clone,
     Copy,
@@ -120,6 +121,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
+    // Bamboraapac, commented for template
     Bluesnap,
     Boku,
     Braintree,
@@ -205,6 +207,7 @@ impl AttemptStatus {
     }
 }
 
+/// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
     Clone,
     Copy,
@@ -232,6 +235,7 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 
+/// The status of the capture
 #[derive(
     Clone,
     Copy,
@@ -308,6 +312,7 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors
 #[derive(
     Clone,
     Copy,
@@ -1164,6 +1169,7 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
+/// The status of the current payment that was made
 #[derive(
     Clone,
     Copy,
@@ -1197,6 +1203,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
+/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1251,6 +1258,7 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+/// Payment Method Status
 #[derive(
     Clone,
     Copy,
@@ -1603,6 +1611,7 @@ pub enum CardNetwork {
     Maestro,
 }
 
+/// Stage of the dispute
 #[derive(
     Clone,
     Copy,
@@ -1627,6 +1636,7 @@ pub enum DisputeStage {
     PreArbitration,
 }
 
+/// Status of the dispute
 #[derive(
     Clone,
     Debug,
@@ -2258,6 +2268,24 @@ pub enum PaymentSource {
     ExternalAuthenticator,
 }
 
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+pub enum BrowserName {
+    #[default]
+    Safari,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum ClientPlatform {
+    #[default]
+    Web,
+    Ios,
+    #[serde(other)]
+    Unknown,
+}
+
 impl PaymentSource {
     pub fn is_for_internal_use_only(&self) -> bool {
         match self {
@@ -2481,6 +2509,7 @@ pub enum RoleScope {
     Organization,
 }
 
+/// Indicates the transaction status
 #[derive(
     Clone,
     Default,

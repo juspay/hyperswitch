@@ -1,4 +1,5 @@
-use common_utils::{self, id_type, pii, types::MinorUnit};
+use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
+use masking::Secret;
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
@@ -9,7 +10,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
@@ -61,4 +62,5 @@ pub struct PaymentIntent {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }

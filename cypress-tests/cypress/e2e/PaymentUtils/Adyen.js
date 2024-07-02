@@ -323,7 +323,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -502,7 +502,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -552,7 +552,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -590,7 +590,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -626,7 +626,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -662,7 +662,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -732,6 +732,66 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+  },
+
+  upi_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    UpiCollect: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
+        payment_method_data: {
+          upi: {
+            upi_collect: {
+              vpa_id: "successtest@iata",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "automatic for upi_collect is not supported by adyen",
+          },
+        },
+      },
+    },
+    UpiIntent: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_intent",
+        payment_method_data: {
+          upi: {
+            upi_intent: {},
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "automatic for upi_intent is not supported by adyen",
+          },
         },
       },
     },
