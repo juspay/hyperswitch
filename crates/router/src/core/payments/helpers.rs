@@ -2050,6 +2050,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
@@ -2128,6 +2129,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -2148,6 +2150,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2165,10 +2168,15 @@ pub async fn store_in_vault_and_generate_ppmt(
             payment_method,
         ))
     });
+
+    let intent_fulfillment_time = business_profile
+        .and_then(|b_profile| b_profile.intent_fulfillment_time)
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
         key_for_hyperswitch_token
             .insert(
-                Some(payment_intent.created_at),
+                intent_fulfillment_time,
                 storage::PaymentTokenData::temporary_generic(router_token),
                 state,
             )
@@ -2184,6 +2192,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2198,6 +2207,7 @@ pub async fn store_payment_method_data_in_vault(
             payment_attempt,
             payment_method,
             merchant_key_store,
+            business_profile,
         )
         .await?;
 
@@ -4605,6 +4615,22 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+// This function validates the intent fulfillment time expiry set by the merchant in the request
+pub fn validate_intent_fulfillment_expiry(
+    intent_fulfillment_time: u32,
+) -> Result<(), errors::ApiErrorResponse> {
+    if !(consts::MIN_INTENT_FULFILLMENT_EXPIRY..=consts::MAX_INTENT_FULFILLMENT_EXPIRY)
+        .contains(&intent_fulfillment_time)
+    {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "intent_fulfillment_time should be between 60(1 min) to 1800(30 mins)."
+                .to_string(),
         })
     } else {
         Ok(())

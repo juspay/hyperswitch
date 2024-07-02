@@ -4135,6 +4135,7 @@ pub struct GpayAllowedMethodsParameters {
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
     /// Is billing address required
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_required: Option<bool>,
     /// Billing address parameters
     #[serde(skip_serializing_if = "Option::is_none")]

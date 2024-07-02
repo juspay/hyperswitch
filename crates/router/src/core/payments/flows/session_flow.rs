@@ -295,23 +295,29 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
         )?;
 
-        let billing_variants = enums::FieldType::get_billing_variants();
+        let required_billing_contact_fields = business_profile
+            .collect_billing_details_from_wallet_connector
+            .unwrap_or(false)
+            .then_some({
+                let billing_variants = enums::FieldType::get_billing_variants();
+                is_dynamic_fields_required(
+                    &state.conf.required_fields,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::ApplePay,
+                    &connector.connector_name,
+                    billing_variants,
+                )
+                .then_some(payment_types::ApplePayBillingContactFields(vec![
+                    payment_types::ApplePayAddressParameters::PostalAddress,
+                ]))
+            })
+            .flatten();
 
-        let required_billing_contact_fields = is_dynamic_fields_required(
-            &state.conf.required_fields,
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::ApplePay,
-            &connector.connector_name,
-            billing_variants,
-        )
-        .then_some(payment_types::ApplePayBillingContactFields(vec![
-            payment_types::ApplePayAddressParameters::PostalAddress,
-        ]));
-
-        let required_shipping_contact_fields =
-            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
+        let required_shipping_contact_fields = business_profile
+            .collect_shipping_details_from_wallet_connector
+            .unwrap_or(false)
+            .then_some({
                 let shipping_variants = enums::FieldType::get_shipping_variants();
-
                 is_dynamic_fields_required(
                     &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
@@ -324,9 +330,8 @@ async fn create_applepay_session_token(
                     payment_types::ApplePayAddressParameters::Phone,
                     payment_types::ApplePayAddressParameters::Email,
                 ]))
-            } else {
-                None
-            };
+            })
+            .flatten();
 
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
@@ -562,15 +567,20 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
-        let billing_variants = enums::FieldType::get_billing_variants();
+        let is_billing_details_required =
+            if business_profile.collect_billing_details_from_wallet_connector == Some(true) {
+                let billing_variants = enums::FieldType::get_billing_variants();
 
-        let is_billing_details_required = is_dynamic_fields_required(
-            &state.conf.required_fields,
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::GooglePay,
-            &connector.connector_name,
-            billing_variants,
-        );
+                is_dynamic_fields_required(
+                    &state.conf.required_fields,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::GooglePay,
+                    &connector.connector_name,
+                    billing_variants,
+                )
+            } else {
+                false
+            };
 
         let billing_address_parameters =
             is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {

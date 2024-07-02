@@ -213,19 +213,46 @@ pub struct GenericLink {
     pub payout_link: GenericLinkEnvConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvConfig {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub expiry: u32,
     pub ui_config: GenericLinkEnvUiConfig,
-    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+impl Default for GenericLinkEnvConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("http://localhost:9050/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+            expiry: 900,
+            ui_config: GenericLinkEnvUiConfig::default(),
+            enabled_payment_methods: HashMap::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvUiConfig {
-    pub logo: String,
+    pub logo: url::Url,
     pub merchant_name: Secret<String>,
     pub theme: String,
+}
+
+#[allow(clippy::panic)]
+impl Default for GenericLinkEnvUiConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            logo: url::Url::parse("https://hyperswitch.io/favicon.ico")
+                .expect("Failed to parse default logo URL"),
+            merchant_name: Secret::new("HyperSwitch".to_string()),
+            theme: "#4285F4".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -689,13 +716,7 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
             .build()?;
@@ -841,6 +862,61 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
+fn deserialize_hashmap_inner<K, V>(
+    value: HashMap<String, String>,
+) -> Result<HashMap<K, HashSet<V>>, String>
+where
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let (values, errors) = value
+        .into_iter()
+        .map(
+            |(k, v)| match (K::from_str(k.trim()), deserialize_hashset_inner(v)) {
+                (Err(error), _) => Err(format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    k,
+                    std::any::type_name::<K>()
+                )),
+                (_, Err(error)) => Err(error),
+                (Ok(key), Ok(value)) => Ok((key, value)),
+            },
+        )
+        .fold(
+            (HashMap::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok((key, value)) => {
+                    values.insert(key, value);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_hashmap<'a, D, K, V>(deserializer: D) -> Result<HashMap<K, HashSet<V>>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+    deserialize_hashmap_inner(<HashMap<String, String>>::deserialize(deserializer)?)
+        .map_err(D::Error::custom)
+}
+
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,
@@ -907,6 +983,114 @@ where
             }
         })
     })?
+}
+
+#[cfg(test)]
+mod hashmap_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use std::collections::{HashMap, HashSet};
+
+    use serde::de::{
+        value::{Error as ValueError, MapDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::deserialize_hashmap;
+
+    #[test]
+    fn test_payment_method_and_payment_method_types() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            "bank_transfer": "ach,bacs",
+            "wallet": "paypal,venmo",
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
+            ),
+            (
+                PaymentMethod::Wallet,
+                HashSet::from([PaymentMethodType::Paypal, PaymentMethodType::Venmo]),
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_and_payment_method_types_with_spaces() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            " bank_transfer ": " ach , bacs ",
+            "wallet ": " paypal , pix , venmo ",
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
+            ),
+            (
+                PaymentMethod::Wallet,
+                HashSet::from([
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Pix,
+                    PaymentMethodType::Venmo,
+                ]),
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_deserializer_error() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = serde_json::json!({
+            "unknown": "ach,bacs",
+            "wallet": "paypal,unknown",
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+
+        assert!(result.is_err());
+    }
 }
 
 #[cfg(test)]
