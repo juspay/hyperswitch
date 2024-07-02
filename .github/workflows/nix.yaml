@@ -1,0 +1,17 @@
+name: "CI Nix"
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  checks:
+    runs-on: ${{ matrix.system }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        system: [ x86_64-linux, aarch64-darwin ]
+    steps:
+      - uses: actions/checkout@v4
+      - run: nixci --extra-access-tokens ${{ secrets.GITHUB_TOKEN }} build --systems "github:nix-systems/${{ matrix.system }}"
