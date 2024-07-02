@@ -16,6 +16,7 @@ pub enum AnalyticsDomain {
     Payments,
     Refunds,
     Frm,
+    PaymentIntents,
     AuthEvents,
     SdkEvents,
     ApiEvents,

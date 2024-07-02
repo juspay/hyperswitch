@@ -306,8 +306,9 @@ pub struct OpenIdConnectPublicConfig {
     pub name: OpenIdProvider,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum OpenIdProvider {
     Okta,
 }
@@ -357,6 +358,22 @@ pub struct AuthMethodDetails {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetSsoAuthUrlRequest {
+    pub id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SsoSignInRequest {
+    pub state: Secret<String>,
+    pub code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthIdQueryParam {
     pub auth_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthSelectRequest {
+    pub id: String,
 }

@@ -302,6 +302,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -373,6 +374,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -461,6 +463,7 @@ where
                         &customer,
                         session_surcharge_details,
                         &business_profile,
+                        header_payload.clone(),
                     ))
                     .await?
                 }
@@ -1393,6 +1396,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
+    is_retry_payment: bool,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -1475,7 +1479,7 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -1525,16 +1529,22 @@ where
         _ => (),
     };
 
-    let pm_token = router_data
-        .add_payment_method_token(state, &connector, &tokenization_action)
+    let payment_method_token_response = router_data
+        .add_payment_method_token(
+            state,
+            &connector,
+            &tokenization_action,
+            should_continue_further,
+        )
         .await?;
-    if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
-                payment_method_token,
-            )),
+
+    let mut should_continue_further =
+        tokenization::update_router_data_with_payment_method_token_result(
+            payment_method_token_response,
+            &mut router_data,
+            is_retry_payment,
+            should_continue_further,
         );
-    };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
@@ -1610,6 +1620,7 @@ where
                 call_connector_action,
                 connector_request,
                 business_profile,
+                header_payload.clone(),
             )
             .await
     } else {
@@ -1673,6 +1684,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     customer: &Option<domain::Customer>,
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
     business_profile: &storage::business_profile::BusinessProfile,
+    header_payload: HeaderPayload,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -1736,6 +1748,7 @@ where
             CallConnectorAction::Trigger,
             None,
             business_profile,
+            header_payload.clone(),
         );
 
         join_handlers.push(res);
@@ -4133,4 +4146,116 @@ pub async fn get_extended_card_info(
     Ok(services::ApplicationResponse::Json(
         payments_api::ExtendedCardInfoResponse { payload },
     ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payments_manual_update(
+    state: SessionState,
+    req: api_models::payments::PaymentsManualUpdateRequest,
+) -> RouterResponse<serde_json::Value> {
+    let api_models::payments::PaymentsManualUpdateRequest {
+        payment_id,
+        attempt_id,
+        merchant_id,
+        attempt_status,
+        error_code,
+        error_message,
+        error_reason,
+    } = req;
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_id,
+            &merchant_id,
+            &attempt_id.clone(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
+        )?;
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_merchant_id(
+            &payment_id,
+            &merchant_account.merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+    let option_gsm = if let Some(((code, message), connector_name)) = error_code
+        .as_ref()
+        .zip(error_message.as_ref())
+        .zip(payment_attempt.connector.as_ref())
+    {
+        helpers::get_gsm_record(
+            &state,
+            Some(code.to_string()),
+            Some(message.to_string()),
+            connector_name.to_string(),
+            // We need to get the unified_code and unified_message of the Authorize flow
+            "Authorize".to_string(),
+        )
+        .await
+    } else {
+        None
+    };
+    // Update the payment_attempt
+    let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
+        status: attempt_status,
+        error_code,
+        error_message,
+        error_reason,
+        updated_by: merchant_account.storage_scheme.to_string(),
+        unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
+        unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
+    };
+    let updated_payment_attempt = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+    // If the payment_attempt is active attempt for an intent, update the intent status
+    if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
+        let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
+        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+            status: Some(intent_status),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        };
+        state
+            .store
+            .update_payment_intent(
+                payment_intent,
+                payment_intent_update,
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating payment_intent")?;
+    }
+    Ok(services::ApplicationResponse::StatusOk)
 }

@@ -1898,6 +1898,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             bambora::transformers::BamboraAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Bamboraapac => {
+        //     bamboraapac::transformers::BamboraapacAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Boku => {
             boku::transformers::BokuAuthType::try_from(val)?;
             Ok(())

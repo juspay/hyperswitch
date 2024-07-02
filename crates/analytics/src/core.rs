@@ -11,6 +11,11 @@ pub async fn get_domain_info(
             download_dimensions: None,
             dimensions: utils::get_payment_dimensions(),
         },
+        AnalyticsDomain::PaymentIntents => GetInfoResponse {
+            metrics: utils::get_payment_intent_metrics_info(),
+            download_dimensions: None,
+            dimensions: utils::get_payment_intent_dimensions(),
+        },
         AnalyticsDomain::Refunds => GetInfoResponse {
             metrics: utils::get_refund_metrics_info(),
             download_dimensions: None,

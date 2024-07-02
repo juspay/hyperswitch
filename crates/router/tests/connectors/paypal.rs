@@ -14,7 +14,7 @@ impl Connector for PaypalTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Paypal;
         utils::construct_connector_data_old(
-            Box::new(&Paypal),
+            Box::new(Paypal::new()),
             types::Connector::Paypal,
             types::api::GetToken::Connector,
             None,
