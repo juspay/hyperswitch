@@ -92,9 +92,10 @@ impl ConnectorCommon for Razorpay {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = razorpay::RazorpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        println!("123api_key{}", auth.api_key.clone().expose());
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {}", auth.api_key.expose()).into_masked(),
         )])
     }
 
@@ -103,6 +104,7 @@ impl ConnectorCommon for Razorpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("123error_response{:?}", res.response);
         let response: razorpay::RazorpayErrorResponse = res
             .response
             .parse_struct("RazorpayErrorResponse")
@@ -113,9 +115,23 @@ impl ConnectorCommon for Razorpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_info.code,
+            message: response
+                .error_info
+                .fields
+                .iter()
+                .map(|error| error.field_name.clone())
+                .collect::<Vec<String>>()
+                .join(" & "),
+            reason: Some(
+                response
+                    .error_info
+                    .fields
+                    .iter()
+                    .map(|error| error.field_name.clone())
+                    .collect::<Vec<String>>()
+                    .join(" & "),
+            ),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -164,9 +180,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}gatewayProxy/txn/sendCollect",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -181,6 +200,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = razorpay::RazorpayPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -212,6 +234,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("123auth_response{:?}", res.response);
         let response: razorpay::RazorpayPaymentsResponse = res
             .response
             .parse_struct("Razorpay PaymentsAuthorizeResponse")
