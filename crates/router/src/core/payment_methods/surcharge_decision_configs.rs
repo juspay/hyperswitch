@@ -3,7 +3,13 @@ use api_models::{
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
+#[cfg(not(feature = "v2"))]
 use common_utils::{ext_traits::StringExt, types as common_utils_types};
+#[cfg(feature = "v2")]
+use common_utils::{
+    ext_traits::{OptionExt, StringExt},
+    types as common_utils_types,
+};
 use error_stack::{self, ResultExt};
 use euclid::{
     backend,
@@ -293,10 +299,22 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         .change_context(ConfigError::InputConstructionError)?;
 
     for customer_payment_method in customer_payment_method_list.iter_mut() {
+        #[cfg(not(feature = "v2"))]
+        let payment_token = customer_payment_method.payment_token.clone();
+
+        #[cfg(feature = "v2")]
+        let payment_token = customer_payment_method
+            .payment_token
+            .clone()
+            .get_required_value("payment_token")
+            .change_context(ConfigError::InputConstructionError)?;
+
         backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
         backend_input.payment_method.payment_method_type =
             customer_payment_method.payment_method_type;
-        backend_input.payment_method.card_network = customer_payment_method
+
+        #[cfg(not(feature = "v2"))]
+        let card_network = customer_payment_method
             .card
             .as_ref()
             .and_then(|card| card.scheme.as_ref())
@@ -307,13 +325,30 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
                     .change_context(ConfigError::DslExecutionError)
             })
             .transpose()?;
+        #[cfg(feature = "v2")]
+        let card_network = match &customer_payment_method.payment_method_data {
+            Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => card
+                .scheme
+                .as_ref()
+                .map(|scheme| {
+                    scheme
+                        .clone()
+                        .parse_enum("CardNetwork")
+                        .change_context(ConfigError::DslExecutionError)
+                })
+                .transpose()?,
+            _ => None,
+        };
+
+        backend_input.payment_method.card_network = card_network;
+
         let surcharge_details = surcharge_source
             .generate_surcharge_details_and_populate_surcharge_metadata(
                 &backend_input,
                 payment_attempt,
                 (
                     &mut surcharge_metadata,
-                    types::SurchargeKey::Token(customer_payment_method.payment_token.clone()),
+                    types::SurchargeKey::Token(payment_token),
                 ),
             )?;
         customer_payment_method.surcharge_details = surcharge_details

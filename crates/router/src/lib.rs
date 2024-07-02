@@ -162,7 +162,7 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(feature = "stripe")]
+    #[cfg(all(feature = "stripe", not(feature = "v2")))]
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
