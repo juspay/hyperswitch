@@ -17,7 +17,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -588,6 +588,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 pub trait AddressData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_full_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressData for api::Address {
@@ -601,6 +603,18 @@ impl AddressData for api::Address {
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("phone"))
+    }
+
+    fn get_optional_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address_details| billing_address_details.country)
+    }
+
+    fn get_optional_full_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 }
 
@@ -1169,6 +1183,8 @@ pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
     fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<storage_enums::PayoutType, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -1187,6 +1203,12 @@ impl PayoutsData for types::PayoutsData {
         self.vendor_details
             .clone()
             .ok_or_else(missing_field_err("vendor_details"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<storage_enums::PayoutType, Error> {
+        self.payout_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_type"))
     }
 }
 
@@ -1813,12 +1835,6 @@ where
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     let json = connector_meta_secret.expose();
     json.parse_value(std::any::type_name::<T>()).switch()
-}
-
-impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::ParsingError {
-    fn switch(&self) -> errors::ConnectorError {
-        errors::ConnectorError::ParsingFailed
-    }
 }
 
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
@@ -2547,6 +2563,7 @@ pub enum PaymentMethodDataType {
     ApplePayRedirect,
     ApplePayThirdPartySdk,
     DanaRedirect,
+    DuitNow,
     GooglePay,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
@@ -2577,6 +2594,7 @@ pub enum PaymentMethodDataType {
     Giropay,
     Ideal,
     Interac,
+    LocalBankRedirect,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -2627,6 +2645,9 @@ pub enum PaymentMethodDataType {
     CardToken,
     LocalBankTransfer,
     Mifinity,
+    Fps,
+    PromptPay,
+    VietQr,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2719,6 +2740,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
                         Self::OnlineBankingThailand
                     }
+                    domain::payments::BankRedirectData::LocalBankRedirect { } => {
+                        Self::LocalBankRedirect
+                    }
                 }
             }
             domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
@@ -2791,6 +2815,12 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::VoucherData::Seicomart(_) => Self::Seicomart,
                 domain::payments::VoucherData::PayEasy(_) => Self::PayEasy,
             },
+            domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => match *real_time_payment_data{
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::DuitNow {  } =>  Self::DuitNow,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
+            },
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {
                     domain::payments::GiftCardData::Givex(_) => Self::Givex,
@@ -2800,6 +2830,27 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
         }
     }
+}
+
+pub fn get_mandate_details(
+    setup_mandate_details: Option<&mandates::MandateData>,
+) -> Result<Option<&mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
+    setup_mandate_details
+        .map(|mandate_data| match &mandate_data.mandate_type {
+            Some(mandates::MandateDataType::SingleUse(mandate))
+            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate),
+            Some(mandates::MandateDataType::MultiUse(None)) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                }
+                .into())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "setup_future_usage.mandate_data.mandate_type",
+            }
+            .into()),
+        })
+        .transpose()
 }
 
 pub fn convert_amount<T>(

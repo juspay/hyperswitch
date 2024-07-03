@@ -12,6 +12,7 @@ mod adyenplatform;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bamboraapac;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
 #[cfg(feature = "dummy_connector")]
@@ -24,6 +25,7 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod datatrans;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;

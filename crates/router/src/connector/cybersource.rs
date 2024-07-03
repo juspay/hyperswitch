@@ -229,10 +229,7 @@ impl ConnectorCommon for Cybersource {
             Err(error_msg) => {
                 event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 router_env::logger::error!(deserialization_error =? error_msg);
-                crate::utils::handle_json_response_deserialization_failure(
-                    res,
-                    "cybersource".to_owned(),
-                )
+                crate::utils::handle_json_response_deserialization_failure(res, "cybersource")
             }
         }
     }
@@ -415,7 +412,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
-        let response: cybersource::CybersourceSetupMandatesResponse = res
+        let response: cybersource::CybersourcePaymentsResponse = res
             .response
             .parse_struct("CybersourceSetupMandatesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

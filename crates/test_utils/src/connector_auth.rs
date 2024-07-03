@@ -19,6 +19,7 @@ pub struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
+    pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
@@ -29,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub datatrans: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,

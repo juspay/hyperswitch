@@ -3,6 +3,7 @@ pub mod lowering;
 pub mod parser;
 
 use common_enums::RoutableConnectors;
+use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -26,7 +27,7 @@ pub struct MetadataValue {
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ValueType {
     /// Represents a number literal
-    Number(i64),
+    Number(MinorUnit),
     /// Represents an enum variant
     EnumVariant(String),
     /// Represents a Metadata variant
@@ -36,7 +37,7 @@ pub enum ValueType {
     /// Represents an array of numbers. This is basically used for
     /// "one of the given numbers" operations
     /// eg: payment.method.amount = (1, 2, 3)
-    NumberArray(Vec<i64>),
+    NumberArray(Vec<MinorUnit>),
     /// Similar to NumberArray but for enum variants
     /// eg: payment.method.cardtype = (debit, credit)
     EnumVariantArray(Vec<String>),
@@ -65,7 +66,7 @@ impl ValueType {
 #[serde(rename_all = "camelCase")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
-    pub number: i64,
+    pub number: MinorUnit,
 }
 
 /// Conditional comparison type

@@ -1,17 +1,18 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
+    CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::{payments::Address, payouts::PayoutAttemptResponse};
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
@@ -26,7 +27,9 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api, domain,
+        self, api,
+        api::ConnectorTransactionId,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -504,7 +507,47 @@ where
         ))
     }
 
-    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
+    // For the case when we don't have Customer data directly stored in Payment intent
+    let customer_table_response: Option<CustomerDetailsResponse> =
+        customer.as_ref().map(ForeignInto::foreign_into);
+
+    // If we have customer data in Payment Intent, We are populating the Retrieve response from the
+    // same
+    let customer_details_response =
+        if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
+            let customer_details_encrypted =
+                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                Some(CustomerDetailsResponse {
+                    id: customer_table_response.and_then(|customer_data| customer_data.id),
+                    name: customer_details_encrypted_data
+                        .name
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer.name.as_ref().map(|name| name.clone().into_inner())
+                        })),
+                    email: customer_details_encrypted_data.email.or(customer
+                        .as_ref()
+                        .and_then(|customer| customer.email.clone().map(Email::from))),
+                    phone: customer_details_encrypted_data
+                        .phone
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer
+                                .phone
+                                .as_ref()
+                                .map(|phone| phone.clone().into_inner())
+                        })),
+                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(
+                        customer
+                            .as_ref()
+                            .and_then(|customer| customer.phone_country_code.clone()),
+                    ),
+                })
+            } else {
+                customer_table_response
+            }
+        } else {
+            customer_table_response
+        };
 
     headers.extend(
         external_latency
@@ -844,12 +887,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)
@@ -1007,7 +1050,7 @@ impl
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
@@ -1044,6 +1087,7 @@ impl
             attempts: Some(vec![attempt]),
             billing,
             client_secret: None,
+            payout_link: None,
         }
     }
 }
@@ -1394,7 +1438,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     }
 }
 
-impl api::ConnectorTransactionId for Helcim {
+impl ConnectorTransactionId for Helcim {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1409,7 +1453,7 @@ impl api::ConnectorTransactionId for Helcim {
     }
 }
 
-impl api::ConnectorTransactionId for Nexinets {
+impl ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1494,6 +1538,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
+            minor_amount: Some(amount),
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
@@ -1564,6 +1609,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
                 |billing_address| {

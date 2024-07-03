@@ -74,6 +74,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::MandatePayment {}
             | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -195,6 +196,7 @@ impl<F, T>
                     status,
                     response,
                     amount_captured,
+                    minor_amount_captured: amount_captured_in_minor_units,
                     ..item.data
                 })
             }

@@ -14,12 +14,16 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
     core::errors,
-    headers::{X_CLIENT_SOURCE, X_CLIENT_VERSION, X_PAYMENT_CONFIRM_SOURCE},
+    headers::{
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        X_PAYMENT_CONFIRM_SOURCE,
+    },
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -213,6 +217,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
+            // api_enums::Connector::Bamboraapac => Self::Bamboraapac, commented for template
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
@@ -224,6 +229,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
+            // api_enums::Connector::Datatrans => Self::Datatrans,  added as template code for future use
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -452,6 +458,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::LocalBankRedirect
             | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
@@ -508,6 +515,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
             | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
+            api_enums::PaymentMethodType::Fps
+            | api_enums::PaymentMethodType::DuitNow
+            | api_enums::PaymentMethodType::PromptPay
+            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
         }
     }
 }
@@ -528,6 +539,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
             payments::PaymentMethodData::Reward => Ok(Self::Reward),
+            payments::PaymentMethodData::RealTimePayment(..) => Ok(Self::RealTimePayment),
             payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
@@ -571,7 +583,8 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             | storage_enums::PayoutStatus::RequiresCreation
             | storage_enums::PayoutStatus::RequiresFulfillment
             | storage_enums::PayoutStatus::RequiresPayoutMethodData
-            | storage_enums::PayoutStatus::RequiresVendorAccountCreation => None,
+            | storage_enums::PayoutStatus::RequiresVendorAccountCreation
+            | storage_enums::PayoutStatus::RequiresConfirmation => None,
         }
     }
 }
@@ -1144,43 +1157,91 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
         let client_version =
             get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
 
+        let browser_name_str =
+            get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name: Option<api_enums::BrowserName> = browser_name_str.map(|browser_name| {
+            browser_name
+                .parse_enum("BrowserName")
+                .unwrap_or(api_enums::BrowserName::Unknown)
+        });
+
+        let x_client_platform_str =
+            get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
+
+        let x_client_platform: Option<api_enums::ClientPlatform> =
+            x_client_platform_str.map(|x_client_platform| {
+                x_client_platform
+                    .parse_enum("ClientPlatform")
+                    .unwrap_or(api_enums::ClientPlatform::Unknown)
+            });
+
         Ok(Self {
             payment_confirm_source,
             client_source,
             client_version,
             x_hs_latency: Some(x_hs_latency),
+            browser_name,
+            x_client_platform,
         })
     }
 }
 
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,
+        Option<&storage::PaymentIntent>,
         Option<&domain::Address>,
         Option<&domain::Address>,
         Option<&domain::Customer>,
     )> for payments::PaymentsRequest
 {
-    fn foreign_from(
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
         value: (
             Option<&storage::PaymentAttempt>,
+            Option<&storage::PaymentIntent>,
             Option<&domain::Address>,
             Option<&domain::Address>,
             Option<&domain::Customer>,
         ),
-    ) -> Self {
-        let (payment_attempt, shipping, billing, customer) = value;
-        Self {
+    ) -> Result<Self, Self::Error> {
+        let (payment_attempt, payment_intent, shipping, billing, customer) = value;
+        // Populating the dynamic fields directly, for the cases where we have customer details stored in
+        // Payment Intent
+        let customer_details_from_pi = payment_intent
+            .and_then(|payment_intent| payment_intent.customer_details.clone())
+            .map(|customer_details| {
+                customer_details
+                    .into_inner()
+                    .peek()
+                    .clone()
+                    .parse_value::<CustomerData>("CustomerData")
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer_details",
+                    })
+                    .attach_printable("Failed to parse customer_details")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "customer_details",
+            })?;
+        Ok(Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing.map(api_types::Address::from),
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
-            phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
-            name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+            phone: customer
+                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
+            name: customer
+                .and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
+                .or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
             ..Self::default()
-        }
+        })
     }
 }
 
@@ -1280,7 +1341,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer
                 .name
                 .as_ref()

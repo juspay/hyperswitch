@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -14,9 +14,9 @@ pub struct Payouts {
     pub merchant_id: String,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -33,6 +33,8 @@ pub struct Payouts {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
@@ -53,9 +55,9 @@ pub struct PayoutsNew {
     pub merchant_id: String,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -72,13 +74,15 @@ pub struct PayoutsNew {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
-        amount: i64,
+        amount: MinorUnit,
         destination_currency: storage_enums::Currency,
         source_currency: storage_enums::Currency,
         description: Option<String>,
@@ -90,6 +94,7 @@ pub enum PayoutsUpdate {
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
+        payout_type: Option<storage_enums::PayoutType>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -108,7 +113,7 @@ pub enum PayoutsUpdate {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payouts)]
 pub struct PayoutsUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
     pub source_currency: Option<storage_enums::Currency>,
     pub description: Option<String>,
@@ -123,6 +128,7 @@ pub struct PayoutsUpdateInternal {
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
+    pub payout_type: Option<common_enums::PayoutType>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -143,6 +149,7 @@ impl Default for PayoutsUpdateInternal {
             last_modified_at: common_utils::date_time::now(),
             attempt_count: None,
             confirm: None,
+            payout_type: None,
         }
     }
 }
@@ -163,6 +170,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -176,6 +184,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
@@ -216,6 +225,7 @@ impl PayoutsUpdate {
             last_modified_at,
             attempt_count,
             confirm,
+            payout_type,
         } = self.into();
         Payouts {
             amount: amount.unwrap_or(source.amount),
@@ -233,6 +243,7 @@ impl PayoutsUpdate {
             last_modified_at,
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
             confirm: confirm.or(source.confirm),
+            payout_type: payout_type.or(source.payout_type),
             ..source
         }
     }

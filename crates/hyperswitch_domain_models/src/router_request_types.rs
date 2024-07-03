@@ -367,6 +367,9 @@ pub struct PaymentsCancelData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // This metadata is used to store the metadata shared during the payment intent request.
+
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -646,10 +649,13 @@ pub struct PayoutsData {
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+
+    // New minor amount for amount framework
+    pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
@@ -682,6 +688,9 @@ pub struct PaymentsSessionData {
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+
+    // Minor Unit amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone)]

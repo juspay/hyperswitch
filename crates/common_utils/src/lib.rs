@@ -19,6 +19,7 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+pub mod link_utils;
 pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
@@ -29,6 +30,9 @@ pub mod signals;
 pub mod static_cache;
 pub mod types;
 pub mod validation;
+
+#[cfg(feature = "metrics")]
+pub mod metrics;
 
 /// Date-time utilities.
 pub mod date_time {

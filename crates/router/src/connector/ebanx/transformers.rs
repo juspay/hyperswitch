@@ -240,7 +240,8 @@ impl<F> TryFrom<&EbanxRouterData<&types::PayoutsRouterData<F>>> for EbanxPayoutF
     fn try_from(item: &EbanxRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request
@@ -330,7 +331,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.connector_auth_type)?;
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request

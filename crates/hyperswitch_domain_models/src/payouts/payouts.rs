@@ -1,5 +1,5 @@
 use common_enums as storage_enums;
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -78,9 +78,9 @@ pub struct Payouts {
     pub merchant_id: String,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -95,6 +95,8 @@ pub struct Payouts {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
@@ -104,9 +106,9 @@ pub struct PayoutsNew {
     pub merchant_id: String,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<String>,
@@ -121,6 +123,8 @@ pub struct PayoutsNew {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
@@ -133,9 +137,9 @@ impl Default for PayoutsNew {
             merchant_id: String::default(),
             customer_id: common_utils::generate_customer_id_of_default_length(),
             address_id: String::default(),
-            payout_type: storage_enums::PayoutType::default(),
+            payout_type: Some(storage_enums::PayoutType::default()),
             payout_method_id: Option::default(),
-            amount: i64::default(),
+            amount: MinorUnit::new(i64::default()),
             destination_currency: storage_enums::Currency::default(),
             source_currency: storage_enums::Currency::default(),
             description: Option::default(),
@@ -150,6 +154,8 @@ impl Default for PayoutsNew {
             profile_id: String::default(),
             status: storage_enums::PayoutStatus::default(),
             confirm: None,
+            payout_link_id: Option::default(),
+            client_secret: Option::default(),
             priority: None,
         }
     }
@@ -158,7 +164,7 @@ impl Default for PayoutsNew {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
-        amount: i64,
+        amount: MinorUnit,
         destination_currency: storage_enums::Currency,
         source_currency: storage_enums::Currency,
         description: Option<String>,
@@ -170,6 +176,7 @@ pub enum PayoutsUpdate {
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
+        payout_type: Option<storage_enums::PayoutType>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -187,7 +194,7 @@ pub enum PayoutsUpdate {
 
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
     pub source_currency: Option<storage_enums::Currency>,
     pub description: Option<String>,
@@ -201,6 +208,7 @@ pub struct PayoutsUpdateInternal {
     pub status: Option<storage_enums::PayoutStatus>,
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
+    pub payout_type: Option<common_enums::PayoutType>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -219,6 +227,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -232,6 +241,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 profile_id,
                 status,
                 confirm,
+                payout_type,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {

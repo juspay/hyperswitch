@@ -104,6 +104,7 @@ pub struct ConfigMetadata {
     pub klarna_region: Option<Vec<KlarnaEndpoint>>,
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
