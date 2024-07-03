@@ -838,6 +838,60 @@ pub async fn refund_filter_list(
 
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
+pub async fn refund_manual_update(
+    state: SessionState,
+    req: api_models::refunds::RefundManualUpdateRequest,
+) -> RouterResponse<serde_json::Value> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &req.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+    let refund = state
+        .store
+        .find_refund_by_merchant_id_refund_id(
+            &merchant_account.merchant_id,
+            &req.refund_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+    let refund_update = storage::RefundUpdate::ManualUpdate {
+        refund_status: req.status.map(common_enums::RefundStatus::from),
+        refund_error_message: req.error_message,
+        refund_error_code: req.error_code,
+        updated_by: merchant_account.storage_scheme.to_string(),
+    };
+    state
+        .store
+        .update_refund(
+            refund.to_owned(),
+            refund_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating refund: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
+    Ok(services::ApplicationResponse::StatusOk)
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

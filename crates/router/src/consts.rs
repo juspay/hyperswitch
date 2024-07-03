@@ -102,6 +102,12 @@ pub const MAX_SESSION_EXPIRY: u32 = 7890000;
 /// Min payment session expiry
 pub const MIN_SESSION_EXPIRY: u32 = 60;
 
+/// Max payment intent fulfillment expiry
+pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
+
+/// Min payment intent fulfillment expiry
+pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
+
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";

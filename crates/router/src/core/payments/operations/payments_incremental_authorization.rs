@@ -318,6 +318,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
+        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
         Option<api::PaymentMethodData>,
