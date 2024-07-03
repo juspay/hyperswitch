@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{payments::PaymentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AttemptStatus, AuthenticationType, Currency};
@@ -21,7 +19,7 @@ pub async fn get_payment_filter_for_dimension<T>(
     merchant: &String,
     time_range: &TimeRange,
     pool: &T,
-) -> FiltersResult<HashSet<FilterRow>>
+) -> FiltersResult<Vec<FilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -44,18 +42,14 @@ where
 
     query_builder.set_distinct();
 
-    let result: Vec<FilterRow> = query_builder
+    query_builder
         .execute_query::<FilterRow, _>(pool)
         .await
         .change_context(FiltersError::QueryBuildingError)?
-        .change_context(FiltersError::QueryExecutionFailure)?;
-
-    let result_set: HashSet<FilterRow> = result.into_iter().collect();
-
-    Ok(result_set)
+        .change_context(FiltersError::QueryExecutionFailure)
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize, Hash)]
+#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct FilterRow {
     pub currency: Option<DBEnumWrapper<Currency>>,
     pub status: Option<DBEnumWrapper<AttemptStatus>>,
