@@ -5,7 +5,9 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::{self, enums as api_enums, payments as payment_enums, payouts::PayoutLinkResponse};
+use api_models::{
+    self, enums as api_enums, payments as payment_enums, payouts::PayoutLinkResponse,
+};
 use common_utils::{
     consts,
     crypto::Encryptable,
