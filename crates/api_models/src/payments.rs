@@ -342,7 +342,7 @@ pub struct PaymentsRequest {
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
 
-    /// The URL to to page to which you want the user to be redirected after the completion of the payment operation
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
