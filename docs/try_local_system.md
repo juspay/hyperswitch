@@ -231,7 +231,7 @@ for your distribution and follow along.
 5. Make sure your system has the `pkg-config` package and OpenSSL installed:
 
    ```shell
-   sudo apt install pkg-config libssl-dev
+   sudo apt install pkg-config libssl-dev make
    ```
 
 Once you're done with setting up the dependencies, proceed with
