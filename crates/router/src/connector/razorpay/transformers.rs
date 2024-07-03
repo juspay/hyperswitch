@@ -817,3 +817,93 @@ pub struct Fields {
     pub field_name: String,
     pub reason: String,
 }
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum RazorpayWebhookEventType {
+    Disabled,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayWebhookEvent {
+    pub payload: RazorpayWebhookPayload,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayWebhookPayload {
+    pub refund: Option<RazorpayRefundWebhookPayload>,
+    pub payment: RazorpayPaymentWebhookPayload,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayPaymentWebhookPayload {
+    pub entity: WebhookPaymentEntity,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayRefundWebhookPayload {
+    pub entity: WebhookRefundEntity,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookRefundEntity {
+    pub id: String,
+    pub status: RazorpayRefundStatus,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookPaymentEntity {
+    pub id: String,
+    pub status: RazorpayPaymentStatus,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RazorpayPaymentStatus {
+    Created,
+    Authorized,
+    Captured,
+    // Refunded,
+    Failed,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RazorpayRefundStatus {
+    Pending,
+    Processed,
+    Failed,
+}
+
+impl TryFrom<RazorpayWebhookPayload> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(webhook_payload: RazorpayWebhookPayload) -> Result<Self, Self::Error> {
+        webhook_payload.refund.map_or(
+            match webhook_payload.payment.entity.status {
+                RazorpayPaymentStatus::Created => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
+                }
+                RazorpayPaymentStatus::Authorized => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                }
+                RazorpayPaymentStatus::Captured => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                }
+                RazorpayPaymentStatus::Failed => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                }
+            },
+            |refund_data| match refund_data.entity.status {
+                RazorpayRefundStatus::Pending => {
+                    None
+                }
+                RazorpayRefundStatus::Processed => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+                }
+                RazorpayRefundStatus::Failed => {
+                    Some(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+                }
+            },
+        ).ok_or(errors::ConnectorError::WebhookEventTypeNotFound)
+    }
+}
