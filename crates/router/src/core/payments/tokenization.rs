@@ -7,8 +7,8 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use masking::{ExposeInterface, PeekInterface};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
 use crate::{
@@ -210,14 +210,17 @@ where
                 });
 
                 let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
+                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details)
+                        .await
+                        .map(|details| details.into());
 
                 let encrypted_payment_method_billing_address =
                     payment_methods::cards::create_encrypted_data(
                         key_store,
                         payment_method_billing_address,
                     )
-                    .await;
+                    .await
+                    .map(|details| details.into());
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
@@ -269,20 +272,15 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
-                                    if let Some(metadata) = pm_metadata {
-                                        payment_methods::cards::update_payment_method(
-                                            db,
-                                            pm.clone(),
-                                            metadata,
-                                            merchant_account.storage_scheme,
-                                        )
-                                        .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Failed to add payment method in db")?;
-                                    };
-                                    // update if its a off-session mit payment
+                                    payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                        db,
+                                        pm.clone(),
+                                        pm_metadata,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to add payment method in db")?;
                                     if check_for_mit_mandates {
                                         let connector_mandate_details =
                                             update_connector_mandate_details_in_payment_method(
@@ -468,21 +466,34 @@ where
                                         ))?
                                 };
 
+                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(
+                                    &existing_pm,
+                                    key_store.key.peek(),
+                                    state,
+                                )
+                                .await?;
+
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: None,
+                                    scheme: existing_pm.scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
-                                    issuer_country: None,
+                                    issuer_country: card
+                                        .card_issuing_country
+                                        .or(existing_pm_data.issuer_country),
+                                    card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
                                     expiry_year: Some(card.card_exp_year),
                                     card_token: None,
                                     card_fingerprint: None,
-                                    card_holder_name: card.card_holder_name,
-                                    nick_name: card.nick_name,
-                                    card_network: None,
-                                    card_isin: None,
-                                    card_issuer: None,
-                                    card_type: None,
+                                    card_holder_name: card
+                                        .card_holder_name
+                                        .or(existing_pm_data.card_holder_name),
+                                    nick_name: card.nick_name.or(existing_pm_data.nick_name),
+                                    card_network: card
+                                        .card_network
+                                        .or(existing_pm_data.card_network),
+                                    card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
+                                    card_type: card.card_type.or(existing_pm_data.card_type),
                                     saved_to_locker: true,
                                 });
 
@@ -496,16 +507,13 @@ where
                                         key_store,
                                         updated_pmd,
                                     )
-                                    .await;
+                                    .await
+                                    .map(|details| details.into());
 
-                                let pm_update =
-                                    storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                                        payment_method_data: pm_data_encrypted,
-                                    };
-
-                                db.update_payment_method(
+                                payment_methods::cards::update_payment_method_and_last_used(
+                                    db,
                                     existing_pm,
-                                    pm_update,
+                                    pm_data_encrypted,
                                     merchant_account.storage_scheme,
                                 )
                                 .await
@@ -515,8 +523,10 @@ where
                         }
                     },
                     None => {
-                        let customer_apple_pay_saved_pm_id_option = if payment_method_type
+                        let customer_saved_pm_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
+                            || payment_method_type
+                                == Some(api_models::enums::PaymentMethodType::GooglePay)
                         {
                             match state
                                 .store
@@ -530,10 +540,9 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
-                                            == Some(api_models::enums::PaymentMethodType::ApplePay)
+                                        payment_method.payment_method_type == payment_method_type
                                     })
-                                    .map(|pm| pm.payment_method_id.clone())),
+                                    .cloned()),
                                 Err(error) => {
                                     if error.current_context().is_db_not_found() {
                                         Ok(None)
@@ -552,10 +561,18 @@ where
                             Ok(None)
                         }?;
 
-                        if let Some(customer_apple_pay_saved_pm_id) =
-                            customer_apple_pay_saved_pm_id_option
-                        {
-                            resp.payment_method_id = customer_apple_pay_saved_pm_id;
+                        if let Some(customer_saved_pm) = customer_saved_pm_option {
+                            payment_methods::cards::update_last_used_at(
+                                &customer_saved_pm,
+                                state,
+                                merchant_account.storage_scheme,
+                            )
+                            .await
+                            .map_err(|e| {
+                                logger::error!("Failed to update last used at: {:?}", e);
+                            })
+                            .ok();
+                            resp.payment_method_id = customer_saved_pm.payment_method_id;
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;
@@ -768,69 +785,109 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     tokenization_action: &payments::TokenizationAction,
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
-) -> RouterResult<Option<String>> {
-    match tokenization_action {
-        payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
-                api::PaymentMethodToken,
-                types::PaymentMethodTokenizationData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
+    should_continue_payment: bool,
+) -> RouterResult<types::PaymentMethodTokenResult> {
+    if should_continue_payment {
+        match tokenization_action {
+            payments::TokenizationAction::TokenizeInConnector
+            | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                    api::PaymentMethodToken,
+                    types::PaymentMethodTokenizationData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
 
-            let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-                Err(types::ErrorResponse::default());
+                let pm_token_response_data: Result<
+                    types::PaymentsResponseData,
+                    types::ErrorResponse,
+                > = Err(types::ErrorResponse::default());
 
-            let pm_token_router_data =
-                helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
-                    router_data.clone(),
-                    pm_token_request_data,
-                    pm_token_response_data,
+                let pm_token_router_data =
+                    helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+                        router_data.clone(),
+                        pm_token_request_data,
+                        pm_token_response_data,
+                    );
+
+                router_data
+                    .request
+                    .set_session_token(pm_token_router_data.session_token.clone());
+
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    &pm_token_router_data,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                )
+                .await
+                .to_payment_failed_response()?;
+
+                metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([
+                        ("connector", connector.connector_name.to_string()),
+                        ("payment_method", router_data.payment_method.to_string()),
+                    ]),
                 );
 
-            router_data
-                .request
-                .set_session_token(pm_token_router_data.session_token.clone());
+                let payment_token_resp = resp.response.map(|res| {
+                    if let types::PaymentsResponseData::TokenizationResponse { token } = res {
+                        Some(token)
+                    } else {
+                        None
+                    }
+                });
 
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &pm_token_router_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await
-            .to_payment_failed_response()?;
-
-            metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
-                &metrics::CONTEXT,
-                1,
-                &[
-                    metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    ),
-                    metrics::request::add_attributes(
-                        "payment_method",
-                        router_data.payment_method.to_string(),
-                    ),
-                ],
-            );
-
-            let pm_token = match resp.response {
-                Ok(response) => match response {
-                    types::PaymentsResponseData::TokenizationResponse { token } => Some(token),
-                    _ => None,
-                },
-                Err(err) => {
-                    logger::debug!(payment_method_tokenization_error=?err);
-                    None
-                }
-            };
-            Ok(pm_token)
+                Ok(types::PaymentMethodTokenResult {
+                    payment_method_token_result: payment_token_resp,
+                    is_payment_method_tokenization_performed: true,
+                })
+            }
+            _ => Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+            }),
         }
-        _ => Ok(None),
+    } else {
+        logger::debug!("Skipping connector tokenization based on should_continue_payment flag");
+        Ok(types::PaymentMethodTokenResult {
+            payment_method_token_result: Ok(None),
+            is_payment_method_tokenization_performed: false,
+        })
+    }
+}
+
+pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
+    payment_method_token_result: types::PaymentMethodTokenResult,
+    router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
+    is_retry_payment: bool,
+    should_continue_further: bool,
+) -> bool {
+    if payment_method_token_result.is_payment_method_tokenization_performed {
+        match payment_method_token_result.payment_method_token_result {
+            Ok(pm_token_result) => {
+                router_data.payment_method_token = pm_token_result.map(|pm_token| {
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                        masking::Secret::new(pm_token),
+                    )
+                });
+
+                true
+            }
+            Err(err) => {
+                if is_retry_payment {
+                    router_data.response = Err(err);
+                    false
+                } else {
+                    logger::debug!(payment_method_tokenization_error=?err);
+                    true
+                }
+            }
+        }
+    } else {
+        should_continue_further
     }
 }
 

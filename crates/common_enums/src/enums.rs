@@ -32,16 +32,16 @@ pub enum ApplicationError {
     // Don't use Debug here, Debug gives error stack in response.
     #[error("Application configuration error")]
     ConfigurationError,
-
+    
     #[error("Invalid configuration value provided: {0}")]
     InvalidConfigurationValueError(String),
-
+    
     #[error("Metrics error")]
     MetricsError,
-
+    
     #[error("I/O: {0}")]
     IoError(std::io::Error),
-
+    
     #[error("Error while constructing api client: {0}")]
     ApiClientError(ApiClientError),
 }
@@ -60,20 +60,20 @@ pub enum ApiClientError {
     BodySerializationFailed,
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
-
+    
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]
     RequestNotSent(String),
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
-
+    
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
-
+    
     #[error("connection closed before a message could complete")]
     ConnectionClosedIncompleteMessage,
-
+    
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
     #[error("Server responded with Bad Gateway")]
@@ -102,8 +102,8 @@ impl From<std::io::Error> for ApplicationError {
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
-        .content_type(mime::APPLICATION_JSON)
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
+    .content_type(mime::APPLICATION_JSON)
+    .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
@@ -115,11 +115,13 @@ impl ResponseError for ApplicationError {
             | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-
+    
     fn error_response(&self) -> actix_web::HttpResponse {
         error_response(self)
     }
 }
+
+/// The status of the attempt
 #[derive(
     Clone,
     Copy,
@@ -221,6 +223,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
+    // Bamboraapac, commented for template
     Bluesnap,
     Boku,
     Braintree,
@@ -306,6 +309,7 @@ impl AttemptStatus {
     }
 }
 
+/// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
     Clone,
     Copy,
@@ -333,6 +337,7 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 
+/// The status of the capture
 #[derive(
     Clone,
     Copy,
@@ -409,6 +414,7 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors
 #[derive(
     Clone,
     Copy,
@@ -1265,6 +1271,7 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
+/// The status of the current payment that was made
 #[derive(
     Clone,
     Copy,
@@ -1298,6 +1305,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
+/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1352,6 +1360,7 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+/// Payment Method Status
 #[derive(
     Clone,
     Copy,
@@ -1704,6 +1713,7 @@ pub enum CardNetwork {
     Maestro,
 }
 
+/// Stage of the dispute
 #[derive(
     Clone,
     Copy,
@@ -1728,6 +1738,7 @@ pub enum DisputeStage {
     PreArbitration,
 }
 
+/// Status of the dispute
 #[derive(
     Clone,
     Debug,
@@ -2242,6 +2253,7 @@ pub enum PayoutStatus {
     Ineligible,
     #[default]
     RequiresCreation,
+    RequiresConfirmation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
     RequiresVendorAccountCreation,
@@ -2311,17 +2323,17 @@ pub enum PayoutEntityType {
     Copy,
     Debug,
     Eq,
-    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "camelCase")]
-#[strum(serialize_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutSendPriority {
     Instant,
     Fast,
@@ -2356,6 +2368,24 @@ pub enum PaymentSource {
     Sdk,
     Webhook,
     ExternalAuthenticator,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+pub enum BrowserName {
+    #[default]
+    Safari,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum ClientPlatform {
+    #[default]
+    Web,
+    Ios,
+    #[serde(other)]
+    Unknown,
 }
 
 impl PaymentSource {
@@ -2581,6 +2611,7 @@ pub enum RoleScope {
     Organization,
 }
 
+/// Indicates the transaction status
 #[derive(
     Clone,
     Default,
@@ -2855,10 +2886,39 @@ pub enum BankHolderType {
     Business,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GenericLinkType {
+    #[default]
+    PaymentMethodCollect,
+    PayoutLink,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TokenPurpose {
+    AuthSelect,
+    #[serde(rename = "sso")]
+    #[strum(serialize = "sso")]
+    SSO,
     #[serde(rename = "totp")]
     #[strum(serialize = "totp")]
     TOTP,
@@ -2868,4 +2928,46 @@ pub enum TokenPurpose {
     ResetPassword,
     AcceptInvite,
     UserInfo,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum UserAuthType {
+    OpenIdConnect,
+    MagicLink,
+    #[default]
+    Password,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum Owner {
+    Organization,
+    Tenant,
+    Internal,
 }

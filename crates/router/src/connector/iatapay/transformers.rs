@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, ext_traits::Encode, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
@@ -34,16 +34,14 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct IatapayRouterData<T> {
-    amount: f64,
+    amount: FloatMajorUnit,
     router_data: T,
 }
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
+            amount,
             router_data: item,
         })
     }
@@ -96,7 +94,7 @@ pub enum PreferredCheckoutMethod {
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
     merchant_payment_id: Option<String>,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: common_enums::Currency,
     country: common_enums::CountryAlpha2,
     locale: String,
@@ -153,32 +151,7 @@ impl
                             (common_enums::CountryAlpha2::NL, None, None)
                         }
                         domain::BankRedirectData::LocalBankRedirect {} => {
-                            let billing_country = item.router_data.get_billing_country()?;
-                            (
-                                if matches!(
-                                    billing_country,
-                                    common_enums::CountryAlpha2::AT
-                                        | common_enums::CountryAlpha2::BE
-                                        | common_enums::CountryAlpha2::DE
-                                        | common_enums::CountryAlpha2::EE
-                                        | common_enums::CountryAlpha2::ES
-                                        | common_enums::CountryAlpha2::FI
-                                        | common_enums::CountryAlpha2::FR
-                                        | common_enums::CountryAlpha2::IE
-                                        | common_enums::CountryAlpha2::IT
-                                        | common_enums::CountryAlpha2::LU
-                                        | common_enums::CountryAlpha2::LV
-                                        | common_enums::CountryAlpha2::LT
-                                        | common_enums::CountryAlpha2::NL
-                                        | common_enums::CountryAlpha2::PT
-                                ) {
-                                    billing_country
-                                } else {
-                                    common_enums::CountryAlpha2::AT
-                                },
-                                None,
-                                None,
-                            )
+                            (common_enums::CountryAlpha2::AT, None, None)
                         }
                         domain::BankRedirectData::BancontactCard { .. }
                         | domain::BankRedirectData::Bizum {}
@@ -332,7 +305,7 @@ pub struct IatapayPaymentsResponse {
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
@@ -454,7 +427,7 @@ impl<F, T>
 pub struct IatapayRefundRequest {
     pub merchant_id: Secret<String>,
     pub merchant_refund_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_transfer_description: Option<String>,
     pub notification_url: String,
@@ -511,7 +484,7 @@ pub struct RefundResponse {
     iata_refund_id: String,
     status: RefundStatus,
     merchant_refund_id: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: String,
     bank_transfer_description: Option<String>,
     failure_code: Option<String>,
@@ -523,7 +496,7 @@ pub struct RefundResponse {
     clearance_date_time: Option<String>,
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
-    payment_amount: Option<f64>,
+    payment_amount: Option<FloatMajorUnit>,
     merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
@@ -625,7 +598,7 @@ pub struct IatapayPaymentWebhookBody {
     pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
 }
@@ -638,7 +611,7 @@ pub struct IatapayRefundWebhookBody {
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
 }
 

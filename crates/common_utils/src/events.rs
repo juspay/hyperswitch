@@ -12,7 +12,9 @@ pub trait ApiEventMetric {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
-    Payout,
+    Payout {
+        payout_id: String,
+    },
     Payment {
         payment_id: String,
     },
@@ -29,8 +31,6 @@ pub enum ApiEventsType {
         customer_id: id_type::CustomerId,
     },
     User {
-        //specified merchant_id will overridden on global defined
-        merchant_id: String,
         user_id: String,
     },
     PaymentMethodList {
@@ -59,9 +59,13 @@ pub enum ApiEventsType {
     Events {
         merchant_id_or_profile_id: String,
     },
+    PaymentMethodCollectLink {
+        link_id: String,
+    },
     Poll {
         poll_id: String,
     },
+    Analytics,
 }
 
 impl ApiEventMetric for serde_json::Value {}

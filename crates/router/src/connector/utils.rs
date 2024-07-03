@@ -17,7 +17,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -2830,6 +2830,27 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
         }
     }
+}
+
+pub fn get_mandate_details(
+    setup_mandate_details: Option<&mandates::MandateData>,
+) -> Result<Option<&mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
+    setup_mandate_details
+        .map(|mandate_data| match &mandate_data.mandate_type {
+            Some(mandates::MandateDataType::SingleUse(mandate))
+            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate),
+            Some(mandates::MandateDataType::MultiUse(None)) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                }
+                .into())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "setup_future_usage.mandate_data.mandate_type",
+            }
+            .into()),
+        })
+        .transpose()
 }
 
 pub fn convert_amount<T>(

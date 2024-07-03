@@ -1,5 +1,6 @@
 #![allow(unused, clippy::expect_used)]
 
+use common_utils::types::MinorUnit;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     backend::{inputs, EuclidBackend, InterpreterBackend, VirInterpreterBackend},
@@ -37,7 +38,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
     let inp = inputs::BackendInput {
         metadata: None,
         payment: inputs::PaymentInput {
-            amount: 32,
+            amount: MinorUnit::new(32),
             card_bin: None,
             currency: enums::Currency::USD,
             authentication_type: Some(enums::AuthenticationType::NoThreeDs),
