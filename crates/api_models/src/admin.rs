@@ -31,7 +31,7 @@ pub struct MerchantAccountListRequest {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
@@ -118,7 +118,7 @@ impl MerchantAccountCreate {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// Name of the Merchant Account
-    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    #[schema(value_type= Option<String>, max_length = 32, example = "NewAge Retailer")]
     pub merchant_name: Option<Secret<new_type::MerchantName>>,
 
     /// Details about the merchant
