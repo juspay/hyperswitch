@@ -2996,21 +2996,21 @@ impl ToEncryptable<EncryptableAddressDetails, Secret<String>, Secret<String>>
     for AddressDetailsWithPhone
 {
     fn from_encryptable(
-        hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
     ) -> common_utils::errors::CustomResult<
         EncryptableAddressDetails,
         common_utils::errors::ParsingError,
     > {
         Ok(EncryptableAddressDetails {
-            line1: hashmap.get("line1").cloned(),
-            line2: hashmap.get("line2").cloned(),
-            line3: hashmap.get("line3").cloned(),
-            state: hashmap.get("state").cloned(),
-            zip: hashmap.get("zip").cloned(),
-            first_name: hashmap.get("first_name").cloned(),
-            last_name: hashmap.get("last_name").cloned(),
-            phone_number: hashmap.get("phone_number").cloned(),
-            email: hashmap.get("email").cloned().map(|x| {
+            line1: hashmap.remove("line1"),
+            line2: hashmap.remove("line2"),
+            line3: hashmap.remove("line3"),
+            state: hashmap.remove("state"),
+            zip: hashmap.remove("zip"),
+            first_name: hashmap.remove("first_name"),
+            last_name: hashmap.remove("last_name"),
+            phone_number: hashmap.remove("phone_number"),
+            email: hashmap.remove("email").map(|x| {
                 let inner: Secret<String, EmailStrategy> = x.clone().into_inner().switch_strategy();
                 crypto::Encryptable::new(inner, x.into_encrypted())
             }),

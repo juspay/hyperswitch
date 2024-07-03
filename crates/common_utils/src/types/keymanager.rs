@@ -203,14 +203,14 @@ where
     S: Strategy<T> + Send,
 {
     fn foreign_from(
-        (masked_data, response): (FxHashMap<String, Secret<T, S>>, EncryptDataResponse),
+        (mut masked_data, response): (FxHashMap<String, Secret<T, S>>, EncryptDataResponse),
     ) -> Self {
         response
             .data
             .0
             .into_iter()
             .flat_map(|(k, v)| {
-                masked_data.get(&k).map(|inner| {
+                masked_data.remove(&k).map(|inner| {
                     (
                         k,
                         Encryptable::new(inner.clone(), v.data.peek().clone().into()),
@@ -226,11 +226,11 @@ where
     T: Clone,
     S: Strategy<T> + Send,
 {
-    fn foreign_from((masked_data, response): (Secret<T, S>, EncryptDataResponse)) -> Self {
+    fn foreign_from((masked_data, mut response): (Secret<T, S>, EncryptDataResponse)) -> Self {
         response
             .data
             .0
-            .get(DEFAULT_KEY)
+            .remove(DEFAULT_KEY)
             .map(|ed| Encryptable::new(masked_data, ed.data.peek().clone().into()))
     }
 }
@@ -294,10 +294,10 @@ where
 {
     type Error = error_stack::Report<errors::CryptoError>;
     fn foreign_try_from(
-        (encrypted_data, response): (Encryption, DecryptDataResponse),
+        (encrypted_data, mut response): (Encryption, DecryptDataResponse),
     ) -> Result<Self, Self::Error> {
-        match response.data.0.get(DEFAULT_KEY) {
-            Some(data) => Self::convert(data, encrypted_data),
+        match response.data.0.remove(DEFAULT_KEY) {
+            Some(data) => Self::convert(&data, encrypted_data),
             None => Err(errors::CryptoError::DecodingFailed)?,
         }
     }
@@ -312,11 +312,11 @@ where
 {
     type Error = error_stack::Report<errors::CryptoError>;
     fn foreign_try_from(
-        (encrypted_data, response): (FxHashMap<String, Encryption>, DecryptDataResponse),
+        (mut encrypted_data, response): (FxHashMap<String, Encryption>, DecryptDataResponse),
     ) -> Result<Self, Self::Error> {
         let mut decrypted = Self::default();
         for (k, v) in response.data.0.iter() {
-            match encrypted_data.get(k) {
+            match encrypted_data.remove(k) {
                 Some(encrypted) => {
                     decrypted.insert(k.clone(), Encryptable::convert(v, encrypted.clone())?);
                 }

@@ -77,13 +77,13 @@ impl ToEncryptable<EncryptableCustomer, Secret<String>, Encryption>
     }
 
     fn from_encryptable(
-        hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
     ) -> common_utils::errors::CustomResult<EncryptableCustomer, common_utils::errors::ParsingError>
     {
         Ok(EncryptableCustomer {
-            name: hashmap.get("name").cloned(),
-            phone: hashmap.get("phone").cloned(),
-            email: hashmap.get("email").cloned().map(|email| {
+            name: hashmap.remove("name"),
+            phone: hashmap.remove("phone"),
+            email: hashmap.remove("email").map(|email| {
                 let encryptable: crypto::Encryptable<Secret<String, EmailStrategy>> =
                     crypto::Encryptable::new(
                         email.clone().into_inner().switch_strategy(),
@@ -108,12 +108,12 @@ impl ToEncryptable<EncryptableCustomer, Secret<String>, Secret<String>>
     }
 
     fn from_encryptable(
-        hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
     ) -> common_utils::errors::CustomResult<EncryptableCustomer, common_utils::errors::ParsingError>
     {
         Ok(EncryptableCustomer {
-            name: hashmap.get("name").cloned(),
-            email: hashmap.get("email").cloned().map(|email| {
+            name: hashmap.remove("name"),
+            email: hashmap.remove("email").map(|email| {
                 let encryptable: crypto::Encryptable<Secret<String, EmailStrategy>> =
                     crypto::Encryptable::new(
                         email.clone().into_inner().switch_strategy(),
@@ -121,7 +121,7 @@ impl ToEncryptable<EncryptableCustomer, Secret<String>, Secret<String>>
                     );
                 encryptable
             }),
-            phone: hashmap.get("phone").cloned(),
+            phone: hashmap.remove("phone"),
         })
     }
 }

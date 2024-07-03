@@ -78,12 +78,15 @@ impl ToEncryptable<EncryptableEvent, Secret<String>, Encryption> for EventWithEn
     }
 
     fn from_encryptable(
-        hashmap: rustc_hash::FxHashMap<String, common_utils::crypto::Encryptable<Secret<String>>>,
+        mut hashmap: rustc_hash::FxHashMap<
+            String,
+            common_utils::crypto::Encryptable<Secret<String>>,
+        >,
     ) -> common_utils::errors::CustomResult<EncryptableEvent, common_utils::errors::ParsingError>
     {
         Ok(EncryptableEvent {
-            request: hashmap.get("request").cloned(),
-            response: hashmap.get("response").cloned(),
+            request: hashmap.remove("request"),
+            response: hashmap.remove("response"),
         })
     }
 }

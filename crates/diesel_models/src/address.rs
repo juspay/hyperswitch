@@ -95,19 +95,19 @@ impl ToEncryptable<EncryptableAddress, Secret<String>, Encryption> for Address {
     }
 
     fn from_encryptable(
-        hashmap: FxHashMap<String, Encryptable<Secret<String>>>,
+        mut hashmap: FxHashMap<String, Encryptable<Secret<String>>>,
     ) -> common_utils::errors::CustomResult<EncryptableAddress, common_utils::errors::ParsingError>
     {
         Ok(EncryptableAddress {
-            line1: hashmap.get("line1").cloned(),
-            line2: hashmap.get("line2").cloned(),
-            line3: hashmap.get("line3").cloned(),
-            zip: hashmap.get("zip").cloned(),
-            state: hashmap.get("state").cloned(),
-            first_name: hashmap.get("first_name").cloned(),
-            last_name: hashmap.get("last_name").cloned(),
-            phone_number: hashmap.get("phone_number").cloned(),
-            email: hashmap.get("email").cloned().map(|email| {
+            line1: hashmap.remove("line1"),
+            line2: hashmap.remove("line2"),
+            line3: hashmap.remove("line3"),
+            zip: hashmap.remove("zip"),
+            state: hashmap.remove("state"),
+            first_name: hashmap.remove("first_name"),
+            last_name: hashmap.remove("last_name"),
+            phone_number: hashmap.remove("phone_number"),
+            email: hashmap.remove("email").map(|email| {
                 let encryptable: Encryptable<Secret<String, EmailStrategy>> = Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
