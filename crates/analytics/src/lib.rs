@@ -668,6 +668,7 @@ impl AnalyticsProvider {
         metric: &ActivePaymentsMetrics,
         merchant_id: &str,
         publishable_key: &str,
+        time_range: &TimeRange,
     ) -> types::MetricsResult<
         Vec<(
             ActivePaymentsMetricsBucketIdentifier,
@@ -678,12 +679,12 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(merchant_id, publishable_key, pool)
+                    .load_metrics(merchant_id, publishable_key, time_range, pool)
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
-                    .load_metrics(merchant_id, publishable_key, ckh_pool)
+                    .load_metrics(merchant_id, publishable_key, time_range, ckh_pool)
                     .await
             }
         }

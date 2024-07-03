@@ -1990,6 +1990,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.37.0",
+ "url",
  "utoipa",
  "uuid",
 ]
@@ -4311,6 +4312,7 @@ dependencies = [
  "serde_json",
  "subtle",
  "time",
+ "url",
  "zeroize",
 ]
 
