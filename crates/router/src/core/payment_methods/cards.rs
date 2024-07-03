@@ -4033,14 +4033,15 @@ pub async fn list_customer_payment_method(
         )
         .await?;
 
-        let pmd = if let Some(card) = pm_list_context.card_details {
-            Some(api::PaymentMethodListData::Card(card))
-        } else {
-            pm_list_context
-                .bank_transfer_details
-                .map(api::PaymentMethodListData::Bank)
-        };
-        // Need validation for enabled payment method ,querying MCA
+        #[cfg(not(feature = "payouts"))]
+        let pmd = pm_list_context
+            .card_details
+            .map(api::PaymentMethodListData::Card);
+        #[cfg(feature = "payouts")]
+        let pmd = pm_list_context
+            .bank_transfer_details
+            .map(api::PaymentMethodListData::Bank);
+
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.clone(),
             payment_method_id: pm.payment_method_id.clone(),
