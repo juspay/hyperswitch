@@ -480,8 +480,6 @@ Once you're done with setting up the dependencies, proceed with
 
 3. Run database migrations:
 
-   Note that this requires `diesel_cli` to be installed
-
    ```shell
    make migrate database-url=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
    ```
