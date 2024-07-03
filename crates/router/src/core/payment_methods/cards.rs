@@ -2002,6 +2002,8 @@ pub async fn list_payment_methods(
                                     cust_pm.payment_method_type == Some(mca.payment_method_type)
                                 }))
                         });
+
+                        logger::debug!("Filtered out wallet payment method from mca since customer has already saved it");
                         Ok(())
                     }
                     Err(error) => {
@@ -3872,6 +3874,9 @@ pub async fn get_card_details_with_locker_fallback(
             None
         }
     } else {
+        logger::debug!(
+            "Getting card details from locker as it is not found in payment methods table"
+        );
         Some(get_card_details_from_locker(state, pm).await?)
     })
 }
@@ -3899,6 +3904,9 @@ pub async fn get_card_details_without_locker_fallback(
         crd.scheme.clone_from(&pm.scheme);
         crd
     } else {
+        logger::debug!(
+            "Getting card details from locker as it is not found in payment methods table"
+        );
         get_card_details_from_locker(state, pm).await?
     })
 }
