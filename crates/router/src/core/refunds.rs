@@ -305,7 +305,10 @@ pub async fn trigger_refund_to_gateway(
                     );
                     storage::RefundUpdate::ErrorUpdate {
                         refund_status: Some(enums::RefundStatus::ManualReview),
-                        refund_error_message: Some(format!("Integrity Check Failed!")),
+                        refund_error_message: Some(format!(
+                            "Integrity Check Failed! as data mismatched for fields {}",
+                            err.field_names
+                        )),
                         refund_error_code: None,
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
@@ -597,7 +600,10 @@ pub async fn sync_refund_with_gateway(
                 let refund_connector_transaction_id = err.connector_transaction_id;
                 storage::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::ManualReview),
-                    refund_error_message: Some(format!("Integrity Check Failed!")),
+                    refund_error_message: Some(format!(
+                        "Integrity Check Failed! as data mismatched for fields {}",
+                        err.field_names
+                    )),
                     refund_error_code: None,
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,

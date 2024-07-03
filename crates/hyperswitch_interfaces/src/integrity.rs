@@ -1,4 +1,4 @@
-use common_utils::errors::IntegrityCheckError;
+use common_utils::{errors::IntegrityCheckError, types::MinorUnit};
 use hyperswitch_domain_models::router_request_types::{
     AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentsAuthorizeData, PaymentsCaptureData,
     PaymentsSyncData, RefundIntegrityObject, RefundsData, SyncIntegrityObject,
@@ -177,10 +177,11 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
             mismatched_fields.push("currency".to_string());
         }
 
-        // if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
-        //     mismatched_fields.push("capture_amount".to_string());
-        // }
-
+        if req_integrity_object.automatic_capture_amount
+            != res_integrity_object.automatic_capture_amount
+        {
+            mismatched_fields.push("capture_amount".to_string());
+        }
         if mismatched_fields.is_empty() {
             Ok(())
         } else {
@@ -286,10 +287,18 @@ impl GetIntegrityObject<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
     }
 
     fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
+        let automatic_capture_amount = match self.capture_method {
+            Some(method) => match method {
+                diesel_models::enums::CaptureMethod::Automatic => self.minor_amount,
+                _ => MinorUnit::zero(),
+            },
+            None => self.minor_amount,
+        };
+
         AuthoriseIntegrityObject {
             amount: self.minor_amount,
             currency: self.currency,
-            // capture_amount: Some(self.minor_amount),
+            automatic_capture_amount: Some(automatic_capture_amount),
         }
     }
 }

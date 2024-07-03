@@ -3838,6 +3838,7 @@ dependencies = [
  "async-trait",
  "bytes 1.6.0",
  "common_utils",
+ "diesel_models",
  "dyn-clone",
  "http 0.2.12",
  "hyperswitch_domain_models",
