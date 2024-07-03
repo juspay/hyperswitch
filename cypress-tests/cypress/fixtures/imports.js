@@ -7,10 +7,7 @@ import customerCreateBody from "./create-customer-body.json";
 import citConfirmBody from "./create-mandate-cit.json";
 import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
-import {
-  default as createPayoutBody,
-  default as initialCreatePayoutBody,
-} from "./create-payout-confirm-body.json";
+import createPayoutBody from "./create-payout-confirm-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
 import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
@@ -30,7 +27,6 @@ export {
   createPaymentBody,
   createPayoutBody,
   customerCreateBody,
-  initialCreatePayoutBody,
   listRefundCall,
   merchantCreateBody,
   mitConfirmBody,

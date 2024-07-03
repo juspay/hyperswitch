@@ -3,7 +3,7 @@ import * as utils from "../PayoutUtils/utils";
 import * as fixtures from "../../fixtures/imports";
 
 let globalState;
-let createPayoutBody;
+let payoutBody;
 
 describe("[Payout] Saved Card", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
@@ -34,7 +34,7 @@ describe("[Payout] Saved Card", () => {
 
     // This is needed to get customer payment methods
     beforeEach("seed global state", () => {
-      createPayoutBody = Cypress._.cloneDeep(fixtures.initialCreatePayoutBody);
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
     });
 
     it("create customer", () => {
@@ -61,7 +61,7 @@ describe("[Payout] Saved Card", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmWithTokenPayoutTest(
-        createPayoutBody,
+        payoutBody,
         req_data,
         res_data,
         true,
@@ -94,7 +94,7 @@ describe("[Payout] Saved Card", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmPayoutTest(
-          createPayoutBody,
+          payoutBody,
           req_data,
           res_data,
           true,
@@ -117,7 +117,7 @@ describe("[Payout] Saved Card", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmWithTokenPayoutTest(
-          createPayoutBody,
+          payoutBody,
           req_data,
           res_data,
           true,
@@ -164,9 +164,9 @@ describe("[Payout] Saved Bank transfer", () => {
     "[Payout] [Bank Transfer] Onboard Customer Prior to Transaction",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
-      beforeEach("reset createPayoutBody", () => {
-        createPayoutBody = Cypress._.cloneDeep(
-          fixtures.initialCreatePayoutBody
+      beforeEach("reset payoutBody", () => {
+        payoutBody = Cypress._.cloneDeep(
+          fixtures.createPayoutBody
         );
       });
 
@@ -194,7 +194,7 @@ describe("[Payout] Saved Bank transfer", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmWithTokenPayoutTest(
-          createPayoutBody,
+          payoutBody,
           req_data,
           res_data,
           true,
@@ -228,7 +228,7 @@ describe("[Payout] Saved Bank transfer", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmPayoutTest(
-          createPayoutBody,
+          payoutBody,
           req_data,
           res_data,
           true,
@@ -251,7 +251,7 @@ describe("[Payout] Saved Bank transfer", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmWithTokenPayoutTest(
-          createPayoutBody,
+          payoutBody,
           req_data,
           res_data,
           true,
