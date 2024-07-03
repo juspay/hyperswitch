@@ -73,13 +73,12 @@ impl MerchantId {
     }
 
     /// Create a Merchant id from MerchantName
-    /// This
     pub fn from_merchant_name(merchant_name: MerchantName) -> Self {
         let merchant_name_string = merchant_name.into_inner();
 
         let merchant_id = merchant_name_string.trim().to_lowercase().replace(' ', "_");
 
-        // Generate a 3 digit random number so that colission will be less
+        // Generate a 3 digit random number so that collision will be less
         let mut rng = rand::thread_rng();
         let randomness: u32 = rng.gen_range(100..1000);
 
