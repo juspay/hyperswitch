@@ -4251,7 +4251,7 @@ pub struct ApplepaySessionRequest {
     pub initiative_context: String,
 }
 
-/// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+/// Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
