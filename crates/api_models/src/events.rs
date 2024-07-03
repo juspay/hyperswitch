@@ -58,7 +58,6 @@ impl ApiEventMetric for PaymentIntentFiltersResponse {
 
 impl_misc_api_event_type!(
     PaymentMethodId,
-    PaymentsSessionResponse,
     PaymentMethodCreate,
     PaymentLinkInitiateRequest,
     RetrievePaymentLinkResponse,
