@@ -13740,6 +13740,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_billing_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
