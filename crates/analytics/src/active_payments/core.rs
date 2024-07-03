@@ -41,6 +41,7 @@ pub async fn get_metrics(
                             &metric_type,
                             &merchant_id_scoped,
                             &publishable_key_scoped,
+                            &req.time_range,
                         )
                         .await
                         .change_context(AnalyticsError::UnknownError);

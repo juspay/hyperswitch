@@ -4,6 +4,7 @@ use api_models::payouts;
 use common_utils::{
     ext_traits::{Encode, OptionExt},
     link_utils,
+    types::{AmountConvertor, StringMajorUnitForConnector},
 };
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
@@ -14,7 +15,7 @@ use crate::{
     errors,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
-    types::{api::enums, domain},
+    types::domain,
 };
 
 pub async fn initiate_payout_link(
@@ -63,7 +64,7 @@ pub async fn initiate_payout_link(
     let link_data = payout_link.link_data.clone();
     let default_config = &state.conf.generic_link.payout_link;
     let default_ui_config = default_config.ui_config.clone();
-    let ui_config_data = link_utils::GenericLinkUIConfigFormData {
+    let ui_config_data = link_utils::GenericLinkUiConfigFormData {
         merchant_name: link_data
             .ui_config
             .merchant_name
@@ -102,9 +103,9 @@ pub async fn initiate_payout_link(
         // Initiate Payout link flow
         (_, link_utils::PayoutLinkStatus::Initiated) => {
             let customer_id = link_data.customer_id;
-            let amount = payout
-                .destination_currency
-                .to_currency_base_unit(payout.amount)
+            let required_amount_type = StringMajorUnitForConnector;
+            let amount = required_amount_type
+                .convert(payout.amount, payout.destination_currency)
                 .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
             // Fetch customer
             let customer = db
@@ -160,7 +161,13 @@ pub async fn initiate_payout_link(
                 payout_id: payout_link.primary_reference,
                 customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
-                return_url: payout_link.return_url,
+                return_url: payout_link
+                    .return_url
+                    .as_ref()
+                    .map(|url| url::Url::parse(url))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse payout status link's return URL")?,
                 ui_config: ui_config_data,
                 enabled_payment_methods,
                 amount,
@@ -180,7 +187,7 @@ pub async fn initiate_payout_link(
             let generic_form_data = services::GenericLinkFormData {
                 js_data: serialized_js_content,
                 css_data: serialized_css_content,
-                sdk_url: default_config.sdk_url.clone(),
+                sdk_url: default_config.sdk_url.to_string(),
                 html_meta_tags: String::new(),
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -195,7 +202,13 @@ pub async fn initiate_payout_link(
                 payout_id: payout_link.primary_reference,
                 customer_id: link_data.customer_id,
                 session_expiry: payout_link.expiry,
-                return_url: payout_link.return_url,
+                return_url: payout_link
+                    .return_url
+                    .as_ref()
+                    .map(|url| url::Url::parse(url))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse payout status link's return URL")?,
                 status: payout.status,
                 error_code: payout_attempt.error_code,
                 error_message: payout_attempt.error_message,
@@ -286,12 +299,10 @@ pub async fn filter_payout_methods(
             }
         }
     }
-    for (pm, method_types) in payment_method_list_hm {
-        if !method_types.is_empty() {
-            let payment_method_types: Vec<enums::PaymentMethodType> =
-                method_types.into_iter().collect();
+    for (payment_method, payment_method_types) in payment_method_list_hm {
+        if !payment_method_types.is_empty() {
             let enabled_payment_method = link_utils::EnabledPaymentMethod {
-                payment_method: pm,
+                payment_method,
                 payment_method_types,
             };
             response.push(enabled_payment_method);

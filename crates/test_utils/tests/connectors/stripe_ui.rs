@@ -129,7 +129,7 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
             Event::RunIf(
                 Assert::IsPresent("Let’s verify your phone"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("phone"), "8056594427")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("phone"), "9123456789")),
                     Event::Trigger(Trigger::Click(By::Id("onContinue"))),
                     Event::Trigger(Trigger::SendKeys(By::Id("otp_field"), "123456")),
                 ],

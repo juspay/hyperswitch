@@ -251,6 +251,28 @@ impl AmountConvertor for StringMinorUnitForConnector {
     }
 }
 
+/// Core required conversion type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForCore;
+impl AmountConvertor for StringMajorUnitForCore {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
 /// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct StringMajorUnitForConnector;
@@ -341,6 +363,11 @@ impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(&self) -> i64 {
         self.0
+    }
+
+    /// forms a new minor default unit i.e zero
+    pub fn zero() -> Self {
+        Self(0)
     }
 
     /// forms a new minor unit from amount
@@ -542,6 +569,11 @@ impl StringMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+
+    /// Get string amount from struct to be removed in future
+    pub fn get_amount_as_string(&self) -> String {
+        self.0.clone()
     }
 }
 

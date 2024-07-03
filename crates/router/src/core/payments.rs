@@ -197,6 +197,7 @@ where
         &validate_result,
         &key_store,
         &customer,
+        Some(&business_profile),
     )
     .await?;
 
@@ -302,6 +303,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -373,6 +375,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                     )
                     .await?;
 
@@ -461,6 +464,7 @@ where
                         &customer,
                         session_surcharge_details,
                         &business_profile,
+                        header_payload.clone(),
                     ))
                     .await?
                 }
@@ -1393,6 +1397,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
+    is_retry_payment: bool,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -1436,6 +1441,7 @@ where
         &merchant_connector_account,
         key_store,
         customer,
+        Some(business_profile),
     )
     .await?;
     *payment_data = pd;
@@ -1475,7 +1481,7 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -1525,16 +1531,22 @@ where
         _ => (),
     };
 
-    let pm_token = router_data
-        .add_payment_method_token(state, &connector, &tokenization_action)
+    let payment_method_token_response = router_data
+        .add_payment_method_token(
+            state,
+            &connector,
+            &tokenization_action,
+            should_continue_further,
+        )
         .await?;
-    if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
-                payment_method_token,
-            )),
+
+    let mut should_continue_further =
+        tokenization::update_router_data_with_payment_method_token_result(
+            payment_method_token_response,
+            &mut router_data,
+            is_retry_payment,
+            should_continue_further,
         );
-    };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
@@ -1610,6 +1622,7 @@ where
                 call_connector_action,
                 connector_request,
                 business_profile,
+                header_payload.clone(),
             )
             .await
     } else {
@@ -1673,6 +1686,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     customer: &Option<domain::Customer>,
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
     business_profile: &storage::business_profile::BusinessProfile,
+    header_payload: HeaderPayload,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -1736,6 +1750,7 @@ where
             CallConnectorAction::Trigger,
             None,
             business_profile,
+            header_payload.clone(),
         );
 
         join_handlers.push(res);
@@ -2293,6 +2308,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -2359,6 +2375,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
@@ -2377,6 +2394,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
 
@@ -2418,6 +2436,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -2436,6 +2455,7 @@ where
                     validate_result.storage_scheme,
                     merchant_key_store,
                     customer,
+                    business_profile,
                 )
                 .await?;
             payment_data.payment_method_data = payment_method_data;
