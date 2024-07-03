@@ -473,7 +473,7 @@ pub struct PaymentsRequest {
     /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
     pub payment_link_config_id: Option<String>,
 
-    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.
+    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     pub profile_id: Option<String>,
 
