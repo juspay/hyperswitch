@@ -7766,7 +7766,7 @@
       },
       "ConnectorMetadata": {
         "type": "object",
-        "description": "Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.",
+        "description": "Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.",
         "properties": {
           "apple_pay": {
             "allOf": [
@@ -14826,7 +14826,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to to page to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -15164,7 +15164,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to to page to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -16176,7 +16176,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to to page to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -17235,7 +17235,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to to page to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
