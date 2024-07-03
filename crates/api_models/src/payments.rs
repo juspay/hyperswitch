@@ -299,7 +299,7 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub capture_on: Option<PrimitiveDateTime>,
 
-    /// Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.
+    /// Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.
     #[schema(default = false, example = true)]
     pub confirm: Option<bool>,
 
@@ -912,7 +912,7 @@ impl Default for MandateType {
     }
 }
 
-/// This "CustomerAcceptance" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client
+/// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CustomerAcceptance {

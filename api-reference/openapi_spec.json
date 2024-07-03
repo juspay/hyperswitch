@@ -8383,7 +8383,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
-        "description": "This \"CustomerAcceptance\" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client",
+        "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
         "required": [
           "acceptance_type"
         ],
@@ -14791,7 +14791,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -15129,7 +15129,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -15341,7 +15341,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.",
+            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.",
             "nullable": true
           },
           "surcharge_details": {
@@ -16109,7 +16109,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -16386,7 +16386,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.",
+            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.",
             "nullable": true
           },
           "surcharge_details": {
@@ -17200,7 +17200,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
             "default": false,
             "example": true,
             "nullable": true
