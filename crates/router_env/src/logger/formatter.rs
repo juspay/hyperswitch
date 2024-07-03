@@ -193,7 +193,7 @@ where
         });
 
         // Check for invalid configuration values in default_fields
-        for (key, _value) in &default_fields {
+        for key in default_fields.keys() {
             if !IMPLICIT_KEYS.contains(key.as_str()) {
                 return Err(ConfigError::Message(format!(
                     "Invalid configuration value for key: {}",
