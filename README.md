@@ -10,7 +10,7 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
-  <a href="/docs/try_local_system.md">Local Setup Guide</a> •
+  <a href="/docs/try_local_system.md">Local Setup Guide (Hyperswitch App Server)</a> •
   <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
   <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
   <a href="#-supported-features">Supported Features</a> •
@@ -53,6 +53,38 @@ Using Hyperswitch, you can:
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
+<a href="#Try a Payment">
+  <h2 id="Try a Payment">⚡️ Try a Payment</h2>
+</a>
+
+To quickly experience the ease that Hyperswitch provides while handling the payment, You can signup on our [Dashboard][Dashboard-link], and try a payment.
+
+Congratulations🎉 on making your first payment with Hyperswitch. 
+
+<a href="#For Businesses">
+  <h2 id="For Businesses">⚡️ For Businesses</h2>
+</a>
+
+Hyperswitch helps businesses in -  
+- Improving profitability
+- Increasing conversion rates
+- Lowering payment costs
+- Streamlining payment operations 
+
+Hyperswitch has ample features **for businesses of all domains and sizes**, check out [how it can help your business][Docs-link-for-businesses]. 
+
+<a href="#For Contributors">
+  <h2 id="For Contributors">⚡️ For Contributors</h2>
+</a>
+
+Hyperswitch is an open source project, and aims to make digital payments accessible to people across the globe like a basic utility. With the vision for developing Hyperswitch as the **Linux of Payments**, We seek support from the developers across the globe.
+
+Utilise the following resources to quickstart your journey with Hyperswitch -
+- [Dev Documentation][Docs-link-for-developers]
+- [Learning Resources]
+
+
+
 <a href="#Quick Start Guide">
   <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
 </a>
@@ -85,6 +117,9 @@ This will start the app server, web client and control center.
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
+[Docs-link-for-businesses]: https://docs.hyperswitch.io/
+[Docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
+[Dashboard-link]: https://app.hyperswitch.io/
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
 
