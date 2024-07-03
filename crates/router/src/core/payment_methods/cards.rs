@@ -1965,6 +1965,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
+                mca.merchant_connector_id.clone(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -1980,12 +1981,26 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
+            let domain_id = builder
+                .make_domain(
+                    mca.merchant_connector_id.clone(),
+                    mca.connector_name.as_str(),
+                );
+
+            let Ok(domain_id) = domain_id else {
+                logger::error!(
+                    "Failed to construct domain for list payment methods"
+                );
+                return Err(errors::ApiErrorResponse::InternalServerError.into());
+            };
+
             let payment_methods = match &mca.payment_methods_enabled {
                 Some(pm) => pm,
                 None => continue,
             };
             if let Err(e) = make_pm_graph(
                 &mut builder,
+                domain_id,
                 payment_methods,
                 mca.connector_name.clone(),
                 pm_config_mapping,
@@ -1999,7 +2014,8 @@ pub async fn list_payment_methods(
         }
 
         // Refreshing our CGraph cache
-        let graph = refresh_pm_filters_cache(&state, &key, builder.build()).await;
+        let graph =
+            refresh_pm_filters_cache(&state, &key, builder.build()).await;
 
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
@@ -2008,6 +2024,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
+                mca.merchant_connector_id.clone(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -2915,6 +2932,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
+    mca_id: String,
     payment_methods: &[serde_json::Value],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -3062,12 +3080,13 @@ pub async fn filter_payment_methods(
 
                     let context = AnalysisContext::from_dir_values(context_values.clone());
 
+                    let domain_ident: &[String] = &[mca_id.clone()];
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
                         &context,
                         &mut cgraph::Memoization::new(),
                         &mut cgraph::CycleCheck::new(),
-                        None,
+                        Some(domain_ident),
                     );
                     if filter_pm_based_on_allowed_types
                         && filter_pm_card_network_based
