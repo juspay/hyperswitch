@@ -450,6 +450,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -553,7 +554,9 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        if let Some(customer_id) = &request.customer_id {
+                        if let Some(customer_id) =
+                            &request.customer_id.clone().or(customer_id.clone())
+                        {
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -4156,7 +4159,7 @@ pub fn get_applepay_metadata(
 
 #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: SessionState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4180,7 +4183,7 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
     let merchant_connector_account_type = get_merchant_connector_account(
-        &state,
+        state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
@@ -4967,4 +4970,26 @@ pub async fn config_skip_saving_wallet_at_connector(
             None
         }
     })
+}
+
+pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+    db: &dyn StorageInterface,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+        let skip_saving_wallet_at_connector_optional =
+            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
+                .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.payment_intent.setup_future_usage =
+                        Some(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
 }
