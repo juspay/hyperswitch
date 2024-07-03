@@ -179,6 +179,7 @@ pub struct AdyenPaymentRequest<'a> {
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
+    merchant_order_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2610,6 +2611,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2672,6 +2674,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2725,6 +2728,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2779,6 +2783,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2829,6 +2834,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2879,6 +2885,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2939,6 +2946,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3034,6 +3042,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3109,6 +3118,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3167,6 +3177,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone(),
+            merchant_order_reference: item.router_data.merchant_order_reference_id.clone(),
         })
     }
 }

@@ -195,6 +195,10 @@ where
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone(),
     };
 
     Ok(router_data)

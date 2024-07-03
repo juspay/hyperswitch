@@ -111,6 +111,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        merchant_order_reference_id: None,
     };
     Ok(router_data)
 }

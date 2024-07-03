@@ -3524,6 +3524,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
         connector_wallets_details: router_data.connector_wallets_details,
+        merchant_order_reference_id: router_data.merchant_order_reference_id,
     }
 }
 

@@ -71,6 +71,7 @@ fn get_default_router_data<F, Req, Resp>(
         connector_response: None,
         payment_method_status: None,
         minor_amount_captured: None,
+        merchant_order_reference_id: None,
     }
 }
 
