@@ -883,6 +883,7 @@ where
                 .set_updated(Some(payment_intent.modified_at))
                 .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
+                .set_merchant_order_reference_id(payment_intent.merchant_order_reference_id)
                 .to_owned(),
             headers,
         ))
