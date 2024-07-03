@@ -261,6 +261,29 @@ pub async fn get_or_insert_payment_method(
     }
 }
 
+pub async fn migrate_payment_method(
+    state: routes::SessionState,
+    req: api::PaymentMethodCreate,
+    merchant_id: String,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    get_client_secret_or_add_payment_method(state, req, &merchant_account, &key_store).await
+}
+
 #[instrument(skip_all)]
 pub async fn get_client_secret_or_add_payment_method(
     state: routes::SessionState,

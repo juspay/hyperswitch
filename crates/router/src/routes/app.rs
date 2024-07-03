@@ -932,8 +932,8 @@ impl PaymentMethods {
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
-                    web::resource("/migrate")
-                        .route(web::post().to(migrate_payment_method_api))
+                    web::resource("/{merchant_id}/migrate")
+                        .route(web::post().to(migrate_payment_method_api)),
                 )
                 .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
