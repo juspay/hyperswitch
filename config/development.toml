@@ -664,7 +664,7 @@ host = "https://localhost:9200"
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "0penS3arc#"
+password = "admin"
 region = "eu-central-1"
 
 [opensearch.indexes]
