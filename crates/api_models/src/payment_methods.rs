@@ -75,6 +75,100 @@ pub struct PaymentMethodCreate {
     /// Payment method data to be passed in case of client
     /// based flow
     pub payment_method_data: Option<PaymentMethodCreateData>,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub payment_method_billing_address: Option<payments::Address>,
+
+    #[serde(skip_deserializing)]
+    /// The connector mandate details of the payment method, this is skipped during deserialization
+    /// as this should not be passed in the api request
+    pub connector_mandate_details: Option<PaymentsMandateReference>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodMigrate {
+    /// The type of payment method use for the payment.
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The name of the bank/ provider issuing the payment method to the end user
+    pub payment_method_issuer: Option<String>,
+
+    /// A standard code representing the issuer of payment method
+    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
+
+    /// Card Details
+    pub card: Option<CardDetail>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The unique identifier of the customer.
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The card network
+    pub card_network: Option<String>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    pub wallet: Option<payouts::Wallet>,
+
+    /// For Client based calls, SDK will use the client_secret
+    /// in order to call /payment_methods
+    /// Client secret will be generated whenever a new
+    /// payment method is created
+    pub client_secret: Option<String>,
+
+    /// Payment method data to be passed in case of client
+    /// based flow
+    pub payment_method_data: Option<PaymentMethodCreateData>,
+
+    /// The billing details of the payment method
+    pub payment_method_billing_address: Option<payments::Address>,
+
+    /// The connector mandate details of the payment method
+    pub connector_mandate_details: Option<PaymentsMandateReference>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReference(pub HashMap<String, PaymentsMandateReferenceRecord>);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReferenceRecord {
+    pub connector_mandate_id: String,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
+impl From<PaymentMethodMigrate> for PaymentMethodCreate {
+    fn from(payment_method_migrate: PaymentMethodMigrate) -> Self {
+        Self {
+            customer_id: payment_method_migrate.customer_id.clone(),
+            payment_method: payment_method_migrate.payment_method,
+            payment_method_type: payment_method_migrate.payment_method_type,
+            payment_method_issuer: payment_method_migrate.payment_method_issuer.clone(),
+            payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
+            metadata: payment_method_migrate.metadata.clone(),
+            payment_method_data: payment_method_migrate.payment_method_data.clone(),
+            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
+            client_secret: payment_method_migrate.client_secret.clone(),
+            payment_method_billing_address: payment_method_migrate
+                .payment_method_billing_address
+                .clone(),
+            card: payment_method_migrate.card.clone(),
+            card_network: payment_method_migrate.card_network.clone(),
+            bank_transfer: payment_method_migrate.bank_transfer.clone(),
+            wallet: payment_method_migrate.wallet.clone(),
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

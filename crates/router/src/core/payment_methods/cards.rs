@@ -277,6 +277,18 @@ pub async fn get_client_secret_or_add_payment_method(
     #[cfg(feature = "payouts")]
     let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
 
+    let payment_method_billing_address =
+        create_encrypted_data(key_store, req.payment_method_billing_address.clone())
+            .await
+            .map(|details| details.into());
+
+    let connector_mandate_details = req
+        .connector_mandate_details
+        .clone()
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     if condition {
         Box::pin(add_payment_method(state, req, merchant_account, key_store)).await
     } else {
@@ -293,11 +305,11 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             None,
             key_store,
-            None,
+            connector_mandate_details,
             Some(enums::PaymentMethodStatus::AwaitingData),
             None,
             merchant_account.storage_scheme,
-            None,
+            payment_method_billing_address,
         )
         .await?;
 
@@ -539,6 +551,17 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let payment_method = req.payment_method.get_required_value("payment_method")?;
+    let payment_method_billing_address =
+        create_encrypted_data(key_store, req.payment_method_billing_address.clone())
+            .await
+            .map(|details| details.into());
+
+    let connector_mandate_details = req
+        .connector_mandate_details
+        .clone()
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let response = match payment_method {
         #[cfg(feature = "payouts")]
@@ -733,10 +756,10 @@ pub async fn add_payment_method(
                 pm_metadata.cloned(),
                 None,
                 locker_id,
-                None,
+                connector_mandate_details,
                 None,
                 merchant_account.storage_scheme,
-                None,
+                payment_method_billing_address,
             )
             .await?;
 
@@ -899,6 +922,8 @@ pub async fn update_customer_payment_method(
                 client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
                 card_network: None,
+                payment_method_billing_address: None,
+                connector_mandate_details: None,
             };
             new_pm.validate()?;
 
@@ -1130,7 +1155,7 @@ pub async fn add_card_to_locker(
     errors::VaultError,
 > {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
-    let add_card_to_hs_resp = common_utils::metrics::utils::record_operation_time(
+    let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
         async {
             add_card_hs(
                 state,
@@ -1157,7 +1182,7 @@ pub async fn add_card_to_locker(
         &metrics::CARD_ADD_TIME,
         &metrics::CONTEXT,
         &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
-    )
+    ))
     .await?;
 
     logger::debug!("card added to hyperswitch-card-vault");

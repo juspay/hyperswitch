@@ -1368,6 +1368,8 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
+                        payment_method_billing_address: None,
+                        connector_mandate_details: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1387,6 +1389,8 @@ pub(crate) async fn get_payment_method_create_request(
                         card_network: None,
                         client_secret: None,
                         payment_method_data: None,
+                        payment_method_billing_address: None,
+                        connector_mandate_details: None,
                     };
 
                     Ok(payment_method_request)

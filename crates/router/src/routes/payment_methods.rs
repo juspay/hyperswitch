@@ -46,6 +46,37 @@ pub async fn create_payment_method_api(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
+pub async fn migrate_payment_method_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodMigrate>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsMigrate;
+
+    let payment_method_create =
+        payment_methods::PaymentMethodCreate::from(json_payload.into_inner());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_create,
+        |state, auth, req, _| async move {
+            Box::pin(cards::get_client_secret_or_add_payment_method(
+                state,
+                req,
+                &auth.merchant_account,
+                &auth.key_store,
+            ))
+            .await
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(
     state: web::Data<AppState>,

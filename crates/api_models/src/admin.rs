@@ -1229,6 +1229,8 @@ pub struct ConnectorAgnosticMitChoice {
 
 impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
 
+impl common_utils::events::ApiEventMetric for payment_methods::PaymentMethodMigrate {}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {
     /// Merchant public key

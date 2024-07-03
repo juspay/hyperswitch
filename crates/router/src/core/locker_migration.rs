@@ -130,6 +130,8 @@ pub async fn call_to_locker(
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,
+            payment_method_billing_address: None,
+            connector_mandate_details: None,
         };
 
         let add_card_result = cards::add_card_hs(
