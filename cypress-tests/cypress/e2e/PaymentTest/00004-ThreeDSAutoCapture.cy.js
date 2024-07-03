@@ -1,8 +1,7 @@
-import confirmBody from "../../fixtures/confirm-body.json";
-import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
+
 let globalState;
 
 describe("Card - ThreeDS payment flow test", () => {

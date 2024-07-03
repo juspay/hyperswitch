@@ -1,11 +1,6 @@
-import captureBody from "../../fixtures/capture-flow-body.json";
-import confirmBody from "../../fixtures/confirm-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 

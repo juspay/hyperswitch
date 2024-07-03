@@ -1,6 +1,6 @@
-import State from "../../utils/State";
-import * as utils from "../RoutingUtils/utils";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import * as utils from "../RoutingUtils/Utils";
 
 let globalState;
 

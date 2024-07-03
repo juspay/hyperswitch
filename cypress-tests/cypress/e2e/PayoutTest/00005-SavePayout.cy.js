@@ -1,6 +1,6 @@
-import State from "../../utils/State";
-import * as utils from "../PayoutUtils/utils";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import * as utils from "../PayoutUtils/Utils";
 
 let globalState;
 let payoutBody;
@@ -165,9 +165,7 @@ describe("[Payout] Saved Bank transfer", () => {
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
       beforeEach("reset payoutBody", () => {
-        payoutBody = Cypress._.cloneDeep(
-          fixtures.createPayoutBody
-        );
+        payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
       });
 
       it("create customer", () => {

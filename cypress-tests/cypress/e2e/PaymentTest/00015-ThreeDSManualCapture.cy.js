@@ -1,8 +1,7 @@
-import getConnectorDetails from "../PaymentUtils/utils";
-import State from "../../utils/State";
 import captureBody from "../../fixtures/capture-flow-body.json";
-import * as utils from "../PaymentUtils/utils";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 

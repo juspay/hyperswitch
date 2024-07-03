@@ -1,7 +1,6 @@
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
-import State from "../../utils/State";
 import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -78,7 +77,7 @@ describe("Card - SaveCard payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.saveCardConfirmCallTest(
-          fixtures.SaveCardConfirmBody,
+          fixtures.saveCardConfirmBody,
           req_data,
           res_data,
           globalState
@@ -155,7 +154,7 @@ describe("Card - SaveCard payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.saveCardConfirmCallTest(
-          fixtures.SaveCardConfirmBody,
+          fixtures.saveCardConfirmBody,
           req_data,
           res_data,
           globalState
@@ -253,7 +252,7 @@ describe("Card - SaveCard payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.saveCardConfirmCallTest(
-          fixtures.SaveCardConfirmBody,
+          fixtures.saveCardConfirmBody,
           req_data,
           res_data,
           globalState

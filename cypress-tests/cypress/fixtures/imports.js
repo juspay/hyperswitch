@@ -13,11 +13,10 @@ import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
 import refundBody from "./refund-flow-body.json";
 import routingConfigBody from "./routing-config-body.json";
-import SaveCardConfirmBody from "./save-card-confirm-body.json";
+import saveCardConfirmBody from "./save-card-confirm-body.json";
 import voidBody from "./void-payment-body.json";
 
 export {
-  SaveCardConfirmBody,
   apiKeyCreateBody,
   captureBody,
   citConfirmBody,
@@ -33,5 +32,6 @@ export {
   pmIdConfirmBody,
   refundBody,
   routingConfigBody,
+  saveCardConfirmBody,
   voidBody,
 };
