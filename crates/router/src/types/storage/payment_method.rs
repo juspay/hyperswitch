@@ -78,16 +78,6 @@ impl PaymentTokenData {
     }
 }
 
-#[cfg(not(feature = "v2"))]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodListContext {
-    pub card_details: Option<api::CardDetailFromLocker>,
-    pub hyperswitch_token_data: PaymentTokenData,
-    #[cfg(feature = "payouts")]
-    pub bank_transfer_details: Option<api::BankPayout>,
-}
-
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,

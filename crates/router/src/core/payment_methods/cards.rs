@@ -43,6 +43,8 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(not(feature = "connector_choice_mca_id"))]
 use crate::core::utils::get_connector_label;
+#[cfg(not(feature = "v2"))]
+use crate::routes::app::SessionStateInfo;
 use crate::{
     configs::settings,
     core::{
@@ -58,7 +60,7 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{self, app::SessionStateInfo, metrics, payment_methods::ParentPaymentMethodToken},
+    routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
@@ -3597,86 +3599,21 @@ pub async fn list_customer_payment_method(
 
         let payment_method = pm.payment_method.get_required_value("payment_method")?;
 
-        let payment_method_retrieval_context = match payment_method {
-            enums::PaymentMethod::Card => {
-                let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
+        let pm_list_context = get_pm_list_context(
+            state,
+            &payment_method,
+            &key_store,
+            &pm,
+            Some(parent_payment_method_token.clone()),
+            true,
+        )
+        .await?;
 
-                if card_details.is_some() {
-                    PaymentMethodListContext {
-                        card_details,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_details: None,
-                        hyperswitch_token_data: PaymentTokenData::permanent_card(
-                            Some(pm.payment_method_id.clone()),
-                            pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
-                            pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
-                        ),
-                    }
-                } else {
-                    continue;
-                }
-            }
+        if pm_list_context.is_none() {
+            continue;
+        }
 
-            enums::PaymentMethod::BankDebit => {
-                // Retrieve the pm_auth connector details so that it can be tokenized
-                let bank_account_token_data = get_bank_account_connector_details(&pm, key)
-                    .await
-                    .unwrap_or_else(|err| {
-                        logger::error!(error=?err);
-                        None
-                    });
-                if let Some(data) = bank_account_token_data {
-                    let token_data = PaymentTokenData::AuthBankDebit(data);
-
-                    PaymentMethodListContext {
-                        card_details: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_details: None,
-                        hyperswitch_token_data: token_data,
-                    }
-                } else {
-                    continue;
-                }
-            }
-
-            enums::PaymentMethod::Wallet => PaymentMethodListContext {
-                card_details: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
-                hyperswitch_token_data: PaymentTokenData::wallet_token(
-                    pm.payment_method_id.clone(),
-                ),
-            },
-
-            #[cfg(feature = "payouts")]
-            enums::PaymentMethod::BankTransfer => PaymentMethodListContext {
-                card_details: None,
-                bank_transfer_details: Some(
-                    get_bank_from_hs_locker(
-                        state,
-                        &key_store,
-                        Some(&parent_payment_method_token),
-                        &pm.customer_id,
-                        &pm.merchant_id,
-                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                    )
-                    .await?,
-                ),
-                hyperswitch_token_data: PaymentTokenData::temporary_generic(
-                    parent_payment_method_token.clone(),
-                ),
-            },
-
-            _ => PaymentMethodListContext {
-                card_details: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
-                hyperswitch_token_data: PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
-                )),
-            },
-        };
+        let pm_list_context = pm_list_context.get_required_value("PaymentMethodListContext")?;
 
         // Retrieve the masked bank details to be sent as a response
         let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
@@ -3720,7 +3657,7 @@ pub async fn list_customer_payment_method(
             payment_method,
             payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
-            card: payment_method_retrieval_context.card_details,
+            card: pm_list_context.card_details,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: mca_enabled,
@@ -3728,7 +3665,7 @@ pub async fn list_customer_payment_method(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
             #[cfg(feature = "payouts")]
-            bank_transfer: payment_method_retrieval_context.bank_transfer_details,
+            bank_transfer: pm_list_context.bank_transfer_details,
             bank: bank_details,
             surcharge_details: None,
             requires_cvv: requires_cvv
@@ -3751,15 +3688,15 @@ pub async fn list_customer_payment_method(
             .and_then(|b_profile| b_profile.intent_fulfillment_time)
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
+        let hyperswitch_token_data = pm_list_context
+            .hyperswitch_token_data
+            .get_required_value("PaymentTokenData")?;
+
         ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
             pma.payment_method,
         ))
-        .insert(
-            intent_fulfillment_time,
-            payment_method_retrieval_context.hyperswitch_token_data,
-            state,
-        )
+        .insert(intent_fulfillment_time, hyperswitch_token_data, state)
         .await?;
 
         if let Some(metadata) = pma.metadata {
@@ -3802,6 +3739,94 @@ pub async fn list_customer_payment_method(
     .await?;
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+async fn get_pm_list_context(
+    state: &routes::SessionState,
+    payment_method: &enums::PaymentMethod,
+    key_store: &domain::MerchantKeyStore,
+    pm: &diesel_models::PaymentMethod,
+    parent_payment_method_token: Option<String>,
+    is_payment_associated: bool,
+) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
+    let key = key_store.key.get_inner().peek();
+
+    let payment_method_retrieval_context = match payment_method {
+        enums::PaymentMethod::Card => {
+            let card_details = get_card_details_with_locker_fallback(pm, key, state).await?;
+
+            card_details.as_ref().map(|card| PaymentMethodListContext {
+                card_details: Some(card.clone()),
+                #[cfg(feature = "payouts")]
+                bank_transfer_details: None,
+                hyperswitch_token_data: is_payment_associated.then_some(
+                    PaymentTokenData::permanent_card(
+                        Some(pm.payment_method_id.clone()),
+                        pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
+                        pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
+                    ),
+                ),
+            })
+        }
+
+        enums::PaymentMethod::BankDebit => {
+            // Retrieve the pm_auth connector details so that it can be tokenized
+            let bank_account_token_data = get_bank_account_connector_details(pm, key)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
+                    None
+                });
+
+            bank_account_token_data.map(|data| {
+                let token_data = PaymentTokenData::AuthBankDebit(data);
+
+                PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                }
+            })
+        }
+
+        enums::PaymentMethod::Wallet => Some(PaymentMethodListContext {
+            card_details: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_details: None,
+            hyperswitch_token_data: is_payment_associated
+                .then_some(PaymentTokenData::wallet_token(pm.payment_method_id.clone())),
+        }),
+
+        #[cfg(feature = "payouts")]
+        enums::PaymentMethod::BankTransfer => Some(PaymentMethodListContext {
+            card_details: None,
+            bank_transfer_details: Some(
+                get_bank_from_hs_locker(
+                    state,
+                    key_store,
+                    parent_payment_method_token.as_ref(),
+                    &pm.customer_id,
+                    &pm.merchant_id,
+                    pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                )
+                .await?,
+            ),
+            hyperswitch_token_data: parent_payment_method_token
+                .map(|token| PaymentTokenData::temporary_generic(token.clone())),
+        }),
+
+        _ => Some(PaymentMethodListContext {
+            card_details: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_details: None,
+            hyperswitch_token_data: is_payment_associated.then_some(
+                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+            ),
+        }),
+    };
+
+    Ok(payment_method_retrieval_context)
 }
 
 async fn perform_surcharge_ops(
@@ -3935,106 +3960,35 @@ pub async fn list_customer_payment_method(
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let payment_method = pm.payment_method.get_required_value("payment_method")?;
-        let mut bank_details = None;
 
         let parent_payment_method_token =
             is_payment_associated.then(|| generate_id(consts::ID_LENGTH, "token"));
 
-        let payment_method_retrieval_context = match payment_method {
-            enums::PaymentMethod::Card => {
-                let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
+        let pm_list_context = get_pm_list_context(
+            state,
+            &payment_method,
+            &key_store,
+            &pm,
+            parent_payment_method_token.clone(),
+            is_payment_associated,
+        )
+        .await?;
 
-                if card_details.is_some() {
-                    PaymentMethodListContext {
-                        card_details,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_details: None,
-                        hyperswitch_token_data: if is_payment_associated {
-                            Some(PaymentTokenData::permanent_card(
-                                Some(pm.payment_method_id.clone()),
-                                pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
-                                pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
-                            ))
-                        } else {
-                            None
-                        },
-                    }
-                } else {
-                    continue;
-                }
-            }
+        if pm_list_context.is_none() {
+            continue;
+        }
 
-            enums::PaymentMethod::BankDebit => {
-                // Retrieve the pm_auth connector details so that it can be tokenized
-                let bank_account_token_data = if is_payment_associated {
-                    get_bank_account_connector_details(&pm, key)
-                        .await
-                        .unwrap_or_else(|err| {
-                            logger::error!(error=?err);
-                            None
-                        })
-                } else {
+        let pm_list_context = pm_list_context.get_required_value("PaymentMethodListContext")?;
+
+        let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
+            get_masked_bank_details(&pm, key)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
                     None
-                };
-
-                // Retrieve the masked bank details to be sent as a response
-                bank_details = if payment_method == enums::PaymentMethod::BankDebit {
-                    get_masked_bank_details(&pm, key)
-                        .await
-                        .unwrap_or_else(|err| {
-                            logger::error!(error=?err);
-                            None
-                        })
-                } else {
-                    None
-                };
-
-                PaymentMethodListContext {
-                    card_details: None,
-                    #[cfg(feature = "payouts")]
-                    bank_transfer_details: None,
-                    hyperswitch_token_data: bank_account_token_data
-                        .map(PaymentTokenData::AuthBankDebit),
-                }
-            }
-
-            enums::PaymentMethod::Wallet => PaymentMethodListContext {
-                card_details: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
-                hyperswitch_token_data: Some(PaymentTokenData::wallet_token(
-                    pm.payment_method_id.clone(),
-                )),
-            },
-
-            #[cfg(feature = "payouts")]
-            enums::PaymentMethod::BankTransfer => PaymentMethodListContext {
-                card_details: None,
-                bank_transfer_details: Some(
-                    get_bank_from_hs_locker(
-                        state,
-                        &key_store,
-                        parent_payment_method_token.as_ref(),
-                        &pm.customer_id,
-                        &pm.merchant_id,
-                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                    )
-                    .await?,
-                ),
-                hyperswitch_token_data: parent_payment_method_token
-                    .as_ref()
-                    .map(|token| PaymentTokenData::temporary_generic(token.clone())),
-            },
-
-            _ => PaymentMethodListContext {
-                card_details: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
-                hyperswitch_token_data: Some(PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
-                ))),
-            },
+                })
+        } else {
+            None
         };
 
         let payment_method_billing = decrypt_generic_data::<api_models::payments::Address>(
@@ -4061,10 +4015,10 @@ pub async fn list_customer_payment_method(
         )
         .await?;
 
-        let pmd = if let Some(card) = payment_method_retrieval_context.card_details {
+        let pmd = if let Some(card) = pm_list_context.card_details {
             Some(api::PaymentMethodListData::Card(card))
         } else {
-            payment_method_retrieval_context
+            pm_list_context
                 .bank_transfer_details
                 .map(api::PaymentMethodListData::Bank)
         };
@@ -4098,10 +4052,8 @@ pub async fn list_customer_payment_method(
             let token = parent_payment_method_token
                 .as_ref()
                 .get_required_value("parent_payment_method_token")?;
-            let hyperswitch_token_data = payment_method_retrieval_context
+            let hyperswitch_token_data = pm_list_context
                 .hyperswitch_token_data
-                .as_ref()
-                .cloned()
                 .get_required_value("PaymentTokenData")?;
 
             let intent_fulfillment_time = business_profile

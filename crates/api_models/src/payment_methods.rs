@@ -950,6 +950,7 @@ pub struct CustomerPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodListData {
     Card(CardDetailFromLocker),
     #[cfg(feature = "payouts")]
