@@ -146,4 +146,4 @@ redo_migrate:
 		$(if $(strip $(call eq,$(locked-schema),yes)),--locked-schema,)
 
 	rm -r $(ROOT_DIR)/tmp/migrations
-	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true	
+	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true
