@@ -3763,7 +3763,8 @@ async fn get_pm_list_context(
     payment_method: &enums::PaymentMethod,
     key_store: &domain::MerchantKeyStore,
     pm: &diesel_models::PaymentMethod,
-    parent_payment_method_token: Option<String>,
+    #[cfg(feature = "payouts")] parent_payment_method_token: Option<String>,
+    #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let key = key_store.key.get_inner().peek();
