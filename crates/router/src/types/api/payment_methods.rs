@@ -1,14 +1,14 @@
 #[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
-    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
-    PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2, BankAccountData, BankData,
+    BankAccountData, BankData, CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod,
+    CustomerPaymentMethod, CustomerPaymentMethodsListResponse, DefaultPaymentMethod,
+    DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
+    ListCountriesCurrenciesRequest, PaymentMethodCollectLinkRenderRequest,
+    PaymentMethodCollectLinkRequest, PaymentMethodCreate, PaymentMethodCreateData,
+    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList, PaymentMethodListData,
+    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
+    TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 #[cfg(not(feature = "v2"))]
 pub use api_models::payment_methods::{
