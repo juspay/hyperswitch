@@ -15341,7 +15341,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.",
+            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.",
             "nullable": true
           },
           "surcharge_details": {
@@ -16386,7 +16386,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case of multiple business profile.",
+            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.",
             "nullable": true
           },
           "surcharge_details": {
