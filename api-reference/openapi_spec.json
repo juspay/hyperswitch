@@ -11082,7 +11082,8 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64
+            "maxLength": 64,
+            "minLength": 1
           },
           "merchant_name": {
             "type": "string",
