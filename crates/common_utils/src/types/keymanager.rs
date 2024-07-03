@@ -88,12 +88,7 @@ where
     fn from((map, identifier): (FxHashMap<String, Secret<Vec<u8>, S>>, Identifier)) -> Self {
         let group = map
             .into_iter()
-            .map(|(key, value)| {
-                (
-                    key.clone(),
-                    DecryptedData(StrongSecret::new(value.expose())),
-                )
-            })
+            .map(|(key, value)| (key, DecryptedData(StrongSecret::new(value.expose()))))
             .collect();
         Self {
             identifier,
@@ -110,13 +105,11 @@ where
         let mut group = FxHashMap::default();
         group.insert(
             DEFAULT_KEY.to_string(),
-            DecryptedData(StrongSecret::new(
-                secret.clone().expose().as_bytes().to_vec(),
-            )),
+            DecryptedData(StrongSecret::new(secret.expose().as_bytes().to_vec())),
         );
         Self {
             data: DecryptedDataGroup(group),
-            identifier: identifier.clone(),
+            identifier,
         }
     }
 }
@@ -130,12 +123,12 @@ where
         group.insert(
             DEFAULT_KEY.to_string(),
             DecryptedData(StrongSecret::new(
-                secret.clone().expose().to_string().as_bytes().to_vec(),
+                secret.expose().to_string().as_bytes().to_vec(),
             )),
         );
         Self {
             data: DecryptedDataGroup(group),
-            identifier: identifier.clone(),
+            identifier,
         }
     }
 }
@@ -151,9 +144,9 @@ where
             .into_iter()
             .map(|(key, value)| {
                 (
-                    key.clone(),
+                    key,
                     DecryptedData(StrongSecret::new(
-                        value.clone().expose().to_string().as_bytes().to_vec(),
+                        value.expose().to_string().as_bytes().to_vec(),
                     )),
                 )
             })
@@ -174,10 +167,8 @@ where
             .into_iter()
             .map(|(key, value)| {
                 (
-                    key.clone(),
-                    DecryptedData(StrongSecret::new(
-                        value.clone().expose().as_bytes().to_vec(),
-                    )),
+                    key,
+                    DecryptedData(StrongSecret::new(value.expose().as_bytes().to_vec())),
                 )
             })
             .collect();
@@ -221,7 +212,7 @@ where
             .flat_map(|(k, v)| {
                 masked_data.get(&k).map(|inner| {
                     (
-                        k.clone(),
+                        k,
                         Encryptable::new(inner.clone(), v.data.peek().clone().into()),
                     )
                 })
@@ -240,7 +231,7 @@ where
             .data
             .0
             .get(DEFAULT_KEY)
-            .map(|ed| Encryptable::new(masked_data.clone(), ed.data.peek().clone().into()))
+            .map(|ed| Encryptable::new(masked_data, ed.data.peek().clone().into()))
     }
 }
 
@@ -262,10 +253,7 @@ impl<S: Strategy<String> + Send> DecryptedDataConversion<String, S>
             logger::error!("Decryption error {:?}", err);
             errors::CryptoError::DecodingFailed
         })?;
-        Ok(Self::new(
-            Secret::new(string),
-            encryption.clone().into_inner(),
-        ))
+        Ok(Self::new(Secret::new(string), encryption.into_inner()))
     }
 }
 

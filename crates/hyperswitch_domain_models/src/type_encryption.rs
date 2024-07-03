@@ -538,7 +538,7 @@ impl<
             let data =
                 serde_json::to_vec(v.peek()).change_context(errors::CryptoError::DecodingFailed)?;
             encrypted.insert(
-                k.clone(),
+                k,
                 Self::new(v, crypt_algo.encode_message(key, &data)?.into()),
             );
         }
