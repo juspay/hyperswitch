@@ -340,6 +340,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_refund_id: refund.connector_refund_id.clone(),
             browser_info,
             charges,
+            integrity_object: None,
         },
 
         response: Ok(types::RefundsResponseData {

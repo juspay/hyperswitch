@@ -540,6 +540,15 @@ pub struct RefundsData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
+    pub integrity_object: Option<RefundIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefundIntegrityObject {
+    /// refund currency
+    pub currency: storage_enums::Currency,
+    /// refund amount
+    pub refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

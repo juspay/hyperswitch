@@ -70,13 +70,11 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         .await
         .to_payment_failed_response()?;
 
-        println!("initiate capture integrity");
         // Initiating Integrity check
         let integrity_result = helpers::check_integrity_based_on_flow(
             &new_router_data.request,
             &new_router_data.response,
         );
-        println!("integrity_result {:?}", integrity_result);
         new_router_data.integrity_check = integrity_result;
 
         Ok(new_router_data)

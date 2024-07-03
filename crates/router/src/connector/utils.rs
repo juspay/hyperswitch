@@ -23,7 +23,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
     payments::payment_attempt::PaymentAttempt,
-    router_request_types::{AuthoriseIntegrityObject, CaptureIntegrityObject, SyncIntegrityObject},
+    router_request_types::{
+        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
+        SyncIntegrityObject,
+    },
 };
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -2933,6 +2936,23 @@ pub fn get_capture_integrity_object<T>(
 
     Ok(CaptureIntegrityObject {
         capture_amount: capture_amount_in_minor_unit,
-        currency: enums::Currency::AED,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_refund_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    refund_amount: T,
+    currency: String,
+) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let refund_amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+
+    Ok(RefundIntegrityObject {
+        currency: currency_enum,
+        refund_amount: refund_amount_in_minor_unit,
     })
 }
