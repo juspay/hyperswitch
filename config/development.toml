@@ -576,9 +576,9 @@ theme = "#4285F4"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payment_method_collect.enabled_payment_methods]
-card = ["credit", "debit"]
-bank_transfer = ["ach", "bacs", "sepa"]
-wallet = ["paypal", "pix", "venmo"]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"
@@ -588,9 +588,9 @@ theme = "#4285F4"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
-card = ["credit", "debit"]
-bank_transfer = ["ach", "bacs", "sepa"]
-wallet = ["paypal", "pix", "venmo"]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"

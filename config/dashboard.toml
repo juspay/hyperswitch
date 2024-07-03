@@ -36,3 +36,4 @@ dispute_analytics=true
 configure_pmts=false
 branding=false
 totp=false
+live_users_counter=true
