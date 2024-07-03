@@ -1172,7 +1172,7 @@ impl api::IncomingWebhook for Payme {
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
                 connector_label,
-                merchant_connector_account,
+                merchant_connector_account.connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

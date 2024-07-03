@@ -150,9 +150,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     let decoded_body = connector
         .decode_webhook_body(
-            &*state.clone().store,
             &request_details,
             &merchant_account.merchant_id,
+            merchant_connector_account.clone(),
+            connector_name.as_str(),
         )
         .await
         .switch()
@@ -258,24 +259,24 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .connectors_with_webhook_source_verification_call
             .contains(&connector_enum)
         {
-            connector
-                .verify_webhook_source_verification_call(
-                    &state,
-                    &merchant_account,
-                    merchant_connector_account.clone(),
-                    &connector_name,
-                    &request_details,
-                )
-                .await
-                .or_else(|error| match error.current_context() {
-                    errors::ConnectorError::WebhookSourceVerificationFailed => {
-                        logger::error!(?error, "Source Verification Failed");
-                        Ok(false)
-                    }
-                    _ => Err(error),
-                })
-                .switch()
-                .attach_printable("There was an issue in incoming webhook source verification")?
+            verify_webhook_source_verification_call(
+                connector,
+                &state,
+                &merchant_account,
+                merchant_connector_account.clone(),
+                &connector_name,
+                &request_details,
+            )
+            .await
+            .or_else(|error| match error.current_context() {
+                errors::ConnectorError::WebhookSourceVerificationFailed => {
+                    logger::error!(?error, "Source Verification Failed");
+                    Ok(false)
+                }
+                _ => Err(error),
+            })
+            .switch()
+            .attach_printable("There was an issue in incoming webhook source verification")?
         } else {
             connector
                 .verify_webhook_source(
@@ -1532,6 +1533,66 @@ async fn get_payment_id(
     pay_id()
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+}
+
+#[inline]
+async fn verify_webhook_source_verification_call(
+    connector: ConnectorEnum,
+    state: &crate::routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_name: &str,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<bool, errors::ConnectorError> {
+    let connector_data = types::api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        types::api::GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("invalid connector name received in payment attempt")?;
+    let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
+        types::api::VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,
+    > = connector_data.connector.get_connector_integration();
+    let connector_webhook_secrets = connector
+        .get_webhook_source_verification_merchant_secret(
+            merchant_account,
+            connector_name,
+            merchant_connector_account.connector_webhook_details.clone(),
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let router_data = construct_webhook_router_data(
+        connector_name,
+        merchant_connector_account,
+        merchant_account,
+        &connector_webhook_secrets,
+        request_details,
+    )
+    .await
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("Failed while constructing webhook router data")?;
+
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+    )
+    .await?;
+
+    let verification_result = response
+        .response
+        .map(|response| response.verify_webhook_status);
+    match verification_result {
+        Ok(types::VerifyWebhookStatus::SourceVerified) => Ok(true),
+        _ => Ok(false),
+    }
 }
 
 fn get_connector_by_connector_name(

@@ -3836,10 +3836,13 @@ dependencies = [
 name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-trait",
  "bytes 1.6.0",
+ "common_enums",
  "common_utils",
  "dyn-clone",
+ "error-stack",
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking",
