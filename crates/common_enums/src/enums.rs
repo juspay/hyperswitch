@@ -32,16 +32,16 @@ pub enum ApplicationError {
     // Don't use Debug here, Debug gives error stack in response.
     #[error("Application configuration error")]
     ConfigurationError,
-    
+
     #[error("Invalid configuration value provided: {0}")]
     InvalidConfigurationValueError(String),
-    
+
     #[error("Metrics error")]
     MetricsError,
-    
+
     #[error("I/O: {0}")]
     IoError(std::io::Error),
-    
+
     #[error("Error while constructing api client: {0}")]
     ApiClientError(ApiClientError),
 }
@@ -60,20 +60,20 @@ pub enum ApiClientError {
     BodySerializationFailed,
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
-    
+
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]
     RequestNotSent(String),
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
-    
+
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
-    
+
     #[error("connection closed before a message could complete")]
     ConnectionClosedIncompleteMessage,
-    
+
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
     #[error("Server responded with Bad Gateway")]
@@ -102,8 +102,8 @@ impl From<std::io::Error> for ApplicationError {
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
-    .content_type(mime::APPLICATION_JSON)
-    .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
+        .content_type(mime::APPLICATION_JSON)
+        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
@@ -115,7 +115,7 @@ impl ResponseError for ApplicationError {
             | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-    
+
     fn error_response(&self) -> actix_web::HttpResponse {
         error_response(self)
     }
