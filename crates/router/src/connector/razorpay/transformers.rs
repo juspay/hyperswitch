@@ -1,8 +1,4 @@
-use common_utils::{
-    custom_serde::iso8601,
-    pii::{self, Email},
-};
-use error_stack::{report, ResultExt};
+use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -348,8 +344,8 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                             can_accept_response: Some(true),
                             challenges_attempted: Some(0),
                             response_attempted: Some(0),
-                            date_created: PrimitiveDateTime::parse("2024-06-27T13:54:19Z", &time::format_description::well_known::Rfc3339).unwrap(),
-                            last_updated: PrimitiveDateTime::parse("2024-06-27T13:54:19Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                            date_created: common_utils::date_time::now(),
+                            last_updated: common_utils::date_time::now(),
                             partition_key: None,
                     };
                     let merchant_account = MerchantAccount {
@@ -441,7 +437,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                                 return_url: Some(request.get_router_return_url()?),
                                 billing_address_id: Some("100002801749".to_string()),
                                 internal_metadata: Some("{\"gateway_ref_ids\":{},\"pii_hash\":{\"customer_email_hash\":\"03748cc53fb4ea7e86ff213f9f0707150766a8eb6ad1b71e7acc7fa08198a7ee\",\"customer_phone_hash\":\"b50e114c143215046d0c356c749e274052a4f837273d7b32096c780559143104\"}}".to_string()),
-                                amount: item.amount.clone(),
+                                amount: item.amount,
                                 merchant_id: item.router_data.merchant_id.clone(),
                                 mandate_feature: Some(MandateFeature::Disabled),
                                 status: OrderStatus::PendingAuthentication,
@@ -453,11 +449,11 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                                 customer_phone: None,
                                 description: item.router_data.description.clone(),
                                 currency: request.currency.to_string(),
-                                last_modified: PrimitiveDateTime::parse("2024-06-27T13:53:11Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                                last_modified: common_utils::date_time::now(),
                                 customer_email: request.email.clone(),
                                 customer_id: request.customer_id.clone(),
                                 order_uuid: "ordeh_e45aae46108347c481495117d204aa90".to_string(),
-                                date_created: PrimitiveDateTime::parse("2024-06-27T13:53:11Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                                date_created: common_utils::date_time::now(),
                                 refunded_entirely: Some(false),
                                 version: 1,
                     };
@@ -484,24 +480,12 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         txn_object_type: "ORDER_PAYMENT".to_string(),
                         is_emi: false,
                         gateway: Gateway::Razorpay,
-                        last_modified: Some(
-                            PrimitiveDateTime::parse(
-                                "2024-06-27T13:54:19Z",
-                                &time::format_description::well_known::Rfc3339,
-                            )
-                            .unwrap(),
-                        ),
+                        last_modified: Some(common_utils::date_time::now()),
                         merchant_gateway_account_id: 11476,
                         internal_tracking_info: None,
                         txn_type: "AUTH_AND_SETTLE".to_string(),
                         redirect: true,
-                        date_created: Some(
-                            PrimitiveDateTime::parse(
-                                "2024-06-27T13:54:19Z",
-                                &time::format_description::well_known::Rfc3339,
-                            )
-                            .unwrap(),
-                        ),
+                        date_created: Some(common_utils::date_time::now()),
                         version: 0,
                     };
                     let txn_card_info = TxnCardInfo {
@@ -514,13 +498,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         payment_method: "UPI".to_string(),
                         payment_source: upi_data.vpa_id,
                         card_issuer_bank_name: "UPI".to_string(),
-                        date_created: Some(
-                            PrimitiveDateTime::parse(
-                                "2024-04-30T11:58:27Z",
-                                &time::format_description::well_known::Rfc3339,
-                            )
-                            .unwrap(),
-                        ),
+                        date_created: Some(common_utils::date_time::now()),
                     };
 
                     let merchant_gateway_account = MerchantGatewayAccount { //mca
@@ -532,8 +510,8 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                                 test_mode: false,
                                 enforce_payment_method_acceptance: true,
                                 gateway: Gateway::Razorpay,
-                                last_modified: PrimitiveDateTime::parse("2024-04-30T11:58:27Z", &time::format_description::well_known::Rfc3339).unwrap(),
-                                date_created: PrimitiveDateTime::parse("2024-04-30T11:58:27Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                                last_modified: common_utils::date_time::now(),
+                                date_created: common_utils::date_time::now(),
                                 version: 0,
                                 supported_payment_flows: None,
                                 is_juspay_account: false,
@@ -548,7 +526,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                     //payment_intent_meta_data
                     let order_metadata_v2 = OrderMetadataV2 {
                                     order_reference_id: "100004135919".to_string(),
-                                    last_updated: PrimitiveDateTime::parse("2024-06-27T13:53:11Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                                    last_updated: common_utils::date_time::now(),
                                     browser: "okhttp".to_string(),
                                     operating_system: "unknown".to_string(),
                                     id: "100004066855".to_string(),
@@ -558,7 +536,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                                     browser_version: "7.32.3".to_string(),
                                     mobile: None,
                                     metadata: "{\"payment_links\":{\"iframe\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\",\"web\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\",\"mobile\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\"},\"order_expiry\":\"2024-06-23T08:13:02Z\",\"payment_page_client_id\":\"com.swiggy\"}".to_string(),
-                                    date_created: PrimitiveDateTime::parse("2024-06-27T13:53:11Z", &time::format_description::well_known::Rfc3339).unwrap(),
+                                    date_created: common_utils::date_time::now(),
                             };
 
                     Ok(Self {
