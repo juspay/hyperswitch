@@ -2887,7 +2887,6 @@ pub fn get_authorise_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: String,
-    automatic_capture_amount: Option<T>,
 ) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
     let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
         .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -2895,14 +2894,9 @@ pub fn get_authorise_integrity_object<T>(
     let amount_in_minor_unit =
         convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
 
-    let capture_amount_in_minor_unit = automatic_capture_amount
-        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
-        .transpose()?;
-
     Ok(AuthoriseIntegrityObject {
         amount: amount_in_minor_unit,
         currency: currency_enum,
-        automatic_capture_amount: capture_amount_in_minor_unit,
     })
 }
 

@@ -71,8 +71,6 @@ pub struct AuthoriseIntegrityObject {
     pub amount: MinorUnit,
     /// Authorise currency
     pub currency: storage_enums::Currency,
-    /// Authorise Capture amount for automatic capture
-    pub automatic_capture_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
