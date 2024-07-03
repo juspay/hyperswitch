@@ -1,7 +1,7 @@
 //! Configs interface
+use common_enums::ApplicationError;
 use router_derive;
 use serde::Deserialize;
-use common_enums::ApplicationError;
 
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]

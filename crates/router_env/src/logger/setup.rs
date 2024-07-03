@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use ::config::ConfigError;
 use opentelemetry::{
     global, runtime,
     sdk::{
@@ -36,8 +37,7 @@ pub fn setup(
     config: &config::Log,
     service_name: &str,
     crates_to_filter: impl AsRef<[&'static str]>,
-) -> TelemetryGuard {
-// ) -> Result<TelemetryGuard, ConfigError> {
+) -> error_stack::Result<TelemetryGuard, ConfigError> {
     let mut guards = Vec::new();
 
     // Setup OpenTelemetry traces and metrics
@@ -91,7 +91,7 @@ pub fn setup(
     if config.console.enabled {
         let (console_writer, guard) = tracing_appender::non_blocking(std::io::stdout());
         guards.push(guard);
-    
+
         let console_filter = get_envfilter(
             config.console.filtering_directive.as_ref(),
             config::Level(tracing::Level::WARN),
@@ -99,7 +99,7 @@ pub fn setup(
             &crates_to_filter,
         );
         println!("Using console logging filter: {console_filter}");
-    
+
         match config.console.log_format {
             config::LogFormat::Default => {
                 let logging_layer = fmt::layer()
@@ -111,29 +111,21 @@ pub fn setup(
             }
             config::LogFormat::Json => {
                 error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
-                match FormattingLayer::new(service_name, console_writer, CompactFormatter) {
-                    Ok(layer) => {
-                        let logging_layer = layer.with_filter(console_filter);
-                        subscriber.with(logging_layer).init();
-                    }
-                    Err(e) => {
-                        eprintln!("Error creating JSON formatting layer: {:?}", e);
-                        subscriber.init(); // Fallback initialization
-                    }
-                }
+                subscriber
+                    .with(
+                        FormattingLayer::new(service_name, console_writer, CompactFormatter)?
+                            .with_filter(console_filter),
+                    )
+                    .init();
             }
             config::LogFormat::PrettyJson => {
                 error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
-                match FormattingLayer::new(service_name, console_writer, PrettyFormatter::new()) {
-                    Ok(layer) => {
-                        let logging_layer = layer.with_filter(console_filter);
-                        subscriber.with(logging_layer).init();
-                    }
-                    Err(e) => {
-                        eprintln!("Error creating Pretty JSON formatting layer: {:?}", e);
-                        subscriber.init(); // Fallback initialization
-                    }
-                }
+                subscriber
+                    .with(
+                        FormattingLayer::new(service_name, console_writer, PrettyFormatter::new())?
+                            .with_filter(console_filter),
+                    )
+                    .init();
             }
         }
     } else {
@@ -142,10 +134,10 @@ pub fn setup(
 
     // Returning the TelemetryGuard for logs to be printed and metrics to be collected until it is
     // dropped
-    TelemetryGuard {
+    Ok(TelemetryGuard {
         _log_guards: guards,
         _metrics_controller,
-    }
+    })
 }
 
 fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {

@@ -156,7 +156,11 @@ where
     /// let formatting_layer = router_env::FormattingLayer::new(router_env::service_name!(),std::io::stdout, CompactFormatter);
     /// ```
     ///
-    pub fn new(service: &str, dst_writer: W, formatter: F) -> error_stack::Result<Self,ConfigError>{
+    pub fn new(
+        service: &str,
+        dst_writer: W,
+        formatter: F,
+    ) -> error_stack::Result<Self, ConfigError> {
         Self::new_with_implicit_entries(service, dst_writer, HashMap::new(), formatter)
     }
 
@@ -179,9 +183,11 @@ where
         // Check for invalid configuration values in default_fields
         for (key, _value) in &default_fields {
             if !IMPLICIT_KEYS.contains(key.as_str()) {
-                return Err(ConfigError::Message(
-                    format!("Invalid configuration value for key: {}", key),
-                ).into());
+                return Err(ConfigError::Message(format!(
+                    "Invalid configuration value for key: {}",
+                    key
+                ))
+                .into());
             }
         }
 

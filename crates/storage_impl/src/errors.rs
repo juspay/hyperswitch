@@ -1,15 +1,9 @@
-// use std::fmt::Display;
-pub use common_enums::{ApplicationError, ApplicationResult, ApiClientError};
-// use actix_web::ResponseError;
+pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
 use common_utils::errors::ErrorSwitch;
-// use config::ConfigError;
-// use http::StatusCode;
 use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
-// use router_env::opentelemetry::metrics::MetricsError;
 
 use crate::store::errors::DatabaseError;
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {

@@ -1,11 +1,12 @@
-use std::num::{ParseFloatError, TryFromIntError};
+use std::{
+    fmt::Display,
+    num::{ParseFloatError, TryFromIntError},
+};
 
+use actix_web::ResponseError;
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use std::fmt::Display;
-use config::ConfigError;
-use http::StatusCode;
-use actix_web::ResponseError;
 
 #[doc(hidden)]
 pub mod diesel_exports {
@@ -29,8 +30,8 @@ pub type ApplicationResult<T> = Result<T, ApplicationError>;
 pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
     // Don't use Debug here, Debug gives error stack in response.
-    #[error("Application configuration error: {0}")]
-    ConfigurationError(ConfigError),
+    #[error("Application configuration error")]
+    ConfigurationError,
 
     #[error("Invalid configuration value provided: {0}")]
     InvalidConfigurationValueError(String),
@@ -93,18 +94,12 @@ impl ApiClientError {
     }
 }
 
-
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
     }
 }
 
-impl From<ConfigError> for ApplicationError {
-    fn from(err: ConfigError) -> Self {
-        Self::ConfigurationError(err)
-    }
-}
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
         .content_type(mime::APPLICATION_JSON)
@@ -115,7 +110,7 @@ impl ResponseError for ApplicationError {
         match self {
             Self::MetricsError
             | Self::IoError(_)
-            | Self::ConfigurationError(_)
+            | Self::ConfigurationError
             | Self::InvalidConfigurationValueError(_)
             | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
