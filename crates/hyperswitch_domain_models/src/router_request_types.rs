@@ -71,8 +71,6 @@ pub struct AuthoriseIntegrityObject {
     pub amount: MinorUnit,
     /// Authorise currency
     pub currency: storage_enums::Currency,
-    /// Automatic capture amount
-    pub capture_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,6 +79,8 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
+    /// Sync capture amount in case of automatic capture
+    pub capture_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

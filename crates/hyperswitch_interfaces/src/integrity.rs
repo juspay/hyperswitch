@@ -177,9 +177,9 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
             mismatched_fields.push("currency".to_string());
         }
 
-        if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
-            mismatched_fields.push("capture_amount".to_string());
-        }
+        // if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
+        //     mismatched_fields.push("capture_amount".to_string());
+        // }
 
         if mismatched_fields.is_empty() {
             Ok(())
@@ -289,7 +289,7 @@ impl GetIntegrityObject<AuthoriseIntegrityObject> for PaymentsAuthorizeData {
         AuthoriseIntegrityObject {
             amount: self.minor_amount,
             currency: self.currency,
-            capture_amount: Some(self.minor_amount),
+            // capture_amount: Some(self.minor_amount),
         }
     }
 }
@@ -303,6 +303,7 @@ impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
         SyncIntegrityObject {
             amount: Some(self.amount),
             currency: Some(self.currency),
+            capture_amount: Some(self.amount),
         }
     }
 }

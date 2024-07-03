@@ -842,6 +842,7 @@ impl
                     self.amount_converter,
                     response.amount,
                     response.currency.clone(),
+                    response.amount_received,
                 )?;
 
                 event_builder.map(|i| i.set_response_body(&response));
@@ -1037,7 +1038,6 @@ impl
                             self.amount_converter,
                             response.amount,
                             response.currency.clone(),
-                            Some(response.amount_captured),
                         )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
@@ -1065,7 +1065,6 @@ impl
                             self.amount_converter,
                             response.amount,
                             response.currency.clone(),
-                            response.amount_received,
                         )?;
 
                     event_builder.map(|i| i.set_response_body(&response));
@@ -1093,7 +1092,6 @@ impl
                     self.amount_converter,
                     response.amount,
                     response.currency.clone(),
-                    response.amount_received,
                 )?;
 
                 event_builder.map(|i| i.set_response_body(&response));
