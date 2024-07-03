@@ -83,7 +83,7 @@ impl EventsConfig {
 impl EventsHandler {
     pub fn log_event<T: KafkaMessage>(&self, event: &T) {
         match self {
-            Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
+            Self::Kafka(kafka) => kafka.log_event(event).unwrap_or_else(|e| {
                 logger::error!("Failed to log event: {:?}", e);
             }),
             Self::Logs(logger) => logger.log_event(event),

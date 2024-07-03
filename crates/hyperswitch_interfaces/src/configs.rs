@@ -18,6 +18,7 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bamboraapac: ConnectorParams,
     pub bankofamerica: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,

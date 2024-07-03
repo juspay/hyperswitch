@@ -218,7 +218,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        mandate_data:singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -238,7 +238,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data:singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -258,7 +258,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data:singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -278,7 +278,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data:singleUseMandateData,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
@@ -378,7 +378,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 501,
@@ -583,7 +583,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -621,7 +621,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -657,7 +657,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },
@@ -694,7 +694,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
           phone: {
-            number: "8056594427",
+            number: "9123456789",
             country_code: "+91",
           },
         },

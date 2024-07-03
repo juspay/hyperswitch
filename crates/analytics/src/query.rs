@@ -6,14 +6,15 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
-        PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
+        PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
 };
@@ -253,6 +254,10 @@ pub enum Aggregate<R> {
         alias: Option<&'static str>,
         percentile: Option<&'static u8>,
     },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
@@ -365,8 +370,10 @@ impl_to_sql_for_to_string!(
     String,
     &str,
     &PaymentDimensions,
+    &PaymentIntentDimensions,
     &RefundDimensions,
     PaymentDimensions,
+    PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
     PaymentMethod,
@@ -374,6 +381,7 @@ impl_to_sql_for_to_string!(
     AuthenticationType,
     Connector,
     AttemptStatus,
+    IntentStatus,
     RefundStatus,
     storage_enums::RefundStatus,
     Currency,
