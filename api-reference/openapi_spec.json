@@ -15052,6 +15052,13 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -15403,6 +15410,13 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -15922,6 +15936,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -16448,6 +16469,13 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -16986,6 +17014,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -17456,6 +17491,13 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "example": "Custom_Order_id_123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
