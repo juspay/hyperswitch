@@ -9,6 +9,7 @@ pub enum AuditEventType {
     Error {
         error_message: String,
     },
+    PaymentStart,
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
@@ -56,6 +57,7 @@ impl Event for AuditEvent {
     fn identifier(&self) -> String {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
+            AuditEventType::PaymentStart => "payment_start",
             AuditEventType::PaymentCreated => "payment_created",
             AuditEventType::PaymentConfirm { .. } => "payment_confirm",
             AuditEventType::ConnectorDecided => "connector_decided",
