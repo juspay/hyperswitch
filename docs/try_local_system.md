@@ -228,7 +228,7 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package and OpenSSL installed:
+5. Make sure your system has the `pkg-config` package, OpenSSL and make installed:
 
    ```shell
    sudo apt install pkg-config libssl-dev make
