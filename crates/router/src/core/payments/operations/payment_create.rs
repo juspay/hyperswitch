@@ -209,12 +209,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ),
             ));
 
-        let payment_link_data = if let Some(payment_link_create) = request.payment_link {
-            if payment_link_create {
+        let payment_link_data = match request.payment_link {
+            Some(true) => {
                 let merchant_name = merchant_account
                     .merchant_name
                     .clone()
-                    .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+                    .map(|name| name.into_inner().peek().to_owned())
                     .unwrap_or_default();
 
                 let default_domain_name = state.base_url.clone();
@@ -225,7 +225,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         business_profile.payment_link_config.clone(),
                         merchant_name,
                         default_domain_name,
+                        request.payment_link_config_id.clone(),
                     )?;
+
                 create_payment_link(
                     request,
                     payment_link_config,
@@ -239,11 +241,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     session_expiry,
                 )
                 .await?
-            } else {
-                None
             }
-        } else {
-            None
+            _ => None,
         };
 
         let payment_intent_new = Self::make_payment_intent(
@@ -506,6 +505,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -518,6 +518,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }

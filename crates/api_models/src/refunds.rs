@@ -97,6 +97,21 @@ pub struct RefundUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundManualUpdateRequest {
+    #[serde(skip)]
+    pub refund_id: String,
+    /// Merchant ID
+    pub merchant_id: String,
+    /// The status for refund
+    pub status: Option<RefundStatus>,
+    /// The code for the error
+    pub error_code: Option<String>,
+    /// The error message
+    pub error_message: Option<String>,
+}
+
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
@@ -241,6 +256,17 @@ impl From<enums::RefundStatus> for RefundStatus {
             enums::RefundStatus::ManualReview => Self::Review,
             enums::RefundStatus::Pending => Self::Pending,
             enums::RefundStatus::Success => Self::Succeeded,
+        }
+    }
+}
+
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(status: RefundStatus) -> Self {
+        match status {
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Review => Self::ManualReview,
+            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Succeeded => Self::Success,
         }
     }
 }
