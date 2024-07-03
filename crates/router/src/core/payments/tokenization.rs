@@ -272,20 +272,15 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
-                                    if let Some(metadata) = pm_metadata {
-                                        payment_methods::cards::update_payment_method(
-                                            db,
-                                            pm.clone(),
-                                            metadata,
-                                            merchant_account.storage_scheme,
-                                        )
-                                        .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Failed to add payment method in db")?;
-                                    };
-                                    // update if its a off-session mit payment
+                                    payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                        db,
+                                        pm.clone(),
+                                        pm_metadata,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to add payment method in db")?;
                                     if check_for_mit_mandates {
                                         let connector_mandate_details =
                                             update_connector_mandate_details_in_payment_method(
@@ -515,14 +510,10 @@ where
                                     .await
                                     .map(|details| details.into());
 
-                                let pm_update =
-                                    storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                                        payment_method_data: pm_data_encrypted,
-                                    };
-
-                                db.update_payment_method(
+                                payment_methods::cards::update_payment_method_and_last_used(
+                                    db,
                                     existing_pm,
-                                    pm_update,
+                                    pm_data_encrypted,
                                     merchant_account.storage_scheme,
                                 )
                                 .await
@@ -532,7 +523,7 @@ where
                         }
                     },
                     None => {
-                        let customer_saved_pm_id_option = if payment_method_type
+                        let customer_saved_pm_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
                             || payment_method_type
                                 == Some(api_models::enums::PaymentMethodType::GooglePay)
@@ -551,7 +542,7 @@ where
                                     .find(|payment_method| {
                                         payment_method.payment_method_type == payment_method_type
                                     })
-                                    .map(|pm| pm.payment_method_id.clone())),
+                                    .cloned()),
                                 Err(error) => {
                                     if error.current_context().is_db_not_found() {
                                         Ok(None)
@@ -570,8 +561,18 @@ where
                             Ok(None)
                         }?;
 
-                        if let Some(customer_saved_pm_id) = customer_saved_pm_id_option {
-                            resp.payment_method_id = customer_saved_pm_id;
+                        if let Some(customer_saved_pm) = customer_saved_pm_option {
+                            payment_methods::cards::update_last_used_at(
+                                &customer_saved_pm,
+                                state,
+                                merchant_account.storage_scheme,
+                            )
+                            .await
+                            .map_err(|e| {
+                                logger::error!("Failed to update last used at: {:?}", e);
+                            })
+                            .ok();
+                            resp.payment_method_id = customer_saved_pm.payment_method_id;
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;

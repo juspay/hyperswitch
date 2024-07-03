@@ -9154,7 +9154,8 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
-            "description": "An array of associated payment method types"
+            "description": "An array of associated payment method types",
+            "uniqueItems": true
           }
         }
       },

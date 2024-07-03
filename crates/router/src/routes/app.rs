@@ -226,7 +226,11 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+        let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
+            conf,
+            &*secret_management_client,
+        ))
+        .await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -880,7 +884,11 @@ impl Refunds {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
-                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/{id}/manual-update")
+                        .route(web::put().to(refunds_manual_update)),
+                );
         }
         #[cfg(feature = "oltp")]
         {

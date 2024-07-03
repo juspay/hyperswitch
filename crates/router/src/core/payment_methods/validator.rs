@@ -113,7 +113,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
             {
                 let enabled_payment_method = link_utils::EnabledPaymentMethod {
                     payment_method,
-                    payment_method_types,
+                    payment_method_types: payment_method_types.into_iter().collect(),
                 };
                 default_enabled_payout_methods.push(enabled_payment_method);
             }
