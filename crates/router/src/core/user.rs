@@ -2036,34 +2036,11 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = match req.auth_method {
-        user_api::AuthConfig::OpenIdConnect {
-            ref private_config,
-            ref public_config,
-        } => {
-            let private_config_value = serde_json::to_value(private_config.clone())
-                .change_context(UserErrors::AuthConfigParsingError)
-                .attach_printable("Failed to convert auth config to json")?;
-
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                private_config_value.into(),
-                &user_auth_encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
-
-            Ok::<_, error_stack::Report<UserErrors>>((
-                Some(encrypted_config.into()),
-                Some(
-                    serde_json::to_value(public_config.clone())
-                        .change_context(UserErrors::AuthConfigParsingError)
-                        .attach_printable("Failed to convert auth config to json")?,
-                ),
-            ))
-        }
-        _ => Ok((None, None)),
-    }?;
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &req.auth_method,
+        &user_auth_encryption_key,
+    )
+    .await?;
 
     let auth_methods = state
         .store
@@ -2077,6 +2054,30 @@ pub async fn create_user_authentication_method(
         .map(|auth_method| auth_method.auth_id.clone())
         .unwrap_or(uuid::Uuid::new_v4().to_string());
 
+    for db_auth_method in auth_methods {
+        let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
+        let is_extra_identifier_same = match &req.auth_method {
+            user_api::AuthConfig::OpenIdConnect { public_config, .. } => {
+                let db_auth_name = db_auth_method
+                    .public_config
+                    .map(|config| {
+                        utils::user::parse_value::<user_api::OpenIdConnectPublicConfig>(
+                            config,
+                            "OpenIdConnectPublicConfig",
+                        )
+                    })
+                    .transpose()?
+                    .map(|config| config.name);
+                let req_auth_name = public_config.name;
+                db_auth_name.is_some_and(|name| name == req_auth_name)
+            }
+            user_api::AuthConfig::Password | user_api::AuthConfig::MagicLink => true,
+        };
+        if is_type_same && is_extra_identifier_same {
+            return Err(report!(UserErrors::UserAuthMethodAlreadyExists));
+        }
+    }
+
     let now = common_utils::date_time::now();
     state
         .store
@@ -2085,7 +2086,7 @@ pub async fn create_user_authentication_method(
             auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
-            auth_type: req.auth_method.foreign_into(),
+            auth_type: (&req.auth_method).foreign_into(),
             private_config,
             public_config,
             allow_signup: req.allow_signup,
@@ -2114,34 +2115,11 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = match req.auth_method {
-        user_api::AuthConfig::OpenIdConnect {
-            ref private_config,
-            ref public_config,
-        } => {
-            let private_config_value = serde_json::to_value(private_config.clone())
-                .change_context(UserErrors::AuthConfigParsingError)
-                .attach_printable("Failed to convert auth config to json")?;
-
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                private_config_value.into(),
-                &user_auth_encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
-
-            Ok::<_, error_stack::Report<UserErrors>>((
-                Some(encrypted_config.into()),
-                Some(
-                    serde_json::to_value(public_config.clone())
-                        .change_context(UserErrors::AuthConfigParsingError)
-                        .attach_printable("Failed to convert auth config to json")?,
-                ),
-            ))
-        }
-        _ => Ok((None, None)),
-    }?;
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &req.auth_method,
+        &user_auth_encryption_key,
+    )
+    .await?;
 
     state
         .store
@@ -2172,17 +2150,19 @@ pub async fn list_user_authentication_methods(
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
-                        let open_id_public_config =
-                            serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(config)
-                                .change_context(UserErrors::InternalServerError)
-                                .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
-
-                        Ok(Some(open_id_public_config.name))
-                    }
-                    (common_enums::UserAuthType::OpenIdConnect, None) => {
-                        Err(UserErrors::InternalServerError)
-                            .attach_printable("No config found for open_id_connect auth_method")
+                    (common_enums::UserAuthType::OpenIdConnect, config) => {
+                        let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
+                            config
+                                .map(|config| {
+                                    utils::user::parse_value(config, "OpenIdConnectPublicConfig")
+                                })
+                                .transpose()?;
+                        if let Some(public_config) = open_id_public_config {
+                            Ok(Some(public_config.name))
+                        } else {
+                            Err(report!(UserErrors::InternalServerError))
+                                .attach_printable("Public config not found for OIDC auth type")
+                        }
                     }
                     _ => Ok(None),
                 }?;
