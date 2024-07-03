@@ -1,13 +1,15 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
-use time::PrimitiveDateTime;
 
 use super::app::{AppState, SessionState};
 use crate::{
-    core::{api_locking, errors, payment_methods::cards},
+    core::{
+        api_locking, errors,
+        payment_methods::{self as payment_methods_routes, cards},
+    },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -105,6 +107,8 @@ pub async fn list_payment_method_api(
     ))
     .await
 }
+
+#[cfg(not(feature = "v2"))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -163,6 +167,131 @@ pub async fn list_customer_payment_method_api(
     ))
     .await
 }
+
+#[cfg(feature = "v2")]
+/// List payment methods for a Customer v2
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
+#[utoipa::path(
+    get,
+    path = "v2/payments/{payment_id}/saved_payment_methods",
+    params (
+        ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
+        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("publishable_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_for_payment(
+    state: web::Data<AppState>,
+    payment_id: web::Path<(String,)>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let _payment_id = payment_id.into_inner().0.clone();
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            cards::list_customer_payment_method_util(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                Some(req),
+                None,
+                true,
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+/// List payment methods for a Customer v2
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
+#[utoipa::path(
+    get,
+    path = "v2/customers/{customer_id}/saved_payment_methods",
+    params (
+        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_api(
+    state: web::Data<AppState>,
+    customer_id: web::Path<(id_type::CustomerId,)>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let customer_id = customer_id.into_inner().0.clone();
+
+    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            cards::list_customer_payment_method_util(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                Some(req),
+                Some(customer_id.clone()),
+                false,
+            )
+        },
+        &*ephemeral_or_api_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(not(feature = "v2"))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -218,6 +347,65 @@ pub async fn list_customer_payment_method_api_client(
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn initiate_pm_collect_link_flow(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCollectLinkRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            payment_methods_routes::initiate_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn render_pm_collect_link(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    let (merchant_id, pm_collect_link_id) = path.into_inner();
+    let payload = payment_methods::PaymentMethodCollectLinkRenderRequest {
+        merchant_id: merchant_id.clone(),
+        pm_collect_link_id,
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payment_methods_routes::render_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -422,7 +610,7 @@ impl ParentPaymentMethodToken {
     }
     pub async fn insert(
         &self,
-        intent_created_at: Option<PrimitiveDateTime>,
+        fulfillment_time: i64,
         token: PaymentTokenData,
         state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -435,14 +623,8 @@ impl ParentPaymentMethodToken {
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc - intent_created_at.unwrap_or(current_datetime_utc);
         redis_conn
-            .set_key_with_expiry(
-                &self.key_for_token,
-                token_json_str,
-                TOKEN_TTL - time_elapsed.whole_seconds(),
-            )
+            .set_key_with_expiry(&self.key_for_token, token_json_str, fulfillment_time)
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)

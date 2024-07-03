@@ -58,7 +58,6 @@ wildcard_origin = false                 # If true, allows any origin to make req
 [email]
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
-base_url = ""                        # Dashboard base url used when adding links that should redirect to self, say https://app.hyperswitch.io for example
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
 active_email_client = "SES"          # The currently active email client
 
@@ -71,17 +70,18 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                          # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"      # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"     # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
-api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
-outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
-dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
-audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
-payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
-consolidated_events_topic = "topic"   # Kafka topic to be used for Consolidated events
+brokers = []                               # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"           # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"          # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"           # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                   # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"             # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"      # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"          # Kafka topic to be used for Dispute events
+audit_events_topic = "topic"               # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
+consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
+authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
 
 # File storage configuration
 [file_storage]
@@ -155,6 +155,31 @@ dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -240,6 +265,14 @@ shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
 
+# HTTPS Server Configuration
+# Self-signed Private Key and Certificate can be generated with mkcert for local development
+[server.tls]
+port = 8081
+host = "127.0.0.1"
+private_key = "/path/to/private_key.pem"
+certificate = "/path/to/certificate.pem"
+
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used
 
@@ -260,3 +293,6 @@ global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[user_auth_methods]
+encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table

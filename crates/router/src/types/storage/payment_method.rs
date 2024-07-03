@@ -81,7 +81,7 @@ impl PaymentTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
-    pub hyperswitch_token_data: PaymentTokenData,
+    pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankData>,
 }
@@ -109,4 +109,12 @@ impl DerefMut for PaymentsMandateReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodStatusTrackingData {
+    pub payment_method_id: String,
+    pub prev_status: enums::PaymentMethodStatus,
+    pub curr_status: enums::PaymentMethodStatus,
+    pub merchant_id: String,
 }
