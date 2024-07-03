@@ -14791,7 +14791,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -15129,7 +15129,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -16109,7 +16109,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
             "default": false,
             "example": true,
             "nullable": true
@@ -17200,7 +17200,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create request itself.",
             "default": false,
             "example": true,
             "nullable": true
