@@ -42,15 +42,9 @@ pub fn make_pm_graph(
 pub async fn get_merchant_pm_filter_graph<'a>(
     state: &SessionState,
     key: &str,
-) -> Option<
-    Arc<
-        hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>
-    >,
-> {
+) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {
     PM_FILTERS_CGRAPH_CACHE
-        .get_val::<Arc<
-            hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
-        >>(CacheKey {
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>>(CacheKey {
             key: key.to_string(),
             prefix: state.tenant.redis_key_prefix.clone(),
         })
@@ -624,11 +618,12 @@ fn compile_accepted_countries_for_mca(
         .get(connector.as_str())
         .or_else(|| config.0.get("default"))
     {
-        if let Some(value) = derived_config
-            .0
-            .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                *payment_method_type,
-            ))
+        if let Some(value) =
+            derived_config
+                .0
+                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                    *payment_method_type,
+                ))
         {
             if let Some(config_countries) = value.country.as_ref() {
                 let config_countries: Vec<common_enums::Country> = Vec::from_iter(config_countries)
@@ -650,16 +645,20 @@ fn compile_accepted_countries_for_mca(
                     cgraph::Strength::Weak,
                 ));
             }
-        }
-        else if let Some(default_derived_config) = config.0.get("default") {
-            if let Some(value) = default_derived_config.0.get(
-                &settings::PaymentMethodFilterKey::PaymentMethodType(*payment_method_type),
-            ) {
+        } else if let Some(default_derived_config) = config.0.get("default") {
+            if let Some(value) =
+                default_derived_config
+                    .0
+                    .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                        *payment_method_type,
+                    ))
+            {
                 if let Some(config_countries) = value.country.as_ref() {
-                    let config_countries: Vec<common_enums::Country> = Vec::from_iter(config_countries)
-                        .into_iter()
-                        .map(|country| common_enums::Country::from_alpha2(*country))
-                        .collect();
+                    let config_countries: Vec<common_enums::Country> =
+                        Vec::from_iter(config_countries)
+                            .into_iter()
+                            .map(|country| common_enums::Country::from_alpha2(*country))
+                            .collect();
                     let dir_countries: Vec<dir::DirValue> = config_countries
                         .into_iter()
                         .map(dir::DirValue::BillingCountry)
@@ -770,11 +769,14 @@ fn compile_accepted_currency_for_mca(
                     cgraph::Strength::Weak,
                 ));
             }
-        }
-        else if let Some(default_derived_config) = config.0.get("default") {
-            if let Some(value) = default_derived_config.0.get(
-                &settings::PaymentMethodFilterKey::PaymentMethodType(*payment_method_type),
-            ) {
+        } else if let Some(default_derived_config) = config.0.get("default") {
+            if let Some(value) =
+                default_derived_config
+                    .0
+                    .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                        *payment_method_type,
+                    ))
+            {
                 if let Some(config_currencies) = value.currency.as_ref() {
                     let config_currency: Vec<common_enums::Currency> =
                         Vec::from_iter(config_currencies)

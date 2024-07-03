@@ -1998,16 +1998,13 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
-            let domain_id = builder
-                .make_domain(
-                    mca.merchant_connector_id.clone(),
-                    mca.connector_name.as_str(),
-                );
+            let domain_id = builder.make_domain(
+                mca.merchant_connector_id.clone(),
+                mca.connector_name.as_str(),
+            );
 
             let Ok(domain_id) = domain_id else {
-                logger::error!(
-                    "Failed to construct domain for list payment methods"
-                );
+                logger::error!("Failed to construct domain for list payment methods");
                 return Err(errors::ApiErrorResponse::InternalServerError.into());
             };
 
@@ -2031,8 +2028,7 @@ pub async fn list_payment_methods(
         }
 
         // Refreshing our CGraph cache
-        let graph =
-            refresh_pm_filters_cache(&state, &key, builder.build()).await;
+        let graph = refresh_pm_filters_cache(&state, &key, builder.build()).await;
 
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
