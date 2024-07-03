@@ -4,8 +4,12 @@ use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    pii::Email,
+};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -510,6 +514,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -522,6 +527,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }
@@ -661,7 +667,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.customer_id);
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
@@ -680,6 +686,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.shipping_address_id.clone(),
             payment_data.payment_intent.billing_address_id.clone(),
         );
+
+        let customer_details = payment_data.payment_intent.customer_details.clone();
 
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
@@ -726,6 +734,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         .payment_intent
                         .request_external_three_ds_authentication,
                     frm_metadata,
+                    customer_details,
                 },
                 key_store,
                 storage_scheme,
@@ -737,6 +746,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payments::is_confirm(self, payment_data.confirm),
             payment_data,
         ))
+    }
+}
+
+impl TryFrom<domain::Customer> for CustomerData {
+    type Error = errors::ApiErrorResponse;
+    fn try_from(value: domain::Customer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: value.name.map(|name| name.into_inner()),
+            email: value.email.map(Email::from),
+            phone: value.phone.map(|ph| ph.into_inner()),
+            phone_country_code: value.phone_country_code,
+        })
     }
 }
 

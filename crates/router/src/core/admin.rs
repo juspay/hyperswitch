@@ -108,6 +108,17 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let pm_collect_link_config = req
+        .pm_collect_link_config
+        .as_ref()
+        .map(|c| {
+            c.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config",
+                })
+        })
+        .transpose()?;
+
     let key_store = domain::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
@@ -228,6 +239,7 @@ pub async fn create_merchant_account(
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
             payment_link_config: None,
+            pm_collect_link_config,
         })
     }
     .await
@@ -451,9 +463,11 @@ pub async fn update_business_profile_cascade(
             payment_link_config: None,
             session_expiry: None,
             authentication_connector_details: None,
+            payout_link_config: None,
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
+            collect_billing_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
         };
 
@@ -520,6 +534,17 @@ pub async fn merchant_account_update(
                     field_name: "primary_business_details",
                 },
             )
+        })
+        .transpose()?;
+
+    let pm_collect_link_config = req
+        .pm_collect_link_config
+        .as_ref()
+        .map(|c| {
+            c.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config",
+                })
         })
         .transpose()?;
 
@@ -613,6 +638,7 @@ pub async fn merchant_account_update(
         payout_routing_algorithm: None,
         default_profile: business_profile_id_update,
         payment_link_config: None,
+        pm_collect_link_config,
     };
 
     let response = db
@@ -1505,6 +1531,11 @@ pub async fn create_business_profile(
     if let Some(session_expiry) = &request.session_expiry {
         helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
+
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1622,6 +1653,10 @@ pub async fn update_business_profile(
         helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
 
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
     let webhook_details = request
         .webhook_details
         .as_ref()
@@ -1697,10 +1732,20 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
+        payout_link_config: request
+            .payout_link_config
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payout_link_config",
+            })?,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
         collect_shipping_details_from_wallet_connector: request
             .collect_shipping_details_from_wallet_connector,
+        collect_billing_details_from_wallet_connector: request
+            .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
     };
 
@@ -1876,6 +1921,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             bambora::transformers::BamboraAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Bamboraapac => {
+        //     bamboraapac::transformers::BamboraapacAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Boku => {
             boku::transformers::BokuAuthType::try_from(val)?;
             Ok(())

@@ -8,7 +8,7 @@ class State {
     this.data["email"] = Cypress.env("HS_EMAIL");
     this.data["password"] = Cypress.env("HS_PASSWORD");
     this.data["connectorAuthFilePath"] = Cypress.env(
-      "CONNECTOR_AUTH_FILE_PATH",
+      "CONNECTOR_AUTH_FILE_PATH"
     );
   }
 

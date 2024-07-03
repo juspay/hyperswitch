@@ -16,6 +16,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking/" }
+common_utils = {version = "0.1.0", path = "../common_utils"}
 
 # Third party crates
 serde = "1.0.197"

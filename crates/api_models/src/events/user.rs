@@ -10,15 +10,17 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
-    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
-    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
-    VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
+    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    CreateUserAuthenticationMethodRequest, DashboardEntryResponse, ForgotPasswordRequest,
+    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
+    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
+    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -77,7 +79,13 @@ common_utils::impl_misc_api_event_type!(
     BeginTotpResponse,
     VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
-    RecoveryCodes
+    RecoveryCodes,
+    GetUserAuthenticationMethodsRequest,
+    CreateUserAuthenticationMethodRequest,
+    UpdateUserAuthenticationMethodRequest,
+    GetSsoAuthUrlRequest,
+    SsoSignInRequest,
+    AuthSelectRequest
 );
 
 #[cfg(feature = "dummy_connector")]
