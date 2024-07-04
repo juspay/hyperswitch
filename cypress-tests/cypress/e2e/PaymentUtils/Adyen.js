@@ -1,11 +1,11 @@
 import { getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "371449635398431",
+  card_number: "4111111111111111",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "John Doe",
-  card_cvc: "7373",
+  card_cvc: "737",
 };
 
 const successfulThreeDSTestCardDetails = {
