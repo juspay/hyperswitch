@@ -29,7 +29,7 @@ pub trait ToEncryptable: Sized {
     ) -> errors::CustomResult<Self, errors::ParsingError>;
 }
 
-/// Get keymanager client cosntructed from the url and state
+/// Get keymanager client constructed from the url and state
 #[allow(unused_mut)]
 fn get_api_encryption_client(
     state: &KeyManagerState,

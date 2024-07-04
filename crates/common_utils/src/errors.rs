@@ -149,11 +149,11 @@ pub enum KeyManagerClientError {
     ClientConstructionFailed,
     #[error("Failed to send the request to Keymanager")]
     RequestSendFailed,
-    #[error("Internal Server Error Receied {0:?}")]
+    #[error("Internal Server Error Received {0:?}")]
     InternalServerError(bytes::Bytes),
     #[error("Bad request received {0:?}")]
     BadRequest(bytes::Bytes),
-    #[error("Unexpected Error occured while calling the KeyManager")]
+    #[error("Unexpected Error occurred while calling the KeyManager")]
     Unexpected(bytes::Bytes),
     #[error("Response Decoding failed")]
     ResponseDecodingFailed,
