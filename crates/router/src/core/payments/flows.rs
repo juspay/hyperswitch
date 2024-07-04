@@ -162,7 +162,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -197,6 +196,7 @@ default_imp_for_complete_authorize!(
     connector::Payu,
     connector::Placetopay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -239,7 +239,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -288,6 +287,7 @@ default_imp_for_webhook_source_verification!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -333,7 +333,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -382,6 +381,7 @@ default_imp_for_create_customer!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -427,7 +427,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -464,6 +463,7 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -490,7 +490,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Zsl,
     connector::Aci,
@@ -539,6 +538,7 @@ default_imp_for_connector_request_id!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -586,7 +586,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -635,6 +634,7 @@ default_imp_for_accept_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -702,7 +702,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -750,6 +749,7 @@ default_imp_for_file_upload!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -795,7 +795,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -843,6 +842,7 @@ default_imp_for_submit_evidence!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -888,7 +888,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -936,6 +935,7 @@ default_imp_for_defend_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -982,7 +982,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Authorizedotnet,
@@ -1023,6 +1022,7 @@ default_imp_for_pre_processing_steps!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1049,7 +1049,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Razorpay,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1093,6 +1092,7 @@ default_imp_for_payouts!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1137,7 +1137,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
@@ -1184,6 +1183,7 @@ default_imp_for_payouts_create!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1231,7 +1231,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
@@ -1279,6 +1278,7 @@ default_imp_for_payouts_eligibility!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1324,7 +1324,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Razorpay,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1368,6 +1367,7 @@ default_imp_for_payouts_fulfill!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1412,7 +1412,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
@@ -1460,6 +1459,7 @@ default_imp_for_payouts_cancel!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1504,7 +1504,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1553,6 +1552,7 @@ default_imp_for_payouts_quote!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1598,7 +1598,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1647,6 +1646,7 @@ default_imp_for_payouts_recipient!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1694,7 +1694,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1744,6 +1743,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1788,7 +1788,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1838,6 +1837,7 @@ default_imp_for_approve!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1883,7 +1883,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1933,6 +1932,7 @@ default_imp_for_reject!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1962,7 +1962,6 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2012,6 +2011,7 @@ default_imp_for_fraud_check!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2057,7 +2057,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2107,6 +2106,7 @@ default_imp_for_frm_sale!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2152,7 +2152,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2202,6 +2201,7 @@ default_imp_for_frm_checkout!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2247,7 +2247,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2297,6 +2296,7 @@ default_imp_for_frm_transaction!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2342,7 +2342,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2392,6 +2391,7 @@ default_imp_for_frm_fulfillment!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2437,7 +2437,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2487,6 +2486,7 @@ default_imp_for_frm_record_return!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2530,7 +2530,6 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2579,6 +2578,7 @@ default_imp_for_incremental_authorization!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2622,7 +2622,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2670,6 +2669,7 @@ default_imp_for_revoking_mandates!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2774,7 +2774,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
-    connector::Razorpay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2822,6 +2821,7 @@ default_imp_for_connector_authentication!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2863,7 +2863,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_authorize_session_token!(
-    connector::Razorpay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -2912,6 +2911,7 @@ default_imp_for_authorize_session_token!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Stax,

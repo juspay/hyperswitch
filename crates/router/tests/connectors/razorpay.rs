@@ -1,5 +1,5 @@
 use masking::Secret;
-use router::types::{self, api, domain, storage::enums};
+use router::types::{self, domain, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -10,12 +10,12 @@ impl ConnectorActions for RazorpayTest {}
 impl utils::Connector for RazorpayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Razorpay;
-        types::api::ConnectorData {
-            connector: Box::new(&Razorpay),
-            connector_name: types::Connector::Razorpay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Razorpay::new()),
+            types::Connector::Razorpay,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
