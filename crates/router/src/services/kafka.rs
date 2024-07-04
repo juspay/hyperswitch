@@ -319,11 +319,11 @@ impl KafkaProducer {
                 BaseRecord::to(topic)
                     .key(&event.key())
                     .payload(&event.value()?)
-                    .timestamp(
-                        event
-                            .creation_timestamp()
-                            .unwrap_or_else(|| (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).try_into().unwrap()),
-                    ),
+                    .timestamp(event.creation_timestamp().unwrap_or_else(|| {
+                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
+                            .try_into()
+                            .unwrap()
+                    })),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)
