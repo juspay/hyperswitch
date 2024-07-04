@@ -57,14 +57,11 @@ pub async fn migrate_payment_method_api(
 
     let merchant_id_from_path = path.into_inner();
 
-    let payment_method_create =
-        payment_methods::PaymentMethodCreate::from(json_payload.into_inner());
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payment_method_create,
+        json_payload.into_inner(),
         |state, _, req, _| {
             let merchant_id = merchant_id_from_path.clone();
             async move { Box::pin(cards::migrate_payment_method(state, req, merchant_id)).await }

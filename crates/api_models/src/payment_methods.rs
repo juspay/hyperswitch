@@ -81,12 +81,20 @@ pub struct PaymentMethodCreate {
     pub payment_method_billing_address: Option<payments::Address>,
 
     #[serde(skip_deserializing)]
-    /// The connector mandate details of the payment method, this is skipped during deserialization
-    /// as this should not be passed in the api request
+    /// The connector mandate details of the payment method, this is added only for cards migration
+    /// api and is skipped during deserialization of the payment method create request as this
+    /// it should not be passed in the request
     pub connector_mandate_details: Option<PaymentsMandateReference>,
+
+    #[serde(skip_deserializing)]
+    /// The transaction id of a CIT (customer initiated transaction) associated with the payment method,
+    /// this is added only for cards migration api and is skipped during deserialization of the
+    /// payment method create request as it should not be passed in the request
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+/// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
     /// The type of payment method use for the payment.
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -101,7 +109,7 @@ pub struct PaymentMethodMigrate {
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
     /// Card Details
-    pub card: Option<CardDetail>,
+    pub card: Option<MigrateCardDetail>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -135,6 +143,9 @@ pub struct PaymentMethodMigrate {
 
     /// The connector mandate details of the payment method
     pub connector_mandate_details: Option<PaymentsMandateReference>,
+
+    // The CIT (customer initiated transaction) transaction id associated with the payment method
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -148,8 +159,27 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
 }
 
-impl From<PaymentMethodMigrate> for PaymentMethodCreate {
-    fn from(payment_method_migrate: PaymentMethodMigrate) -> Self {
+impl PaymentMethodCreate {
+    pub fn get_payment_method_create_from_payment_method_migrate(
+        card_number: CardNumber,
+        payment_method_migrate: &PaymentMethodMigrate,
+    ) -> Self {
+        let card_details =
+            payment_method_migrate
+                .card
+                .as_ref()
+                .map(|payment_method_migrate_card| CardDetail {
+                    card_number: card_number,
+                    card_exp_month: payment_method_migrate_card.card_exp_month.clone(),
+                    card_exp_year: payment_method_migrate_card.card_exp_year.clone(),
+                    card_holder_name: payment_method_migrate_card.card_holder_name.clone(),
+                    nick_name: payment_method_migrate_card.nick_name.clone(),
+                    card_issuing_country: payment_method_migrate_card.card_issuing_country.clone(),
+                    card_network: payment_method_migrate_card.card_network.clone(),
+                    card_issuer: payment_method_migrate_card.card_issuer.clone(),
+                    card_type: payment_method_migrate_card.card_type.clone(),
+                });
+
         Self {
             customer_id: payment_method_migrate.customer_id.clone(),
             payment_method: payment_method_migrate.payment_method,
@@ -163,10 +193,11 @@ impl From<PaymentMethodMigrate> for PaymentMethodCreate {
             payment_method_billing_address: payment_method_migrate
                 .payment_method_billing_address
                 .clone(),
-            card: payment_method_migrate.card.clone(),
+            card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
             wallet: payment_method_migrate.wallet.clone(),
+            network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
     }
 }
@@ -202,6 +233,43 @@ pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
     pub card_number: CardNumber,
+
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: masking::Secret<String>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrateCardDetail {
+    /// Card Number
+    #[schema(value_type = String,example = "4111111145551142")]
+    pub card_number: String,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]

@@ -80,15 +80,25 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
-impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
-    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
+impl
+    ForeignFrom<(
+        Option<payment_methods::CardDetailFromLocker>,
+        diesel_models::PaymentMethod,
+    )> for payment_methods::PaymentMethodResponse
+{
+    fn foreign_from(
+        (card_details, item): (
+            Option<payment_methods::CardDetailFromLocker>,
+            diesel_models::PaymentMethod,
+        ),
+    ) -> Self {
         Self {
             merchant_id: item.merchant_id,
             customer_id: Some(item.customer_id),
             payment_method_id: item.payment_method_id,
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
-            card: None,
+            card: card_details,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: None,

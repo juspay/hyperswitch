@@ -1370,6 +1370,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_data: None,
                         payment_method_billing_address: None,
                         connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1391,6 +1392,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_data: None,
                         payment_method_billing_address: None,
                         connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
 
                     Ok(payment_method_request)
