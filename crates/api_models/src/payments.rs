@@ -506,6 +506,16 @@ pub struct PaymentsRequest {
 
     /// Fee information to be charged on the payment being collected
     pub charges: Option<PaymentChargeRequest>,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255,
+        example = "Custom_Order_id_123"
+    )]
+    pub merchant_order_reference_id: Option<String>,
 }
 
 /// Fee information to be charged on the payment being collected
@@ -3623,6 +3633,16 @@ pub struct PaymentsResponse {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255,
+        example = "Custom_Order_id_123"
+    )]
+    pub merchant_order_reference_id: Option<String>,
 }
 
 /// Fee information to be charged on the payment being collected

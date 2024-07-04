@@ -1117,6 +1117,7 @@ impl PaymentCreate {
             charges,
             frm_metadata: request.frm_metadata.clone(),
             customer_details,
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
         })
     }
 
