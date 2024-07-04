@@ -17,6 +17,7 @@ use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData};
+use crate::connector::utils::PaymentMethodDataType;
 use crate::{
     configs::settings,
     connector::{
@@ -326,6 +327,19 @@ impl ConnectorValidation for Paypal {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            // PaymentMethodDataType::GooglePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl
@@ -574,6 +588,7 @@ impl
         _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        println!("audit vaulting");
         Ok(format!(
             "{}v3/vault/setup-tokens/",
             self.base_url(connectors)
@@ -585,6 +600,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
+        println!("audit {:?}",connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -612,6 +628,11 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        println!("audit vaulting 2");
+
+        let k=res.clone().response;
+        let s = String::from_utf8(k.to_vec()).unwrap();
+    println!("result: {}", s);
         let response: paypal::PaypalSetupMandatesResponse = res
             .response
             .parse_struct("PaypalSetupMandatesResponse")
