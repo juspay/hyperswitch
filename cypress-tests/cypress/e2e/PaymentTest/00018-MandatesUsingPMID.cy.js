@@ -8,16 +8,10 @@ import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 let globalState;
 
 describe("Card - Mandates using Payment Method Id flow test", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
-  });
-
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
   });
 
   afterEach("flush global state", () => {

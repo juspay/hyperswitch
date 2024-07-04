@@ -6,22 +6,18 @@ import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 let globalState;
 
 describe("Bank Redirect tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
-  });
-
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("Blik Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
 
     beforeEach(function () {
       if (!should_continue) {
@@ -72,11 +68,18 @@ describe("Bank Redirect tests", () => {
   context("EPS Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
       }
     });
+
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
@@ -130,6 +133,12 @@ describe("Bank Redirect tests", () => {
 
   context("iDEAL Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
 
     beforeEach(function () {
       if (!should_continue) {
@@ -191,6 +200,12 @@ describe("Bank Redirect tests", () => {
   context("Giropay Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
@@ -250,6 +265,12 @@ describe("Bank Redirect tests", () => {
   context("Sofort Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
@@ -308,6 +329,12 @@ describe("Bank Redirect tests", () => {
 
   context("Przelewy24 Create and Confirm flow test", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
 
     beforeEach(function () {
       if (!should_continue) {
