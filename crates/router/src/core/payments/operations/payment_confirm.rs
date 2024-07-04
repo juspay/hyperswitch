@@ -26,7 +26,7 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        utils as core_utils,
+        utils as core_utils, payment_methods::cards::create_encrypted_data,
     },
     db::StorageInterface,
     events::audit_events::{AuditEvent, AuditEventType},
@@ -1213,6 +1213,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .in_current_span(),
         );
 
+        let billing_address = payment_data.address.get_payment_billing();
+        let billing_address_details = async {
+            create_encrypted_data(key_store, billing_address).await
+        }.await;
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_customer_id = customer_id.clone();
         let m_shipping_address_id = shipping_address_id.clone();
@@ -1257,6 +1261,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                         customer_details,
+                        billing_address_details,
                     },
                     &m_key_store,
                     storage_scheme,

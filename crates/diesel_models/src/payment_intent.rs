@@ -177,6 +177,7 @@ pub enum PaymentIntentUpdate {
         request_external_three_ds_authentication: Option<bool>,
         frm_metadata: Option<pii::SecretSerdeValue>,
         customer_details: Option<Encryption>,
+        billing_address_details: Option<Encryption>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -361,6 +362,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_address_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -385,6 +387,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_address_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

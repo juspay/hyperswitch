@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils as core_utils, payment_methods::cards::create_encrypted_data,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
@@ -216,6 +216,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account.storage_scheme,
         )
         .await?;
+
+        payment_intent.billing_address_details = billing_address.clone().async_and_then(|_|
+            async {
+                create_encrypted_data(key_store, billing_address.clone()).await
+        }).await;
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
@@ -704,6 +709,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
+        let billing_address_details = payment_data.payment_intent.billing_address_details.clone();
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -733,6 +739,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         .request_external_three_ds_authentication,
                     frm_metadata,
                     customer_details,
+                    billing_address_details,
                 },
                 key_store,
                 storage_scheme,

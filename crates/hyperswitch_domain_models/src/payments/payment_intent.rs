@@ -194,6 +194,7 @@ pub enum PaymentIntentUpdate {
         session_expiry: Option<PrimitiveDateTime>,
         request_external_three_ds_authentication: Option<bool>,
         customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -300,6 +301,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_address_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -324,6 +326,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_address_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -564,6 +567,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_address_details,
             } => Self::Update {
                 amount,
                 currency,
@@ -587,6 +591,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details: customer_details.map(Encryption::from),
+                billing_address_details: billing_address_details.map(Encryption::from),
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
