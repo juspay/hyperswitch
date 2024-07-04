@@ -142,7 +142,6 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         customer_details: Option<Encryption>,
         updated_by: String,
-        merchant_order_reference_id: Option<String>,
     },
     MerchantStatusUpdate {
         status: storage_enums::IntentStatus,
@@ -409,7 +408,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
                 customer_details,
                 updated_by,
-                merchant_order_reference_id,
             } => Self {
                 return_url,
                 status,
@@ -419,7 +417,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_details,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
-                merchant_order_reference_id,
                 ..Default::default()
             },
             PaymentIntentUpdate::PGStatusUpdate {

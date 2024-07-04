@@ -1231,10 +1231,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
-        let merchant_order_reference_id = payment_data
-            .payment_intent
-            .merchant_order_reference_id
-            .clone();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1263,7 +1259,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                         customer_details,
-                        merchant_order_reference_id,
+                        merchant_order_reference_id: None,
                     },
                     &m_key_store,
                     storage_scheme,

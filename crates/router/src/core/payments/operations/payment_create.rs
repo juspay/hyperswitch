@@ -646,11 +646,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             })
             .await;
 
-        let merchant_order_reference_id = payment_data
-            .payment_intent
-            .merchant_order_reference_id
-            .clone();
-
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -663,7 +658,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     billing_address_id: None,
                     customer_details,
                     updated_by: storage_scheme.to_string(),
-                    merchant_order_reference_id,
                 },
                 key_store,
                 storage_scheme,
