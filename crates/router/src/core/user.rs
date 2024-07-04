@@ -2337,8 +2337,6 @@ pub async fn terminate_auth_select(
     // Giving totp token for hyperswtich users when no id is present in the request body
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
-
-    // Skip SSO if continue with password(TOTP)
     next_flow = next_flow.skip(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
