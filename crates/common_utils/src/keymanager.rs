@@ -7,7 +7,6 @@ use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-
 use rustc_hash::FxHashMap;
 
 use crate::{

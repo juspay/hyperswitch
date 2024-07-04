@@ -1,7 +1,9 @@
-use crate::macros::{helpers::get_struct_fields, misc::get_field_type};
-use quote::{format_ident, quote};
 use std::iter::Iterator;
+
+use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Field};
+
+use crate::macros::{helpers::get_struct_fields, misc::get_field_type};
 
 pub fn derive_to_encryption(
     input: syn::DeriveInput,
