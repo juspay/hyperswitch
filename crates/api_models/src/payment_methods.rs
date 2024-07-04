@@ -169,7 +169,7 @@ impl PaymentMethodCreate {
                 .card
                 .as_ref()
                 .map(|payment_method_migrate_card| CardDetail {
-                    card_number: card_number,
+                    card_number,
                     card_exp_month: payment_method_migrate_card.card_exp_month.clone(),
                     card_exp_year: payment_method_migrate_card.card_exp_year.clone(),
                     card_holder_name: payment_method_migrate_card.card_holder_name.clone(),

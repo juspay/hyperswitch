@@ -343,21 +343,67 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let card = if let Some(card_details) = &req.card {
         helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
         let card_number = card_details.card_number.clone();
-        let last4_digits = card_number
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>();
+        let last4_digits = Some(
+            card_number
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        );
 
-        let card_isin = card_number.chars().take(6).collect::<String>();
+        let card_isin = Some(card_number.chars().take(6).collect::<String>());
+
+        let card_info = card_isin
+            .clone()
+            .async_and_then(|card_isin| async move {
+                db.get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten()
+            .map(|card_info| api_models::payments::AdditionalCardInfo {
+                card_issuer: card_info.card_issuer,
+                card_network: card_info.card_network.clone(),
+                bank_code: card_info.bank_code,
+                card_type: card_info.card_type,
+                card_issuing_country: card_info.card_issuing_country,
+                last4: last4_digits.clone(),
+                card_isin: card_isin.clone(),
+                card_extended_bin: None,
+                card_exp_month: Some(card_details.card_exp_month.clone()),
+                card_exp_year: Some(card_details.card_exp_year.clone()),
+                card_holder_name: card_details.card_holder_name.clone(),
+                payment_checks: None,
+                authentication_data: None,
+            })
+            .unwrap_or_else(|| api_models::payments::AdditionalCardInfo {
+                card_issuer: None,
+                card_network: None,
+                bank_code: None,
+                card_type: None,
+                card_issuing_country: None,
+                last4: last4_digits.clone(),
+                card_isin: card_isin.clone(),
+                card_extended_bin: None,
+                card_exp_month: Some(card_details.card_exp_month.clone()),
+                card_exp_year: Some(card_details.card_exp_year.clone()),
+                card_holder_name: card_details.card_holder_name.clone(),
+                payment_checks: None,
+                authentication_data: None,
+            });
 
         Some(api::CardDetailFromLocker {
             scheme: None,
-            last4_digits: Some(last4_digits),
-            issuer_country: card_details.card_issuing_country.clone(),
+            last4_digits,
+            issuer_country: card_details
+                .card_issuing_country
+                .clone()
+                .or(card_info.card_issuing_country),
             card_number: None,
             expiry_month: Some(card_details.card_exp_month.clone()),
             expiry_year: Some(card_details.card_exp_year.clone()),
@@ -365,10 +411,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             card_fingerprint: None,
             card_holder_name: card_details.card_holder_name.clone(),
             nick_name: card_details.nick_name.clone(),
-            card_isin: Some(card_isin),
-            card_issuer: card_details.card_issuer.clone(),
-            card_network: card_details.card_network.clone(),
-            card_type: card_details.card_type.clone(),
+            card_isin,
+            card_issuer: card_details.card_issuer.clone().or(card_info.card_issuer),
+            card_network: card_details.card_network.clone().or(card_info.card_network),
+            card_type: card_details.card_type.clone().or(card_info.card_type),
             saved_to_locker: true,
         })
     } else {
