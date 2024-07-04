@@ -159,7 +159,7 @@ pub struct MerchantAccount {
     enable_unauthenticated_card_add: Option<bool>,
     payu_salt: Option<String>,
     api_key: Option<String>,
-    date_created: Option<String>, 
+    date_created: Option<String>,
     internal_hash_key: Option<String>,
     version: Option<i64>,
     mandatory_2fa: Option<bool>,
@@ -897,7 +897,7 @@ pub struct Refund {
     date_created: Option<PrimitiveDateTime>,
 }
 
-#[derive(Default,Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 
 pub enum RefundStatus {
@@ -962,7 +962,7 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
             txn_mode: "PROD".to_string(),
             merchant_id: auth.merchant_id.clone(),
             status: "CHARGED".to_string(),
-            net_amount:item.amount.clone(),
+            net_amount: item.amount.clone(),
             txn_id: txn_idd.clone(),
             txn_amount: item.amount.clone(),
             emi_tenure: 0,
@@ -996,8 +996,8 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
             id: ref_id.to_string(),
             version: 0,
         };
-       let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> = Secret::new("9490419802@ybl".to_string());
-
+        let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> =
+            Secret::new("9490419802@ybl".to_string());
 
         let txn_card_info = TxnCardInfo {
             txn_detail_id: ref_id.to_string(),
@@ -1042,8 +1042,6 @@ impl From<RefundStatus> for enums::RefundStatus {
         }
     }
 }
-
-
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize)]

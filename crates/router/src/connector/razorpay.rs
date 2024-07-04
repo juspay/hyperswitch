@@ -464,10 +464,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-          Ok(format!(
-            "{}gatewayProxy/refund",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}gatewayProxy/refund", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -548,27 +545,27 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_url(
         &self,
         _req: &types::RefundSyncRouterData,
-         connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-          Ok(format!(
+        Ok(format!(
             "{}gatewayProxy/sync/refund",
             self.base_url(connectors)
         ))
     }
 
-      fn get_request_body(
+    fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-         let amount = connector_utils::convert_amount(
+        let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayRefundRequest::try_from(&connector_router_data)?;
-          let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         println!("$$$$$ rsyncrequest {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
