@@ -272,7 +272,7 @@ impl<
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::DecodingFailed)?
+                    Err(errors::CryptoError::DecodingFailed)
                 }
             };
             match decrypted {
@@ -398,7 +398,7 @@ impl<
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::EncodingFailed)?
+                    Err(errors::CryptoError::EncodingFailed)
                 }
             };
             match decrypted {
@@ -505,7 +505,7 @@ impl<
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::DecodingFailed)?
+                    Err(errors::CryptoError::DecodingFailed)
                 }
             };
             match decrypted {
@@ -731,7 +731,7 @@ impl<
                 }
                 Err(err) => {
                     logger::error!("Decryption error {:?}", err);
-                    Err(errors::CryptoError::DecodingFailed)?
+                    Err(errors::CryptoError::DecodingFailed)
                 }
             };
             match decrypted {
