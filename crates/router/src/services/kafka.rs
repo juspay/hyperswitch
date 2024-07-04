@@ -322,7 +322,11 @@ impl KafkaProducer {
                     .timestamp(event.creation_timestamp().unwrap_or_else(|| {
                         (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
                             .try_into()
-                            .unwrap()
+                            .unwrap_or_else(|_| {
+                                // kafka producer accepts milliseconds
+                                // try converting nanos to millis if that fails convert seconds to millis
+                                OffsetDateTime::now_utc().unix_timestamp() * 1_000
+                            })
                     })),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
