@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_utils::pii::EmailStrategy;
+use common_utils::{events::ApiEventMetric, pii::EmailStrategy};
 use masking::Secret;
 
 use self::{
@@ -8,6 +8,7 @@ use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
+    frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
@@ -20,6 +21,7 @@ pub mod api_event;
 pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
+pub mod frm;
 pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
@@ -146,6 +148,22 @@ pub struct GetRefundMetricRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetFrmMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+    #[serde(default)]
+    pub filters: frm::FrmFilters,
+    pub metrics: HashSet<FrmMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+impl ApiEventMetric for GetFrmMetricRequest {}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetSdkEventMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -246,6 +264,33 @@ pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
     pub values: Vec<String>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetFrmFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+}
+
+impl ApiEventMetric for GetFrmFilterRequest {}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmFiltersResponse {
+    pub query_data: Vec<FrmFilterValue>,
+}
+
+impl ApiEventMetric for FrmFiltersResponse {}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmFilterValue {
+    pub dimension: FrmDimensions,
+    pub values: Vec<String>,
+}
+
+impl ApiEventMetric for FrmFilterValue {}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
