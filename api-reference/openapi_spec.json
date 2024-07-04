@@ -14278,6 +14278,16 @@
             "type": "boolean",
             "description": "flag to indicate whether to perform external 3ds authentication",
             "example": true
+          },
+          "collect_shipping_details_from_wallets": {
+            "type": "boolean",
+            "description": "flag that indicates whether to collect shipping details from wallets or from the customer",
+            "nullable": true
+          },
+          "collect_billing_details_from_wallets": {
+            "type": "boolean",
+            "description": "flag that indicates whether to collect billing details from wallets or from the customer",
+            "nullable": true
           }
         }
       },

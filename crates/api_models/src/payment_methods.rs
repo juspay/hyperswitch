@@ -796,10 +796,10 @@ pub struct PaymentMethodListResponse {
     #[schema(example = true)]
     pub request_external_three_ds_authentication: bool,
 
-    /// flag to indicate whether to collect shipping details from wallets or customer
+    /// flag that indicates whether to collect shipping details from wallets or from the customer
     pub collect_shipping_details_from_wallets: Option<bool>,
 
-    /// flag to indicate whether to collect billing details from wallets or customer
+    /// flag that indicates whether to collect billing details from wallets or from the customer
     pub collect_billing_details_from_wallets: Option<bool>,
 }
 
