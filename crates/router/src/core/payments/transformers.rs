@@ -880,6 +880,7 @@ where
                 .set_updated(Some(payment_intent.modified_at))
                 .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
+                .set_merchant_order_reference_id(payment_intent.merchant_order_reference_id)
                 .to_owned(),
             headers,
         ))
@@ -1305,6 +1306,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             None => None,
         };
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1350,6 +1356,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
+            merchant_order_reference_id,
             integrity_object: None,
         })
     }
