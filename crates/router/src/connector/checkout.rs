@@ -1,6 +1,11 @@
 pub mod transformers;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -35,7 +40,6 @@ use crate::{
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
-
 
 impl Checkout {
     pub fn new() -> &'static Self {
