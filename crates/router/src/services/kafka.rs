@@ -322,7 +322,7 @@ impl KafkaProducer {
                     .timestamp(
                         event
                             .creation_timestamp()
-                            .unwrap_or_else(|| OffsetDateTime::now_utc().unix_timestamp() * 1_000),
+                            .unwrap_or_else(|| (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).try_into().unwrap()),
                     ),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
