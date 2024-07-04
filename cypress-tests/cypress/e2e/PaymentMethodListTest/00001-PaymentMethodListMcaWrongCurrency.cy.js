@@ -15,7 +15,7 @@ import State from "../../utils/State";
 // MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
 // MCA2 -> Cybersource configured with credit = { currency = "USD" }
 // Payment is done with currency as INR and no billing address
-// The resultant Payment Method list shouldn't have
+// The resultant Payment Method list shouldn't have any payment method
 
 let globalState;
 describe("Account Create flow test", () => {
@@ -39,10 +39,11 @@ describe("Account Create flow test", () => {
 
   // stripe connector create with ideal enabled
   it("connector-create-call-test", () => {
-    cy.createConnectorCallTest(
+    cy.createNamedConnectorCallTest(
       createConnectorBody,
       bank_redirect_ideal_enabled,
-      globalState
+      globalState,
+      "stripe"
     );
   });
 
@@ -77,6 +78,6 @@ describe("Account Create flow test", () => {
     let data = getConnectorDetails(globalState.get("connectorId"))["pm_list"][
       "PmListResponse"
     ]["PmListNull"];
-    cy.paymentMethodListTestLessThanEqualToOneConnector(data, globalState);
+    cy.paymentMethodListTestLessThanEqualToOnePaymentMethod(data, globalState);
   });
 });

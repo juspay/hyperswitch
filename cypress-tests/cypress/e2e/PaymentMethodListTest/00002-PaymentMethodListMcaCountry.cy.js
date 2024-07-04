@@ -39,10 +39,11 @@ describe("Account Create flow test", () => {
 
   // stripe connector create with credit enabled for US
   it("connector-create-call-test", () => {
-    cy.createConnectorCallTest(
+    cy.createNamedConnectorCallTest(
       createConnectorBody,
       card_credit_enabled_in_US,
-      globalState
+      globalState,
+      "stripe"
     );
   });
 
@@ -77,6 +78,9 @@ describe("Account Create flow test", () => {
     let data = getConnectorDetails(globalState.get("connectorId"))["pm_list"][
       "PmListResponse"
     ]["PmListWithCreditTwoConnector"];
-    cy.paymentMethodListTestLessThanEqualToOneConnector(data, globalState);
+    cy.paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit(
+      data,
+      globalState
+    );
   });
 });

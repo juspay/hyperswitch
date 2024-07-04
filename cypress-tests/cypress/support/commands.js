@@ -96,7 +96,6 @@ Cypress.Commands.add(
   ) => {
     const merchantId = globalState.get("merchantId");
     createConnectorBody.connector_name = connectorName;
-    // createConnectorBody.connector_name = globalState.get("connectorId");
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
@@ -104,9 +103,8 @@ Cypress.Commands.add(
       (jsonContent) => {
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
-          globalState.get("connectorId")
+          connectorName
         );
-        console.log(`>>>>>>>>>>>>>>>>>>>>>>>>auth "${authDetails}"`);
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
           method: "POST",
@@ -122,9 +120,7 @@ Cypress.Commands.add(
           logRequestId(response.headers["x-request-id"]);
 
           if (response.status === 200) {
-            expect(globalState.get("connectorId")).to.equal(
-              response.body.connector_name
-            );
+            expect(connectorName).to.equal(response.body.connector_name);
           } else {
             cy.task(
               "cli_log",
@@ -276,7 +272,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "paymentMethodListTestLessThanEqualToOneConnector",
+  "paymentMethodListTestLessThanEqualToOnePaymentMethod",
   (res_data, globalState) => {
     cy.request({
       method: "GET",
@@ -288,24 +284,16 @@ Cypress.Commands.add(
       },
       failOnStatusCode: false,
     }).then((response) => {
-      Object.keys(response.body).forEach((key) => {
-        console.log(
-          `>>>>>>>>>>>>>>>>>>>>>>>>>key "${key}">>>>>>>>>>>>>body "${response.body[key]}"`
-        );
-      });
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         expect(response.body).to.have.property("currency");
-        if (res_data["payment_methods"].length > 0) {
+        if (res_data["payment_methods"].length == 1) {
           function getPaymentMethodType(obj) {
             return obj["payment_methods"][0]["payment_method_types"][0][
               "payment_method_type"
             ];
           }
-          console.log(
-            `>>>>>>>>>>>>>>>>>>>>>>>>>keyztzzt "${response.body["payment_methods"][0]["payment_method_types"][0]["card_networks"][0]["eligible_connectors"]}"`
-          );
           expect(getPaymentMethodType(res_data)).to.equal(
             getPaymentMethodType(response.body)
           );
@@ -320,7 +308,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "paymentMethodListTestTwoConnectorsForCredit",
+  "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit",
   (res_data, globalState) => {
     cy.request({
       method: "GET",
@@ -339,15 +327,16 @@ Cypress.Commands.add(
         if (res_data["payment_methods"].length > 0) {
           function getPaymentMethodType(obj) {
             return obj["payment_methods"][0]["payment_method_types"][0][
-              "payment_method_type"
-            ];
+              "card_networks"
+            ][0]["eligible_connectors"]
+              .slice()
+              .sort();
           }
-          console.log(
-            `>>>>>>>>>>>>>>>>>>>>>>>>>keyztzzt "${response.body["payment_methods"][0]["payment_method_types"][0]["card_networks"][0]["eligible_connectors"]}"`
-          );
-          expect(getPaymentMethodType(res_data)).to.equal(
-            getPaymentMethodType(response.body)
-          );
+          for (let i = 0; i < getPaymentMethodType(response.body).length; i++) {
+            expect(getPaymentMethodType(res_data)[i]).to.equal(
+              getPaymentMethodType(response.body)[i]
+            );
+          }
         } else {
           expect(0).to.equal(response.body["payment_methods"].length);
         }

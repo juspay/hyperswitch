@@ -38,10 +38,11 @@ describe("Account Create flow test", () => {
 
   // stripe connector create with ideal enabled
   it("connector-create-call-test", () => {
-    cy.createConnectorCallTest(
+    cy.createNamedConnectorCallTest(
       createConnectorBody,
       bank_redirect_ideal_enabled,
-      globalState
+      globalState,
+      "stripe"
     );
   });
 
@@ -76,6 +77,6 @@ describe("Account Create flow test", () => {
     let data = getConnectorDetails(globalState.get("connectorId"))["pm_list"][
       "PmListResponse"
     ]["PmListWithStripeForIdeal"];
-    cy.paymentMethodListTestLessThanEqualToOneConnector(data, globalState);
+    cy.paymentMethodListTestLessThanEqualToOnePaymentMethod(data, globalState);
   });
 });

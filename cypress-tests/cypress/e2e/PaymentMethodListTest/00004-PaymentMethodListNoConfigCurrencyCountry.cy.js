@@ -41,10 +41,11 @@ describe("Account Create flow test", () => {
 
   // stripe connector create with card credit enabled
   it("connector-create-call-test", () => {
-    cy.createConnectorCallTest(
+    cy.createNamedConnectorCallTest(
       createConnectorBody,
       card_credit_enabled,
-      globalState
+      globalState,
+      "stripe"
     );
   });
 
@@ -52,8 +53,7 @@ describe("Account Create flow test", () => {
   it("connector-create-call-test", () => {
     cy.createNamedConnectorCallTest(
       createConnectorBody,
-      // card_credit_enabled,
-      card_credit_enabled,
+      bank_redirect_ideal_and_credit_enabled,
       globalState,
       "cybersource"
     );
@@ -80,6 +80,9 @@ describe("Account Create flow test", () => {
     let data = getConnectorDetails(globalState.get("connectorId"))["pm_list"][
       "PmListResponse"
     ]["PmListWithCreditTwoConnector"];
-    cy.paymentMethodListTestTwoConnectorsForCredit(data, globalState);
+    cy.paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit(
+      data,
+      globalState
+    );
   });
 });
