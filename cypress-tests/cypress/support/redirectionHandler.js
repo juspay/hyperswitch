@@ -221,7 +221,10 @@ function bankRedirectRedirection(
           break;
         case "ideal":
           cy.contains("button", "Select your bank").click();
-          cy.get('[data-testid="ideal-box-bank-item-INGBNL2A"]').click();
+          cy.get('[data-testid="ideal-box-bank-item-INGBNL2A-content"]')
+            .should("be.visible")
+            .click();
+
           break;
         case "giropay":
           cy.get("._transactionId__header__iXVd_").should(
