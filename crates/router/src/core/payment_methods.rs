@@ -14,18 +14,18 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
+        errors::{self, CustomResult, RouterResult},
         payments::helpers,
         pm_auth as core_pm_auth,
     },
-    routes::{app::StorageInterface, SessionState},
+    routes::{app::StorageInterface, metrics, SessionState},
     services::{self, GenericLinks},
     types::{
         api::{self, payments},
@@ -548,7 +548,7 @@ pub async fn delete_payment_method_task(
     merchant_id: String,
     deleted_at: time::PrimitiveDateTime,
     customer_id: CustomerId,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::ProcessTrackerError> {
     for (mca_id, value) in filter_mca {
         let schedule_time =
             deleted_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
@@ -565,12 +565,13 @@ pub async fn delete_payment_method_task(
             merchant_id: merchant_id.clone(),
             customer_id: customer_id.clone(),
             merchant_connector_id: mca_id,
-            connector: value.connector_variant,
+            connector: value.connector,
             connector_mandate_id: value.connector_mandate_id,
             profile_id: value.profile_id,
         };
 
-        let process_tracker_entry = storage::ProcessTrackerNew::new(
+        insert_mandate_revocation_task_to_process_tracker(
+            db,
             process_tracker_id,
             task,
             runner,
@@ -578,22 +579,47 @@ pub async fn delete_payment_method_task(
             tracking_data.clone(),
             schedule_time,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task",
-        )?;
-
-        db
-        .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting PAYMENT_METHOD_MANDATE_DETAILS_UPDATE reminder to process_tracker for payment_method_id: {}",
-            payment_method_id
-            )
-        })?;
+        .map_err(|err| logger::error!(pm_id=?payment_method_id, tag=?tag ,error=?err,"Failed to set the PAYMENT METHOD REVOKE MANDATE task in Process tracker")).ok();
     }
-
     Ok(())
+}
+
+async fn insert_mandate_revocation_task_to_process_tracker(
+    db: &dyn StorageInterface,
+    process_tracker_id: String,
+    task: &str,
+    runner: diesel_models::ProcessTrackerRunner,
+    tag: [&str; 1],
+    tracking_data: storage::PaymentMethodMandateRevokeTrackingData,
+    schedule_time: time::PrimitiveDateTime,
+) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data.clone(),
+        schedule_time,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    match db.insert_process(process_tracker_entry).await {
+        Ok(process_tracker) => {
+            metrics::TASKS_ADDED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([("flow", "ConnectorMandateRevocation")]),
+            );
+            Ok(process_tracker)
+        }
+        Err(error) => {
+            metrics::TASK_ADDITION_FAILURES_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([("flow", "ConnectorMandateRevocation")]),
+            );
+            Err(error)
+        }
+    }
 }

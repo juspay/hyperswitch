@@ -122,7 +122,7 @@ pub struct PaymentMethodStatusTrackingData {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UpdateMandate {
     pub connector_mandate_id: String,
-    pub connector_variant: api_enums::Connector,
+    pub connector: api_enums::Connector,
     pub profile_id: String,
 }
 

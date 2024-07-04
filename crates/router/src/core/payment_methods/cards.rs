@@ -3800,7 +3800,7 @@ async fn get_all_mcas(
     db: &dyn db::StorageInterface,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
-    value: Option<bool>,
+    disabled: Option<bool>,
     connector_mandate_details: &storage::PaymentsMandateReference,
 ) -> errors::RouterResult<HashMap<String, storage::UpdateMandate>> {
     let mcas = db
@@ -3816,12 +3816,12 @@ async fn get_all_mcas(
 
     let mcas = mcas
         .into_iter()
-        .filter(|mca| mca.disabled == value)
+        .filter(|mca| mca.disabled == disabled)
         .collect::<Vec<_>>();
     let mut mca_ids = HashMap::new();
     for mca in mcas {
         if let Some(profile_id) = mca.profile_id {
-            let connector_variant = api_enums::Connector::from_str(mca.connector_name.as_str())
+            let connector = api_enums::Connector::from_str(mca.connector_name.as_str())
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector",
                 })
@@ -3836,7 +3836,7 @@ async fn get_all_mcas(
                 mca_ids.insert(
                     mca.merchant_connector_id,
                     storage::UpdateMandate {
-                        connector_variant,
+                        connector,
                         connector_mandate_id,
                         profile_id,
                     },
