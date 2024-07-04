@@ -402,6 +402,7 @@ impl NewUserMerchant {
                 payment_response_hash_key: None,
                 enable_payment_response_hash: None,
                 redirect_to_merchant_with_http_post: None,
+                pm_collect_link_config: None,
             },
         ))
         .await
@@ -1132,6 +1133,7 @@ impl SignInWithMultipleRolesStrategy {
                     TokenPurpose::AcceptInvite,
                     Origin::SignIn,
                     &state.conf,
+                    vec![],
                 )
                 .await?
                 .into(),

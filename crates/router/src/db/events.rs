@@ -770,7 +770,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_utils::types::keymanager::Identifier;
-    use diesel_models::enums;
+    use diesel_models::{enums, events::EventMetadata};
     use time::macros::datetime;
 
     use crate::{
@@ -803,6 +803,7 @@ mod tests {
             .unwrap();
         let merchant_id = "merchant1";
         let business_profile_id = "profile1";
+        let payment_id = "test_payment_id";
 
         let master_key = mockdb.get_master_key();
         mockdb
@@ -837,7 +838,7 @@ mod tests {
                     event_type: enums::EventType::PaymentSucceeded,
                     event_class: enums::EventClass::Payments,
                     is_webhook_notified: false,
-                    primary_object_id: "primary_object_tet".into(),
+                    primary_object_id: payment_id.into(),
                     primary_object_type: enums::EventObjectType::PaymentDetails,
                     created_at: common_utils::date_time::now(),
                     merchant_id: Some(merchant_id.to_owned()),
@@ -848,6 +849,9 @@ mod tests {
                     request: None,
                     response: None,
                     delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
+                    metadata: Some(EventMetadata::Payment {
+                        payment_id: payment_id.into(),
+                    }),
                 },
                 &merchant_key_store,
             )

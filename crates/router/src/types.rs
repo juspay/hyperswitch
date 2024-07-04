@@ -22,16 +22,19 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_request_types::PayoutsData;
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_response_types::PayoutsResponseData;
+#[cfg(feature = "frm")]
+pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
+    router_data_v2::{
+        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
+        WebhookSourceVerifyData,
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
@@ -51,6 +54,11 @@ pub use hyperswitch_domain_models::{
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
+};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::{
+    router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 pub use hyperswitch_interfaces::types::Response;
 
@@ -535,6 +543,11 @@ impl Capturable for PaymentsSyncData {
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
     pub connector_supports_access_token: bool,
+}
+
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

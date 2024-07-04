@@ -8,10 +8,11 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap", "payouts"]
+default = ["olap", "payouts", "frm"]
 encryption_service =[]
 olap = []
 payouts = ["api_models/payouts"]
+frm = ["api_models/frm"]
 
 [dependencies]
 # First party deps

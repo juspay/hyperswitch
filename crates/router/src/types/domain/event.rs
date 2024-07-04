@@ -4,7 +4,7 @@ use common_utils::{
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
-    events::EventUpdateInternal,
+    events::{EventMetadata, EventUpdateInternal},
     EventWithEncryption,
 };
 use error_stack::ResultExt;
@@ -32,6 +32,7 @@ pub struct Event {
     pub request: OptionalEncryptableSecretString,
     pub response: OptionalEncryptableSecretString,
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
+    pub metadata: Option<EventMetadata>,
 }
 
 #[derive(Debug)]
@@ -78,6 +79,7 @@ impl super::behaviour::Conversion for Event {
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
+            metadata: self.metadata,
         })
     }
 
@@ -124,6 +126,7 @@ impl super::behaviour::Conversion for Event {
             request: encryptable_event.request,
             response: encryptable_event.response,
             delivery_attempt: item.delivery_attempt,
+            metadata: item.metadata,
         })
     }
 
@@ -144,6 +147,7 @@ impl super::behaviour::Conversion for Event {
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
+            metadata: self.metadata,
         })
     }
 }

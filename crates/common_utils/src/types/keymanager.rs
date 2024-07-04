@@ -33,6 +33,7 @@ pub struct KeyManagerState {
 pub enum Identifier {
     User(String),
     Merchant(String),
+    UserAuth(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
