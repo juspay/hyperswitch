@@ -1262,6 +1262,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                         customer_details,
+                        merchant_order_reference_id: None,
                     },
                     &m_key_store,
                     storage_scheme,
