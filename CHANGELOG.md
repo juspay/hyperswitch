@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.28.0-hotfix2
+
+### Refactors
+
+- **migrations:** Add commands to make file to run migrations for api v2 ([#5205](https://github.com/juspay/hyperswitch/pull/5205)) ([`13d1640`](https://github.com/juspay/hyperswitch/commit/13d164035b8ec3dfc126eacd914fc9d4f1609ea0))
+
+- - -
+
 ## 2024.06.28.0-hotfix1
 
 ### Bug Fixes
