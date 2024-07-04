@@ -7711,7 +7711,6 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
-          "razorpay",
           "adyenplatform",
           "phonypay",
           "fauxpay",
@@ -7764,6 +7763,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "shift4",
           "square",
           "stax",
