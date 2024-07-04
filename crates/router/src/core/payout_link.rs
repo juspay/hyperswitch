@@ -305,7 +305,7 @@ pub async fn filter_payout_methods(
                         &payout.destination_currency,
                         &address.country,
                     )
-                    .await?;
+                    ?;
                     if currency_country_filter != Some(false) {
                         match payment_method {
                             common_enums::PaymentMethod::Card => {
@@ -354,11 +354,11 @@ pub async fn filter_payout_methods(
     Ok(response)
 }
 
-pub async fn check_currency_country_filters(
+pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
     currency: &common_enums::Currency,
-    country: &Option<enums::CountryAlpha2>,
+    country: &Option<common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
         request_payout_method_type.payment_method_type,
