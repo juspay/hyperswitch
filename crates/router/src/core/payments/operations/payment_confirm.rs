@@ -495,6 +495,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_request = request.clone();
         let m_key_store = key_store.clone();
 
+        let payment_intent_customer_id = payment_intent.customer_id.clone();
+
         let mandate_details_fut = tokio::spawn(
             async move {
                 helpers::get_token_pm_type_mandate_details(
@@ -504,6 +506,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_merchant_account,
                     &m_key_store,
                     None,
+                    &payment_intent_customer_id,
                 )
                 .await
             }
@@ -695,6 +698,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -707,6 +711,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
             key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await?;
 
@@ -1084,6 +1089,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None
         };
 
+        let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
@@ -1255,6 +1261,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         session_expiry,
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
+                        customer_details,
                     },
                     &m_key_store,
                     storage_scheme,

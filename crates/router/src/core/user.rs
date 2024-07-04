@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-use api_models::user::{self as user_api, InviteMultipleUserResponse};
-use common_utils::ext_traits::ValueExt;
+use api_models::{
+    payments::RedirectionResponse,
+    user::{self as user_api, InviteMultipleUserResponse},
+};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -13,7 +15,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use external_services::email::EmailData;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
@@ -26,7 +28,7 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, ApplicationResponse},
+    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
@@ -478,7 +480,7 @@ pub async fn rotate_password(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 #[cfg(feature = "email")]
@@ -541,7 +543,7 @@ pub async fn reset_password_token_only_flow(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 #[cfg(feature = "email")]
@@ -594,7 +596,7 @@ pub async fn reset_password(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 pub async fn invite_multiple_user(
@@ -2034,34 +2036,11 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = match req.auth_method {
-        user_api::AuthConfig::OpenIdConnect {
-            ref private_config,
-            ref public_config,
-        } => {
-            let private_config_value = serde_json::to_value(private_config.clone())
-                .change_context(UserErrors::AuthConfigParsingError)
-                .attach_printable("Failed to convert auth config to json")?;
-
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                private_config_value.into(),
-                &user_auth_encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
-
-            Ok::<_, error_stack::Report<UserErrors>>((
-                Some(encrypted_config.into()),
-                Some(
-                    serde_json::to_value(public_config.clone())
-                        .change_context(UserErrors::AuthConfigParsingError)
-                        .attach_printable("Failed to convert auth config to json")?,
-                ),
-            ))
-        }
-        _ => Ok((None, None)),
-    }?;
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &req.auth_method,
+        &user_auth_encryption_key,
+    )
+    .await?;
 
     let auth_methods = state
         .store
@@ -2075,6 +2054,30 @@ pub async fn create_user_authentication_method(
         .map(|auth_method| auth_method.auth_id.clone())
         .unwrap_or(uuid::Uuid::new_v4().to_string());
 
+    for db_auth_method in auth_methods {
+        let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
+        let is_extra_identifier_same = match &req.auth_method {
+            user_api::AuthConfig::OpenIdConnect { public_config, .. } => {
+                let db_auth_name = db_auth_method
+                    .public_config
+                    .map(|config| {
+                        utils::user::parse_value::<user_api::OpenIdConnectPublicConfig>(
+                            config,
+                            "OpenIdConnectPublicConfig",
+                        )
+                    })
+                    .transpose()?
+                    .map(|config| config.name);
+                let req_auth_name = public_config.name;
+                db_auth_name.is_some_and(|name| name == req_auth_name)
+            }
+            user_api::AuthConfig::Password | user_api::AuthConfig::MagicLink => true,
+        };
+        if is_type_same && is_extra_identifier_same {
+            return Err(report!(UserErrors::UserAuthMethodAlreadyExists));
+        }
+    }
+
     let now = common_utils::date_time::now();
     state
         .store
@@ -2083,7 +2086,7 @@ pub async fn create_user_authentication_method(
             auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
-            auth_type: req.auth_method.foreign_into(),
+            auth_type: (&req.auth_method).foreign_into(),
             private_config,
             public_config,
             allow_signup: req.allow_signup,
@@ -2112,34 +2115,11 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = match req.auth_method {
-        user_api::AuthConfig::OpenIdConnect {
-            ref private_config,
-            ref public_config,
-        } => {
-            let private_config_value = serde_json::to_value(private_config.clone())
-                .change_context(UserErrors::AuthConfigParsingError)
-                .attach_printable("Failed to convert auth config to json")?;
-
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                private_config_value.into(),
-                &user_auth_encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
-
-            Ok::<_, error_stack::Report<UserErrors>>((
-                Some(encrypted_config.into()),
-                Some(
-                    serde_json::to_value(public_config.clone())
-                        .change_context(UserErrors::AuthConfigParsingError)
-                        .attach_printable("Failed to convert auth config to json")?,
-                ),
-            ))
-        }
-        _ => Ok((None, None)),
-    }?;
+    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &req.auth_method,
+        &user_auth_encryption_key,
+    )
+    .await?;
 
     state
         .store
@@ -2170,17 +2150,19 @@ pub async fn list_user_authentication_methods(
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, Some(config)) => {
-                        let open_id_public_config: user_api::OpenIdConnectPublicConfig = config
-                            .parse_value("OpenIdConnectPublicConfig")
-                            .change_context(UserErrors::InternalServerError)
-                            .attach_printable("unable to parse generic data value")?;
-
-                        Ok(Some(open_id_public_config.name))
-                    }
-                    (common_enums::UserAuthType::OpenIdConnect, None) => {
-                        Err(UserErrors::InternalServerError)
-                            .attach_printable("No config found for open_id_connect auth_method")
+                    (common_enums::UserAuthType::OpenIdConnect, config) => {
+                        let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
+                            config
+                                .map(|config| {
+                                    utils::user::parse_value(config, "OpenIdConnectPublicConfig")
+                                })
+                                .transpose()?;
+                        if let Some(public_config) = open_id_public_config {
+                            Ok(Some(public_config.name))
+                        } else {
+                            Err(report!(UserErrors::InternalServerError))
+                                .attach_printable("Public config not found for OIDC auth type")
+                        }
                     }
                     _ => Ok(None),
                 }?;
@@ -2197,4 +2179,155 @@ pub async fn list_user_authentication_methods(
             })
             .collect::<UserResult<_>>()?,
     ))
+}
+
+pub async fn get_sso_auth_url(
+    state: SessionState,
+    request: user_api::GetSsoAuthUrlRequest,
+) -> UserResponse<()> {
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(request.id.as_str())
+        .await
+        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
+
+    let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
+        user_authentication_method
+            .public_config
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Public config not present")?,
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
+
+    let oidc_state = Secret::new(nanoid::nanoid!());
+    utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
+
+    let redirect_url =
+        utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
+
+    openidconnect::get_authorization_url(
+        state,
+        redirect_url,
+        oidc_state,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id,
+    )
+    .await
+    .map(|url| {
+        ApplicationResponse::JsonForRedirection(RedirectionResponse {
+            headers: Vec::with_capacity(0),
+            return_url: String::new(),
+            http_method: String::new(),
+            params: Vec::with_capacity(0),
+            return_url_with_query_params: url.to_string(),
+        })
+    })
+}
+
+pub async fn sso_sign(
+    state: SessionState,
+    request: user_api::SsoSignInRequest,
+    user_from_single_purpose_token: Option<auth::UserFromSinglePurposeToken>,
+) -> UserResponse<user_api::TokenResponse> {
+    let authentication_method_id =
+        utils::user::get_sso_id_from_redis(&state, request.state.clone()).await?;
+
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(&authentication_method_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let open_id_private_config =
+        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
+            .await?;
+
+    let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
+        user_authentication_method
+            .public_config
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Public config not present")?,
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
+
+    let redirect_url =
+        utils::user::get_oidc_sso_redirect_url(&state, &open_id_public_config.name.to_string());
+    let email = openidconnect::get_user_email_from_oidc_provider(
+        &state,
+        redirect_url,
+        request.state,
+        open_id_private_config.base_url.into(),
+        open_id_private_config.client_id,
+        request.code,
+        open_id_private_config.client_secret,
+    )
+    .await?;
+
+    // TODO: Use config to handle not found error
+    let user_from_db = state
+        .global_store
+        .find_user_by_email(&email.into_inner())
+        .await
+        .map(Into::into)
+        .to_not_found_response(UserErrors::UserNotFound)?;
+
+    let next_flow = if let Some(user_from_single_purpose_token) = user_from_single_purpose_token {
+        let current_flow =
+            domain::CurrentFlow::new(user_from_single_purpose_token, domain::SPTFlow::SSO.into())?;
+        current_flow.next(user_from_db, &state).await?
+    } else {
+        domain::NextFlow::from_origin(domain::Origin::SignInWithSSO, user_from_db, &state).await?
+    };
+
+    let token = next_flow.get_token(&state).await?;
+    let response = user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    };
+
+    auth::cookies::set_cookie_response(response, token)
+}
+
+pub async fn terminate_auth_select(
+    state: SessionState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::AuthSelectRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let user_authentication_method = state
+        .store
+        .get_user_authentication_method_by_id(&req.id)
+        .await
+        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
+    let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+
+    // Skip SSO if continue with password(TOTP)
+    if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
+        && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
+    {
+        next_flow = next_flow.skip(user_from_db, &state).await?;
+    }
+    let token = next_flow.get_token(&state).await?;
+
+    auth::cookies::set_cookie_response(
+        user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        },
+        token,
+    )
 }

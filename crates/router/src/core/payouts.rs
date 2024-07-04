@@ -20,6 +20,7 @@ use error_stack::{report, ResultExt};
 use futures::future::join_all;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::errors::StorageError;
+use masking::PeekInterface;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 #[cfg(feature = "olap")]
@@ -378,7 +379,6 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Pending,
             storage_enums::PayoutStatus::Ineligible,
             storage_enums::PayoutStatus::RequiresFulfillment,
-            storage_enums::PayoutStatus::RequiresVendorAccountCreation,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
         "confirm",
@@ -1919,7 +1919,7 @@ pub async fn response_handler(
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.merchant_id.to_owned(),
-        amount: payouts.amount.to_owned(),
+        amount: payouts.amount,
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
@@ -1946,10 +1946,16 @@ pub async fn response_handler(
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
         attempts: None,
-        payout_link: payout_link.map(|payout_link| PayoutLinkResponse {
-            payout_link_id: payout_link.link_id.clone(),
-            link: payout_link.url,
-        }),
+        payout_link: payout_link
+            .map(|payout_link| {
+                url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
+                    payout_link_id: payout_link.link_id,
+                    link: link.into(),
+                })
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payout link's URL")?,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2045,7 +2051,7 @@ pub async fn payout_create_db_entries(
         consts::ID_LENGTH,
         format!("payout_{payout_id}_secret").as_str(),
     );
-    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero)).get_amount_as_i64();
+    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),

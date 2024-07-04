@@ -199,6 +199,7 @@ pub async fn get_decrypted_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
+    decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
@@ -211,7 +212,10 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
-    let alg = jwe::RSA_OAEP;
+    let alg = match decryption_scheme {
+        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+    };
 
     let jwe_decrypted = encryption::decrypt_jwe(
         &jwt,

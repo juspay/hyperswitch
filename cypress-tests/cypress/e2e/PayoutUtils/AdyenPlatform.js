@@ -10,7 +10,7 @@ const billing = {
     last_name: "Doe",
   },
   phone: {
-    number: "0650242319",
+    number: "9123456789",
     country_code: "+31",
   },
 };
@@ -32,7 +32,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_creation",
+            status: "requires_confirmation",
             payout_type: "bank",
           },
         },

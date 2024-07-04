@@ -661,12 +661,12 @@ pub struct RequestPaymentMethodTypes {
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
-    pub minimum_amount: Option<i32>,
+    pub minimum_amount: Option<MinorUnit>,
 
     /// Maximum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
     #[schema(example = 1313)]
-    pub maximum_amount: Option<i32>,
+    pub maximum_amount: Option<MinorUnit>,
 
     /// Boolean to enable recurring payments / mandates. Default is true.
     #[schema(default = true, example = false)]
@@ -1045,7 +1045,7 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// URL to the form's link generated for collecting payment method details.
     #[schema(value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1")]
-    pub link: masking::Secret<String>,
+    pub link: masking::Secret<url::Url>,
 
     /// Redirect to this URL post completion
     #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
@@ -1082,7 +1082,7 @@ pub struct PaymentMethodCollectLinkDetails {
     pub session_expiry: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     #[serde(flatten)]
-    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
@@ -1092,10 +1092,10 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     pub status: link_utils::PaymentMethodCollectStatus,
     #[serde(flatten)]
-    pub ui_config: link_utils::GenericLinkUIConfigFormData,
+    pub ui_config: link_utils::GenericLinkUiConfigFormData,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

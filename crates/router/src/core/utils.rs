@@ -170,7 +170,8 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
-            amount: payouts.amount,
+            amount: payouts.amount.get_amount_as_i64(),
+            minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
@@ -208,6 +209,7 @@ pub async fn construct_payout_router_data<'a, F>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -370,6 +372,7 @@ pub async fn construct_refund_router_data<'a, F>(
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -607,6 +610,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -702,6 +706,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -803,6 +808,7 @@ pub async fn construct_upload_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -901,6 +907,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -988,6 +995,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

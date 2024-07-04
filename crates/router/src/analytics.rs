@@ -4,7 +4,7 @@ pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core,
-        errors::AnalyticsError, lambda_utils::invoke_lambda,
+        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
         AnalyticsFlow,
     };
@@ -14,19 +14,22 @@ pub mod routes {
         },
         GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
         GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
-        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
     use crate::{
-        core::api_locking,
+        consts::opensearch::OPENSEARCH_INDEX_PERMISSIONS,
+        core::{api_locking, errors::user::UserErrors},
         db::user::UserInterface,
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthenticationData},
-            authorization::permissions::Permission,
+            authentication::{self as auth, AuthenticationData, UserFromToken},
+            authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
         types::domain::UserEmail,
@@ -36,86 +39,111 @@ pub mod routes {
 
     impl Analytics {
         pub fn server(state: AppState) -> Scope {
-            let mut route = web::scope("/analytics/v1").app_data(web::Data::new(state));
-            {
-                route = route
-                    .service(
-                        web::resource("metrics/payments")
-                            .route(web::post().to(get_payment_metrics)),
-                    )
-                    .service(
-                        web::resource("metrics/refunds").route(web::post().to(get_refunds_metrics)),
-                    )
-                    .service(
-                        web::resource("filters/payments")
-                            .route(web::post().to(get_payment_filters)),
-                    )
-                    .service(
-                        web::resource("filters/refunds").route(web::post().to(get_refund_filters)),
-                    )
-                    .service(web::resource("{domain}/info").route(web::get().to(get_info)))
-                    .service(
-                        web::resource("report/dispute")
-                            .route(web::post().to(generate_dispute_report)),
-                    )
-                    .service(
-                        web::resource("report/refunds")
-                            .route(web::post().to(generate_refund_report)),
-                    )
-                    .service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_payment_report)),
-                    )
-                    .service(
-                        web::resource("metrics/sdk_events")
-                            .route(web::post().to(get_sdk_event_metrics)),
-                    )
-                    .service(
-                        web::resource("metrics/active_payments")
-                            .route(web::post().to(get_active_payments_metrics)),
-                    )
-                    .service(
-                        web::resource("filters/sdk_events")
-                            .route(web::post().to(get_sdk_event_filters)),
-                    )
-                    .service(
-                        web::resource("metrics/auth_events")
-                            .route(web::post().to(get_auth_event_metrics)),
-                    )
-                    .service(web::resource("api_event_logs").route(web::get().to(get_api_events)))
-                    .service(web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)))
-                    .service(
-                        web::resource("connector_event_logs")
-                            .route(web::get().to(get_connector_events)),
-                    )
-                    .service(
-                        web::resource("outgoing_webhook_event_logs")
-                            .route(web::get().to(get_outgoing_webhook_events)),
-                    )
-                    .service(
-                        web::resource("filters/api_events")
-                            .route(web::post().to(get_api_event_filters)),
-                    )
-                    .service(
-                        web::resource("metrics/api_events")
-                            .route(web::post().to(get_api_events_metrics)),
-                    )
-                    .service(
-                        web::resource("search").route(web::post().to(get_global_search_results)),
-                    )
-                    .service(
-                        web::resource("search/{domain}").route(web::post().to(get_search_results)),
-                    )
-                    .service(
-                        web::resource("filters/disputes")
-                            .route(web::post().to(get_dispute_filters)),
-                    )
-                    .service(
-                        web::resource("metrics/disputes")
-                            .route(web::post().to(get_dispute_metrics)),
-                    )
-            }
-            route
+            web::scope("/analytics")
+                .app_data(web::Data::new(state))
+                .service(
+                    web::scope("/v1")
+                        .service(
+                            web::resource("metrics/payments")
+                                .route(web::post().to(get_payment_metrics)),
+                        )
+                        .service(
+                            web::resource("metrics/refunds")
+                                .route(web::post().to(get_refunds_metrics)),
+                        )
+                        .service(
+                            web::resource("filters/payments")
+                                .route(web::post().to(get_payment_filters)),
+                        )
+                        .service(
+                            web::resource("filters/frm").route(web::post().to(get_frm_filters)),
+                        )
+                        .service(
+                            web::resource("filters/refunds")
+                                .route(web::post().to(get_refund_filters)),
+                        )
+                        .service(web::resource("{domain}/info").route(web::get().to(get_info)))
+                        .service(
+                            web::resource("report/dispute")
+                                .route(web::post().to(generate_dispute_report)),
+                        )
+                        .service(
+                            web::resource("report/refunds")
+                                .route(web::post().to(generate_refund_report)),
+                        )
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_payment_report)),
+                        )
+                        .service(
+                            web::resource("metrics/sdk_events")
+                                .route(web::post().to(get_sdk_event_metrics)),
+                        )
+                        .service(
+                            web::resource("metrics/active_payments")
+                                .route(web::post().to(get_active_payments_metrics)),
+                        )
+                        .service(
+                            web::resource("filters/sdk_events")
+                                .route(web::post().to(get_sdk_event_filters)),
+                        )
+                        .service(
+                            web::resource("metrics/auth_events")
+                                .route(web::post().to(get_auth_event_metrics)),
+                        )
+                        .service(
+                            web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
+                        )
+                        .service(
+                            web::resource("api_event_logs").route(web::get().to(get_api_events)),
+                        )
+                        .service(
+                            web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)),
+                        )
+                        .service(
+                            web::resource("connector_event_logs")
+                                .route(web::get().to(get_connector_events)),
+                        )
+                        .service(
+                            web::resource("outgoing_webhook_event_logs")
+                                .route(web::get().to(get_outgoing_webhook_events)),
+                        )
+                        .service(
+                            web::resource("filters/api_events")
+                                .route(web::post().to(get_api_event_filters)),
+                        )
+                        .service(
+                            web::resource("metrics/api_events")
+                                .route(web::post().to(get_api_events_metrics)),
+                        )
+                        .service(
+                            web::resource("search")
+                                .route(web::post().to(get_global_search_results)),
+                        )
+                        .service(
+                            web::resource("search/{domain}")
+                                .route(web::post().to(get_search_results)),
+                        )
+                        .service(
+                            web::resource("filters/disputes")
+                                .route(web::post().to(get_dispute_filters)),
+                        )
+                        .service(
+                            web::resource("metrics/disputes")
+                                .route(web::post().to(get_dispute_metrics)),
+                        ),
+                )
+                .service(
+                    web::scope("/v2")
+                        .service(
+                            web::resource("/metrics/payments")
+                                .route(web::post().to(get_payment_intents_metrics)),
+                        )
+                        .service(
+                            web::resource("/filters/payments")
+                                .route(web::post().to(get_payment_intents_filters)),
+                        ),
+                )
         }
     }
 
@@ -130,7 +158,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain: analytics::AnalyticsDomain, _| async {
+            |_, _: (), domain: analytics::AnalyticsDomain, _| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)
@@ -179,6 +207,42 @@ pub mod routes {
 
     /// # Panics
     ///
+    /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
+    pub async fn get_payment_intents_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetPaymentIntentMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetPaymentIntentMetricRequest");
+        let flow = AnalyticsFlow::GetPaymentIntentMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::payment_intents::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
     pub async fn get_refunds_metrics(
         state: web::Data<AppState>,
@@ -206,6 +270,38 @@ pub mod routes {
                 )
                 .await
                 .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetFrmMetricRequest` element.
+    pub async fn get_frm_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetFrmMetricRequest; 1]>,
+    ) -> impl Responder {
+        #[allow(clippy::expect_used)]
+        // safety: This shouldn't panic owing to the data type
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetFrmMetricRequest");
+        let flow = AnalyticsFlow::GetFrmMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::frm::get_metrics(&state.pool, &auth.merchant_account.merchant_id, req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -349,6 +445,32 @@ pub mod routes {
         .await
     }
 
+    pub async fn get_payment_intents_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetPaymentIntentFiltersRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentIntentFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::payment_intents::get_filters(
+                    &state.pool,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     pub async fn get_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -368,6 +490,28 @@ pub mod routes {
                 )
                 .await
                 .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_frm_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetFrmFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetFrmFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req: GetFrmFilterRequest, _| async move {
+                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -694,11 +838,25 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
+                let accessible_indexes: Vec<_> = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
+                    .map(|(i, _)| *i)
+                    .collect();
+
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_id,
+                    accessible_indexes,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -715,24 +873,33 @@ pub mod routes {
         json_payload: web::Json<GetSearchRequest>,
         index: web::Path<SearchIndex>,
     ) -> impl Responder {
+        let index = index.into_inner();
         let flow = AnalyticsFlow::GetSearchResults;
         let indexed_req = GetSearchRequestWithIndex {
             search_req: json_payload.into_inner(),
-            index: index.into_inner(),
+            index,
         };
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             indexed_req,
-            |state, auth: AuthenticationData, req, _| async move {
-                analytics::search::search_results(
-                    &state.opensearch_client,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+            |state, auth: UserFromToken, req, _| async move {
+                let role_id = auth.role_id;
+                let role_info =
+                    RoleInfo::from_role_id(&state, &role_id, &auth.merchant_id, &auth.org_id)
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?;
+                let permissions = role_info.get_permissions_set();
+                let _ = OPENSEARCH_INDEX_PERMISSIONS
+                    .iter()
+                    .filter(|(ind, _)| *ind == index)
+                    .find(|i| i.1.iter().any(|p| permissions.contains(p)))
+                    .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
+                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

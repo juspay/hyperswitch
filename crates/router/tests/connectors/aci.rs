@@ -89,7 +89,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     ..Default::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(Secret::new("8056594427".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+351".to_string()),
                 }),
                 email: None,
@@ -122,6 +122,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 
@@ -186,6 +187,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 

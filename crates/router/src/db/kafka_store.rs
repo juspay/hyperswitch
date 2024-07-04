@@ -83,7 +83,7 @@ pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
-    kafka_producer: KafkaProducer,
+    pub kafka_producer: KafkaProducer,
     pub diesel_store: Store,
     pub tenant_id: TenantID,
 }
@@ -2968,6 +2968,15 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .insert_user_authentication_method(user_authentication_method)
+            .await
+    }
+
+    async fn get_user_authentication_method_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .get_user_authentication_method_by_id(id)
             .await
     }
 

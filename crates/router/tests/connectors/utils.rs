@@ -68,6 +68,7 @@ pub struct PaymentInfo {
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
     pub payout_method_data: Option<types::api::PayoutMethodData>,
+    #[cfg(feature = "payouts")]
     pub currency: Option<enums::Currency>,
 }
 
@@ -450,6 +451,7 @@ pub trait ConnectorActions: Connector {
                 payout_id: core_utils::get_or_generate_uuid("payout_id", None)
                     .map_or("payout_3154763247".to_string(), |p| p),
                 amount: 1,
+                minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
@@ -536,6 +538,7 @@ pub trait ConnectorActions: Connector {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         }
     }
 
@@ -933,6 +936,7 @@ impl Default for PaymentAuthorizeType {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
+            integrity_object: None,
         };
         Self(data)
     }
@@ -992,6 +996,8 @@ impl Default for PaymentSyncType {
             payment_method_type: None,
             currency: enums::Currency::USD,
             payment_experience: None,
+            amount: MinorUnit::new(100),
+            integrity_object: None,
         };
         Self(data)
     }

@@ -448,7 +448,9 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_data(key_store, Some(pm_data)).await,
+                cards::create_encrypted_data(key_store, Some(pm_data))
+                    .await
+                    .map(|details| details.into()),
                 payment_method,
             )
         } else {
@@ -959,8 +961,7 @@ pub async fn update_payouts_and_payout_attempt(
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
-    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
-        .get_amount_as_i64();
+    let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
