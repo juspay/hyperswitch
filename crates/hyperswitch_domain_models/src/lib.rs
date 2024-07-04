@@ -1,3 +1,4 @@
+pub mod api;
 pub mod errors;
 pub mod mandates;
 pub mod payment_address;

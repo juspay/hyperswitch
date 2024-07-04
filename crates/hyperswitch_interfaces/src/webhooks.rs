@@ -1,12 +1,13 @@
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 
 use crate::{api::ConnectorCommon, errors};
 pub struct IncomingWebhookRequestDetails<'a> {
     pub method: http::Method,
     pub uri: http::Uri,
-    pub headers: &'a http::header::HeaderMap,
+    pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
     pub query_params: String,
 }
@@ -178,9 +179,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
-    {
-        Ok(services::api::ApplicationResponse::StatusOk)
+    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(ApplicationResponse::StatusOk)
     }
 
     fn get_dispute_details(

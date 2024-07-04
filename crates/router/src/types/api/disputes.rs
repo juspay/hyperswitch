@@ -1,6 +1,5 @@
 pub use hyperswitch_interfaces::disputes::DisputePayload;
 use masking::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
 
 use crate::{services, types};
 

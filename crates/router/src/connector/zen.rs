@@ -615,7 +615,7 @@ impl api::IncomingWebhook for Zen {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                &merchant_account.merchant_id,
                 connector_label,
                 merchant_connector_account.connector_webhook_details,
             )

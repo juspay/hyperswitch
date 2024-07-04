@@ -3836,6 +3836,7 @@ dependencies = [
 name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "api_models",
  "async-trait",
  "bytes 1.6.0",

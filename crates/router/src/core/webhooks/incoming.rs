@@ -9,6 +9,11 @@ use api_models::{
 };
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+};
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::ExposeInterface;
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
@@ -19,6 +24,7 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payments, refunds, utils as core_utils,
+        webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -32,7 +38,10 @@ use crate::{
         ConnectorValidation,
     },
     types::{
-        api::{self, mandates::MandateResponseExt, ConnectorCommon, IncomingWebhook},
+        api::{
+            self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
+            IncomingWebhook,
+        },
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
@@ -129,7 +138,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             merchant_account.merchant_id.clone(),
         )],
     );
-    let mut request_details = api::IncomingWebhookRequestDetails {
+    let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
         headers: req.headers(),
@@ -971,7 +980,7 @@ async fn external_authentication_incoming_webhook_flow(
     key_store: domain::MerchantKeyStore,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
-    request_details: &api::IncomingWebhookRequestDetails<'_>,
+    request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
     object_ref_id: api::ObjectReferenceId,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -1347,7 +1356,7 @@ async fn disputes_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &ConnectorEnum,
-    request_details: &api::IncomingWebhookRequestDetails<'_>,
+    request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -1538,24 +1547,24 @@ async fn get_payment_id(
 #[inline]
 async fn verify_webhook_source_verification_call(
     connector: ConnectorEnum,
-    state: &crate::routes::SessionState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccount,
     connector_name: &str,
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<bool, errors::ConnectorError> {
-    let connector_data = types::api::ConnectorData::get_connector_by_name(
+    let connector_data = ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
-        types::api::GetToken::Connector,
+        GetToken::Connector,
         None,
     )
     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     .attach_printable("invalid connector name received in payment attempt")?;
     let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
-        types::api::VerifyWebhookSource,
-        types::VerifyWebhookSourceRequestData,
-        types::VerifyWebhookSourceResponseData,
+        hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
     > = connector_data.connector.get_connector_integration();
     let connector_webhook_secrets = connector
         .get_webhook_source_verification_merchant_secret(
@@ -1590,7 +1599,7 @@ async fn verify_webhook_source_verification_call(
         .response
         .map(|response| response.verify_webhook_status);
     match verification_result {
-        Ok(types::VerifyWebhookStatus::SourceVerified) => Ok(true),
+        Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
         _ => Ok(false),
     }
 }
@@ -1623,10 +1632,10 @@ fn get_connector_by_connector_name(
             authentication_connector_data.connector_name.to_string(),
         )
     } else {
-        let connector_data = api::ConnectorData::get_connector_by_name(
+        let connector_data = ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name,
-            api::GetToken::Connector,
+            GetToken::Connector,
             merchant_connector_id,
         )
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
