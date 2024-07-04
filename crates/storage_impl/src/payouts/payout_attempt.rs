@@ -621,9 +621,11 @@ impl DataModelExt for PayoutAttemptUpdate {
             Self::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => DieselPayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             },
         }
     }

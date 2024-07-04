@@ -872,6 +872,22 @@ pub async fn call_connector_payout(
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
+    // fetch mca_id if not present
+    if payout_data.payout_attempt.merchant_connector_id.is_none() {
+        let merchant_connector_account = construct_profile_id_and_get_mca(
+            state,
+            merchant_account,
+            payout_data,
+            &connector_data.connector_name.to_string(),
+            connector_data.merchant_connector_id.as_ref(),
+            key_store,
+            false,
+        )
+        .await?;
+
+        payout_data.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
+    }
+
     // update connector_name
     if payout_data.payout_attempt.connector.is_none()
         || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
@@ -880,6 +896,7 @@ pub async fn call_connector_payout(
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
             connector: connector_data.connector_name.to_string(),
             routing_info: payout_data.payout_attempt.routing_info.clone(),
+            merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
         };
         let db = &*state.store;
         payout_data.payout_attempt = db
@@ -2308,4 +2325,40 @@ async fn validate_and_get_business_profile(
                 id: profile_id.to_string(),
             })
     }
+}
+
+#[instrument(skip_all)]
+pub async fn construct_profile_id_and_get_mca(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payout_data: &mut PayoutData,
+    connector_name: &str,
+    merchant_connector_id: Option<&String>,
+    key_store: &domain::MerchantKeyStore,
+    should_validate: bool,
+) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        payout_data.payout_attempt.business_country,
+        payout_data.payout_attempt.business_label.as_ref(),
+        merchant_account,
+        Some(&payout_data.payout_attempt.profile_id),
+        &*state.store,
+        should_validate,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payout_attempt")?;
+
+    let merchant_connector_account = payment_helpers::get_merchant_connector_account(
+        state,
+        merchant_account.merchant_id.as_str(),
+        None,
+        key_store,
+        &profile_id,
+        connector_name,
+        merchant_connector_id,
+    )
+    .await?;
+
+    Ok(merchant_connector_account)
 }
