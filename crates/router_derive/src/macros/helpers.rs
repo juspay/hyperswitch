@@ -51,11 +51,11 @@ pub(super) fn get_struct_fields(
     data: syn::Data,
 ) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {
     if let syn::Data::Struct(syn::DataStruct {
-        fields: syn::Fields::Named(syn::FieldsNamed { named, .. }),
+        fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
         ..
     }) = data
     {
-        Ok(named)
+        Ok(named.to_owned())
     } else {
         Err(syn::Error::new(
             Span::call_site(),

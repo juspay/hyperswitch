@@ -1,6 +1,5 @@
 pub(crate) mod api_error;
 pub(crate) mod diesel;
-pub(crate) mod encryption;
 pub(crate) mod generate_schema;
 pub(crate) mod misc;
 pub(crate) mod operation;
