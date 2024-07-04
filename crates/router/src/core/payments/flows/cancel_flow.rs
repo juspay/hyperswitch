@@ -52,6 +52,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
+        _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             &metrics::CONTEXT,
@@ -59,8 +60,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             &add_attributes([("connector", connector.connector_name.to_string())]),
         );
 
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Void,
             types::PaymentsCancelData,
             types::PaymentsResponseData,
@@ -98,8 +98,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Void,
                     types::PaymentsCancelData,
                     types::PaymentsResponseData,
