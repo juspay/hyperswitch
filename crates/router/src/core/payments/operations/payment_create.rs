@@ -136,6 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
+            &request.customer_id,
         )
         .await?;
 

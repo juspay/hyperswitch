@@ -148,6 +148,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             key_store,
             None,
+            &payment_intent.customer_id,
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
