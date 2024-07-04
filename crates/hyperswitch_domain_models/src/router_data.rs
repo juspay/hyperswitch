@@ -70,11 +70,6 @@ pub struct RouterData<Flow, Request, Response> {
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
-
-    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
-    /// if the connector provides support to accept multiple reference ids.
-    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
-    pub merchant_order_reference_id: Option<String>,
 }
 
 // Different patterns of authentication.

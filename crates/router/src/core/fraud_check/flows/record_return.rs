@@ -102,7 +102,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             refund_id: None,
             dispute_id: None,
             connector_response: None,
-            merchant_order_reference_id: None,
         };
 
         Ok(router_data)

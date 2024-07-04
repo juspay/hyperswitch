@@ -195,10 +195,6 @@ where
         refund_id: None,
         dispute_id: None,
         connector_response: None,
-        merchant_order_reference_id: payment_data
-            .payment_intent
-            .merchant_order_reference_id
-            .clone(),
     };
 
     Ok(router_data)
@@ -1309,6 +1305,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             None => None,
         };
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1354,6 +1355,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
+            merchant_order_reference_id,
         })
     }
 }

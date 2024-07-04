@@ -214,7 +214,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
-                merchant_reference2: item.router_data.merchant_order_reference_id.clone(),
+                merchant_reference2: item.router_data.request.merchant_order_reference_id.clone(),
                 auto_capture: request.is_auto_capture()?,
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
                     .transpose()?,
