@@ -410,5 +410,6 @@ services:
     networks:
       - router_net
     volumes:
+      - ../logs:/var/log/router
       - ./config/vector.yaml:/etc/vector/vector.yaml
       - /var/run/docker.sock:/var/run/docker.sock
