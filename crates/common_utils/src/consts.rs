@@ -72,6 +72,9 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// Payment intent fulfillment time (in seconds)
+pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
