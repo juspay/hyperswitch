@@ -17,7 +17,7 @@ pub struct User {
     pub user_id: String,
     pub email: pii::Email,
     pub name: Secret<String>,
-    pub password: Secret<String>,
+    pub password: Option<Secret<String>>,
     pub is_verified: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -37,7 +37,7 @@ pub struct UserNew {
     pub user_id: String,
     pub email: pii::Email,
     pub name: Secret<String>,
-    pub password: Secret<String>,
+    pub password: Option<Secret<String>>,
     pub is_verified: bool,
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
@@ -76,7 +76,7 @@ pub enum UserUpdate {
         totp_recovery_codes: Option<Vec<Secret<String>>>,
     },
     PasswordUpdate {
-        password: Option<Secret<String>>,
+        password: Secret<String>,
     },
 }
 
@@ -127,7 +127,7 @@ impl From<UserUpdate> for UserUpdateInternal {
             },
             UserUpdate::PasswordUpdate { password } => Self {
                 name: None,
-                password,
+                password: Some(password),
                 is_verified: None,
                 last_modified_at,
                 preferred_merchant_id: None,

@@ -101,7 +101,7 @@ mod tests {
         assert!(validate_phone_number(phone_number).is_ok());
     }
 
-    #[test_case("0745323456" ; "Romanian invalid phone number")]
+    #[test_case("9123456789" ; "Romanian invalid phone number")]
     fn test_invalid_phone_number(phone_number: &str) {
         let res = validate_phone_number(phone_number);
         assert!(res.is_err());

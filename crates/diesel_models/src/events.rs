@@ -1,5 +1,8 @@
 use common_utils::custom_serde;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{
+    deserialize::FromSqlRow, expression::AsExpression, AsChangeset, Identifiable, Insertable,
+    Queryable,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -23,6 +26,7 @@ pub struct EventNew {
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
+    pub metadata: Option<EventMetadata>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -53,4 +57,31 @@ pub struct Event {
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
+    pub metadata: Option<EventMetadata>,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize, AsExpression, FromSqlRow)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub enum EventMetadata {
+    Payment {
+        payment_id: String,
+    },
+    Payout {
+        payout_id: String,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+    },
+    Dispute {
+        payment_id: String,
+        attempt_id: String,
+        dispute_id: String,
+    },
+    Mandate {
+        payment_method_id: String,
+        mandate_id: String,
+    },
+}
+
+common_utils::impl_to_sql_from_sql_json!(EventMetadata);

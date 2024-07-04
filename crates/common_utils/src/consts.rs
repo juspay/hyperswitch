@@ -72,6 +72,9 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// Payment intent fulfillment time (in seconds)
+pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
@@ -83,6 +86,12 @@ pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
 /// Max ttl for Extended card info in redis (in seconds)
 pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60 * 2;
+
+/// Default tenant to be used when multitenancy is disabled
+pub const DEFAULT_TENANT: &str = "public";
+
+/// Default tenant to be used when multitenancy is disabled
+pub const TENANT_HEADER: &str = "x-tenant-id";
 
 /// Max Length for MerchantReferenceId
 pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;

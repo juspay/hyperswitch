@@ -29,7 +29,7 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -102,7 +102,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &R,
         merchant_account: &domain::MerchantAccount,
@@ -127,11 +127,12 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R>,
         Option<api::PaymentMethodData>,
@@ -140,7 +141,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        _db: &'a AppState,
+        _db: &'a SessionState,
         _payment_attempt: &storage::PaymentAttempt,
         _requeue: bool,
         _schedule_time: Option<time::PrimitiveDateTime>,
@@ -151,7 +152,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn get_connector<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &R,
         payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
@@ -159,7 +160,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn populate_payment_data<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -168,7 +169,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
@@ -181,8 +182,9 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -190,7 +192,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _payment_id: &str,
         _business_profile: &storage::BusinessProfile,
         _payment_method_data: &Option<api::PaymentMethodData>,
@@ -204,7 +206,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 pub trait UpdateTracker<F, D, Req>: Send {
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         req_state: ReqState,
         payment_data: D,
         customer: Option<domain::Customer>,
@@ -222,10 +224,11 @@ pub trait UpdateTracker<F, D, Req>: Send {
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
@@ -233,7 +236,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
 
     async fn save_pm_and_mandate<'b>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _resp: &types::RouterData<F, R, PaymentsResponseData>,
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -285,7 +288,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &api::PaymentsRetrieveRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -296,11 +299,12 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethodData>,
@@ -313,6 +317,7 @@ where
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }
@@ -320,8 +325,9 @@ where
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -365,11 +371,12 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
+        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethodData>,
@@ -381,7 +388,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &api::PaymentsCaptureRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -392,8 +399,9 @@ where
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -438,11 +446,12 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
+        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethodData>,
@@ -454,7 +463,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &api::PaymentsCancelRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -465,8 +474,9 @@ where
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -500,11 +510,12 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
+        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest>,
         Option<api::PaymentMethodData>,
@@ -516,7 +527,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &api::PaymentsRejectRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -527,8 +538,9 @@ where
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

@@ -1,21 +1,22 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
+    CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
+    configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -23,10 +24,12 @@ use crate::{
         utils as core_utils,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api, domain,
+        self, api,
+        api::ConnectorTransactionId,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -36,7 +39,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -93,7 +96,7 @@ where
     });
 
     let additional_data = PaymentAdditionalData {
-        router_base_url: state.conf.server.base_url.clone(),
+        router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
@@ -125,6 +128,7 @@ where
     };
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
+        state,
         &payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
@@ -154,6 +158,7 @@ where
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data
@@ -205,7 +210,7 @@ where
         data: D,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -224,7 +229,7 @@ where
         payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -254,7 +259,7 @@ where
             captures,
             customer,
             auth_flow,
-            server,
+            base_url,
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
@@ -274,7 +279,7 @@ where
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -306,7 +311,7 @@ where
         data: PaymentData<F>,
         customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -362,7 +367,7 @@ pub fn payments_to_payments_response<Op, F: Clone>(
     captures: Option<Vec<storage::Capture>>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
-    server: &Server,
+    base_url: &str,
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -502,7 +507,47 @@ where
         ))
     }
 
-    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
+    // For the case when we don't have Customer data directly stored in Payment intent
+    let customer_table_response: Option<CustomerDetailsResponse> =
+        customer.as_ref().map(ForeignInto::foreign_into);
+
+    // If we have customer data in Payment Intent, We are populating the Retrieve response from the
+    // same
+    let customer_details_response =
+        if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
+            let customer_details_encrypted =
+                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                Some(CustomerDetailsResponse {
+                    id: customer_table_response.and_then(|customer_data| customer_data.id),
+                    name: customer_details_encrypted_data
+                        .name
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer.name.as_ref().map(|name| name.clone().into_inner())
+                        })),
+                    email: customer_details_encrypted_data.email.or(customer
+                        .as_ref()
+                        .and_then(|customer| customer.email.clone().map(Email::from))),
+                    phone: customer_details_encrypted_data
+                        .phone
+                        .or(customer.as_ref().and_then(|customer| {
+                            customer
+                                .phone
+                                .as_ref()
+                                .map(|phone| phone.clone().into_inner())
+                        })),
+                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(
+                        customer
+                            .as_ref()
+                            .and_then(|customer| customer.phone_country_code.clone()),
+                    ),
+                })
+            } else {
+                customer_table_response
+            }
+        } else {
+            customer_table_response
+        };
 
     headers.extend(
         external_latency
@@ -590,7 +635,7 @@ where
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
                             api_models::payments::NextActionData::RedirectToUrl {
                                 redirect_to_url: helpers::create_startpay_url(
-                                    server,
+                                    base_url,
                                     &payment_attempt,
                                     &payment_intent,
                                 ),
@@ -607,9 +652,9 @@ where
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
+                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
-                                                &server.base_url,
+                                                base_url,
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),
@@ -842,12 +887,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)
@@ -965,6 +1010,15 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
+            payment_method_data: pa.payment_method_data.and_then(|data| {
+                match data.parse_value("PaymentMethodDataResponseWithBilling") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        None
+                    }
+                }
+            }),
             ..Default::default()
         }
     }
@@ -984,14 +1038,13 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
-            connector_transaction_id: Some(payout_attempt.connector_payout_id),
+            connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
             unified_code: None,
             unified_message: None,
         };
-        let attempts = vec![attempt];
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -1017,9 +1070,12 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_code: payout_attempt.error_code,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
-            attempts: Some(attempts),
+            connector_transaction_id: attempt.connector_transaction_id.clone(),
+            priority: payout.priority,
+            attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
+            payout_link: None,
         }
     }
 }
@@ -1145,7 +1201,7 @@ where
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
-    state: &'a AppState,
+    state: &'a SessionState,
     customer_data: &'a Option<domain::Customer>,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
@@ -1370,7 +1426,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     }
 }
 
-impl api::ConnectorTransactionId for Helcim {
+impl ConnectorTransactionId for Helcim {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1385,7 +1441,7 @@ impl api::ConnectorTransactionId for Helcim {
     }
 }
 
-impl api::ConnectorTransactionId for Nexinets {
+impl ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1798,6 +1854,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response: None,
+            mandate_id: payment_data.mandate_id,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }

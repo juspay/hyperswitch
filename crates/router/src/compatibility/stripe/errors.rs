@@ -264,6 +264,10 @@ pub enum StripeErrorCode {
     PaymentMethodDeleteFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant")]
+    InvalidTenant,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
+    AmountConversionFailed { amount_type: &'static str },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -646,6 +650,11 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidWalletToken { wallet_name }
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
+            errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
+            | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
+            errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
+                Self::AmountConversionFailed { amount_type }
+            }
         }
     }
 }
@@ -725,7 +734,9 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
-            | Self::WebhookProcessingError => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::WebhookProcessingError
+            | Self::InvalidTenant
+            | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)

@@ -25,6 +25,12 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   redis-standalone:
     image: redis:7
@@ -32,21 +38,24 @@ services:
       - router_net
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && make migrate'"
     working_dir: /app
     networks:
       - router_net
     volumes:
       - ./:/app
     environment:
-      - DATABASE_USER=db_user
-      - DATABASE_PASSWORD=db_pass
-      - DATABASE_HOST=pg
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=hyperswitch_db
+      # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
+      - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
   ### Application services
   hyperswitch-server:
@@ -64,6 +73,11 @@ services:
     environment:
       - CARGO_HOME=/cargo_cache
       - CARGO_TARGET_DIR=/cargo_build_cache
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
@@ -304,7 +318,7 @@ services:
     ports:
       - "9000:9000"
     environment:
-      apiBaseUrl:  http://localhost:8080
+      apiBaseUrl: http://localhost:8080
       sdkBaseUrl: http://localhost:9050/HyperLoader.js
 
   hyperswitch-web-sdk:

@@ -8,7 +8,7 @@ use crate::{
         errors::{self, StorageErrorExt},
         payments, utils,
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
@@ -31,7 +31,7 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
 }
 
 pub async fn validate_file_upload(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -81,7 +81,7 @@ pub async fn validate_file_upload(
 }
 
 pub async fn delete_file_using_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_key: String,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -113,7 +113,7 @@ pub async fn delete_file_using_file_id(
 }
 
 pub async fn retrieve_file_from_connector(
-    state: &AppState,
+    state: &SessionState,
     file_metadata: diesel_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -131,8 +131,7 @@ pub async fn retrieve_file_from_connector(
         api::GetToken::Connector,
         file_metadata.merchant_connector_id.clone(),
     )?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
         types::RetrieveFileResponse,
@@ -171,7 +170,7 @@ pub async fn retrieve_file_from_connector(
 }
 
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -227,7 +226,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     create_file_request: &api::CreateFileRequest,
@@ -264,6 +263,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &dispute.payment_id,
                         &merchant_account.merchant_id,
+                        key_store,
                         merchant_account.storage_scheme,
                     )
                     .await
@@ -278,8 +278,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
                     api::Upload,
                     types::UploadFileRequestData,
                     types::UploadFileResponse,

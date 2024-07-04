@@ -10,12 +10,12 @@ impl ConnectorActions for EbanxTest {}
 impl utils::Connector for EbanxTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Ebanx;
-        types::api::ConnectorData {
-            connector: Box::new(&Ebanx),
-            connector_name: types::Connector::Ebanx,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Ebanx),
+            types::Connector::Ebanx,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

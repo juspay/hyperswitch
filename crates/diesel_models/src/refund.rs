@@ -115,6 +115,12 @@ pub enum RefundUpdate {
         refund_error_code: Option<String>,
         updated_by: String,
     },
+    ManualUpdate {
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -190,6 +196,18 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 ..Default::default()
             },
             RefundUpdate::ErrorUpdate {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+            } => Self {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+                ..Default::default()
+            },
+            RefundUpdate::ManualUpdate {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
