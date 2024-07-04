@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.28.0-hotfix3
+
+### Refactors
+
+- **router:** Changed payment method token TTL to api contract based config from const value ([#5209](https://github.com/juspay/hyperswitch/pull/5209)) ([`9417bc3`](https://github.com/juspay/hyperswitch/commit/9417bc3e6b48ac75de88dcc06e75e84f0fd4072a))
+
+- - -
+
 ## 2024.06.28.0-hotfix2
 
 ### Refactors
