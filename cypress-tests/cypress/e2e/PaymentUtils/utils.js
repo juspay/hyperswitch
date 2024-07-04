@@ -77,6 +77,10 @@ export function getValueByKey(jsonObject, key) {
 }
 
 export const should_continue_further = (res_data) => {
+  if (res_data.trigger_skip !== undefined) {
+    return !res_data.trigger_skip;
+  }
+
   if (
     res_data.body.error !== undefined ||
     res_data.body.error_code !== undefined ||
