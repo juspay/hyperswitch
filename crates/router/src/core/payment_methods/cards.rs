@@ -2002,6 +2002,8 @@ pub async fn list_payment_methods(
                                     cust_pm.payment_method_type == Some(mca.payment_method_type)
                                 }))
                         });
+
+                        logger::debug!("Filtered out wallet payment method from mca since customer has already saved it");
                         Ok(())
                     }
                     Err(error) => {
@@ -2021,7 +2023,10 @@ pub async fn list_payment_methods(
         .await
         .transpose()?;
 
-    let mut pmt_to_auth_connector = HashMap::new();
+    let mut pmt_to_auth_connector: HashMap<
+        enums::PaymentMethod,
+        HashMap<enums::PaymentMethodType, String>,
+    > = HashMap::new();
 
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
@@ -2195,24 +2200,35 @@ pub async fn list_payment_methods(
                         None
                     });
 
-                let matched_config = match pm_auth_config {
-                    Some(config) => {
-                        let internal_config = config
-                            .enabled_payment_methods
-                            .iter()
-                            .find(|config| config.payment_method_type == *payment_method_type)
-                            .cloned();
+                if let Some(config) = pm_auth_config {
+                    config
+                        .enabled_payment_methods
+                        .iter()
+                        .for_each(|inner_config| {
+                            if inner_config.payment_method_type == *payment_method_type {
+                                let pm = pmt_to_auth_connector
+                                    .get(&inner_config.payment_method)
+                                    .cloned();
 
-                        internal_config
-                    }
-                    None => None,
+                                let inner_map = if let Some(mut inner_map) = pm {
+                                    inner_map.insert(
+                                        *payment_method_type,
+                                        inner_config.connector_name.clone(),
+                                    );
+                                    inner_map
+                                } else {
+                                    HashMap::from([(
+                                        *payment_method_type,
+                                        inner_config.connector_name.clone(),
+                                    )])
+                                };
+
+                                pmt_to_auth_connector
+                                    .insert(inner_config.payment_method, inner_map);
+                                val.push(inner_config.clone());
+                            }
+                        });
                 };
-
-                if let Some(config) = matched_config {
-                    pmt_to_auth_connector
-                        .insert(*payment_method_type, config.connector_name.clone());
-                    val.push(config);
-                }
             }
         }
 
@@ -2522,7 +2538,8 @@ pub async fn list_payment_methods(
                     .cloned(),
                 surcharge_details: None,
                 pm_auth_connector: pmt_to_auth_connector
-                    .get(payment_method_types_hm.0)
+                    .get(key.0)
+                    .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
             })
         }
@@ -2559,7 +2576,8 @@ pub async fn list_payment_methods(
                     .cloned(),
                 surcharge_details: None,
                 pm_auth_connector: pmt_to_auth_connector
-                    .get(payment_method_types_hm.0)
+                    .get(key.0)
+                    .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
             })
         }
@@ -2590,7 +2608,10 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(&enums::PaymentMethod::BankRedirect)
+                    .and_then(|pm_map| pm_map.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -2623,7 +2644,10 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(&enums::PaymentMethod::BankDebit)
+                    .and_then(|pm_map| pm_map.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -2656,7 +2680,10 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(&enums::PaymentMethod::BankTransfer)
+                    .and_then(|pm_map| pm_map.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -3872,6 +3899,9 @@ pub async fn get_card_details_with_locker_fallback(
             None
         }
     } else {
+        logger::debug!(
+            "Getting card details from locker as it is not found in payment methods table"
+        );
         Some(get_card_details_from_locker(state, pm).await?)
     })
 }
@@ -3899,6 +3929,9 @@ pub async fn get_card_details_without_locker_fallback(
         crd.scheme.clone_from(&pm.scheme);
         crd
     } else {
+        logger::debug!(
+            "Getting card details from locker as it is not found in payment methods table"
+        );
         get_card_details_from_locker(state, pm).await?
     })
 }

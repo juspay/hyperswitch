@@ -56,6 +56,7 @@ impl VerifyConnectorData {
             customer_acceptance: None,
             charges: None,
             merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 
@@ -111,6 +112,7 @@ impl VerifyConnectorData {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         }
     }
 }
