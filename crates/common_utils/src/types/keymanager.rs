@@ -35,8 +35,6 @@ pub enum Identifier {
     Merchant(String),
 }
 
-pub const DEFAULT_KEY: &str = "DEFAULT";
-
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct EncryptionCreateRequest {
     #[serde(flatten)]
@@ -58,7 +56,7 @@ pub struct DataKeyCreateResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EncryptDataRequest {
+pub struct BatchEncryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
     pub data: DecryptedDataGroup,
@@ -69,19 +67,14 @@ where
     S: Strategy<Vec<u8>>,
 {
     fn from((secret, identifier): (Secret<Vec<u8>, S>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        group.insert(
-            DEFAULT_KEY.to_string(),
-            DecryptedData(StrongSecret::new(secret.expose())),
-        );
         Self {
             identifier,
-            data: DecryptedDataGroup(group),
+            data: DecryptedData(StrongSecret::new(secret.expose())),
         }
     }
 }
 
-impl<S> From<(FxHashMap<String, Secret<Vec<u8>, S>>, Identifier)> for EncryptDataRequest
+impl<S> From<(FxHashMap<String, Secret<Vec<u8>, S>>, Identifier)> for BatchEncryptDataRequest
 where
     S: Strategy<Vec<u8>>,
 {
@@ -102,13 +95,8 @@ where
     S: Strategy<String>,
 {
     fn from((secret, identifier): (Secret<String, S>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        group.insert(
-            DEFAULT_KEY.to_string(),
-            DecryptedData(StrongSecret::new(secret.expose().as_bytes().to_vec())),
-        );
         Self {
-            data: DecryptedDataGroup(group),
+            data: DecryptedData(StrongSecret::new(secret.expose().as_bytes().to_vec())),
             identifier,
         }
     }
@@ -119,21 +107,17 @@ where
     S: Strategy<serde_json::Value>,
 {
     fn from((secret, identifier): (Secret<serde_json::Value, S>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        group.insert(
-            DEFAULT_KEY.to_string(),
-            DecryptedData(StrongSecret::new(
+        Self {
+            data: DecryptedData(StrongSecret::new(
                 secret.expose().to_string().as_bytes().to_vec(),
             )),
-        );
-        Self {
-            data: DecryptedDataGroup(group),
             identifier,
         }
     }
 }
 
-impl<S> From<(FxHashMap<String, Secret<serde_json::Value, S>>, Identifier)> for EncryptDataRequest
+impl<S> From<(FxHashMap<String, Secret<serde_json::Value, S>>, Identifier)>
+    for BatchEncryptDataRequest
 where
     S: Strategy<serde_json::Value>,
 {
@@ -158,7 +142,7 @@ where
     }
 }
 
-impl<S> From<(FxHashMap<String, Secret<String, S>>, Identifier)> for EncryptDataRequest
+impl<S> From<(FxHashMap<String, Secret<String, S>>, Identifier)> for BatchEncryptDataRequest
 where
     S: Strategy<String>,
 {
@@ -179,31 +163,49 @@ where
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EncryptDataRequest {
+    #[serde(flatten)]
+    pub identifier: Identifier,
+    pub data: DecryptedData,
+}
+
 #[derive(Debug, Serialize, serde::Deserialize)]
 pub struct DecryptedDataGroup(pub FxHashMap<String, DecryptedData>);
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EncryptDataResponse {
+pub struct BatchEncryptDataResponse {
     pub data: EncryptedDataGroup,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncryptDataResponse {
+    pub data: EncryptedData,
 }
 
 #[derive(Debug, Serialize, serde::Deserialize)]
 pub struct EncryptedDataGroup(pub FxHashMap<String, EncryptedData>);
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DecryptDataRequest {
+pub struct BatchDecryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
     pub data: EncryptedDataGroup,
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DecryptDataRequest {
+    #[serde(flatten)]
+    pub identifier: Identifier,
+    pub data: EncryptedData,
+}
 
-impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, EncryptDataResponse)>
+impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, BatchEncryptDataResponse)>
     for FxHashMap<String, Encryptable<Secret<T, S>>>
 where
     T: Clone,
     S: Strategy<T> + Send,
 {
     fn foreign_from(
-        (mut masked_data, response): (FxHashMap<String, Secret<T, S>>, EncryptDataResponse),
+        (mut masked_data, response): (FxHashMap<String, Secret<T, S>>, BatchEncryptDataResponse),
     ) -> Self {
         response
             .data
@@ -221,17 +223,13 @@ where
     }
 }
 
-impl<T, S> ForeignFrom<(Secret<T, S>, EncryptDataResponse)> for Option<Encryptable<Secret<T, S>>>
+impl<T, S> ForeignFrom<(Secret<T, S>, EncryptDataResponse)> for Encryptable<Secret<T, S>>
 where
     T: Clone,
     S: Strategy<T> + Send,
 {
-    fn foreign_from((masked_data, mut response): (Secret<T, S>, EncryptDataResponse)) -> Self {
-        response
-            .data
-            .0
-            .remove(DEFAULT_KEY)
-            .map(|ed| Encryptable::new(masked_data, ed.data.peek().clone().into()))
+    fn foreign_from((masked_data, response): (Secret<T, S>, EncryptDataResponse)) -> Self {
+        Self::new(masked_data, response.data.data.peek().clone().into())
     }
 }
 
@@ -294,16 +292,13 @@ where
 {
     type Error = error_stack::Report<errors::CryptoError>;
     fn foreign_try_from(
-        (encrypted_data, mut response): (Encryption, DecryptDataResponse),
+        (encrypted_data, response): (Encryption, DecryptDataResponse),
     ) -> Result<Self, Self::Error> {
-        match response.data.0.remove(DEFAULT_KEY) {
-            Some(data) => Self::convert(&data, encrypted_data),
-            None => Err(errors::CryptoError::DecodingFailed)?,
-        }
+        Self::convert(&response.data, encrypted_data)
     }
 }
 
-impl<T, S> ForeignTryFrom<(FxHashMap<String, Encryption>, DecryptDataResponse)>
+impl<T, S> ForeignTryFrom<(FxHashMap<String, Encryption>, BatchDecryptDataResponse)>
     for FxHashMap<String, Encryptable<Secret<T, S>>>
 where
     T: Clone,
@@ -312,7 +307,7 @@ where
 {
     type Error = error_stack::Report<errors::CryptoError>;
     fn foreign_try_from(
-        (mut encrypted_data, response): (FxHashMap<String, Encryption>, DecryptDataResponse),
+        (mut encrypted_data, response): (FxHashMap<String, Encryption>, BatchDecryptDataResponse),
     ) -> Result<Self, Self::Error> {
         let mut decrypted = Self::default();
         for (k, v) in response.data.0.iter() {
@@ -329,21 +324,16 @@ where
 
 impl From<(Encryption, Identifier)> for DecryptDataRequest {
     fn from((encryption, identifier): (Encryption, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        group.insert(
-            DEFAULT_KEY.to_string(),
-            EncryptedData {
+        Self {
+            data: EncryptedData {
                 data: StrongSecret::new(encryption.clone().into_inner().expose()),
             },
-        );
-        Self {
-            data: EncryptedDataGroup(group),
             identifier,
         }
     }
 }
 
-impl From<(FxHashMap<String, Encryption>, Identifier)> for DecryptDataRequest {
+impl From<(FxHashMap<String, Encryption>, Identifier)> for BatchDecryptDataRequest {
     fn from((map, identifier): (FxHashMap<String, Encryption>, Identifier)) -> Self {
         let mut group = FxHashMap::default();
         for (key, value) in map.into_iter() {
@@ -362,8 +352,13 @@ impl From<(FxHashMap<String, Encryption>, Identifier)> for DecryptDataRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DecryptDataResponse {
+pub struct BatchDecryptDataResponse {
     pub data: DecryptedDataGroup,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DecryptDataResponse {
+    pub data: DecryptedData,
 }
 
 #[derive(Clone, Debug)]

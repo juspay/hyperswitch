@@ -5,7 +5,10 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{
+        DecryptDataRequest, DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
+        Identifier, KeyManagerState,
+    },
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -17,7 +20,8 @@ use {
         keymanager::call_encryption_service,
         transformers::{ForeignFrom, ForeignTryFrom},
         types::keymanager::{
-            DecryptDataRequest, DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
+            BatchDecryptDataRequest, BatchDecryptDataResponse, BatchEncryptDataRequest,
+            BatchEncryptDataResponse,
         },
     },
     router_env::logger,
@@ -117,16 +121,10 @@ impl<
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match result {
-                Ok(response) => ForeignFrom::foreign_from((masked_data.clone(), response)),
+            match result {
+                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                 Err(err) => {
                     logger::error!("Encryption error {:?}", err);
-                    None
-                }
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
                     metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                     logger::info!("Fall back to Application Encryption");
                     Self::encrypt(masked_data, key, crypt_algo).await
@@ -223,12 +221,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                EncryptDataResponse,
+                BatchEncryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
+                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
             match result {
@@ -259,12 +257,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                DecryptDataResponse,
+                BatchDecryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -357,16 +355,10 @@ impl<
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match result {
-                Ok(response) => ForeignFrom::foreign_from((masked_data.clone(), response)),
+            match result {
+                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                 Err(err) => {
                     logger::error!("Encryption error {:?}", err);
-                    None
-                }
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
                     metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                     logger::info!("Fall back to Application Encryption");
                     Self::encrypt(masked_data, key, crypt_algo).await
@@ -463,12 +455,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                EncryptDataResponse,
+                BatchEncryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
+                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
             match result {
@@ -498,12 +490,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                DecryptDataResponse,
+                BatchDecryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -593,16 +585,10 @@ impl<
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
-            let encrypted = match result {
-                Ok(response) => ForeignFrom::foreign_from((masked_data.clone(), response)),
+            match result {
+                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                 Err(err) => {
                     logger::error!("Encryption error {:?}", err);
-                    None
-                }
-            };
-            match encrypted {
-                Some(en) => Ok(en),
-                None => {
                     metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                     logger::info!("Fall back to Application Encryption");
                     Self::encrypt(masked_data, key, crypt_algo).await
@@ -695,12 +681,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                EncryptDataResponse,
+                BatchEncryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
+                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
             .await;
             match result {
@@ -730,12 +716,12 @@ impl<
         #[cfg(feature = "encryption_service")]
         {
             let result: Result<
-                DecryptDataResponse,
+                BatchDecryptDataResponse,
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
