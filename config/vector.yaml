@@ -58,7 +58,6 @@ transforms:
     type: filter
     inputs:
       - app_logs
-      - local_file_logs 
     condition: '.labels."com.docker.compose.service" == "hyperswitch-server"'
 
   parsed_hs_server_logs:
@@ -114,8 +113,7 @@ sinks:
   opensearch_logs:
     type: elasticsearch
     inputs:
-      - parsed_hs_server_logs
-      - local_file_logs   
+      - parsed_hs_server_logs 
     endpoints:
       - "https://opensearch:9200"
     api_version: v7
@@ -147,7 +145,6 @@ sinks:
     type: loki
     inputs:
       - parsed_hs_server_logs
-      - local_file_logs 
     endpoint: http://loki:3100
     labels:
       source: vector
