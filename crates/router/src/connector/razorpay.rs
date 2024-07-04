@@ -2,7 +2,8 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::{report, ResultExt};
+use common_utils::ext_traits::ByteSliceExt;
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as razorpay;
 
@@ -580,22 +581,46 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Razorpay {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
+        match webhook_resource_object.refund {
+            Some(refund_data) => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::RefundId(refund_data.entity.id),
+            )),
+            None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_resource_object.payment.entity.id,
+                ),
+            )),
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
+        Ok(api_models::webhooks::IncomingWebhookEvent::try_from(
+            webhook_resource_object,
+        )?)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
+        Ok(Box::new(webhook_resource_object))
     }
+}
+
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<razorpay::RazorpayWebhookPayload, errors::ConnectorError> {
+    let details: razorpay::RazorpayWebhookEvent = body
+        .parse_struct("RazorpayWebhookEvent")
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+    Ok(details.payload)
 }
