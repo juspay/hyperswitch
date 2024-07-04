@@ -7,9 +7,9 @@ use time::PrimitiveDateTime;
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     consts,
-    core::errors,
+    core::{errors, mandate::MandateBehaviour},
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, api, domain, storage::enums, MandateReference},
     unimplemented_payment_method,
 };
 
@@ -20,6 +20,8 @@ pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($
 pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
 pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
 pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
+pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
+pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
 
 #[derive(Debug, Serialize)]
 pub struct BraintreeRouterData<T> {
@@ -59,10 +61,17 @@ pub struct CardPaymentRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct MandatePaymentRequest {
+    query: String,
+    variables: VariablePaymentInput,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum BraintreePaymentsRequest {
     Card(CardPaymentRequest),
     CardThreeDs(BraintreeClientTokenRequest),
+    Mandate(MandatePaymentRequest),
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,9 +93,67 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TransactionBody {
+pub struct RegularTransactionBody {
     amount: String,
     merchant_account_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultTransactionBody {
+    amount: String,
+    merchant_account_id: Secret<String>,
+    vault_payment_method_after_transacting: TransactionTiming,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum TransactionBody {
+    Regular(RegularTransactionBody),
+    Vault(VaultTransactionBody),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionTiming {
+    when: String,
+}
+
+impl
+    TryFrom<(
+        &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
+        String,
+        BraintreeMeta,
+    )> for MandatePaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, connector_mandate_id, metadata): (
+            &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
+            String,
+            BraintreeMeta,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (query, transaction_body) = (
+            match item.router_data.request.is_auto_capture()? {
+                true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
+                false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+            },
+            TransactionBody::Regular(RegularTransactionBody {
+                amount: item.amount.to_owned(),
+                merchant_account_id: metadata.merchant_account_id,
+            }),
+        );
+        Ok(Self {
+            query,
+            variables: VariablePaymentInput {
+                input: PaymentInput {
+                    payment_method_id: connector_mandate_id.into(),
+                    transaction: transaction_body,
+                },
+            },
+        })
+    }
 }
 
 impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
@@ -105,36 +172,42 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
-
-        match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(_) => {
-                if item.router_data.is_three_ds() {
-                    Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
-                        metadata,
-                    )?))
-                } else {
-                    Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
+        match item.router_data.request.connector_mandate_id() {
+            Some(connector_mandate_id) => Ok(Self::Mandate(MandatePaymentRequest::try_from((
+                item,
+                connector_mandate_id,
+                metadata,
+            ))?)),
+            None => match item.router_data.request.payment_method_data.clone() {
+                domain::PaymentMethodData::Card(_) => {
+                    if item.router_data.is_three_ds() {
+                        Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
+                            metadata,
+                        )?))
+                    } else {
+                        Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
+                    }
                 }
-            }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
-            }
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("braintree"),
+                    )
+                    .into())
+                }
+            },
         }
     }
 }
@@ -194,9 +267,16 @@ pub enum BraintreeCompleteAuthResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+struct PaymentMethodInfo {
+    id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionAuthChargeResponseBody {
     id: String,
     status: BraintreePaymentStatus,
+    payment_method: Option<PaymentMethodInfo>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -242,7 +322,12 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
+                            MandateReference {
+                                connector_mandate_id: Some(pm.id.clone()),
+                                payment_method_id: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -426,7 +511,12 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
+                            MandateReference {
+                                connector_mandate_id: Some(pm.id.clone()),
+                                payment_method_id: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -490,7 +580,12 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
+                            MandateReference {
+                                connector_mandate_id: Some(pm.id.clone()),
+                                payment_method_id: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -536,7 +631,12 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
+                            MandateReference {
+                                connector_mandate_id: Some(pm.id.clone()),
+                                payment_method_id: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1327,9 +1427,35 @@ impl
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
-        let query = match item.router_data.request.is_auto_capture()? {
-            true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
-            false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+        let customer_acceptance = item.router_data.request.get_customer_acceptance();
+        let (query, transaction_body) = if customer_acceptance.is_some()
+            && item.router_data.request.setup_future_usage
+                == Some(common_enums::FutureUsage::OffSession)
+        {
+            (
+                match item.router_data.request.is_auto_capture()? {
+                    true => CHARGE_AND_VAULT_TRANSACTION_MUTATION.to_string(),
+                    false => AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION.to_string(),
+                },
+                TransactionBody::Vault(VaultTransactionBody {
+                    amount: item.amount.to_owned(),
+                    merchant_account_id: metadata.merchant_account_id,
+                    vault_payment_method_after_transacting: TransactionTiming {
+                        when: "ALWAYS".to_string(),
+                    },
+                }),
+            )
+        } else {
+            (
+                match item.router_data.request.is_auto_capture()? {
+                    true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
+                    false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+                },
+                TransactionBody::Regular(RegularTransactionBody {
+                    amount: item.amount.to_owned(),
+                    merchant_account_id: metadata.merchant_account_id,
+                }),
+            )
         };
         Ok(Self {
             query,
@@ -1341,10 +1467,7 @@ impl
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
                         )?,
                     },
-                    transaction: TransactionBody {
-                        amount: item.amount.to_owned(),
-                        merchant_account_id: metadata.merchant_account_id,
-                    },
+                    transaction: transaction_body,
                 },
             },
         })
@@ -1384,21 +1507,47 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "three_ds_data",
         })?;
-        let query = match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
-            &item.router_data.request,
-        )? {
-            true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
-            false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+
+        let customer_acceptance = item.router_data.request.customer_acceptance.clone();
+        let (query, transaction_body) = if customer_acceptance.is_some()
+            && item.router_data.request.setup_future_usage
+                == Some(common_enums::FutureUsage::OffSession)
+        {
+            (
+                match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
+                    &item.router_data.request,
+                )? {
+                    true => CHARGE_AND_VAULT_TRANSACTION_MUTATION.to_string(),
+                    false => AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION.to_string(),
+                },
+                TransactionBody::Vault(VaultTransactionBody {
+                    amount: item.amount.to_owned(),
+                    merchant_account_id: metadata.merchant_account_id,
+                    vault_payment_method_after_transacting: TransactionTiming {
+                        when: "ALWAYS".to_string(),
+                    },
+                }),
+            )
+        } else {
+            (
+                match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
+                    &item.router_data.request,
+                )? {
+                    true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
+                    false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+                },
+                TransactionBody::Regular(RegularTransactionBody {
+                    amount: item.amount.to_owned(),
+                    merchant_account_id: metadata.merchant_account_id,
+                }),
+            )
         };
         Ok(Self {
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: three_ds_data.nonce,
-                    transaction: TransactionBody {
-                        amount: item.amount.to_owned(),
-                        merchant_account_id: metadata.merchant_account_id,
-                    },
+                    transaction: transaction_body,
                 },
             },
         })
