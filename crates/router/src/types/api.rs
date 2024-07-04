@@ -454,7 +454,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
                 }
                 enums::Connector::Razorpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Razorpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
                 enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
                 enums::Connector::Shift4 => Ok(ConnectorEnum::Old(Box::new(&connector::Shift4))),

@@ -1,37 +1,36 @@
-use common_utils::pii::{self, Email};
+use common_utils::{
+    pii::{self, Email},
+    types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_method_data::UpiCollectData;
 use masking::Secret;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
     types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
 pub struct RazorpayRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RazorpayRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for RazorpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
         })
     }
 }
-
 //TODO: Fill the struct with respective fields
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpayPaymentsRequest {
     second_factor: SecondFactor,
@@ -45,10 +44,6 @@ pub struct RazorpayPaymentsRequest {
     transaction_create_req: TransactionCreateReq,
     is_mesh_enabled: bool,
     order_metadata_v2: OrderMetadataV2,
-}
-
-fn default_date() -> PrimitiveDateTime {
-    common_utils::date_time::now()
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -174,11 +169,11 @@ pub struct MerchantAccount {
     mandatory_2fa: Option<bool>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderReference {
     id: String,
-    amount: i64,
+    amount: FloatMajorUnit,
     currency: String,
     order_id: String,
     status: OrderStatus,
@@ -197,7 +192,7 @@ pub struct OrderReference {
     udf6: Option<String>,
     udf1: Option<String>,
     partition_key: Option<String>,
-    amount_refunded: Option<i64>,
+    amount_refunded: Option<FloatMajorUnit>,
     customer_phone: Option<String>,
     description: Option<String>,
     customer_email: Option<Email>,
@@ -218,7 +213,7 @@ pub enum OrderStatus {
     PendingAuthentication,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TxnDetail {
     status: String,
@@ -226,8 +221,8 @@ pub struct TxnDetail {
     txn_id: String,
     express_checkout: bool,
     is_emi: bool,
-    net_amount: i64,
-    txn_amount: i64,
+    net_amount: FloatMajorUnit,
+    txn_amount: FloatMajorUnit,
     emi_tenure: i32,
     txn_uuid: String,
     currency: String,
@@ -345,60 +340,44 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        match request.payment_method_data.clone() {
+        let txn_card_info = match request.payment_method_data.clone() {
             domain::PaymentMethodData::Upi(upi_type) => match upi_type {
-                domain::UpiData::UpiCollect(upi_data) => {
-                    let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-                    let ref_id = generate_12_digit_number();
-                    let second_factor = SecondFactor::try_from(item)?;
-                    let merchant_account = MerchantAccount::try_from(item)?;
-                    let order_reference = OrderReference::try_from(item)?; //payment_intent
-                    let txn_detail = TxnDetail::try_from(item)?; //payment_attempt
-                    let txn_card_info = TxnCardInfo {
-                        txn_detail_id: ref_id.to_string(),
-                        txn_id: item.router_data.connector_request_reference_id.clone(),
-                        payment_method_type: "UPI".to_string(),
-                        id: ref_id.to_string(),
-                        payment_method: "UPI".to_string(),
-                        payment_source: upi_data.vpa_id.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "vpa_id",
-                            },
-                        )?,
-                        date_created: Some(common_utils::date_time::now()),
-                        ..Default::default()
-                    };
-
-                    let merchant_gateway_account = MerchantGatewayAccount::try_from(item)?;
-
-                    let gateway = Gateway::Razorpay;
-                    let transaction_create_req = TransactionCreateReq {
-                        merchant_id: auth.merchant_id,
-                    };
-                    let is_mesh_enabled = false;
-
-                    //payment_intent_meta_data
-                    let order_metadata_v2 = OrderMetadataV2::try_from(item)?;
-
-                    Ok(Self {
-                        second_factor,
-                        merchant_account,
-                        order_reference,
-                        txn_detail,
-                        txn_card_info,
-                        merchant_gateway_account,
-                        gateway,
-                        transaction_create_req,
-                        is_mesh_enabled,
-                        order_metadata_v2,
-                    })
-                }
+                domain::UpiData::UpiCollect(upi_data) => TxnCardInfo::try_from((item, upi_data)),
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => Err(
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 ),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        }?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let second_factor = SecondFactor::try_from(item)?;
+        let merchant_account = MerchantAccount::try_from(item)?;
+        let order_reference = OrderReference::try_from(item)?; //payment_intent
+        let txn_detail = TxnDetail::try_from(item)?; //payment_attempt
+
+        let merchant_gateway_account = MerchantGatewayAccount::try_from(item)?;
+
+        let gateway = Gateway::Razorpay;
+        let transaction_create_req = TransactionCreateReq {
+            merchant_id: auth.merchant_id,
+        };
+        let is_mesh_enabled = false;
+
+        //payment_intent_meta_data
+        let order_metadata_v2 = OrderMetadataV2::try_from(item)?;
+
+        Ok(Self {
+            second_factor,
+            merchant_account,
+            order_reference,
+            txn_detail,
+            txn_card_info,
+            merchant_gateway_account,
+            gateway,
+            transaction_create_req,
+            is_mesh_enabled,
+            order_metadata_v2,
+        })
     }
 }
 
@@ -465,6 +444,39 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
     }
 }
 
+impl
+    TryFrom<(
+        &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+        UpiCollectData,
+    )> for TxnCardInfo
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        payment_data: (
+            &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+            UpiCollectData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let item = payment_data.0;
+        let upi_data = payment_data.1;
+        let ref_id = generate_12_digit_number();
+        Ok(TxnCardInfo {
+            txn_detail_id: ref_id.to_string(),
+            txn_id: item.router_data.connector_request_reference_id.clone(),
+            payment_method_type: "UPI".to_string(),
+            id: ref_id.to_string(),
+            payment_method: "UPI".to_string(),
+            payment_source: upi_data.vpa_id.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "vpa_id",
+                },
+            )?,
+            date_created: Some(common_utils::date_time::now()),
+            ..Default::default()
+        })
+    }
+}
+
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDetail {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -522,7 +534,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+        _item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
         Ok(Self {
@@ -530,6 +542,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
             order_reference_id: ref_id.to_string(),
             date_created: Some(common_utils::date_time::now()),
             last_updated: Some(common_utils::date_time::now()),
+
             ..Default::default()
         })
     }
@@ -710,18 +723,21 @@ pub struct GatewayTxnData {
     last_updated: Option<PrimitiveDateTime>,
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
+impl TryFrom<RazorpayRouterData<&types::PaymentsSyncRouterData>> for RazorpayCreateSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: RazorpayRouterData<&types::PaymentsSyncRouterData>,
+    ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
-        let auth = RazorpayAuthType::try_from(&item.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         let connector_request_reference_id = item
+            .router_data
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let txn_idd = &item.connector_request_reference_id;
+        let txn_idd = &item.router_data.connector_request_reference_id;
 
         let second_factor = SecondFactor {
             txn_id: txn_idd.clone(),
@@ -736,8 +752,8 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
         };
         let order_reference = OrderReference {
             id: ref_id.to_string(),
-            amount: 5000,
-            currency: item.request.currency.to_string(),
+            amount: item.amount.clone(),
+            currency: item.router_data.request.currency.to_string(),
             status: OrderStatus::PendingAuthentication,
             merchant_id: auth.merchant_id.clone(),
             order_id: txn_idd.clone(), //payment_id
@@ -754,9 +770,9 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
             txn_mode: "PROD".to_string(),
             merchant_id: auth.merchant_id.clone(),
             status: "AUTHORIZING".to_string(),
-            net_amount: 5000,
+            net_amount: item.amount.clone(),
             txn_id: txn_idd.clone(),
-            txn_amount: 5000,
+            txn_amount: item.amount.clone(),
             emi_tenure: 0,
             txn_uuid: "mozjbTGtwWJ7EenZSBw".to_string(),
             id: ref_id.to_string(),
@@ -765,7 +781,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
             redirect: true,
             version: 0,
             add_to_locker: false,
-            currency: item.request.currency.to_string(),
+            currency: item.router_data.request.currency.to_string(),
             is_emi: false,
             gateway: Gateway::Razorpay,
             date_created: Some(common_utils::date_time::now()),
@@ -860,7 +876,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct RazorpayRefundRequest {
-    pub amount: i64,
+    pub amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayRefundRequest {

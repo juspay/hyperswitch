@@ -1,12 +1,14 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as razorpay;
 
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -25,8 +27,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Razorpay;
+#[derive(Clone)]
+pub struct Razorpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Razorpay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Razorpay {}
 impl api::PaymentSession for Razorpay {}
@@ -76,7 +88,7 @@ impl ConnectorCommon for Razorpay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -194,12 +206,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = razorpay::RazorpayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
+
         let connector_req = razorpay::RazorpayPaymentsRequest::try_from(&connector_router_data)?;
         let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -289,7 +302,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = razorpay::RazorpayCreateSyncRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
+        let connector_req = razorpay::RazorpayCreateSyncRequest::try_from(connector_router_data)?;
         let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         println!("$$$$$ psync req{:?}", printrequest);
@@ -453,12 +472,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = razorpay::RazorpayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
