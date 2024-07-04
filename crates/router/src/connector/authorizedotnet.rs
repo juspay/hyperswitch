@@ -319,7 +319,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
         self.build_headers(req, connectors)
     }
 

@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAtte
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Serializer;
+use serde::{Serialize, Serializer};
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
@@ -1945,6 +1945,23 @@ where
         serde::ser::Error::custom("Invalid string, cannot be converted to float value")
     })?;
     serializer.serialize_f64(float_value)
+}
+
+pub fn default_and_serialize_date<S>(
+    date: &Option<PrimitiveDateTime>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let date = date.unwrap_or_else(|| {
+        PrimitiveDateTime::parse(
+            "1970-01-01T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .unwrap()
+    });
+    date.serialize(serializer)
 }
 
 pub fn collect_values_by_removing_signature(

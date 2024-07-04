@@ -1,5 +1,8 @@
 use common_utils::pii::{self, Email};
+use error_stack::ResultExt;
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -16,7 +19,7 @@ pub struct RazorpayRouterData<T> {
 }
 
 impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RazorpayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
@@ -45,7 +48,11 @@ pub struct RazorpayPaymentsRequest {
     order_metadata_v2: OrderMetadataV2,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+fn default_date() -> PrimitiveDateTime {
+    common_utils::date_time::now()
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 
 pub struct SecondFactor {
@@ -55,13 +62,13 @@ pub struct SecondFactor {
     #[serde(rename = "type")]
     sf_type: String,
     version: i32,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    date_created: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    last_updated: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_updated: Option<PrimitiveDateTime>,
     transaction_id: Option<String>,
     url: Option<String>,
-    epg_transaction_id: Option<String>,
+    epg_txn_id: Option<String>,
     transaction_detail_id: Option<String>,
     gateway_auth_required_params: Option<String>,
     authentication_account_id: Option<String>,
@@ -71,10 +78,11 @@ pub struct SecondFactor {
     partition_key: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SecondFactorStatus {
     Pending,
+    #[default]
     Init,
 }
 
@@ -84,9 +92,9 @@ pub struct MerchantAccount {
     id: i64,
     merchant_id: String,
     use_code_for_gateway_priority: bool,
-    gateway_success_rate_based_outage_input: String,
-    gateway_success_rate_based_decider_input: String,
     auto_refund_multiple_charged_transactions: bool,
+    gateway_success_rate_based_outage_input: Option<String>,
+    gateway_success_rate_based_decider_input: Option<String>,
     card_encoding_key: Option<String>,
     enable_unauthenticated_order_status_api: Option<bool>,
     enabled_instant_refund: Option<bool>,
@@ -167,7 +175,7 @@ pub struct MerchantAccount {
     mandatory_2fa: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderReference {
     id: String,
@@ -179,10 +187,10 @@ pub struct OrderReference {
     order_uuid: String,
     order_type: String,
     version: i64,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    date_created: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    last_modified: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_modified: Option<PrimitiveDateTime>,
     return_url: Option<String>,
     billing_address_id: Option<String>,
     internal_metadata: Option<String>,
@@ -204,43 +212,47 @@ pub enum MandateFeature {
     Disabled,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderStatus {
+    #[default]
     PendingAuthentication,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TxnDetail {
-    order_id: String,
-    internal_metadata: Option<String>,
-    express_checkout: bool,
-    txn_mode: String,
-    merchant_id: String,
-    txn_flow_type: String,
     status: String,
-    net_amount: i64,
+    merchant_id: String,
     txn_id: String,
+    express_checkout: bool,
+    is_emi: bool,
+    net_amount: i64,
     txn_amount: i64,
     emi_tenure: i32,
     txn_uuid: String,
-    source_object: String,
-    id: String,
-    partition_key: Option<String>,
-    add_to_locker: bool,
     currency: String,
-    username: String,
-    txn_object_type: String,
-    is_emi: bool,
-    gateway: Gateway,
-    last_modified: Option<PrimitiveDateTime>, // changed from `UTCTime` to `String` for simplicity
-    merchant_gateway_account_id: i64,
-    internal_tracking_info: Option<String>,
-    txn_type: String, // renamed to avoid conflict with the keyword "type"
-    redirect: bool,
-    date_created: Option<PrimitiveDateTime>, // changed from `UTCTime` to `String` for simplicity
     version: i64,
+    redirect: bool,
+    id: String,
+    #[serde(rename = "type")]
+    txn_type: String,
+    order_id: String,
+    add_to_locker: bool,
+    merchant_gateway_account_id: i64,
+    txn_mode: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_modified: Option<PrimitiveDateTime>,
+    gateway: Gateway,
+    internal_metadata: Option<String>,
+    txn_flow_type: Option<String>,
+    source_object: Option<String>,
+    partition_key: Option<String>,
+    username: Option<String>,
+    txn_object_type: Option<String>,
+    internal_tracking_info: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -250,30 +262,35 @@ pub struct TxnCardInfo {
     txn_id: String,
     payment_method_type: String,
     id: String,
-    partition_key: Option<String>,
-    card_type: String,
     payment_method: String,
-    payment_source: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
-    card_issuer_bank_name: String,
-    date_created: Option<PrimitiveDateTime>, // changed from `UTCTime` to `String` for simplicity
+    payment_source: Secret<String, pii::UpiVpaMaskingStrategy>,
+    date_created: Option<PrimitiveDateTime>,
+    partition_key: Option<String>,
+    card_type: Option<String>,
+
+    card_issuer_bank_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantGatewayAccount {
     merchant_id: String,
-    disabled: bool,
-    id: i64,
-    account_details: String,
-    payment_methods: String,
-    test_mode: bool,
-    enforce_payment_method_acceptance: bool,
     gateway: Gateway,
-    last_modified: PrimitiveDateTime, // changed from `UTCTime` to `String` for simplicity
-    date_created: PrimitiveDateTime,  // changed from `UTCTime` to `String` for simplicity
+    account_details: String,
     version: i64,
+    id: i64,
+    test_mode: bool,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_modified: Option<PrimitiveDateTime>,
+    disabled: bool,
+    payment_methods: Option<String>,
+
+    enforce_payment_method_acceptance: Option<bool>,
+
     supported_payment_flows: Option<String>,
-    is_juspay_account: bool,
+    is_juspay_account: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -282,28 +299,29 @@ pub struct TransactionCreateReq {
     merchant_id: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderMetadataV2 {
-    order_reference_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    last_updated: PrimitiveDateTime,
-    browser: String,
-    operating_system: String,
     id: String,
+    order_reference_id: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_updated: Option<PrimitiveDateTime>,
+    browser: Option<String>,
+    operating_system: Option<String>,
     ip_address: Option<String>,
     partition_key: Option<String>,
-    user_agent: String,
-    browser_version: String,
+    user_agent: Option<String>,
+    browser_version: Option<String>,
     mobile: Option<String>,
-    metadata: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    date_created: PrimitiveDateTime,
+    metadata: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Gateway {
+    #[default]
     Razorpay,
     YesBiz,
 }
@@ -317,8 +335,13 @@ pub struct RazorpayCard {
     complete: bool,
 }
 
+fn generate_12_digit_number() -> u64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(100000000000..=999999999999)
+}
+
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for RazorpayPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
@@ -326,196 +349,27 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
         match request.payment_method_data.clone() {
             domain::PaymentMethodData::Upi(upi_type) => match upi_type {
                 domain::UpiData::UpiCollect(upi_data) => {
-                    // match request.order_details.clone() {
-                    //     //payment_attempt metadata
-                    //     Some(order_details) => {
-                    let second_factor = SecondFactor { //connector_meta_data
-                            txn_id:item.router_data.attempt_id.clone(),
-                            id: "100002345089".to_string(),
-                            status: SecondFactorStatus::Pending,
-                            transaction_id: Some("azhar_test-aneel1719496390-3".to_string()),
-                            sf_type: "VBV".to_string(), 
-                            url: Some("https://api.juspay.in/v2/pay/start/com.swiggy/mozjbTGtwWJ7EenZSBw?cardIssuerBankName%3DUPI%26cardType%3DUPI%26paymentMethod%3DUPI%26paymentMethodType%3DUPI".to_string()),
-                            version: 0,
-                            epg_transaction_id: None,
-                            transaction_detail_id: Some("100002500863".to_string()),
-                            gateway_auth_required_params: Some("{\"mandateRegRefId\":\"mozjbTGtwWJ7EenZSBw\",\"isNewton360Transaction\":\"true\",\"euler-api-gateway\":[\"sendCollect\"],\"tr\":\"com.swiggy-201946381000660-1\"}".to_string()),
-                            authentication_account_id: None,
-                            can_accept_response: Some(true),
-                            challenges_attempted: Some(0),
-                            response_attempted: Some(0),
-                            date_created: common_utils::date_time::now(),
-                            last_updated: common_utils::date_time::now(),
-                            partition_key: None,
-                    };
-                    let merchant_account = MerchantAccount {
-                        id: 205,
-                        merchant_id: item.router_data.merchant_id.clone(),
-                        auto_refund_multiple_charged_transactions: false,
-                        use_code_for_gateway_priority: true,
-                        gateway_success_rate_based_outage_input: "{\"merchantOutagePaymentMethodWiseInputs\":[],\"defaultMerchantOutageDownMaxCountThreshold\":3,\"defaultMerchantOutageFluctuateThreshold\":0.902,\"defaultMerchantOutageFluctuateMaxCountThreshold\":3,\"defaultMerchantOutageDownThreshold\":0.902}".to_string(),
-                        gateway_success_rate_based_decider_input: "{\"defaultEliminationThreshold\":0.3,\"defaultEliminationLevel\":\"PAYMENT_METHOD\",\"defaultSelectionLevel\":\"PAYMENT_MODE\",\"defaultGlobalEliminationLevel\":\"PAYMENT_METHOD\",\"defaultGlobalEliminationMaxCountThreshold\":2,\"defaultGlobalEliminationThreshold\":0.5,\"gatewayWiseInputs\":[],\"globalGatewayWiseInputs\":[]}".to_string(),
-                        card_encoding_key: None,
-                        enable_unauthenticated_order_status_api: Some(false),
-                        enabled_instant_refund: Some(true),
-                        enable_reauthentication: Some(false),
-                        return_url: Some("http://www.swiggy.com/justpay/response.php".to_string()),
-                        credit_balance: None,
-                        internal_metadata: Some("{\"track\":\"F2\",\"industry\":\"Hyperlocal\",\"integration_type\":[\"EC_SDK\"]}".to_string()),
-                        gateway_decided_by_health_enabled: Some(true),
-                        zip: None,
-                        enable_3d_secure_help_mail: None,
-                        payout_mid: Some("com.swiggy".to_string()),
-                        gateway_priority_logic: None,
-                        enable_success_rate_based_gateway_elimination:Some(true),
-                        otp_enabled: Some(false),
-                        enable_sending_card_isin: Some(true),
-                        state: Some("Karnataka".to_string()),
-                        must_use_given_order_id_for_txn: Some(false),
-                        gateway_priority: Some("PAYU".to_string()),
-                        timezone: Some("Asia/Kolkata".to_string()),
-                        user_id: Some(1054),
-                        office_line_1: Some("#806".to_string()),
-                        enable_save_card_before_auth: Some(false),
-                        office_line_2: Some("5th Cross".to_string()),
-                        merchant_legal_name: Some("Bundl Technologies Private Limited.".to_string()),
-                        settlement_account_id: Some(56),
-                        external_metadata: None,
-                        office_line_3: Some("Johnnagar".to_string()),
-                        enable_payment_response_hash: Some(true),
-                        prefix_merchant_id_for_card_key: Some(false),
-                        admin_contact_email: None,
-                        enable_reauthorization: Some(false),
-                        locker_id: None,
-                        enable_recapture: Some(false),
-                        contact_person_email: None,
-                        basilisk_key_id: Some("516af52b-ae1a-40cf-9e42-16436e9ede74".to_string()),
-                        whitelabel_enabled: Some(true),
-                        inline_checkout_enabled: Some(false),
-                        payu_merchant_key: None,
-                        encryption_key_ids: None,
-                        enable_gateway_reference_id_based_routing: Some(true),
-                        enabled: Some(true),
-                        enable_automatic_retry: Some(false),
-                        about_business: None,
-                        redirect_to_merchant_with_http_post: Some(false),
-                        webhook_api_version: None,
-                        express_checkout_enabled: Some(false),
-                        city: None,
-                        webhook_url: None, // doubt
-                        webhook_username: None,
-                        webhook_custom_headers: Some("".to_string()),
-                        reverse_token_enabled: Some(false),
-                        webhook_configs: Some("{\"addFullGatewayResponse\":true,\"webhookEvents\":{\"AUTO_REFUND_INITIATED\":false,\"AUTO_REFUND_SUCCEEDED\":false,\"AUTO_REFUND_FAILED\":false,\"REFUND_MANUAL_REVIEW_NEEDED\":true,\"CHARGEBACK_ALREADY_REFUNDED\":false,\"CHARGEBACK_CANCELED\":false,\"CHARGEBACK_EXPIRED\":false,\"CHARGEBACK_EVIDENCE_REQUIRED\":false,\"CHARGEBACK_RECEIVED\":false,\"CHARGEBACK_RESOLVED_IN_CUSTOMER_FAVOUR\":false,\"CHARGEBACK_RESOLVED_IN_MERCHANT_FAVOUR\":false,\"CHARGEBACK_UNDER_REVIEW\":false,\"MANDATE_ACTIVATED\":false,\"MANDATE_CREATED\":false,\"MANDATE_EXPIRED\":false,\"MANDATE_FAILED\":false,\"MANDATE_PAUSED\":false,\"MANDATE_REVOKED\":false,\"NOTIFICATION_SUCCEEDED\":false,\"NOTIFICATION_FAILED\":false,\"ORDER_AUTHORIZED\":false,\"ORDER_FAILED\":true,\"ORDER_PARTIAL_CHARGED\":false,\"ORDER_REFUNDED\":true,\"ORDER_REFUND_FAILED\":true,\"ORDER_SUCCEEDED\":true,\"ORDER_VOIDED\":false,\"ORDER_VOID_FAILED\":false,\"ORDER_CAPTURE_FAILED\":false,\"TXN_CREATED\":false,\"TXN_CHARGED\":false,\"TXN_FAILED\":false,\"TOKEN_STATUS_UPDATED\":false}}".to_string()),
-                        last_modified: Some("2024-06-20T08:12:13Z".to_string()),
-                        token_locker_id: None,
-                        enable_sending_last_four_digits: Some(true),
-                        website: Some("www.swiggy.in".to_string()),
-                        mobile: None,
-                        webhook_password: None,
-                        reseller_id: Some("swiggy_master".to_string()),
-                        mobile_version: Some("2_1".to_string()),
-                        contact_person_primary: Some("Rahul".to_string()),
-                        conflict_status_email: None,
-                        payu_test_mode: Some(false),
-                        payment_response_hash_key: None,
-                        enable_refunds_in_dashboard: Some(true),
-                        tenant_account_id: None,
-                        merchant_name: Some("Swiggy".to_string()),
-                        hdfc_test_mode: Some(false),
-                        enable_unauthenticated_card_add: Some(true),
-                        payu_salt: None,
-                        api_key: None,
-                        date_created: Some("2015-02-03T19:09:41Z".to_string()),
-                        internal_hash_key: None,
-                        version: Some(23),
-                        mandatory_2fa: Some(false),
-                    };
-                    let order_reference = OrderReference { //payment_intent
-                        id: "20694748743".to_string(),
-                                order_id:item.router_data.connector_request_reference_id.clone(), //payment_id
-                                return_url: Some(request.get_router_return_url()?),
-                                billing_address_id: Some("100002801749".to_string()),
-                                internal_metadata: Some("{\"gateway_ref_ids\":{},\"pii_hash\":{\"customer_email_hash\":\"03748cc53fb4ea7e86ff213f9f0707150766a8eb6ad1b71e7acc7fa08198a7ee\",\"customer_phone_hash\":\"b50e114c143215046d0c356c749e274052a4f837273d7b32096c780559143104\"}}".to_string()),
-                                amount: item.amount,
-                                merchant_id: item.router_data.merchant_id.clone(),
-                                mandate_feature: Some(MandateFeature::Disabled),
-                                status: OrderStatus::PendingAuthentication,
-                                udf6: Some("Swiggy-iOS".to_string()), //----
-                                order_type: "ORDER_PAYMENT".to_string(),
-                                udf1: Some("11453723".to_string()),
-                                partition_key: None,
-                                amount_refunded: None,
-                                customer_phone: None,
-                                description: item.router_data.description.clone(),
-                                currency: request.currency.to_string(),
-                                last_modified: common_utils::date_time::now(),
-                                customer_email: request.email.clone(),
-                                customer_id: request.customer_id.clone(),
-                                order_uuid: "ordeh_e45aae46108347c481495117d204aa90".to_string(),
-                                date_created: common_utils::date_time::now(),
-                                refunded_entirely: Some(false),
-                                version: 1,
-                    };
-                    let txn_detail = TxnDetail {
-                        //payment_attempt
-                        order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
-                        internal_metadata: None,
-                        express_checkout: false,
-                        txn_mode: "PROD".to_string(),
-                        merchant_id: item.router_data.merchant_id.clone(),
-                        txn_flow_type: "COLLECT".to_string(),
-                        status: "PENDING_VBV".to_string(),
-                        net_amount: item.amount,
-                        txn_id: item.router_data.attempt_id.clone(),
-                        txn_amount: item.amount,
-                        emi_tenure: 0,
-                        txn_uuid: "mozjbTGtwWJ7EenZSBw".to_string(),
-                        source_object: "UPI_COLLECT".to_string(),
-                        id: "20270366630".to_string(),
-                        partition_key: None,
-                        add_to_locker: false,
-                        currency: request.currency.to_string(),
-                        username: "TRANSACTION".to_string(),
-                        txn_object_type: "ORDER_PAYMENT".to_string(),
-                        is_emi: false,
-                        gateway: Gateway::Razorpay,
-                        last_modified: Some(common_utils::date_time::now()),
-                        merchant_gateway_account_id: 11476,
-                        internal_tracking_info: None,
-                        txn_type: "AUTH_AND_SETTLE".to_string(),
-                        redirect: true,
-                        date_created: Some(common_utils::date_time::now()),
-                        version: 0,
-                    };
+                    let ref_id = generate_12_digit_number();
+                    let second_factor = SecondFactor::try_from(item)?;
+                    let merchant_account = MerchantAccount::try_from(item)?;
+                    let order_reference = OrderReference::try_from(item)?; //payment_intent
+                    let txn_detail = TxnDetail::try_from(item)?; //payment_attempt
                     let txn_card_info = TxnCardInfo {
-                        txn_detail_id: "100002500863".to_string(),
-                        txn_id: item.router_data.attempt_id.clone(),
+                        txn_detail_id: ref_id.to_string(),
+                        txn_id: item.router_data.connector_request_reference_id.clone(),
                         payment_method_type: "UPI".to_string(),
-                        id: "20182282902".to_string(),
-                        partition_key: None,
-                        card_type: "UPI".to_string(),
+                        id: ref_id.to_string(),
                         payment_method: "UPI".to_string(),
-                        payment_source: upi_data.vpa_id,
-                        card_issuer_bank_name: "UPI".to_string(),
+                        payment_source: upi_data.vpa_id.ok_or(
+                            ConnectorError::MissingRequiredField {
+                                field_name: "vpa_id",
+                            },
+                        )?,
                         date_created: Some(common_utils::date_time::now()),
+                        ..Default::default()
                     };
 
-                    let merchant_gateway_account = MerchantGatewayAccount { //mca
-                                merchant_id: item.router_data.merchant_id.clone(),
-                                disabled: false,
-                                id: 46519,
-                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\",\"razorpayWebhooksSecret\": \"\",\"tokenType\": \"\",\"accessToken\": \"\",\"refreshToken\": \"\",\"publicToken\": \"\",\"timestamp\": 1674137595,\"expiresIn\": 7776000,\"disableAutoCapture\": \"false\",\"cardDirectOtpEnabled\": \"true\",\"waitingPageExpiryInSeconds\": \"\",\"payeeVpa\": \"\",\"subscription\": \"true\",\"onlySubscription\": \"false\",\"enableEmandate\": \"false\",\"isPreAuthEnabled\": \"false\",\"merchID\": \"\",\"username\": \"\",\"password\": \"\",\"certFilename\": \"\",\"certContent\": \"\",\"certContentLastModified\": \"\",\"soapKey\": \"\",\"visaOboApiKey\": \"\",\"visaOboOrgUnitId\": \"\",\"visaOboApiIdentifier\": \"\",\"gatewayMerchantId\": \"80oXBj51MHGmwH\",\"viesEnabled\": \"false\"}".to_string(),
-                                payment_methods: "{\"paymentMethods\":[\"QR\",\"UPI\",\"UPI_QR\",\"GOOGLEPAY\"]}".to_string(),
-                                test_mode: false,
-                                enforce_payment_method_acceptance: true,
-                                gateway: Gateway::Razorpay,
-                                last_modified: common_utils::date_time::now(),
-                                date_created: common_utils::date_time::now(),
-                                version: 0,
-                                supported_payment_flows: None,
-                                is_juspay_account: false,
-                            };
+                    let merchant_gateway_account = MerchantGatewayAccount::try_from(item)?;
 
                     let gateway = Gateway::Razorpay;
                     let transaction_create_req = TransactionCreateReq {
@@ -524,20 +378,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                     let is_mesh_enabled = false;
 
                     //payment_intent_meta_data
-                    let order_metadata_v2 = OrderMetadataV2 {
-                                    order_reference_id: "100004135919".to_string(),
-                                    last_updated: common_utils::date_time::now(),
-                                    browser: "okhttp".to_string(),
-                                    operating_system: "unknown".to_string(),
-                                    id: "100004066855".to_string(),
-                                    ip_address: None,
-                                    partition_key: None,
-                                    user_agent: "PostmanRuntime/7.32.3".to_string(),
-                                    browser_version: "7.32.3".to_string(),
-                                    mobile: None,
-                                    metadata: "{\"payment_links\":{\"iframe\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\",\"web\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\",\"mobile\":\"https://payments.juspay.in/payment-page/order/ordeh_5638be025e42485e9906a389abe9cda4\"},\"order_expiry\":\"2024-06-23T08:13:02Z\",\"payment_page_client_id\":\"com.swiggy\"}".to_string(),
-                                    date_created: common_utils::date_time::now(),
-                            };
+                    let order_metadata_v2 = OrderMetadataV2::try_from(item)?;
 
                     Ok(Self {
                         second_factor,
@@ -551,18 +392,142 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         is_mesh_enabled,
                         order_metadata_v2,
                     })
-                    //     }
-                    //     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                    //         field_name: "order_details"
-                    //     })),
-                    // }
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
+                    Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
+    }
+}
+
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for SecondFactor {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
+
+        Ok(Self {
+            txn_id: item.router_data.connector_request_reference_id.clone(),
+            id: ref_id.to_string(),
+            status: SecondFactorStatus::Pending,
+            version: 0,
+            sf_type: "VBV".to_string(),
+            date_created: Some(common_utils::date_time::now()),
+            last_updated: Some(common_utils::date_time::now()),
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for MerchantAccount {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: 205,
+            merchant_id: item.router_data.merchant_id.clone(),
+            auto_refund_multiple_charged_transactions: false,
+            use_code_for_gateway_priority: true,
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReference {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
+        Ok(Self {
+            id: ref_id.to_string(),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            status: OrderStatus::PendingAuthentication,
+            merchant_id: item.router_data.merchant_id.clone(),
+            order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
+            version: 1,
+            order_type: "ORDER_PAYMENT".to_string(),
+            order_uuid: item.router_data.connector_request_reference_id.clone(),
+            date_created: Some(common_utils::date_time::now()),
+            last_modified: Some(common_utils::date_time::now()),
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDetail {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
+        Ok(Self {
+            order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
+            express_checkout: false,
+            txn_mode: "PROD".to_string(),
+            merchant_id: item.router_data.merchant_id.clone(),
+            status: "PENDING_VBV".to_string(),
+            net_amount: item.amount,
+            txn_id: item.router_data.connector_request_reference_id.clone(),
+            txn_amount: item.amount,
+            emi_tenure: 0,
+            txn_uuid: "mozjbTGtwWJ7EenZSBw".to_string(),
+            id: ref_id.to_string(),
+            merchant_gateway_account_id: 11476,
+            txn_type: "AUTH_AND_SETTLE".to_string(),
+            redirect: true,
+            version: 0,
+            add_to_locker: false,
+            currency: item.router_data.request.currency.to_string(),
+            is_emi: false,
+            gateway: Gateway::Razorpay,
+            date_created: Some(common_utils::date_time::now()),
+            last_modified: Some(common_utils::date_time::now()),
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for MerchantGatewayAccount {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+           merchant_id: item.router_data.merchant_id.clone(),
+                                gateway: Gateway::Razorpay,
+                                disabled: false,
+                                id: 46519,
+                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
+                                test_mode: false,
+                               ..Default::default()
+        })
+    }
+}
+impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for OrderMetadataV2 {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
+        Ok(Self {
+            id: ref_id.to_string(),
+            order_reference_id: ref_id.to_string(),
+            date_created: Some(common_utils::date_time::now()),
+            last_updated: Some(common_utils::date_time::now()),
+            ..Default::default()
+        })
     }
 }
 
@@ -573,13 +538,13 @@ pub struct RazorpayAuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for RazorpayAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -620,23 +585,23 @@ pub struct Contents {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecondFactorResponse {
-    authentication_account_id: Option<String>,
-    can_accept_response: bool,
-    challenges_attempted: u32,
-    date_created: String,
-    epg_txn_id: String,
-    gateway_auth_req_params: Option<String>,
     id: u64,
-    last_updated: String,
-    partition_key: Option<String>,
-    response_attempted: u32,
-    status: String,
-    txn_detail_id: Option<String>,
-    txn_id: String,
     #[serde(rename = "type")]
     sf_type: String,
-    url: String,
-    version: u32,
+    version: i32,
+    date_created: String,
+    last_updated: String,
+    epg_txn_id: String,
+    status: String,
+    txn_id: String,
+    authentication_account_id: Option<String>,
+    can_accept_response: Option<bool>,
+    challenges_attempted: Option<i32>,
+    gateway_auth_req_params: Option<String>,
+    partition_key: Option<String>,
+    response_attempted: Option<i32>,
+    txn_detail_id: Option<String>,
+    url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -658,8 +623,8 @@ pub enum TxnStatus {
 impl From<TxnStatus> for enums::AttemptStatus {
     fn from(item: TxnStatus) -> Self {
         match item {
-            TxnStatus::Authorizing => Self::Charged,
-            TxnStatus::PendingVbv => Self::Pending,
+            TxnStatus::Authorizing => Self::Pending,
+            TxnStatus::PendingVbv => Self::Failure,
         }
     }
 }
@@ -668,7 +633,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, RazorpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -682,12 +647,14 @@ impl<F, T>
             Some(second_factor) => Ok(Self {
                 status: enums::AttemptStatus::from(item.response.contents.txn_status),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(second_factor.txn_id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        second_factor.epg_txn_id,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(second_factor.txn_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -711,6 +678,176 @@ impl<F, T>
     }
 }
 
+//psync
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RazorpayCreateSyncRequest {
+    txn_detail: TxnDetail,
+    merchant_gateway_account: MerchantGatewayAccount,
+    order_reference: OrderReference,
+    second_factor: SecondFactor,
+    gateway_txn_data: GatewayTxnData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayTxnData {
+    id: String,
+    version: i32,
+    gateway_data: String,
+    gateway_status: String,
+    match_status: String,
+    txn_detail_id: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    last_updated: Option<PrimitiveDateTime>,
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
+        let connector_request_reference_id = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+        let txn_idd = &item.connector_request_reference_id;
+
+        let second_factor = SecondFactor {
+            txn_id: txn_idd.clone(),
+            id: ref_id.to_string(),
+            status: SecondFactorStatus::Pending,
+            version: 0,
+            sf_type: "VBV".to_string(),
+            date_created: Some(common_utils::date_time::now()),
+            last_updated: Some(common_utils::date_time::now()),
+            epg_txn_id: Some(connector_request_reference_id.clone()),
+            ..Default::default()
+        };
+        let order_reference = OrderReference {
+            id: ref_id.to_string(),
+            amount: 5000,
+            currency: item.request.currency.to_string(),
+            status: OrderStatus::PendingAuthentication,
+            merchant_id: "merchant_id".to_string(),
+            order_id: txn_idd.clone(), //payment_id
+            version: 1,
+            order_type: "ORDER_PAYMENT".to_string(),
+            order_uuid: txn_idd.clone(),
+            date_created: Some(common_utils::date_time::now()),
+            last_modified: Some(common_utils::date_time::now()),
+            ..Default::default()
+        };
+        let txn_detail = TxnDetail {
+            order_id: txn_idd.clone(), //payment_id
+            express_checkout: false,
+            txn_mode: "PROD".to_string(),
+            merchant_id: "merchant_id".to_string(),
+            status: "AUTHORIZING".to_string(),
+            net_amount: 5000,
+            txn_id: txn_idd.clone(),
+            txn_amount: 5000,
+            emi_tenure: 0,
+            txn_uuid: "mozjbTGtwWJ7EenZSBw".to_string(),
+            id: ref_id.to_string(),
+            merchant_gateway_account_id: 11476,
+            txn_type: "AUTH_AND_SETTLE".to_string(),
+            redirect: true,
+            version: 0,
+            add_to_locker: false,
+            currency: item.request.currency.to_string(),
+            is_emi: false,
+            gateway: Gateway::Razorpay,
+            date_created: Some(common_utils::date_time::now()),
+            last_modified: Some(common_utils::date_time::now()),
+            ..Default::default()
+        };
+        let merchant_gateway_account = MerchantGatewayAccount{
+              gateway: Gateway::Razorpay,
+                                disabled: false,
+                                id: 46519,
+                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
+                                test_mode: false,
+                                merchant_id:  "merchant_id".to_string(),
+                               ..Default::default()
+         };
+        let gateway_txn_data = GatewayTxnData {
+            id: ref_id.to_string(),
+            version: 0,
+            gateway_data: "".to_string(),
+            gateway_status: "S".to_string(),
+            match_status: "S".to_string(),
+            txn_detail_id: ref_id.to_string(),
+            date_created: Some(common_utils::date_time::now()),
+            last_updated: Some(common_utils::date_time::now()),
+        };
+        Ok(Self {
+            second_factor,
+            merchant_gateway_account,
+            order_reference,
+            txn_detail,
+            gateway_txn_data,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RazorpaySyncResponse {
+    status: RazorpapPsyncResponse,
+    is_stateful: bool,
+    second_factor: SecondFactorResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+
+pub enum RazorpapPsyncResponse {
+    Charged,
+    Pending,
+    Authorizing,
+}
+
+impl From<RazorpapPsyncResponse> for enums::AttemptStatus {
+    fn from(item: RazorpapPsyncResponse) -> Self {
+        match item {
+            RazorpapPsyncResponse::Charged => Self::Charged,
+            RazorpapPsyncResponse::Pending => Self::Pending,
+            RazorpapPsyncResponse::Authorizing => Self::Pending,
+        }
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.second_factor.epg_txn_id,
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.second_factor.txn_id),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
@@ -720,7 +857,7 @@ pub struct RazorpayRefundRequest {
 }
 
 impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: &RazorpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
@@ -762,7 +899,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -779,7 +916,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {

@@ -275,9 +275,24 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}gatewayProxy/sync/transaction",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = razorpay::RazorpayCreateSyncRequest::try_from(req)?;
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ psync req{:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -285,14 +300,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+            .set_body(types::PaymentsSyncType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
     }
 
     fn handle_response(
@@ -301,7 +318,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: razorpay::RazorpayPaymentsResponse = res
+        let response: razorpay::RazorpaySyncResponse = res
             .response
             .parse_struct("razorpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
