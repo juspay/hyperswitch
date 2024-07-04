@@ -8,14 +8,14 @@ use crate::utils::{self, ConnectorActions};
 struct RazorpayTest;
 impl ConnectorActions for RazorpayTest {}
 impl utils::Connector for RazorpayTest {
-    fn get_data(&self) -> api::ConnectorData {
+    fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Razorpay;
-        utils::construct_connector_data_old(
-            Box::new(&Razorpay),
-            types::Connector::Mifinity,
-            api::GetToken::Connector,
-            None,
-        )
+        types::api::ConnectorData {
+            connector: Box::new(&Razorpay),
+            connector_name: types::Connector::Razorpay,
+            get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
+        }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

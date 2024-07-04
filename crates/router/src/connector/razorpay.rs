@@ -4,7 +4,7 @@ use common_utils::{
     ext_traits::ByteSliceExt,
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as razorpay;
 
@@ -13,7 +13,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -117,37 +117,49 @@ impl ConnectorCommon for Razorpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("123error_response{:?}", res.response);
-        let response: razorpay::RazorpayErrorResponse = res
-            .response
-            .parse_struct("RazorpayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("123error_response = {:?}", res.response);
+        // let response: razorpay::RazorpayErrorResponse = res
+        //     .response
+        //     .parse_struct("RazorpayErrorResponse")
+        //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            razorpay::RazorpayErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Razorpay ErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_info.code,
-            message: response
-                .error_info
-                .fields
-                .iter()
-                .map(|error| error.field_name.clone())
-                .collect::<Vec<String>>()
-                .join(" & "),
-            reason: Some(
-                response
-                    .error_info
-                    .fields
-                    .iter()
-                    .map(|error| error.field_name.clone())
-                    .collect::<Vec<String>>()
-                    .join(" & "),
-            ),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_response=?response_data);
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response_data.error_info.code,
+                    message: response_data
+                        .error_info
+                        .fields
+                        .iter()
+                        .map(|error| error.field_name.clone())
+                        .collect::<Vec<String>>()
+                        .join(" & "),
+                    reason: Some(
+                        response_data
+                            .error_info
+                            .fields
+                            .iter()
+                            .map(|error| error.field_name.clone())
+                            .collect::<Vec<String>>()
+                            .join(" & "),
+                    ),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                logger::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "razorpay")
+            }
+        }
     }
 }
 
@@ -464,10 +476,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-          Ok(format!(
-            "{}gatewayProxy/refund",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}gatewayProxy/refund", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -548,27 +557,27 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_url(
         &self,
         _req: &types::RefundSyncRouterData,
-         connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-          Ok(format!(
+        Ok(format!(
             "{}gatewayProxy/sync/refund",
             self.base_url(connectors)
         ))
     }
 
-      fn get_request_body(
+    fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-         let amount = connector_utils::convert_amount(
+        let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayRefundRequest::try_from(&connector_router_data)?;
-          let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         println!("$$$$$ rsyncrequest {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))

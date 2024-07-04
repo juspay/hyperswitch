@@ -14,9 +14,8 @@ use crate::{
     types::{self, api, domain, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct RazorpayRouterData<T> {
-    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
@@ -29,8 +28,8 @@ impl<T> TryFrom<(FloatMajorUnit, T)> for RazorpayRouterData<T> {
         })
     }
 }
-//TODO: Fill the struct with respective fields
-#[derive(Debug, Serialize, PartialEq)]
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpayPaymentsRequest {
     second_factor: SecondFactor,
@@ -82,7 +81,7 @@ pub enum SecondFactorStatus {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAccount {
-    id: i64,
+    id: u64,
     merchant_id: Secret<String>,
     use_code_for_gateway_priority: bool,
     auto_refund_multiple_charged_transactions: bool,
@@ -140,7 +139,7 @@ pub struct MerchantAccount {
     webhook_custom_headers: Option<String>,
     reverse_token_enabled: Option<bool>,
     webhook_configs: Option<String>,
-    last_modified: Option<String>, // changed from `UTCTime` to `String` for simplicity
+    last_modified: Option<String>,
     token_locker_id: Option<String>,
     enable_sending_last_four_digits: Option<bool>,
     website: Option<String>,
@@ -159,7 +158,7 @@ pub struct MerchantAccount {
     enable_unauthenticated_card_add: Option<bool>,
     payu_salt: Option<String>,
     api_key: Option<String>,
-    date_created: Option<String>, 
+    date_created: Option<String>,
     internal_hash_key: Option<String>,
     version: Option<i64>,
     mandatory_2fa: Option<bool>,
@@ -211,10 +210,10 @@ pub enum OrderStatus {
     PendingAuthentication,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxnDetail {
-    status: String,
+    status: TxnStatus,
     merchant_id: Secret<String>,
     txn_id: String,
     express_checkout: bool,
@@ -228,11 +227,11 @@ pub struct TxnDetail {
     redirect: bool,
     id: String,
     #[serde(rename = "type")]
-    txn_type: String,
+    txn_type: TxnType,
     order_id: String,
     add_to_locker: bool,
-    merchant_gateway_account_id: i64,
-    txn_mode: String,
+    merchant_gateway_account_id: u64,
+    txn_mode: TxnMode,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     date_created: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -245,6 +244,22 @@ pub struct TxnDetail {
     username: Option<String>,
     txn_object_type: Option<String>,
     internal_tracking_info: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TxnType {
+    AuthAndSettle,
+    #[default]
+    PreAuthAndSettle,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TxnMode {
+    Prod,
+    #[default]
+    Test,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -269,7 +284,7 @@ pub struct MerchantGatewayAccount {
     gateway: Gateway,
     account_details: String,
     version: i64,
-    id: i64,
+    id: u64,
     test_mode: bool,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     date_created: Option<PrimitiveDateTime>,
@@ -342,23 +357,34 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 ),
             },
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
         }?;
         let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         let second_factor = SecondFactor::try_from(item)?;
         let merchant_account = MerchantAccount::try_from(item)?;
-        let order_reference = OrderReference::try_from(item)?; //payment_intent
-        let txn_detail = TxnDetail::try_from(item)?; //payment_attempt
-
+        let order_reference = OrderReference::try_from(item)?;
+        let txn_detail = TxnDetail::try_from(item)?;
         let merchant_gateway_account = MerchantGatewayAccount::try_from(item)?;
-
         let gateway = Gateway::Razorpay;
         let transaction_create_req = TransactionCreateReq {
             merchant_id: auth.merchant_id,
         };
         let is_mesh_enabled = false;
-
-        //payment_intent_meta_data
         let order_metadata_v2 = OrderMetadataV2::try_from(item)?;
 
         Ok(Self {
@@ -404,8 +430,9 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let ref_id = generate_12_digit_number();
         Ok(Self {
-            id: 205,
+            id: ref_id,
             merchant_id: auth.merchant_id,
             auto_refund_multiple_charged_transactions: false,
             use_code_for_gateway_priority: true,
@@ -428,10 +455,10 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
             currency: item.router_data.request.currency.to_string(),
             status: OrderStatus::PendingAuthentication,
             merchant_id: auth.merchant_id.clone(),
-            order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
-            version: 1,
+            order_id: item.router_data.connector_request_reference_id.clone(),
+            version: 0,
             order_type: "ORDER_PAYMENT".to_string(),
-            order_uuid: item.router_data.connector_request_reference_id.clone(),
+            order_uuid: uuid::Uuid::new_v4().to_string(),
             date_created: Some(common_utils::date_time::now()),
             last_modified: Some(common_utils::date_time::now()),
             ..Default::default()
@@ -455,12 +482,13 @@ impl
         let item = payment_data.0;
         let upi_data = payment_data.1;
         let ref_id = generate_12_digit_number();
-        Ok(TxnCardInfo {
+        let pm = common_enums::enums::PaymentMethod::Upi;
+        Ok(Self {
             txn_detail_id: ref_id.to_string(),
             txn_id: item.router_data.connector_request_reference_id.clone(),
-            payment_method_type: "UPI".to_string(),
+            payment_method_type: pm.to_string().to_uppercase(),
             id: ref_id.to_string(),
-            payment_method: "UPI".to_string(),
+            payment_method: pm.to_string().to_uppercase(),
             payment_source: upi_data.vpa_id.ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "vpa_id",
@@ -480,20 +508,24 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDe
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
         let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let txn_mode: TxnMode = match item.router_data.test_mode {
+            Some(true) | None => TxnMode::Test,
+            Some(false) => TxnMode::Prod,
+        };
         Ok(Self {
-            order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
+            order_id: item.router_data.connector_request_reference_id.clone(),
             express_checkout: false,
-            txn_mode: "PROD".to_string(),
+            txn_mode,
             merchant_id: auth.merchant_id,
-            status: "PENDING_VBV".to_string(),
+            status: TxnStatus::PendingVbv,
             net_amount: item.amount,
             txn_id: item.router_data.connector_request_reference_id.clone(),
             txn_amount: item.amount,
             emi_tenure: 0,
             txn_uuid: uuid::Uuid::new_v4().to_string(),
             id: ref_id.to_string(),
-            merchant_gateway_account_id: 11476,
-            txn_type: "AUTH_AND_SETTLE".to_string(),
+            merchant_gateway_account_id: ref_id,
+            txn_type: TxnType::AuthAndSettle,
             redirect: true,
             version: 0,
             add_to_locker: false,
@@ -513,15 +545,16 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let ref_id = generate_12_digit_number();
         let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
            merchant_id: auth.merchant_id,
-                                gateway: Gateway::Razorpay,
-                                disabled: false,
-                                id: 46519,
-                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
-                                test_mode: false,
-                               ..Default::default()
+           gateway: Gateway::Razorpay,
+           disabled: false,
+           id: ref_id,
+           account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
+           test_mode: false,
+           ..Default::default()
         })
     }
 }
@@ -537,14 +570,11 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
             order_reference_id: ref_id.to_string(),
             date_created: Some(common_utils::date_time::now()),
             last_updated: Some(common_utils::date_time::now()),
-
             ..Default::default()
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct RazorpayAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,
@@ -562,11 +592,9 @@ impl TryFrom<&types::ConnectorAuthType> for RazorpayAuthType {
         }
     }
 }
-// PaymentsResponse
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RazorpayPaymentsResponse {
-    // status: RazorpayPaymentStatus,
-    // id: String,
     contents: Contents,
     tag: Tag,
     code: u16,
@@ -586,14 +614,14 @@ pub struct ApiMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Contents {
-    send_webhook: bool,                          //
-    second_factor: Option<SecondFactorResponse>, //
+    send_webhook: bool,
+    second_factor: Option<SecondFactorResponse>,
     pgr_response: Option<String>,
     api_metadata: ApiMetadata,
     pgr_info: PgrInfo,
-    txn_status: TxnStatus, //
+    txn_status: TxnStatus,
     #[serde(rename = "updatePGR")]
-    update_pgr: bool, //
+    update_pgr: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -627,11 +655,13 @@ pub struct PgrInfo {
     resptype: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TxnStatus {
-    PendingVbv,
+    Charged,
     Authorizing,
+    #[default]
+    PendingVbv,
 }
 
 impl From<TxnStatus> for enums::AttemptStatus {
@@ -639,6 +669,7 @@ impl From<TxnStatus> for enums::AttemptStatus {
         match item {
             TxnStatus::Authorizing => Self::Pending,
             TxnStatus::PendingVbv => Self::Failure,
+            TxnStatus::Charged => Self::Charged,
         }
     }
 }
@@ -692,7 +723,6 @@ impl<F, T>
     }
 }
 
-//psync
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpayCreateSyncRequest {
@@ -732,10 +762,10 @@ impl TryFrom<RazorpayRouterData<&types::PaymentsSyncRouterData>> for RazorpayCre
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let txn_idd = &item.router_data.connector_request_reference_id;
+        let connector_request_reference_id = &item.router_data.connector_request_reference_id;
 
         let second_factor = SecondFactor {
-            txn_id: txn_idd.clone(),
+            txn_id: connector_request_reference_id.clone(),
             id: ref_id.to_string(),
             status: SecondFactorStatus::Pending,
             version: 0,
@@ -747,32 +777,36 @@ impl TryFrom<RazorpayRouterData<&types::PaymentsSyncRouterData>> for RazorpayCre
         };
         let order_reference = OrderReference {
             id: ref_id.to_string(),
-            amount: item.amount.clone(),
+            amount: item.amount,
             currency: item.router_data.request.currency.to_string(),
             status: OrderStatus::PendingAuthentication,
             merchant_id: auth.merchant_id.clone(),
-            order_id: txn_idd.clone(), //payment_id
-            version: 1,
+            order_id: connector_request_reference_id.clone(),
+            version: 0,
             order_type: "ORDER_PAYMENT".to_string(),
-            order_uuid: txn_idd.clone(),
+            order_uuid: uuid::Uuid::new_v4().to_string(),
             date_created: Some(common_utils::date_time::now()),
             last_modified: Some(common_utils::date_time::now()),
             ..Default::default()
         };
+        let txn_mode: TxnMode = match item.router_data.test_mode {
+            Some(true) | None => TxnMode::Test,
+            Some(false) => TxnMode::Prod,
+        };
         let txn_detail = TxnDetail {
-            order_id: txn_idd.clone(), //payment_id
+            order_id: connector_request_reference_id.clone(),
             express_checkout: false,
-            txn_mode: "PROD".to_string(),
+            txn_mode,
             merchant_id: auth.merchant_id.clone(),
-            status: "AUTHORIZING".to_string(),
-            net_amount: item.amount.clone(),
-            txn_id: txn_idd.clone(),
-            txn_amount: item.amount.clone(),
+            status: TxnStatus::Authorizing,
+            net_amount: item.amount,
+            txn_id: connector_request_reference_id.clone(),
+            txn_amount: item.amount,
             emi_tenure: 0,
             txn_uuid: uuid::Uuid::new_v4().to_string(),
             id: ref_id.to_string(),
             merchant_gateway_account_id: 11476,
-            txn_type: "AUTH_AND_SETTLE".to_string(),
+            txn_type: TxnType::AuthAndSettle,
             redirect: true,
             version: 0,
             add_to_locker: false,
@@ -784,13 +818,13 @@ impl TryFrom<RazorpayRouterData<&types::PaymentsSyncRouterData>> for RazorpayCre
             ..Default::default()
         };
         let merchant_gateway_account = MerchantGatewayAccount{
-              gateway: Gateway::Razorpay,
-                                disabled: false,
-                                id: 46519,
-                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
-                                test_mode: false,
-                                merchant_id: auth.merchant_id,
-                               ..Default::default()
+            gateway: Gateway::Razorpay,
+            disabled: false,
+            id: ref_id,
+            account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
+            test_mode: false,
+            merchant_id: auth.merchant_id,
+            ..Default::default()
          };
         let gateway_txn_data = GatewayTxnData {
             id: ref_id.to_string(),
@@ -815,7 +849,7 @@ impl TryFrom<RazorpayRouterData<&types::PaymentsSyncRouterData>> for RazorpayCre
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpaySyncResponse {
-    status: RazorpapPsyncResponse,
+    status: PsyncStatus,
     is_stateful: bool,
     second_factor: SecondFactorResponse,
 }
@@ -823,18 +857,18 @@ pub struct RazorpaySyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 
-pub enum RazorpapPsyncResponse {
+pub enum PsyncStatus {
     Charged,
     Pending,
     Authorizing,
 }
 
-impl From<RazorpapPsyncResponse> for enums::AttemptStatus {
-    fn from(item: RazorpapPsyncResponse) -> Self {
+impl From<PsyncStatus> for enums::AttemptStatus {
+    fn from(item: PsyncStatus) -> Self {
         match item {
-            RazorpapPsyncResponse::Charged => Self::Charged,
-            RazorpapPsyncResponse::Pending => Self::Pending,
-            RazorpapPsyncResponse::Authorizing => Self::Pending,
+            PsyncStatus::Charged => Self::Charged,
+            PsyncStatus::Pending => Self::Pending,
+            PsyncStatus::Authorizing => Self::Pending,
         }
     }
 }
@@ -866,9 +900,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpayRefundRequest {
@@ -897,7 +928,7 @@ pub struct Refund {
     date_created: Option<PrimitiveDateTime>,
 }
 
-#[derive(Default,Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 
 pub enum RefundStatus {
@@ -922,7 +953,7 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
         let ref_id = generate_12_digit_number();
         let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
-        let txn_idd = &item.router_data.connector_request_reference_id;
+        let connector_request_reference_id = &item.router_data.connector_request_reference_id;
         let order_metadata_v2 = OrderMetadataV2 {
             id: ref_id.to_string(),
             order_reference_id: ref_id.to_string(),
@@ -931,7 +962,7 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
             ..Default::default()
         };
         let second_factor = SecondFactor {
-            txn_id: txn_idd.clone(),
+            txn_id: connector_request_reference_id.clone(),
             id: ref_id.to_string(),
             status: SecondFactorStatus::Pending,
             version: 0,
@@ -948,28 +979,32 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
             currency: item.router_data.request.currency.to_string(),
             status: OrderStatus::Success,
             merchant_id: auth.merchant_id.clone(),
-            order_id: txn_idd.clone(), //payment_id
-            version: 1,
+            order_id: connector_request_reference_id.clone(),
+            version: 0,
             order_type: "ORDER_PAYMENT".to_string(),
-            order_uuid: txn_idd.clone(),
+            order_uuid: uuid::Uuid::new_v4().to_string(),
             date_created: Some(common_utils::date_time::now()),
             last_modified: Some(common_utils::date_time::now()),
             ..Default::default()
         };
+        let txn_mode: TxnMode = match item.router_data.test_mode {
+            Some(true) | None => TxnMode::Test,
+            Some(false) => TxnMode::Prod,
+        };
         let txn_detail = TxnDetail {
-            order_id: txn_idd.clone(), //payment_id
+            order_id: connector_request_reference_id.clone(),
             express_checkout: false,
-            txn_mode: "PROD".to_string(),
+            txn_mode,
             merchant_id: auth.merchant_id.clone(),
-            status: "CHARGED".to_string(),
-            net_amount:item.amount.clone(),
-            txn_id: txn_idd.clone(),
-            txn_amount: item.amount.clone(),
+            status: TxnStatus::Charged,
+            net_amount: item.amount,
+            txn_id: connector_request_reference_id.clone(),
+            txn_amount: item.amount,
             emi_tenure: 0,
             txn_uuid: uuid::Uuid::new_v4().to_string(),
             id: ref_id.to_string(),
             merchant_gateway_account_id: 11476,
-            txn_type: "AUTH_AND_SETTLE".to_string(),
+            txn_type: TxnType::AuthAndSettle,
             redirect: true,
             version: 0,
             add_to_locker: false,
@@ -996,29 +1031,31 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
             id: ref_id.to_string(),
             version: 0,
         };
-       let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> = Secret::new("9490419802@ybl".to_string());
+        let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> =
+            Secret::new("9490419802@ybl".to_string());
 
+        let pm = common_enums::enums::PaymentMethod::Upi;
 
         let txn_card_info = TxnCardInfo {
             txn_detail_id: ref_id.to_string(),
             txn_id: item.router_data.connector_request_reference_id.clone(),
-            payment_method_type: "UPI".to_string(),
+            payment_method_type: pm.to_string().to_uppercase(),
             id: ref_id.to_string(),
-            payment_method: "UPI".to_string(),
-            payment_source: payment_source,
+            payment_method: pm.to_string().to_uppercase(),
+            payment_source,
             date_created: Some(common_utils::date_time::now()),
             ..Default::default()
         };
 
         let merchant_gateway_account = MerchantGatewayAccount{
-              gateway: Gateway::Razorpay,
-                                disabled: false,
-                                id: 46519,
-                                account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
-                                test_mode: false,
-                                merchant_id: auth.merchant_id,
-                               ..Default::default()
-        };
+            gateway: Gateway::Razorpay,
+            disabled: false,
+            id: ref_id,
+            account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
+            test_mode: false,
+            merchant_id: auth.merchant_id,
+            ..Default::default()
+         };
 
         Ok(Self {
             order_metadata_v2,
@@ -1043,9 +1080,6 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 
@@ -1088,7 +1122,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RazorpayErrorResponse {
     pub code: u16,
@@ -1158,7 +1191,6 @@ pub enum RazorpayPaymentStatus {
     Created,
     Authorized,
     Captured,
-    // Refunded,
     Failed,
 }
 
@@ -1173,32 +1205,23 @@ pub enum RazorpayRefundStatus {
 impl TryFrom<RazorpayWebhookPayload> for api_models::webhooks::IncomingWebhookEvent {
     type Error = errors::ConnectorError;
     fn try_from(webhook_payload: RazorpayWebhookPayload) -> Result<Self, Self::Error> {
-        webhook_payload.refund.map_or(
-            match webhook_payload.payment.entity.status {
-                RazorpayPaymentStatus::Created => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
-                }
-                RazorpayPaymentStatus::Authorized => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
-                }
-                RazorpayPaymentStatus::Captured => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
-                }
-                RazorpayPaymentStatus::Failed => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
-                }
-            },
-            |refund_data| match refund_data.entity.status {
-                RazorpayRefundStatus::Pending => {
-                    None
-                }
-                RazorpayRefundStatus::Processed => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
-                }
-                RazorpayRefundStatus::Failed => {
-                    Some(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
-                }
-            },
-        ).ok_or(errors::ConnectorError::WebhookEventTypeNotFound)
+        webhook_payload
+            .refund
+            .map_or(
+                match webhook_payload.payment.entity.status {
+                    RazorpayPaymentStatus::Created => Some(Self::PaymentIntentProcessing),
+                    RazorpayPaymentStatus::Authorized => {
+                        Some(Self::PaymentIntentAuthorizationSuccess)
+                    }
+                    RazorpayPaymentStatus::Captured => Some(Self::PaymentIntentSuccess),
+                    RazorpayPaymentStatus::Failed => Some(Self::PaymentIntentFailure),
+                },
+                |refund_data| match refund_data.entity.status {
+                    RazorpayRefundStatus::Pending => None,
+                    RazorpayRefundStatus::Processed => Some(Self::RefundSuccess),
+                    RazorpayRefundStatus::Failed => Some(Self::RefundFailure),
+                },
+            )
+            .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)
     }
 }

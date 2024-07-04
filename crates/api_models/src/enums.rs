@@ -44,7 +44,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Razorpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -122,6 +121,7 @@ pub enum Connector {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Shift4,
     Square,
     Stax,
