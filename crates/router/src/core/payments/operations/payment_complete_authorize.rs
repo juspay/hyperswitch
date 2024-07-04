@@ -124,6 +124,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
+            &payment_intent.customer_id,
         )
         .await?;
         let token = token.or_else(|| payment_attempt.payment_token.clone());

@@ -1228,7 +1228,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
-/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1531,7 +1531,7 @@ pub enum PaymentMethod {
     GiftCard,
 }
 
-/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1572,6 +1572,7 @@ pub enum PaymentType {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
     ManualReview,
