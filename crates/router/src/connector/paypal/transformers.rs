@@ -321,21 +321,19 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
 
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain::WalletData::PaypalRedirect(_) => {
-                    let payment_source = ZeroMandateSourceItem::Paypal(
-                            PaypalRedirectionStruct {
-                                experience_context: Some (ContextStruct {
-                                    return_url: item.request.return_url.clone(),
-                                    cancel_url: item.request.return_url.clone(),
-                                    shipping_preference: if item.get_optional_shipping().is_some() {
-                                        ShippingPreference::SetProvidedAddress
-                                    } else {
-                                        ShippingPreference::GetFromFile
-                                    },
-                                    user_action: Some(UserAction::PayNow),
-                                }),
-                                usage_type: Some("MERCHANT".into()),
+                    let payment_source = ZeroMandateSourceItem::Paypal(PaypalRedirectionStruct {
+                        experience_context: Some(ContextStruct {
+                            return_url: item.request.return_url.clone(),
+                            cancel_url: item.request.return_url.clone(),
+                            shipping_preference: if item.get_optional_shipping().is_some() {
+                                ShippingPreference::SetProvidedAddress
+                            } else {
+                                ShippingPreference::GetFromFile
                             },
-                    );
+                            user_action: Some(UserAction::PayNow),
+                        }),
+                        usage_type: Some("MERCHANT".into()),
+                    });
 
                     payment_source
                 }
@@ -447,7 +445,6 @@ impl<F, T>
                     false,
                 ),
                 charge_id: None,
-                
             }),
 
             // connector_response,
@@ -711,7 +708,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     let payment_source = Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalRedirectionStruct(
                             PaypalRedirectionStruct {
-                                experience_context: Some (ContextStruct {
+                                experience_context: Some(ContextStruct {
                                     return_url: None,
                                     cancel_url: None,
                                     shipping_preference: ShippingPreference::GetFromFile,

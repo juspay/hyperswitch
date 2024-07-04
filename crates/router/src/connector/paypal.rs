@@ -17,12 +17,13 @@ use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData};
-use crate::connector::utils::PaymentMethodDataType;
 use crate::{
     configs::settings,
     connector::{
         utils as connector_utils,
-        utils::{to_connector_meta, ConnectorErrorTypeMapping, RefundsRequestData},
+        utils::{
+            to_connector_meta, ConnectorErrorTypeMapping, PaymentMethodDataType, RefundsRequestData,
+        },
     },
     consts,
     core::{
@@ -600,7 +601,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
-        println!("audit {:?}",connector_req);
+        println!("audit {:?}", connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -630,9 +631,9 @@ impl
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         println!("audit vaulting 2");
 
-        let k=res.clone().response;
+        let k = res.clone().response;
         let s = String::from_utf8(k.to_vec()).unwrap();
-    println!("result: {}", s);
+        println!("result: {}", s);
         let response: paypal::PaypalSetupMandatesResponse = res
             .response
             .parse_struct("PaypalSetupMandatesResponse")
