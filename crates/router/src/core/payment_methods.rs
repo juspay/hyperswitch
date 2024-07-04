@@ -531,9 +531,12 @@ pub async fn retrieve_payment_method_with_token(
     Ok(token)
 }
 
+#[cfg(feature = "v2")]
 pub struct PaymentMethodAddServer;
+#[cfg(feature = "v2")]
 pub struct PaymentMethodAddClient;
 
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 pub trait PaymentMethodAdd<T: Send + Sync> {
     async fn perform_preprocessing(
@@ -562,13 +565,7 @@ pub trait PaymentMethodAdd<T: Send + Sync> {
     ) -> RouterResult<T>;
 }
 
-// pub trait PaymentMethodAddData {
-//     fn get_customer(&self) -> Arc<domain::Customer>;
-//     fn get_payment_method(&self) -> Arc<diesel_models::PaymentMethod>;
-//     fn get_response(&self) -> Option<api::PaymentMethodResponse>;
-//     fn get_duplication_check(&self) -> Option<pm_transformers::DataDuplicationCheck>;
-// }
-
+#[cfg(feature = "v2")]
 pub struct PaymentMethodVaultingData {
     pub pm_id: Option<String>,
     pub payment_method: Option<diesel_models::PaymentMethod>,
@@ -576,21 +573,3 @@ pub struct PaymentMethodVaultingData {
     pub response: Option<api::PaymentMethodResponse>,
     pub duplication_check: Option<pm_transformers::DataDuplicationCheck>,
 }
-// impl PaymentMethodAddData for PaymentMethodPreprocessingData {}
-// impl PaymentMethodAddData for PaymentMethodVaultingData {
-//     fn get_customer(&self) -> Arc<domain::Customer> {
-//         self.customer.clone()
-//     }
-
-//     fn get_response(&self) -> Option<api::PaymentMethodResponse> {
-//         None
-//     }
-
-//     fn get_duplication_check(&self) -> Option<pm_transformers::DataDuplicationCheck> {
-//         None
-//     }
-
-//     fn get_payment_method(&self) -> Arc<diesel_models::PaymentMethod> {
-//         self.payment_method.clone()
-//     }
-// }
