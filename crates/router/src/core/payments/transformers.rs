@@ -1067,6 +1067,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
+            merchant_connector_id: payout_attempt.merchant_connector_id,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,
