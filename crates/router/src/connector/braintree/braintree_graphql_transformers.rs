@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        RefundsRequestData, RouterData,
+    },
     consts,
-    core::{errors, mandate::MandateBehaviour},
+    core::errors,
     services,
     types::{self, api, domain, storage::enums, MandateReference},
     unimplemented_payment_method,
@@ -172,42 +175,46 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
-        match item.router_data.request.connector_mandate_id() {
-            Some(connector_mandate_id) => Ok(Self::Mandate(MandatePaymentRequest::try_from((
-                item,
-                connector_mandate_id,
-                metadata,
-            ))?)),
-            None => match item.router_data.request.payment_method_data.clone() {
-                domain::PaymentMethodData::Card(_) => {
-                    if item.router_data.is_three_ds() {
-                        Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
-                            metadata,
-                        )?))
-                    } else {
-                        Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
-                    }
+        match item.router_data.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(_) => {
+                if item.router_data.is_three_ds() {
+                    Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
+                        metadata,
+                    )?))
+                } else {
+                    Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
                 }
-                domain::PaymentMethodData::CardRedirect(_)
-                | domain::PaymentMethodData::Wallet(_)
-                | domain::PaymentMethodData::PayLater(_)
-                | domain::PaymentMethodData::BankRedirect(_)
-                | domain::PaymentMethodData::BankDebit(_)
-                | domain::PaymentMethodData::BankTransfer(_)
-                | domain::PaymentMethodData::Crypto(_)
-                | domain::PaymentMethodData::MandatePayment
-                | domain::PaymentMethodData::Reward
-                | domain::PaymentMethodData::RealTimePayment(_)
-                | domain::PaymentMethodData::Upi(_)
-                | domain::PaymentMethodData::Voucher(_)
-                | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("braintree"),
-                    )
-                    .into())
-                }
-            },
+            }
+            domain::PaymentMethodData::MandatePayment => {
+                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+                Ok(Self::Mandate(MandatePaymentRequest::try_from((
+                    item,
+                    connector_mandate_id,
+                    metadata,
+                ))?))
+            }
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -1427,11 +1434,7 @@ impl
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
-        let customer_acceptance = item.router_data.request.get_customer_acceptance();
-        let (query, transaction_body) = if customer_acceptance.is_some()
-            && item.router_data.request.setup_future_usage
-                == Some(common_enums::FutureUsage::OffSession)
-        {
+        let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
             (
                 match item.router_data.request.is_auto_capture()? {
                     true => CHARGE_AND_VAULT_TRANSACTION_MUTATION.to_string(),
@@ -1490,11 +1493,10 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
-        let payload_data =
-            utils::PaymentsCompleteAuthorizeRequestData::get_redirect_response_payload(
-                &item.router_data.request,
-            )?
-            .expose();
+        let payload_data = PaymentsCompleteAuthorizeRequestData::get_redirect_response_payload(
+            &item.router_data.request,
+        )?
+        .expose();
         let redirection_response: BraintreeRedirectionResponse = serde_json::from_value(
             payload_data,
         )
@@ -1508,15 +1510,9 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             field_name: "three_ds_data",
         })?;
 
-        let customer_acceptance = item.router_data.request.customer_acceptance.clone();
-        let (query, transaction_body) = if customer_acceptance.is_some()
-            && item.router_data.request.setup_future_usage
-                == Some(common_enums::FutureUsage::OffSession)
-        {
+        let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
             (
-                match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
-                    &item.router_data.request,
-                )? {
+                match item.router_data.request.is_auto_capture()? {
                     true => CHARGE_AND_VAULT_TRANSACTION_MUTATION.to_string(),
                     false => AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION.to_string(),
                 },
@@ -1530,9 +1526,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             )
         } else {
             (
-                match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
-                    &item.router_data.request,
-                )? {
+                match item.router_data.request.is_auto_capture()? {
                     true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
                     false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
                 },

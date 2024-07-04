@@ -136,11 +136,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 .clone()
                 .map(|pm| {
                     pm.customer_acceptance
-                        .parse_value::<CustomerAcceptance>("Customer Acceptance")
+                        .parse_value::<CustomerAcceptance>("CustomerAcceptance")
                 })
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize to Payment Mandate Reference ")?);
+                .attach_printable("Failed to deserialize to CustomerAcceptance")?);
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
