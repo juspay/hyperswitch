@@ -343,12 +343,12 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {  
+    ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         match request.payment_method_data.clone() {
             domain::PaymentMethodData::Upi(upi_type) => match upi_type {
                 domain::UpiData::UpiCollect(upi_data) => {
-                    let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+                    let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
                     let ref_id = generate_12_digit_number();
                     let second_factor = SecondFactor::try_from(item)?;
                     let merchant_account = MerchantAccount::try_from(item)?;
@@ -393,9 +393,9 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         order_metadata_v2,
                     })
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
-                }
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -429,7 +429,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             id: 205,
             merchant_id: auth.merchant_id,
@@ -447,7 +447,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
-         let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             id: ref_id.to_string(),
             amount: item.amount,
@@ -472,7 +472,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDe
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
-        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
             express_checkout: false,
@@ -506,7 +506,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
            merchant_id: auth.merchant_id,
                                 gateway: Gateway::Razorpay,
@@ -715,7 +715,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
 
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
-        let auth  = RazorpayAuthType::try_from(&item.connector_auth_type)?;
+        let auth = RazorpayAuthType::try_from(&item.connector_auth_type)?;
         let connector_request_reference_id = item
             .request
             .connector_transaction_id

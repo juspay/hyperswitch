@@ -495,6 +495,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_request = request.clone();
         let m_key_store = key_store.clone();
 
+        let payment_intent_customer_id = payment_intent.customer_id.clone();
+
         let mandate_details_fut = tokio::spawn(
             async move {
                 helpers::get_token_pm_type_mandate_details(
@@ -504,6 +506,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_merchant_account,
                     &m_key_store,
                     None,
+                    &payment_intent_customer_id,
                 )
                 .await
             }
