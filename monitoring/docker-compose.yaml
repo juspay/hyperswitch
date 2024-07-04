@@ -82,7 +82,7 @@ services:
       - ../config:/etc/grafana
 
   vector:
-    image: timberio/vector:latest
+    image: timberio/vector:latest-debian
     volumes:
       - ../logs:/var/log/router
       - ../config/vector.yaml:/etc/vector/vector.yaml
