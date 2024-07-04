@@ -275,7 +275,7 @@ pub enum BraintreeCompleteAuthResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct PaymentMethodInfo {
-    id: String,
+    id: Secret<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -331,7 +331,7 @@ impl<F>
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             MandateReference {
-                                connector_mandate_id: Some(pm.id.clone()),
+                                connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                             }
                         }),
@@ -520,7 +520,7 @@ impl<F>
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             MandateReference {
-                                connector_mandate_id: Some(pm.id.clone()),
+                                connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                             }
                         }),
@@ -589,7 +589,7 @@ impl<F>
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             MandateReference {
-                                connector_mandate_id: Some(pm.id.clone()),
+                                connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                             }
                         }),
@@ -640,7 +640,7 @@ impl<F>
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             MandateReference {
-                                connector_mandate_id: Some(pm.id.clone()),
+                                connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                             }
                         }),
