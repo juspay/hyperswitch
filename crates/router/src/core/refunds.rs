@@ -309,7 +309,7 @@ pub async fn trigger_refund_to_gateway(
                             "Integrity Check Failed! as data mismatched for fields {}",
                             err.field_names
                         )),
-                        refund_error_code: None,
+                        refund_error_code: Some("IE".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
                     }
@@ -604,7 +604,7 @@ pub async fn sync_refund_with_gateway(
                         "Integrity Check Failed! as data mismatched for fields {}",
                         err.field_names
                     )),
-                    refund_error_code: None,
+                    refund_error_code: Some("IE".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,
                 }
