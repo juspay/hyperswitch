@@ -205,17 +205,17 @@ impl SecretsHandler for settings::KeyManagerConfig {
         _secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         #[cfg(feature = "keymanager_mtls")]
-        {
-            let keyconfig = value.get_inner();
+        let keyconfig = value.get_inner();
 
-            let ca = _secret_management_client
-                .get_secret(keyconfig.ca.clone())
-                .await?;
+        #[cfg(feature = "keymanager_mtls")]
+        let ca = _secret_management_client
+            .get_secret(keyconfig.ca.clone())
+            .await?;
 
-            let cert = _secret_management_client
-                .get_secret(keyconfig.cert.clone())
-                .await?;
-        }
+        #[cfg(feature = "keymanager_mtls")]
+        let cert = _secret_management_client
+            .get_secret(keyconfig.cert.clone())
+            .await?;
 
         Ok(value.transition_state(|keyconfig| Self {
             #[cfg(feature = "keymanager_mtls")]
