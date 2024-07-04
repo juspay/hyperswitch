@@ -550,8 +550,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "payment_method_not_available",
+          status: "requires_customer_action",
         },
       },
     },
