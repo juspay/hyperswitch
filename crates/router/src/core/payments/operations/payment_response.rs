@@ -978,6 +978,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Could not parse the connector response")?;
 
+                            let auth_update = if Some(router_data.auth_type)
+                                != payment_data.payment_attempt.authentication_type
+                            {
+                                Some(router_data.auth_type)
+                            } else {
+                                None
+                            };
+
                             // incase of success, update error code and error message
                             let error_status =
                                 if router_data.status == enums::AttemptStatus::Charged {
@@ -1018,7 +1026,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         multiple_capture_data.get_latest_capture().clone(),
                                         capture_update,
                                     )];
-                                    (Some((multiple_capture_data, capture_update_list)), None)
+                                    (Some((multiple_capture_data, capture_update_list)), auth_update.map(|auth_type| {
+                                        storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
+                                            authentication_type: auth_type,
+                                            updated_by: storage_scheme.to_string(),
+                                        }
+                                    }))
                                 }
                                 None => (
                                     None,
@@ -1026,7 +1039,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         status: updated_attempt_status,
                                         connector: None,
                                         connector_transaction_id: connector_transaction_id.clone(),
-                                        authentication_type: None,
+                                        authentication_type: auth_update,
                                         amount_capturable: router_data
                                             .request
                                             .get_amount_capturable(
