@@ -877,7 +877,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector: None,
                             status: enums::AttemptStatus::Pending,
                             error_message: Some(Some("Integrity Check Failed!".to_string())),
-                            error_code: None,
+                            error_code: Some(Some("IE".to_string())),
                             error_reason: Some(Some(format!(
                                 "Integrity Check Failed! Value mismatched for fields {field_name}"
                             ))),
