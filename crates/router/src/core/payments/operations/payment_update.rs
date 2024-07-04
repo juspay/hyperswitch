@@ -18,8 +18,9 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils, payment_methods::cards::create_encrypted_data,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
@@ -217,10 +218,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        payment_intent.billing_address_details = billing_address.clone().async_and_then(|_|
-            async {
+        payment_intent.billing_address_details = billing_address
+            .clone()
+            .async_and_then(|_| async {
                 create_encrypted_data(key_store, billing_address.clone()).await
-        }).await;
+            })
+            .await;
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
