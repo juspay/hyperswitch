@@ -665,7 +665,7 @@ pub async fn add_payment_method(
                     };
 
                     let existing_pm_data =
-                        get_card_details_without_locker_fallback(&existing_pm, &state, key_store)
+                        get_card_details_without_locker_fallback(&existing_pm, state, key_store)
                             .await?;
 
                     let updated_card = Some(api::CardDetailFromLocker {
