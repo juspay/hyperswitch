@@ -17990,6 +17990,12 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Connector_id related to merchant",
+            "example": "mca_sAD3OZLATetvjLOYhUSy",
+            "nullable": true
+          },
           "status": {
             "$ref": "#/components/schemas/PayoutStatus"
           },
