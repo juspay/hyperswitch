@@ -1,6 +1,5 @@
 use common_utils::pii::{self, Email};
 use error_stack::ResultExt;
-use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -19,7 +18,7 @@ pub struct RazorpayRouterData<T> {
 }
 
 impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RazorpayRouterData<T> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
@@ -90,7 +89,7 @@ pub enum SecondFactorStatus {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAccount {
     id: i64,
-    merchant_id: String,
+    merchant_id: Secret<String>,
     use_code_for_gateway_priority: bool,
     auto_refund_multiple_charged_transactions: bool,
     gateway_success_rate_based_outage_input: Option<String>,
@@ -183,7 +182,7 @@ pub struct OrderReference {
     currency: String,
     order_id: String,
     status: OrderStatus,
-    merchant_id: String,
+    merchant_id: Secret<String>,
     order_uuid: String,
     order_type: String,
     version: i64,
@@ -223,7 +222,7 @@ pub enum OrderStatus {
 #[serde(rename_all = "camelCase")]
 pub struct TxnDetail {
     status: String,
-    merchant_id: String,
+    merchant_id: Secret<String>,
     txn_id: String,
     express_checkout: bool,
     is_emi: bool,
@@ -274,7 +273,7 @@ pub struct TxnCardInfo {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantGatewayAccount {
-    merchant_id: String,
+    merchant_id: Secret<String>,
     gateway: Gateway,
     account_details: String,
     version: i64,
@@ -296,7 +295,7 @@ pub struct MerchantGatewayAccount {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct TransactionCreateReq {
-    merchant_id: String,
+    merchant_id: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -341,14 +340,15 @@ fn generate_12_digit_number() -> u64 {
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for RazorpayPaymentsRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self, Self::Error> {  
         let request = &item.router_data.request;
         match request.payment_method_data.clone() {
             domain::PaymentMethodData::Upi(upi_type) => match upi_type {
                 domain::UpiData::UpiCollect(upi_data) => {
+                    let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
                     let ref_id = generate_12_digit_number();
                     let second_factor = SecondFactor::try_from(item)?;
                     let merchant_account = MerchantAccount::try_from(item)?;
@@ -361,7 +361,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         id: ref_id.to_string(),
                         payment_method: "UPI".to_string(),
                         payment_source: upi_data.vpa_id.ok_or(
-                            ConnectorError::MissingRequiredField {
+                            errors::ConnectorError::MissingRequiredField {
                                 field_name: "vpa_id",
                             },
                         )?,
@@ -373,7 +373,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
 
                     let gateway = Gateway::Razorpay;
                     let transaction_create_req = TransactionCreateReq {
-                        merchant_id: item.router_data.merchant_id.clone(),
+                        merchant_id: auth.merchant_id,
                     };
                     let is_mesh_enabled = false;
 
@@ -394,16 +394,16 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                     })
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                    Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
                 }
             },
-            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for SecondFactor {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -424,14 +424,15 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Secon
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for MerchantAccount {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             id: 205,
-            merchant_id: item.router_data.merchant_id.clone(),
+            merchant_id: auth.merchant_id,
             auto_refund_multiple_charged_transactions: false,
             use_code_for_gateway_priority: true,
             ..Default::default()
@@ -440,18 +441,19 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReference {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
+         let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             id: ref_id.to_string(),
             amount: item.amount,
             currency: item.router_data.request.currency.to_string(),
             status: OrderStatus::PendingAuthentication,
-            merchant_id: item.router_data.merchant_id.clone(),
+            merchant_id: auth.merchant_id.clone(),
             order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
             version: 1,
             order_type: "ORDER_PAYMENT".to_string(),
@@ -464,17 +466,18 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDetail {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
+        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             order_id: item.router_data.connector_request_reference_id.clone(), //payment_id
             express_checkout: false,
             txn_mode: "PROD".to_string(),
-            merchant_id: item.router_data.merchant_id.clone(),
+            merchant_id: auth.merchant_id,
             status: "PENDING_VBV".to_string(),
             net_amount: item.amount,
             txn_id: item.router_data.connector_request_reference_id.clone(),
@@ -498,13 +501,14 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for TxnDe
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for MerchantGatewayAccount {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let auth  = RazorpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
-           merchant_id: item.router_data.merchant_id.clone(),
+           merchant_id: auth.merchant_id,
                                 gateway: Gateway::Razorpay,
                                 disabled: false,
                                 id: 46519,
@@ -515,7 +519,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Merch
     }
 }
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for OrderMetadataV2 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -535,16 +539,18 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Order
 // Auth Struct
 pub struct RazorpayAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for RazorpayAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
+                merchant_id: key1.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -633,7 +639,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, RazorpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -705,15 +711,16 @@ pub struct GatewayTxnData {
 }
 
 impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
+        let auth  = RazorpayAuthType::try_from(&item.connector_auth_type)?;
         let connector_request_reference_id = item
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let txn_idd = &item.connector_request_reference_id;
 
         let second_factor = SecondFactor {
@@ -732,7 +739,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
             amount: 5000,
             currency: item.request.currency.to_string(),
             status: OrderStatus::PendingAuthentication,
-            merchant_id: "merchant_id".to_string(),
+            merchant_id: auth.merchant_id.clone(),
             order_id: txn_idd.clone(), //payment_id
             version: 1,
             order_type: "ORDER_PAYMENT".to_string(),
@@ -745,7 +752,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
             order_id: txn_idd.clone(), //payment_id
             express_checkout: false,
             txn_mode: "PROD".to_string(),
-            merchant_id: "merchant_id".to_string(),
+            merchant_id: auth.merchant_id.clone(),
             status: "AUTHORIZING".to_string(),
             net_amount: 5000,
             txn_id: txn_idd.clone(),
@@ -771,7 +778,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for RazorpayCreateSyncRequest {
                                 id: 46519,
                                 account_details: "{\"razorpayId\": \"rzp_test_4UX9WwyEpxGkRv\",\"razorpaySecret\": \"4xzFIa6BEXNyhhHG6zdlm41B\"}".to_string(),
                                 test_mode: false,
-                                merchant_id:  "merchant_id".to_string(),
+                                merchant_id: auth.merchant_id,
                                ..Default::default()
          };
         let gateway_txn_data = GatewayTxnData {
@@ -825,7 +832,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -857,7 +864,7 @@ pub struct RazorpayRefundRequest {
 }
 
 impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayRefundRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &RazorpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
@@ -899,7 +906,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -916,7 +923,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {

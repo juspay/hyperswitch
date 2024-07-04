@@ -243,3 +243,4 @@ api_key="API Key"
 
 [razorpay]
 api_key="API Key"
+key1 = "Merchant id"
