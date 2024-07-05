@@ -505,10 +505,7 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
-                        let customer_details = get_customer_details_from_request(request);
-                        let customer_id = customer_details
-                            .customer_id
-                            .get_required_value("customer_id")?;
+                        let customer_id = get_customer_id_from_payment_request(request)?;
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
@@ -712,10 +709,7 @@ pub async fn get_token_for_recurring_mandate(
         .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
-    let customer_details = get_customer_details_from_request(req);
-    let customer = customer_details
-        .customer_id
-        .get_required_value("customer_id")?;
+    let customer = get_customer_id_from_payment_request(req)?;
 
     let payment_method_id = {
         if mandate.customer_id != customer {
@@ -1578,6 +1572,15 @@ pub fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
     }
+}
+
+fn get_customer_id_from_payment_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> CustomResult<id_type::CustomerId, errors::ApiErrorResponse> {
+    let customer_details = get_customer_details_from_request(request);
+    customer_details
+        .customer_id
+        .get_required_value("customer_id")
 }
 
 pub async fn get_connector_default(
