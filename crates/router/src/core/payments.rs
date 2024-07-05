@@ -197,6 +197,7 @@ where
         &validate_result,
         &key_store,
         &customer,
+        Some(&business_profile),
     )
     .await?;
 
@@ -943,6 +944,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
+                search_tags: None,
             }),
             ..Default::default()
         };
@@ -1229,6 +1231,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                             req.json_payload.unwrap_or(serde_json::json!({})).into(),
                         ),
                     }),
+                    search_tags: None,
                 }),
                 ..Default::default()
             };
@@ -1440,6 +1443,7 @@ where
         &merchant_connector_account,
         key_store,
         customer,
+        Some(business_profile),
     )
     .await?;
     *payment_data = pd;
@@ -2306,6 +2310,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -2372,6 +2377,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
@@ -2390,6 +2396,7 @@ where
                             validate_result.storage_scheme,
                             merchant_key_store,
                             customer,
+                            business_profile,
                         )
                         .await?;
 
@@ -2431,6 +2438,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -2449,6 +2457,7 @@ where
                     validate_result.storage_scheme,
                     merchant_key_store,
                     customer,
+                    business_profile,
                 )
                 .await?;
             payment_data.payment_method_data = payment_method_data;
@@ -3272,7 +3281,7 @@ where
                 && should_do_retry
             {
                 let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
-                    state,
+                    &state,
                     merchant_account,
                     payment_data,
                     key_store,
@@ -3295,6 +3304,8 @@ where
             let first_pre_routing_connector_data_list = pre_routing_connector_data_list
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
             return Ok(ConnectorCallType::PreDetermined(
                 first_pre_routing_connector_data_list.clone(),
@@ -3591,24 +3602,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
         _ => {
-            let skip_saving_wallet_at_connector_optional =
-                helpers::config_skip_saving_wallet_at_connector(
-                    &*state.store,
-                    &payment_data.payment_intent.merchant_id,
-                )
-                .await?;
-
-            if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional
-            {
-                if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type
-                {
-                    if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                        logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                        payment_data.payment_intent.setup_future_usage =
-                            Some(enums::FutureUsage::OnSession);
-                    }
-                }
-            };
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
             let first_choice = connectors
                 .first()

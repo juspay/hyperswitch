@@ -179,6 +179,7 @@ pub struct AdyenPaymentRequest<'a> {
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
+    merchant_order_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2609,7 +2610,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2671,7 +2673,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2724,7 +2727,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2778,7 +2782,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2828,7 +2833,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2878,7 +2884,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2938,7 +2945,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3033,7 +3041,8 @@ impl<'a>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3108,7 +3117,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3166,7 +3176,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }

@@ -10,6 +10,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use futures::future;
 use masking::{PeekInterface, Secret};
+use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
@@ -161,12 +162,17 @@ pub async fn initiate_payment_link_flow(
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
+                logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                 PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
             }
             api_models::payments::PaymentLinkStatus::Expired => {
                 if is_terminal_state {
+                    logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                     PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
                 } else {
+                    logger::info!(
+                        "displaying status page as the requested payment link has expired"
+                    );
                     PaymentLinkStatusWrap::PaymentLinkStatus(
                         api_models::payments::PaymentLinkStatus::Expired,
                     )
@@ -198,6 +204,11 @@ pub async fn initiate_payment_link_flow(
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
         };
+
+        logger::info!(
+            "payment link data, for building payment link status page {:?}",
+            payment_details
+        );
         let js_script = get_js_script(
             &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
         )?;
@@ -241,6 +252,11 @@ pub async fn initiate_payment_link_flow(
         css_script,
         html_meta_tags,
     };
+
+    logger::info!(
+        "payment link data, for building payment link {:?}",
+        payment_link_data
+    );
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
     )))
@@ -407,6 +423,10 @@ pub fn get_payment_link_config_based_on_priority(
                 field_name: "payment_link_config",
             })
             .attach_printable("Invalid payment_link_config given in business config")?;
+        logger::info!(
+            "domain name set to custom domain https://{:?}",
+            extracted_value.domain_name
+        );
 
         (
             extracted_value

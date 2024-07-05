@@ -16,7 +16,7 @@ async fn should_make_card_non_3ds_payment(c: WebDriver) -> Result<(), WebDriverE
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/71"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/71"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("status")),
             Event::Assert(Assert::IsPresent("processing")),
@@ -31,7 +31,7 @@ async fn should_make_worldline_ideal_redirect_payment(c: WebDriver) -> Result<()
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/49"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/49"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
@@ -51,7 +51,7 @@ async fn should_make_worldline_giropay_redirect_payment(
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/48"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/48"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
