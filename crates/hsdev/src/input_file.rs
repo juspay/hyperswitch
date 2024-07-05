@@ -14,9 +14,7 @@ pub struct InputData {
 
 impl InputData {
     pub fn read(db_table: &Value) -> Result<Self, toml::de::Error> {
-        db_table
-            .clone()
-            .try_into()
+        db_table.clone().try_into()
     }
 
     pub fn postgres_url(&self) -> String {

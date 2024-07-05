@@ -70,7 +70,7 @@ fn main() {
 
     match harness.run_pending_migrations(migrations) {
         Ok(_) => println!("Successfully ran migrations"),
-        Err(_) => eprintln!("Couldn't run migrations")
+        Err(_) => eprintln!("Couldn't run migrations"),
     };
 }
 
