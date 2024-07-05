@@ -1579,8 +1579,11 @@ pub fn get_customer_details_from_request(
 fn get_customer_id_from_payment_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> Option<id_type::CustomerId> {
-    let customer_details = get_customer_details_from_request(request);
-    customer_details.customer_id
+    request
+        .customer
+        .as_ref()
+        .map(|customer| customer.id.clone())
+        .or(request.customer_id.clone())
 }
 
 pub async fn get_connector_default(
