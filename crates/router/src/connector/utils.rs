@@ -922,16 +922,14 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
-        self.metadata
-            .clone()
-            .and_then(|meta_data| match meta_data.peek() {
-                serde_json::Value::Null
-                | serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_)
-                | serde_json::Value::String(_)
-                | serde_json::Value::Array(_) => None,
-                serde_json::Value::Object(_) => Some(meta_data),
-            })
+        self.metadata.clone().and_then(|meta_data| match meta_data {
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_)
+            | serde_json::Value::Array(_) => None,
+            serde_json::Value::Object(_) => Some(meta_data.into()),
+        })
     }
 
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
@@ -1017,6 +1015,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -1045,6 +1044,17 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 

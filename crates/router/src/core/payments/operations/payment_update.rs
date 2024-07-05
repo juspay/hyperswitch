@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -221,21 +223,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        // let billing_details: Option<Address> = billing_address.as_ref().map(From::from);
-        // payment_intent.billing_details = billing_details
-        //     .clone()
-        //     .async_and_then(|_| async {
-        //         create_encrypted_data(key_store, billing_details.clone()).await
-        //     })
-        //     .await;
-        //
-        // let shipping_details: Option<Address> = shipping_address.as_ref().map(From::from);
-        // payment_intent.shipping_details = shipping_details
-        //     .clone()
-        //     .async_and_then(|_| async {
-        //         create_encrypted_data(key_store, shipping_details.clone()).await
-        //     })
-        //     .await;
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,

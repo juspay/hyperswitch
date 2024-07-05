@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::analytics::{
     payment_intents::{
@@ -34,7 +34,7 @@ pub enum TaskType {
     MetricTask(
         PaymentIntentMetrics,
         CustomResult<
-            Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
+            HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
             AnalyticsError,
         >,
     ),

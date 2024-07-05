@@ -610,6 +610,21 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -617,7 +632,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                            None,
+                            payment_method_info,
                         )
                     }
                 }
