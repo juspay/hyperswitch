@@ -1,4 +1,4 @@
-use common_utils::{hashing::HashedString, crypto::Encryptable, id_type, pii, types::MinorUnit};
+use common_utils::{crypto::Encryptable, hashing::HashedString, id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use masking::{PeekInterface, Secret};
