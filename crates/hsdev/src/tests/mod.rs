@@ -8,8 +8,7 @@ mod tests {
 
     #[test]
     fn test_input_file() {
-        let toml_str =
-         r#"username = "db_user"
+        let toml_str = r#"username = "db_user"
             password = "db_pass"
             dbname = "db_name"
             host = "localhost"
@@ -25,12 +24,12 @@ mod tests {
 
     #[test]
     fn test_given_toml() {
-        let toml_str_table = "[database]\n\
-            username = \"db_user\"\n\
-            password = \"db_pass\"\n\
-            dbname = \"db_name\"\n\
-            host = \"localhost\"\n\
-            port = 5432";
+        let toml_str_table = r#"[database]
+            username = "db_user"
+            password = "db_pass"
+            dbname = "db_name"
+            host = "localhost"
+            port = 5432"#;
 
         let table_name = "database";
         let toml_value = Value::from_str(toml_str_table).unwrap();

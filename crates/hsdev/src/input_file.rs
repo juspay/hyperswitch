@@ -1,6 +1,7 @@
 use std::string::String;
-use toml::Value;
+
 use serde::Deserialize;
+use toml::Value;
 
 #[derive(Deserialize)]
 pub struct InputData {
@@ -13,7 +14,10 @@ pub struct InputData {
 
 impl InputData {
     pub fn read(db_table: &Value) -> InputData {
-        db_table.clone().try_into::<InputData>().expect("Unable to read InputData")
+        db_table
+            .clone()
+            .try_into::<InputData>()
+            .expect("Unable to read InputData")
     }
 
     pub fn postgres_url(&self) -> String {
