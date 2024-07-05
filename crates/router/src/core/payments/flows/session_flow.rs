@@ -334,6 +334,20 @@ async fn create_applepay_session_token(
             })
             .flatten();
 
+        // If collect_shipping_details_from_wallet_connector is false, we check if
+        // collect_billing_details_from_wallet_connector is true. If it is, then we pass the Email in
+        // ApplePayShippingContactFields as it is a required parameter and ApplePayBillingContactFields
+        // does not contain Email.
+        let required_shipping_contact_fields_updated = if required_billing_contact_fields.is_some()
+            && required_shipping_contact_fields.is_none()
+        {
+            Some(payment_types::ApplePayShippingContactFields(vec![
+                payment_types::ApplePayAddressParameters::Email,
+            ]))
+        } else {
+            required_shipping_contact_fields
+        };
+
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
             amount_info,
@@ -342,7 +356,7 @@ async fn create_applepay_session_token(
             apple_pay_merchant_identifier.as_str(),
             merchant_business_country,
             required_billing_contact_fields,
-            required_shipping_contact_fields,
+            required_shipping_contact_fields_updated,
         )?;
 
         let apple_pay_session_response = match (
@@ -670,7 +684,11 @@ fn create_gpay_session_token(
                             delayed_session_token: false,
                             secrets: None,
                             shipping_address_required: required_shipping_contact_fields,
-                            email_required: required_shipping_contact_fields,
+                            // We pass Email as a required field irrespective of
+                            // collect_billing_details_from_wallet_connector or
+                            // collect_shipping_details_from_wallet_connector as it is common to both.
+                            email_required: required_shipping_contact_fields
+                                || is_billing_details_required,
                             shipping_address_parameters:
                                 api_models::payments::GpayShippingAddressParameters {
                                     phone_number_required: required_shipping_contact_fields,
