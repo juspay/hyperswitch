@@ -505,7 +505,8 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
-                        let customer_id = get_customer_id_from_payment_request(request)?;
+                        let customer_id = get_customer_id_from_payment_request(request)
+                            .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
@@ -551,10 +552,11 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        let request_customer = get_customer_details_from_request(request);
-                        let request_customer_id =
-                            request_customer.customer_id.clone().or(customer_id.clone());
-                        if let Some(customer_id) = &request_customer_id.or(customer_id.clone()) {
+                        let payment_request_customer_id =
+                            get_customer_id_from_payment_request(request);
+                        if let Some(customer_id) =
+                            &payment_request_customer_id.or(customer_id.clone())
+                        {
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -709,7 +711,7 @@ pub async fn get_token_for_recurring_mandate(
         .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
-    let customer = get_customer_id_from_payment_request(req)?;
+    let customer = get_customer_id_from_payment_request(req).get_required_value("customer_id")?;
 
     let payment_method_id = {
         if mandate.customer_id != customer {
@@ -1576,11 +1578,9 @@ pub fn get_customer_details_from_request(
 
 fn get_customer_id_from_payment_request(
     request: &api_models::payments::PaymentsRequest,
-) -> CustomResult<id_type::CustomerId, errors::ApiErrorResponse> {
+) -> Option<id_type::CustomerId> {
     let customer_details = get_customer_details_from_request(request);
-    customer_details
-        .customer_id
-        .get_required_value("customer_id")
+    customer_details.customer_id
 }
 
 pub async fn get_connector_default(
