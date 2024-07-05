@@ -22,14 +22,15 @@ describe("[Payout] Cards", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   context("Payout Card with Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -56,6 +57,12 @@ describe("[Payout] Cards", () => {
 
   context("Payout Card with Manual Fulfill - Create Confirm", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
 
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[

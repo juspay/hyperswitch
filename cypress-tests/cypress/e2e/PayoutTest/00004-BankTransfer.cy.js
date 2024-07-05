@@ -74,14 +74,14 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
@@ -109,6 +109,12 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
 
   context("[Payout] [Bank transfer - SEPA] Manual Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
 
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
