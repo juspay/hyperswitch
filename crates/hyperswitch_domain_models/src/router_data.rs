@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{errors::IntegrityCheckError, id_type, types::MinorUnit};
 use masking::Secret;
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
@@ -70,6 +70,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
+
+    pub integrity_check: Result<(), IntegrityCheckError>,
 }
 
 // Different patterns of authentication.
@@ -146,8 +148,11 @@ pub struct RecurringMandatePaymentData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
+
+    // minor unit for amount framework
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

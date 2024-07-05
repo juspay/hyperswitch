@@ -1058,6 +1058,10 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
     fn get_amount_captured(&self) -> Option<i64> {
         Some(self.amount.get_amount_as_i64())
     }
+
+    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
+        Some(self.amount)
+    }
 }
 
 impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
@@ -1078,6 +1082,11 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     }
     fn get_amount_captured(&self) -> Option<i64> {
         self.amount.map(Into::into)
+    }
+
+    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
+        let amount = self.amount.map(Into::into);
+        amount.map(MinorUnit::new)
     }
 }
 
