@@ -32,7 +32,7 @@ pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
@@ -116,7 +116,7 @@ impl AnalyticsProvider {
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         // Metrics to get the fetch time for each payment metric
         metrics::request::record_operation_time(
             async {
@@ -330,7 +330,7 @@ impl AnalyticsProvider {
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    ) -> types::MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
     {
         // Metrics to get the fetch time for each payment intent metric
         metrics::request::record_operation_time(
@@ -435,7 +435,7 @@ impl AnalyticsProvider {
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
@@ -635,7 +635,7 @@ impl AnalyticsProvider {
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
@@ -735,7 +735,7 @@ impl AnalyticsProvider {
         filters: &SdkEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
@@ -773,7 +773,7 @@ impl AnalyticsProvider {
         publishable_key: &str,
         time_range: &TimeRange,
     ) -> types::MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -800,7 +800,7 @@ impl AnalyticsProvider {
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
@@ -831,7 +831,7 @@ impl AnalyticsProvider {
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
