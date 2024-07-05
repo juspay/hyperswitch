@@ -1047,7 +1047,8 @@ impl PaymentCreate {
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
         // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_details = request.billing
+        let billing_details = request
+            .billing
             .clone()
             .async_and_then(|_| async {
                 create_encrypted_data(key_store, request.billing.clone()).await

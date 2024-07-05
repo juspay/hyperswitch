@@ -222,7 +222,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         let billing_details: Option<Address> = billing_address.as_ref().map(From::from);
-        payment_intent.billing_details = billing_details.clone()
+        payment_intent.billing_details = billing_details
+            .clone()
             .async_and_then(|_| async {
                 create_encrypted_data(key_store, billing_details.clone()).await
             })
