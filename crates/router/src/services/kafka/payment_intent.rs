@@ -1,7 +1,8 @@
-use common_utils::{crypto::Encryptable, id_type, types::MinorUnit};
+use common_utils::{crypto::Encryptable, hashing::HashedString, id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
+use serde_json::Value;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -33,7 +34,10 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub customer_email: Option<HashedString<pii::EmailStrategy>>,
+    pub feature_metadata: Option<&'a Value>,
+    pub merchant_order_reference_id: Option<&'a String>,
+    pub billing_details: Option<Encryptable<Secret<Value>>>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -63,7 +67,16 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
-            billing_details: intent.billing_details.clone(),
+            customer_email: intent
+                .customer_details
+                .as_ref()
+                .and_then(|value| value.get_inner().peek().as_object())
+                .and_then(|obj| obj.get("email"))
+                .and_then(|email| email.as_str())
+                .map(|email| HashedString::from(Secret::new(email.to_string()))),
+            feature_metadata: intent.feature_metadata.as_ref(),
+            merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
+            billing_details: None,
         }
     }
 }
