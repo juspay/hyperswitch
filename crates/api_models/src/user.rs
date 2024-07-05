@@ -379,3 +379,8 @@ pub struct AuthIdQueryParam {
 pub struct AuthSelectRequest {
     pub id: String,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserTransferKeyResponse {
+    pub total_transferred: usize,
+}

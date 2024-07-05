@@ -1389,6 +1389,11 @@ impl User {
                     .route(web::post().to(set_dashboard_metadata)),
             );
 
+        route = route.service(
+            web::scope("/key")
+                .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
+        );
+
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")

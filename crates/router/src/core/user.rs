@@ -27,6 +27,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
+    core::encryption::send_request_to_key_service_for_user,
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -1908,6 +1909,25 @@ pub async fn generate_recovery_codes(
     Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
         recovery_codes: recovery_codes.into_inner(),
     }))
+}
+
+pub async fn transfer_user_key_strore_keymanager(
+    state: SessionState,
+) -> UserResponse<user_api::UserTransferKeyResponse> {
+    let db = &state.global_store;
+
+    let key_stores = db
+        .get_all_user_key_store(&state.store.get_master_key().to_vec().into())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::UserTransferKeyResponse {
+            total_transferred: send_request_to_key_service_for_user(&state, key_stores)
+                .await
+                .change_context(UserErrors::InternalServerError)?,
+        },
+    ))
 }
 
 pub async fn verify_recovery_code(
