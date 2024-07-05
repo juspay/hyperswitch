@@ -4374,10 +4374,7 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     }
 
     fn get_amount_captured(&self) -> Option<MinorUnit> {
-        match self.amount.clone() {
-            Some(amount) => Some(amount.value),
-            None => None,
-        }
+        self.amount.clone().map(|amount| amount.value)
     }
 }
 
