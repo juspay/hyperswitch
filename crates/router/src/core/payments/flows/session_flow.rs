@@ -170,6 +170,7 @@ async fn create_applepay_session_token(
             connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
+            header_payload,
         )
     } else {
         // Get the apple pay metadata
@@ -345,8 +346,8 @@ async fn create_applepay_session_token(
         )?;
 
         let apple_pay_session_response = match (
-            header_payload.browser_name,
-            header_payload.x_client_platform,
+            header_payload.browser_name.clone(),
+            header_payload.x_client_platform.clone(),
         ) {
             (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
             | (None, None) => {
@@ -406,6 +407,7 @@ async fn create_applepay_session_token(
             connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
+            header_payload,
         )
     }
 }
@@ -489,6 +491,7 @@ fn create_apple_pay_session_response(
     connector_name: String,
     delayed_response: bool,
     next_action: payment_types::NextActionCall,
+    header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     match session_response {
         Some(response) => Ok(types::PaymentsSessionRouterData {
@@ -508,23 +511,40 @@ fn create_apple_pay_session_response(
             }),
             ..router_data.clone()
         }),
-        None => Ok(types::PaymentsSessionRouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::ApplePay(Box::new(
-                    payment_types::ApplepaySessionTokenResponse {
-                        session_token_data: None,
-                        payment_request_data: apple_pay_payment_request,
-                        connector: connector_name,
-                        delayed_session_token: delayed_response,
-                        sdk_next_action: { payment_types::SdkNextAction { next_action } },
-                        connector_reference_id: None,
-                        connector_sdk_public_key: None,
-                        connector_merchant_id: None,
-                    },
-                )),
-            }),
-            ..router_data.clone()
-        }),
+        None => {
+            match (
+                header_payload.browser_name,
+                header_payload.x_client_platform,
+            ) {
+                (
+                    Some(common_enums::BrowserName::Safari),
+                    Some(common_enums::ClientPlatform::Web),
+                )
+                | (None, None) => Ok(types::PaymentsSessionRouterData {
+                    response: Ok(types::PaymentsResponseData::SessionResponse {
+                        session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                    }),
+                    ..router_data.clone()
+                }),
+                _ => Ok(types::PaymentsSessionRouterData {
+                    response: Ok(types::PaymentsResponseData::SessionResponse {
+                        session_token: payment_types::SessionToken::ApplePay(Box::new(
+                            payment_types::ApplepaySessionTokenResponse {
+                                session_token_data: None,
+                                payment_request_data: apple_pay_payment_request,
+                                connector: connector_name,
+                                delayed_session_token: delayed_response,
+                                sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                                connector_reference_id: None,
+                                connector_sdk_public_key: None,
+                                connector_merchant_id: None,
+                            },
+                        )),
+                    }),
+                    ..router_data.clone()
+                }),
+            }
+        }
     }
 }
 

@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
+use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -66,7 +67,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
-        RecurringMandatePaymentData, RouterData,
+        PaymentsResponseData, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -450,6 +451,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -553,7 +555,9 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        if let Some(customer_id) = &request.customer_id {
+                        if let Some(customer_id) =
+                            &request.customer_id.clone().or(customer_id.clone())
+                        {
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -606,6 +610,21 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -613,7 +632,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                            None,
+                            payment_method_info,
                         )
                     }
                 }
@@ -3132,6 +3151,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3192,6 +3212,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3251,6 +3272,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3523,6 +3545,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        integrity_check: Ok(()),
         connector_wallets_details: router_data.connector_wallets_details,
     }
 }
@@ -4156,7 +4179,7 @@ pub fn get_applepay_metadata(
 
 #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: SessionState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4180,7 +4203,7 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
     let merchant_connector_account_type = get_merchant_connector_account(
-        &state,
+        state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
@@ -4946,6 +4969,35 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
 
+pub fn check_integrity_based_on_flow<T, Request>(
+    request: &Request,
+    payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+) -> Result<(), common_utils::errors::IntegrityCheckError>
+where
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T> + CheckIntegrity<Request, T>,
+{
+    let connector_transaction_id = match payment_response_data {
+        Ok(resp_data) => match resp_data {
+            PaymentsResponseData::TransactionResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::TransactionUnresolvedResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::PreProcessingResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            _ => &None,
+        },
+        Err(_) => &None,
+    };
+    request.check_integrity(request, connector_transaction_id.to_owned())
+}
+
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -4967,4 +5019,26 @@ pub async fn config_skip_saving_wallet_at_connector(
             None
         }
     })
+}
+
+pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+    db: &dyn StorageInterface,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+        let skip_saving_wallet_at_connector_optional =
+            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
+                .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.payment_intent.setup_future_usage =
+                        Some(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
 }
