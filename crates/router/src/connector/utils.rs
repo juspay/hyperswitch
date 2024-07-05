@@ -922,16 +922,14 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
-        self.metadata
-            .clone()
-            .and_then(|meta_data| match meta_data.peek() {
-                serde_json::Value::Null
-                | serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_)
-                | serde_json::Value::String(_)
-                | serde_json::Value::Array(_) => None,
-                serde_json::Value::Object(_) => Some(meta_data),
-            })
+        self.metadata.clone().and_then(|meta_data| match meta_data {
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_)
+            | serde_json::Value::Array(_) => None,
+            serde_json::Value::Object(_) => Some(meta_data.into()),
+        })
     }
 
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
