@@ -1,9 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payments::RequestSurchargeDetails,
+    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -222,7 +220,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account.storage_scheme,
         )
         .await?;
-
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
