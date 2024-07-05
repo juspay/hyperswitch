@@ -12,6 +12,7 @@ use crate::{
         mandate::utils,
         payments::{helpers, CallConnectorAction},
     },
+    db::StorageInterface,
     errors,
     routes::SessionState,
     services,
@@ -110,30 +111,39 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                         .await?;
                 } else {
                     // if connector err re-schedule task
-                    let mapping = process_data::PaymentMethodMandateRevokePTMapping::default();
-                    let time_delta = if retry_count == 0 {
-                        Some(mapping.default.start_after)
-                    } else {
-                        pt_utils::get_delay(retry_count + 1, &mapping.default.frequencies)
-                    };
-                    let schedule_time = pt_utils::get_time_from_delta(time_delta);
-
-                    match schedule_time {
-                        Some(s_time) => db
-                            .as_scheduler()
-                            .retry_process(process, s_time)
-                            .await
-                            .map_err(Into::<errors::ProcessTrackerError>::into)?,
-                        None => db
-                            .as_scheduler()
-                            .finish_process_with_business_status(process, RETRIES_EXCEEDED)
-                            .await
-                            .map_err(Into::<errors::ProcessTrackerError>::into)?,
-                    };
+                    connector_reschedule_task(db, retry_count, process).await?;
                 }
             }
         };
 
         Ok(())
     }
+}
+
+async fn connector_reschedule_task(
+    db: &dyn StorageInterface,
+    retry_count: i32,
+    process: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let mapping = process_data::PaymentMethodMandateRevokePTMapping::default();
+    let time_delta = if retry_count == 0 {
+        Some(mapping.default.start_after)
+    } else {
+        pt_utils::get_delay(retry_count + 1, &mapping.default.frequencies)
+    };
+    let schedule_time = pt_utils::get_time_from_delta(time_delta);
+
+    match schedule_time {
+        Some(s_time) => db
+            .as_scheduler()
+            .retry_process(process, s_time)
+            .await
+            .map_err(Into::<errors::ProcessTrackerError>::into)?,
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(process, RETRIES_EXCEEDED)
+            .await
+            .map_err(Into::<errors::ProcessTrackerError>::into)?,
+    };
+    Ok(())
 }
