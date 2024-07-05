@@ -2611,7 +2611,7 @@ impl<'a>
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
-            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone()
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
