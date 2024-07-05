@@ -529,8 +529,8 @@ impl behaviour::Conversion for PaymentIntent {
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             charges: self.charges,
             frm_metadata: self.frm_metadata,
-            billing_address_details: self.billing_address_details.map(Encryption::from),
             customer_details: self.customer_details.map(Encryption::from),
+            billing_address_details: self.billing_address_details.map(Encryption::from),
         })
     }
 
@@ -588,12 +588,12 @@ impl behaviour::Conversion for PaymentIntent {
                     .request_external_three_ds_authentication,
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
-                billing_address_details: storage_model
-                    .billing_address_details
-                    .async_lift(inner_decrypt)
-                    .await?,
                 customer_details: storage_model
                     .customer_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                billing_address_details: storage_model
+                    .billing_address_details
                     .async_lift(inner_decrypt)
                     .await?,
             })
@@ -649,8 +649,8 @@ impl behaviour::Conversion for PaymentIntent {
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             charges: self.charges,
             frm_metadata: self.frm_metadata,
-            billing_address_details: self.billing_address_details.map(Encryption::from),
             customer_details: self.customer_details.map(Encryption::from),
+            billing_address_details: self.billing_address_details.map(Encryption::from),
         })
     }
 }
