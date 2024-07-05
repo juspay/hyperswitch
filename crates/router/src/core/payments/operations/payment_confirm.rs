@@ -1221,9 +1221,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let billing_address = payment_data.address.get_payment_billing();
         let billing_details = billing_address
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, billing_address).await
-            })
+            .async_and_then(|_| async { create_encrypted_data(key_store, billing_address).await })
             .await;
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_customer_id = customer_id.clone();
