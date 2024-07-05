@@ -4717,7 +4717,7 @@ async fn make_pmd_and_update_payment_method(
         };
 
         let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-        create_encrypted_data(&key_store, updated_pmd).await
+        create_encrypted_data(key_store, updated_pmd).await
     } else {
         None
     }
@@ -4975,7 +4975,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
                         .await
                         .map(|details| details.into());
 
@@ -5006,10 +5006,10 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 };
 
                 make_pmd_and_update_payment_method(
-                    &state,
-                    &req,
-                    &merchant_account,
-                    &key_store,
+                    state,
+                    req,
+                    merchant_account,
+                    key_store,
                     req_card,
                     pm.clone(),
                     locker_id,
@@ -5254,7 +5254,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                         let updated_pmd = updated_card.as_ref().map(|card| {
                             PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                         });
-                        let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+                        let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
                             .await
                             .map(|details| details.into());
 
