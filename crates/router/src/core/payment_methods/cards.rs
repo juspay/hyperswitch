@@ -290,6 +290,7 @@ pub async fn migrate_payment_method(
     let card_number_validation = cards::CardNumber::from_str(&card_details.card_number);
 
     if card_number_validation.is_ok() {
+        logger::debug!("Card number to be migrated is valid, save in locker");
         let card_number = card_number_validation
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid card number")?;
@@ -307,6 +308,7 @@ pub async fn migrate_payment_method(
         )
         .await
     } else {
+        logger::debug!("Card number to be migrated is invalid, skip saving in locker");
         skip_locker_call_and_migrate_payment_method(
             state,
             &req,
@@ -387,35 +389,41 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 })
                 .await
                 .flatten()
-                .map(|card_info| api_models::payments::AdditionalCardInfo {
-                    card_issuer: card_info.card_issuer,
-                    card_network: card_info.card_network.clone(),
-                    bank_code: card_info.bank_code,
-                    card_type: card_info.card_type,
-                    card_issuing_country: card_info.card_issuing_country,
-                    last4: last4_digits.clone(),
-                    card_isin: card_isin.clone(),
-                    card_extended_bin: None,
-                    card_exp_month: Some(card_details.card_exp_month.clone()),
-                    card_exp_year: Some(card_details.card_exp_year.clone()),
-                    card_holder_name: card_details.card_holder_name.clone(),
-                    payment_checks: None,
-                    authentication_data: None,
+                .map(|card_info| {
+                    logger::debug!("Fetching bin details");
+                    api_models::payments::AdditionalCardInfo {
+                        card_issuer: card_info.card_issuer,
+                        card_network: card_info.card_network.clone(),
+                        bank_code: card_info.bank_code,
+                        card_type: card_info.card_type,
+                        card_issuing_country: card_info.card_issuing_country,
+                        last4: last4_digits.clone(),
+                        card_isin: card_isin.clone(),
+                        card_extended_bin: None,
+                        card_exp_month: Some(card_details.card_exp_month.clone()),
+                        card_exp_year: Some(card_details.card_exp_year.clone()),
+                        card_holder_name: card_details.card_holder_name.clone(),
+                        payment_checks: None,
+                        authentication_data: None,
+                    }
                 })
-                .unwrap_or_else(|| api_models::payments::AdditionalCardInfo {
-                    card_issuer: None,
-                    card_network: None,
-                    bank_code: None,
-                    card_type: None,
-                    card_issuing_country: None,
-                    last4: last4_digits.clone(),
-                    card_isin: card_isin.clone(),
-                    card_extended_bin: None,
-                    card_exp_month: Some(card_details.card_exp_month.clone()),
-                    card_exp_year: Some(card_details.card_exp_year.clone()),
-                    card_holder_name: card_details.card_holder_name.clone(),
-                    payment_checks: None,
-                    authentication_data: None,
+                .unwrap_or_else(|| {
+                    logger::debug!("Failed to fetch bin details");
+                    api_models::payments::AdditionalCardInfo {
+                        card_issuer: None,
+                        card_network: None,
+                        bank_code: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        last4: last4_digits.clone(),
+                        card_isin: card_isin.clone(),
+                        card_extended_bin: None,
+                        card_exp_month: Some(card_details.card_exp_month.clone()),
+                        card_exp_year: Some(card_details.card_exp_year.clone()),
+                        card_holder_name: card_details.card_holder_name.clone(),
+                        payment_checks: None,
+                        authentication_data: None,
+                    }
                 })
         };
 
@@ -513,6 +521,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
+
+    logger::debug!("Payment method inserted in db");
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
