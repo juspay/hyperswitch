@@ -345,7 +345,9 @@ impl ConnectorData {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(&connector::Aci))),
-                enums::Connector::Adyen => Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new()))),
+                enums::Connector::Adyen => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
+                }
                 enums::Connector::Adyenplatform => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Adyenplatform)))
                 }
