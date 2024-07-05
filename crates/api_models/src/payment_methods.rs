@@ -195,7 +195,9 @@ impl PaymentMethodCreate {
                 .clone(),
             card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
+            #[cfg(feature = "payouts")]
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
+            #[cfg(feature = "payouts")]
             wallet: payment_method_migrate.wallet.clone(),
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
