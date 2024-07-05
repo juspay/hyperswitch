@@ -60,6 +60,7 @@ pub struct PaymentIntent {
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
+    pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -117,6 +118,7 @@ pub struct PaymentIntentNew {
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
+    pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -177,6 +179,7 @@ pub enum PaymentIntentUpdate {
         request_external_three_ds_authentication: Option<bool>,
         frm_metadata: Option<pii::SecretSerdeValue>,
         customer_details: Option<Encryption>,
+        billing_details: Option<Encryption>,
         merchant_order_reference_id: Option<String>,
     },
     PaymentAttemptAndAttemptCountUpdate {
@@ -254,6 +257,7 @@ pub struct PaymentIntentUpdateInternal {
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
+    pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -291,6 +295,7 @@ impl PaymentIntentUpdate {
             request_external_three_ds_authentication,
             frm_metadata,
             customer_details,
+            billing_details,
             merchant_order_reference_id,
         } = self.into();
         PaymentIntent {
@@ -330,6 +335,7 @@ impl PaymentIntentUpdate {
                 .or(source.request_external_three_ds_authentication),
             frm_metadata: frm_metadata.or(source.frm_metadata),
             customer_details: customer_details.or(source.customer_details),
+            billing_details: billing_details.or(source.billing_details),
             merchant_order_reference_id: merchant_order_reference_id
                 .or(source.merchant_order_reference_id),
             ..source
@@ -363,6 +369,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_details,
                 merchant_order_reference_id,
             } => Self {
                 amount: Some(amount),
@@ -388,6 +395,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                billing_details,
                 merchant_order_reference_id,
                 ..Default::default()
             },
