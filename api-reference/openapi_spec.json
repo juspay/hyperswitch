@@ -19401,7 +19401,6 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
-          "razorpay",
           "adyenplatform",
           "phonypay",
           "fauxpay",
@@ -19452,6 +19451,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "riskified",
           "shift4",
           "signifyd",
