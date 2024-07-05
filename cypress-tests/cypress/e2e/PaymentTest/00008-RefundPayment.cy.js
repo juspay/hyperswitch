@@ -85,6 +85,17 @@ describe("Card - Refund flow - No 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Card - Partial Refund flow test for No-3DS", () => {
@@ -174,6 +185,17 @@ describe("Card - Refund flow - No 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context(
@@ -223,6 +245,17 @@ describe("Card - Refund flow - No 3DS", () => {
           6500,
           globalState
         );
+        if (should_continue)
+          should_continue = utils.should_continue_further(res_data);
+      });
+
+      it("sync-refund-call-test", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefund"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.syncRefundCallTest(req_data, res_data, globalState);
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -916,6 +949,17 @@ describe("Card - Refund flow - 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Card - Partial Refund flow test for 3DS", () => {
@@ -1009,6 +1053,17 @@ describe("Card - Refund flow - 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
@@ -1060,6 +1115,17 @@ describe("Card - Refund flow - 3DS", () => {
         6500,
         globalState
       );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -1245,6 +1311,17 @@ describe("Card - Refund flow - 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Card - Partial Refund for fully captured 3DS payment", () => {
@@ -1358,6 +1435,17 @@ describe("Card - Refund flow - 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Card - Full Refund for partially captured 3DS payment", () => {
@@ -1455,6 +1543,17 @@ describe("Card - Refund flow - 3DS", () => {
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
   });
 
   context("Card - partial Refund for partially captured 3DS payment", () => {
@@ -1549,6 +1648,17 @@ describe("Card - Refund flow - 3DS", () => {
         50,
         globalState
       );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("sync-refund-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SyncRefund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.syncRefundCallTest(req_data, res_data, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
