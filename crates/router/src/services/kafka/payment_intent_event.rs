@@ -34,6 +34,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl<'a> KafkaPaymentIntentEvent<'a> {
@@ -63,6 +64,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
             billing_details: intent.billing_details.clone(),
+            shipping_details: intent.shipping_details.clone(),
         }
     }
 }
