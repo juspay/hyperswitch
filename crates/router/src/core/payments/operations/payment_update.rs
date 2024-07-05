@@ -1,9 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payments::RequestSurchargeDetails,
+    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -11,7 +9,9 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::{CustomerData, PaymentIntentUpdateFields};
+use hyperswitch_domain_models::payments::payment_intent::{
+    CustomerData, PaymentIntentUpdateFields,
+};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -731,13 +731,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         //     .get_payment_method_billing()
         //     .map(From::from);
 
-        let billing_details = payment_data.address.get_payment_billing()
+        let billing_details = payment_data
+            .address
+            .get_payment_billing()
             .async_and_then(|_| async {
-                create_encrypted_data(key_store, payment_data.address.get_payment_billing().cloned()).await
+                create_encrypted_data(
+                    key_store,
+                    payment_data.address.get_payment_billing().cloned(),
+                )
+                .await
             })
             .await;
 
-        let shipping_details = payment_data.address.get_shipping()
+        let shipping_details = payment_data
+            .address
+            .get_shipping()
             .async_and_then(|_| async {
                 create_encrypted_data(key_store, payment_data.address.get_shipping().cloned()).await
             })
@@ -754,37 +762,35 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .store
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::Update (
-                    PaymentIntentUpdateFields {
-                        amount: payment_data.amount.into(),
-                        currency: payment_data.currency,
-                        setup_future_usage,
-                        status: intent_status,
-                        customer_id: customer_id.clone(),
-                        shipping_address_id: shipping_address,
-                        billing_address_id: billing_address,
-                        return_url,
-                        business_country,
-                        business_label,
-                        description,
-                        statement_descriptor_name,
-                        statement_descriptor_suffix,
-                        order_details,
-                        metadata,
-                        payment_confirm_source: None,
-                        updated_by: storage_scheme.to_string(),
-                        fingerprint_id: None,
-                        session_expiry,
-                        request_external_three_ds_authentication: payment_data
-                            .payment_intent
-                            .request_external_three_ds_authentication,
-                        frm_metadata,
-                        customer_details,
-                        merchant_order_reference_id,
-                        billing_details,
-                        shipping_details,
-                    }
-                ),
+                storage::PaymentIntentUpdate::Update(PaymentIntentUpdateFields {
+                    amount: payment_data.amount.into(),
+                    currency: payment_data.currency,
+                    setup_future_usage,
+                    status: intent_status,
+                    customer_id: customer_id.clone(),
+                    shipping_address_id: shipping_address,
+                    billing_address_id: billing_address,
+                    return_url,
+                    business_country,
+                    business_label,
+                    description,
+                    statement_descriptor_name,
+                    statement_descriptor_suffix,
+                    order_details,
+                    metadata,
+                    payment_confirm_source: None,
+                    updated_by: storage_scheme.to_string(),
+                    fingerprint_id: None,
+                    session_expiry,
+                    request_external_three_ds_authentication: payment_data
+                        .payment_intent
+                        .request_external_three_ds_authentication,
+                    frm_metadata,
+                    customer_details,
+                    merchant_order_reference_id,
+                    billing_details,
+                    shipping_details,
+                }),
                 key_store,
                 storage_scheme,
             )
