@@ -181,7 +181,7 @@ pub enum PaymentIntentUpdate {
         metadata: pii::SecretSerdeValue,
         updated_by: String,
     },
-    Update(PaymentIntentUpdateFields),
+    Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
@@ -496,7 +496,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 metadata,
                 updated_by,
             },
-            PaymentIntentUpdate::Update(value) => Self::Update(DieselPaymentIntentUpdateFields {
+            PaymentIntentUpdate::Update(value) => Self::Update(Box::new(DieselPaymentIntentUpdateFields {
                 amount: value.amount,
                 currency: value.currency,
                 setup_future_usage: value.setup_future_usage,
@@ -523,7 +523,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 billing_details: value.billing_details.map(Encryption::from),
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details.map(Encryption::from),
-            }),
+            })),
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
                 status,

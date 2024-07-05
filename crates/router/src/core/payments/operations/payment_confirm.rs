@@ -1249,7 +1249,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             async move {
                 m_db.update_payment_intent(
                     m_payment_data_payment_intent,
-                    storage::PaymentIntentUpdate::Update(PaymentIntentUpdateFields {
+                    storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                         amount: payment_data.payment_intent.amount,
                         currency: payment_data.currency,
                         setup_future_usage,
@@ -1275,7 +1275,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         merchant_order_reference_id: None,
                         billing_details,
                         shipping_details,
-                    }),
+                    })),
                     &m_key_store,
                     storage_scheme,
                 )

@@ -138,7 +138,7 @@ pub enum PaymentIntentUpdate {
         metadata: pii::SecretSerdeValue,
         updated_by: String,
     },
-    Update(PaymentIntentUpdateFields),
+    Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,

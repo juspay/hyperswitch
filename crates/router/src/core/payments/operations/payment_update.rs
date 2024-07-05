@@ -762,7 +762,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .store
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::Update(PaymentIntentUpdateFields {
+                storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     setup_future_usage,
@@ -790,7 +790,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     merchant_order_reference_id,
                     billing_details,
                     shipping_details,
-                }),
+                })),
                 key_store,
                 storage_scheme,
             )
