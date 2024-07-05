@@ -310,16 +310,16 @@ where
     fn foreign_try_from(
         (mut encrypted_data, response): (FxHashMap<String, Encryption>, BatchDecryptDataResponse),
     ) -> Result<Self, Self::Error> {
-        let mut decrypted = Self::default();
-        for (k, v) in response.data.0.iter() {
-            match encrypted_data.remove(k) {
-                Some(encrypted) => {
-                    decrypted.insert(k.clone(), Encryptable::convert(v, encrypted.clone())?);
-                }
-                None => Err(errors::CryptoError::DecodingFailed)?,
-            }
-        }
-        Ok(decrypted)
+        response
+            .data
+            .0
+            .into_iter()
+            .flat_map(|(k, v)| {
+                encrypted_data
+                    .remove(&k)
+                    .map(|encrypted| Ok((k.clone(), Encryptable::convert(&v, encrypted.clone())?)))
+            })
+            .collect()
     }
 }
 
@@ -336,15 +336,17 @@ impl From<(Encryption, Identifier)> for DecryptDataRequest {
 
 impl From<(FxHashMap<String, Encryption>, Identifier)> for BatchDecryptDataRequest {
     fn from((map, identifier): (FxHashMap<String, Encryption>, Identifier)) -> Self {
-        let mut group = FxHashMap::default();
-        for (key, value) in map.into_iter() {
-            group.insert(
-                key,
-                EncryptedData {
-                    data: StrongSecret::new(value.clone().into_inner().expose()),
-                },
-            );
-        }
+        let group = map
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k,
+                    EncryptedData {
+                        data: StrongSecret::new(v.clone().into_inner().expose()),
+                    },
+                )
+            })
+            .collect();
         Self {
             data: EncryptedDataGroup(group),
             identifier,

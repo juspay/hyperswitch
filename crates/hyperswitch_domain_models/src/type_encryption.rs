@@ -5,10 +5,7 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
-    types::keymanager::{
-        DecryptDataRequest, DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
-        Identifier, KeyManagerState,
-    },
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -21,7 +18,8 @@ use {
         transformers::{ForeignFrom, ForeignTryFrom},
         types::keymanager::{
             BatchDecryptDataRequest, BatchDecryptDataResponse, BatchEncryptDataRequest,
-            BatchEncryptDataResponse,
+            BatchEncryptDataResponse, DecryptDataRequest, DecryptDataResponse, EncryptDataRequest,
+            EncryptDataResponse,
         },
     },
     router_env::logger,
@@ -292,17 +290,18 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in masked_data {
-            encrypted.insert(
-                k,
-                Self::new(
-                    v.clone(),
-                    crypt_algo.encode_message(key, v.peek().as_bytes())?.into(),
-                ),
-            );
-        }
-        Ok(encrypted)
+        masked_data
+            .into_iter()
+            .map(|(k, v)| {
+                Ok((
+                    k,
+                    Self::new(
+                        v.clone(),
+                        crypt_algo.encode_message(key, v.peek().as_bytes())?.into(),
+                    ),
+                ))
+            })
+            .collect()
     }
 
     async fn batch_decrypt(
@@ -311,16 +310,16 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in encrypted_data {
-            let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
-
-            let value: String = std::str::from_utf8(&data)
-                .change_context(errors::CryptoError::DecodingFailed)?
-                .to_string();
-            decrypted.insert(k, Self::new(value.into(), v.into_inner()));
-        }
-        Ok(decrypted)
+        encrypted_data
+            .into_iter()
+            .map(|(k, v)| {
+                let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
+                let value: String = std::str::from_utf8(&data)
+                    .change_context(errors::CryptoError::DecodingFailed)?
+                    .to_string();
+                Ok((k, Self::new(value.into(), v.into_inner())))
+            })
+            .collect()
     }
 }
 
@@ -525,16 +524,17 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in masked_data {
-            let data =
-                serde_json::to_vec(v.peek()).change_context(errors::CryptoError::DecodingFailed)?;
-            encrypted.insert(
-                k,
-                Self::new(v, crypt_algo.encode_message(key, &data)?.into()),
-            );
-        }
-        Ok(encrypted)
+        masked_data
+            .into_iter()
+            .map(|(k, v)| {
+                let data = serde_json::to_vec(v.peek())
+                    .change_context(errors::CryptoError::DecodingFailed)?;
+                Ok((
+                    k,
+                    Self::new(v, crypt_algo.encode_message(key, &data)?.into()),
+                ))
+            })
+            .collect()
     }
 
     async fn batch_decrypt(
@@ -543,15 +543,16 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in encrypted_data {
-            let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
+        encrypted_data
+            .into_iter()
+            .map(|(k, v)| {
+                let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
 
-            let value: serde_json::Value = serde_json::from_slice(&data)
-                .change_context(errors::CryptoError::DecodingFailed)?;
-            decrypted.insert(k, Self::new(value.into(), v.into_inner()));
-        }
-        Ok(decrypted)
+                let value: serde_json::Value = serde_json::from_slice(&data)
+                    .change_context(errors::CryptoError::DecodingFailed)?;
+                Ok((k, Self::new(value.into(), v.into_inner())))
+            })
+            .collect()
     }
 }
 
@@ -751,14 +752,15 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut encrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in masked_data {
-            encrypted.insert(
-                k,
-                Self::new(v.clone(), crypt_algo.encode_message(key, v.peek())?.into()),
-            );
-        }
-        Ok(encrypted)
+        masked_data
+            .into_iter()
+            .map(|(k, v)| {
+                Ok((
+                    k,
+                    Self::new(v.clone(), crypt_algo.encode_message(key, v.peek())?.into()),
+                ))
+            })
+            .collect()
     }
 
     async fn batch_decrypt(
@@ -767,19 +769,20 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
         metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let mut decrypted: FxHashMap<String, Self> = FxHashMap::default();
-        for (k, v) in encrypted_data {
-            decrypted.insert(
-                k,
-                Self::new(
-                    crypt_algo
-                        .decode_message(key, v.clone().into_inner().clone())?
-                        .into(),
-                    v.into_inner(),
-                ),
-            );
-        }
-        Ok(decrypted)
+        encrypted_data
+            .into_iter()
+            .map(|(k, v)| {
+                Ok((
+                    k,
+                    Self::new(
+                        crypt_algo
+                            .decode_message(key, v.clone().into_inner().clone())?
+                            .into(),
+                        v.into_inner(),
+                    ),
+                ))
+            })
+            .collect()
     }
 }
 
