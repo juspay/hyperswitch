@@ -148,6 +148,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             key_store,
             None,
+            &payment_intent.customer_id,
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -370,6 +371,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
+
+        payment_intent.merchant_order_reference_id = request
+            .merchant_order_reference_id
+            .clone()
+            .or(payment_intent.merchant_order_reference_id);
 
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
@@ -706,6 +712,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -735,6 +746,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         .request_external_three_ds_authentication,
                     frm_metadata,
                     customer_details,
+                    merchant_order_reference_id,
                 },
                 key_store,
                 storage_scheme,

@@ -136,6 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
+            &request.customer_id,
         )
         .await?;
 
@@ -1116,6 +1117,7 @@ impl PaymentCreate {
             charges,
             frm_metadata: request.frm_metadata.clone(),
             customer_details,
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
         })
     }
 

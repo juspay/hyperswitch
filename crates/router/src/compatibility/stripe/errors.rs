@@ -264,6 +264,12 @@ pub enum StripeErrorCode {
     PaymentMethodDeleteFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
+    #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
+    IntegrityCheckFailed {
+        reason: String,
+        field_names: String,
+        connector_transaction_id: Option<String>,
+    },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant")]
     InvalidTenant,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
@@ -650,6 +656,15 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidWalletToken { wallet_name }
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
+            errors::ApiErrorResponse::IntegrityCheckFailed {
+                reason,
+                field_names,
+                connector_transaction_id,
+            } => Self::IntegrityCheckFailed {
+                reason,
+                field_names,
+                connector_transaction_id,
+            },
             errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
             | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
@@ -741,6 +756,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::IntegrityCheckFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::PaymentBlockedError { code, .. } => {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
