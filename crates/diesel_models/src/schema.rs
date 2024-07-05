@@ -890,7 +890,7 @@ diesel::table! {
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
         billing_address_details -> Nullable<Bytea>,
-        shipping_address_details -> Nullable<Bytea>,
+        shipping_details -> Nullable<Bytea>,
     }
 }
 

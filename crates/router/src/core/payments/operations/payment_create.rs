@@ -1129,7 +1129,7 @@ impl PaymentCreate {
             charges,
             frm_metadata: request.frm_metadata.clone(),
             billing_address_details,
-            shipping_address_details,
+            shipping_details,
             customer_details,
         })
     }
