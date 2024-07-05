@@ -199,13 +199,32 @@ impl FlowIntegrity for SyncIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push("amount".to_string());
-        }
+        res_integrity_object
+            .capture_amount
+            .zip(req_integrity_object.capture_amount)
+            .map(|tup| {
+                if tup.0 != tup.1 {
+                    mismatched_fields.push("capture_amount".to_string());
+                }
+            });
 
-        if req_integrity_object.currency != res_integrity_object.currency {
-            mismatched_fields.push("currency".to_string());
-        }
+        res_integrity_object
+            .amount
+            .zip(req_integrity_object.amount)
+            .map(|tup| {
+                if tup.0 != tup.1 {
+                    mismatched_fields.push("amount".to_string());
+                }
+            });
+
+        res_integrity_object
+            .currency
+            .zip(req_integrity_object.currency)
+            .map(|tup| {
+                if tup.0 != tup.1 {
+                    mismatched_fields.push("currency".to_string());
+                }
+            });
 
         if mismatched_fields.is_empty() {
             Ok(())
@@ -229,9 +248,14 @@ impl FlowIntegrity for CaptureIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
-            mismatched_fields.push("capture_amount".to_string());
-        }
+        res_integrity_object
+            .capture_amount
+            .zip(req_integrity_object.capture_amount)
+            .map(|tup| {
+                if tup.0 != tup.1 {
+                    mismatched_fields.push("capture_amount".to_string());
+                }
+            });
 
         if req_integrity_object.currency != res_integrity_object.currency {
             mismatched_fields.push("currency".to_string());
