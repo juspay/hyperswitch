@@ -426,8 +426,8 @@ pub fn validate_payout_link_render_request(
 
 fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
     allowed_domains.iter().any(|allowed_domain| {
-        Regex::new(&format!(r"{}", allowed_domain))
-            .and_then(|regex| Ok(regex.is_match(domain)))
+        Regex::new(allowed_domain)
+        .map(|regex| regex.is_match(domain))
             .map_err(|err| logger::error!("Invalid regex! - {:?}", err))
             .unwrap_or(false)
     })

@@ -2287,7 +2287,7 @@ pub fn validate_allowed_domains_regex(allowed_domains: HashSet<String>) -> Route
     let errors: Vec<String> = allowed_domains
         .into_iter()
         .filter_map(|domain| {
-            Regex::new(&format!(r"{}", domain))
+            Regex::new(&domain)
                 .err()
                 .map(|err| format!("Failed to parse regex `{}` - {err}", domain))
         })
