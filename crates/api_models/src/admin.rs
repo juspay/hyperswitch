@@ -268,10 +268,6 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<i64>,
-
     /// The organization id merchant is associated with
     pub organization_id: String,
 
@@ -920,8 +916,7 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
 
@@ -950,8 +945,13 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -1005,8 +1005,7 @@ pub struct BusinessProfileResponse {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<i64>,
 
@@ -1038,8 +1037,13 @@ pub struct BusinessProfileResponse {
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 
-    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -1085,8 +1089,7 @@ pub struct BusinessProfileUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
 
@@ -1118,8 +1121,13 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -1159,9 +1167,14 @@ pub struct BusinessGenericLinkConfig {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct BusinessPaymentLinkConfig {
+    /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
+    /// Default payment link config for all future payment link
     #[serde(flatten)]
-    pub config: PaymentLinkConfigRequest,
+    #[schema(value_type = PaymentLinkConfigRequest)]
+    pub default_config: Option<PaymentLinkConfigRequest>,
+    /// list of configs for multi theme setup
+    pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

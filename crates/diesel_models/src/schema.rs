@@ -203,6 +203,7 @@ diesel::table! {
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
+        collect_billing_details_from_wallet_connector -> Nullable<Bool>,
     }
 }
 
@@ -889,6 +890,8 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
+        #[max_length = 255]
+        merchant_order_reference_id -> Nullable<Varchar>,
         billing_address_details -> Nullable<Bytea>,
     }
 }

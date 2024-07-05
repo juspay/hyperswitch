@@ -32,7 +32,9 @@ export const connectorDetails = {
   card_pm: {
     Confirm: {
       Request: {
-        card: card_data,
+        payment_method_data: {
+          card: card_data,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",

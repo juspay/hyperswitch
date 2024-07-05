@@ -1,11 +1,11 @@
 import { getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "371449635398431",
+  card_number: "4111111111111111",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "John Doe",
-  card_cvc: "7373",
+  card_cvc: "737",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -54,7 +54,9 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -68,7 +70,9 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -82,7 +86,9 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -96,7 +102,9 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -110,7 +118,9 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -124,7 +134,9 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -165,10 +177,6 @@ export const connectorDetails = {
         currency: "USD",
       },
       Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
         status: 200,
         body: {
           status: "pending",
@@ -334,7 +342,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -355,7 +365,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -671,33 +683,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    przelewy24: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "przelewy24",
-        payment_method_data: {
-          bank_redirect: {
-            przelewy24: {
-              bank_name: "citi",
-              billing_details: {
-                email: "guest@juspay.in",
-              },
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "automatic for przelewy24 is not supported by adyen",
-          },
         },
       },
     },

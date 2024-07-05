@@ -194,6 +194,7 @@ pub enum PaymentIntentUpdate {
         session_expiry: Option<PrimitiveDateTime>,
         request_external_three_ds_authentication: Option<bool>,
         customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        merchant_order_reference_id: Option<String>,
         billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
@@ -272,6 +273,7 @@ pub struct PaymentIntentUpdateInternal {
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub merchant_order_reference_id: Option<String>,
     pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
@@ -301,6 +303,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                merchant_order_reference_id,
                 billing_address_details,
             } => Self {
                 amount: Some(amount),
@@ -326,6 +329,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                merchant_order_reference_id,
                 billing_address_details,
                 ..Default::default()
             },
@@ -567,6 +571,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details,
+                merchant_order_reference_id,
                 billing_address_details,
             } => Self::Update {
                 amount,
@@ -591,6 +596,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 request_external_three_ds_authentication,
                 frm_metadata,
                 customer_details: customer_details.map(Encryption::from),
+                merchant_order_reference_id,
                 billing_address_details: billing_address_details.map(Encryption::from),
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -694,6 +700,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             request_external_three_ds_authentication,
             frm_metadata,
             customer_details,
+            merchant_order_reference_id,
             billing_address_details,
         } = value;
 
@@ -729,6 +736,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             request_external_three_ds_authentication,
             frm_metadata,
             customer_details: customer_details.map(Encryption::from),
+            merchant_order_reference_id,
             billing_address_details: billing_address_details.map(Encryption::from),
         }
     }

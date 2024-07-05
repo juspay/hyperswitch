@@ -64,4 +64,5 @@ pub struct PaymentIntent {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub merchant_order_reference_id: Option<String>,
 }

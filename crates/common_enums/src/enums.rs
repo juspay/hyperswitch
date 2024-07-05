@@ -10,7 +10,8 @@ pub mod diesel_exports {
         DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
         DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
         DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
+        DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFraudCheckStatus as FraudCheckStatus, DbFutureUsage as FutureUsage,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
         DbRefundStatus as RefundStatus,
@@ -121,6 +122,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
+    // Bamboraapac, commented for template
     Bluesnap,
     Boku,
     Braintree,
@@ -235,6 +237,30 @@ pub enum AuthenticationType {
 }
 
 /// The status of the capture
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckStatus {
+    Fraud,
+    ManualReview,
+    #[default]
+    Pending,
+    Legit,
+    TransactionFailure,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -1202,7 +1228,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
-/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1505,7 +1531,7 @@ pub enum PaymentMethod {
     GiftCard,
 }
 
-/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1546,6 +1572,7 @@ pub enum PaymentType {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
     ManualReview,
@@ -1553,6 +1580,28 @@ pub enum RefundStatus {
     Pending,
     Success,
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmTransactionType {
+    #[default]
+    PreFrm,
+    PostFrm,
 }
 
 /// The status of the mandate, which indicates whether it can be used to initiate a payment.
