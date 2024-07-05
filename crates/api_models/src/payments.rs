@@ -454,7 +454,7 @@ pub struct PaymentsRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
@@ -3557,7 +3557,7 @@ pub struct PaymentsResponse {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
 
     /// Additional data related to some connectors
     #[schema(value_type = Option<ConnectorMetadata>)]
