@@ -4821,8 +4821,11 @@ pub struct PaymentsStartRequest {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
-    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
+    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    #[schema(value_type = Option<RedirectResponse>)]
+    pub search_tags: Option<Vec<Secret<String>>>,
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None

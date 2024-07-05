@@ -1,6 +1,8 @@
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{hashing::HashedString, id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
+use masking::{PeekInterface, Secret};
+use serde_json::Value;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -31,6 +33,8 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub customer_email: Option<HashedString<pii::EmailStrategy>>,
+    pub feature_metadata: Option<&'a Value>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -59,6 +63,14 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
+            customer_email: intent
+                .customer_details
+                .as_ref()
+                .and_then(|value| value.get_inner().peek().as_object())
+                .and_then(|obj| obj.get("email"))
+                .and_then(|email| email.as_str())
+                .map(|email| HashedString::from(Secret::new(email.to_string()))),
+            feature_metadata: intent.feature_metadata.as_ref(),
         }
     }
 }
