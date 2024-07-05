@@ -14,10 +14,8 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-
 use masking::PeekInterface;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
-
 use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};

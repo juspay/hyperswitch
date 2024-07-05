@@ -100,7 +100,7 @@ impl Default for PaymentMethodMandateRevokePTMapping {
                     // 4th, 5th, 6th, 7th and 8th attempts happen at intervals of 10 minutes each
                     (60 * 10, 5),
                 ],
-            }
+            },
         }
     }
 }
