@@ -420,7 +420,7 @@ impl ConnectorData {
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Forte => Ok(ConnectorEnum::Old(Box::new(&connector::Forte))),
                 enums::Connector::Globalpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Globalpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
                 enums::Connector::Globepay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Globepay)))

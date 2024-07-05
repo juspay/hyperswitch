@@ -1,13 +1,19 @@
+use common_utils::types::StringMinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize)]
+pub struct GlobalPayRouterData<T> {
+    pub amount: StringMinorUnit,
+    pub router_data: T,
+}
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
     pub account_name: Secret<String>,
     /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
     /// represented in the lowest denomiation of the related currency.
-    pub amount: Option<String>,
+    pub amount: Option<StringMinorUnit>,
     /// Indicates if the merchant would accept an authorization for an amount less than the
     /// requested amount. This is available for CP channel
     /// only where the balance not authorized can be processed again using a different card.
@@ -37,7 +43,7 @@ pub struct GlobalpayPaymentsRequest {
     pub device: Option<Device>,
     /// The amount of the gratuity for a transaction.It is always represented in the lowest
     /// denomiation of the related currency.
-    pub gratuity_amount: Option<String>,
+    pub gratuity_amount: Option<StringMinorUnit>,
     /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
     pub initiator: Option<Initiator>,
     /// Indicates the source IP Address of the system used to create the transaction.
@@ -64,7 +70,7 @@ pub struct GlobalpayPaymentsRequest {
     /// The amount that reflects the additional charge the merchant applied to the transaction
     /// for using a specific payment method.It is always represented in the lowest denomiation of
     /// the related currency.
-    pub surcharge_amount: Option<String>,
+    pub surcharge_amount: Option<StringMinorUnit>,
     /// Indicates the total or expected total of captures that will executed against a
     /// transaction flagged as being captured multiple times.
     pub total_capture_count: Option<i64>,
@@ -156,7 +162,7 @@ pub struct LodgingChargeItem {
     /// A reference that identifies the charge item, such as a lodging folio number.
     pub reference: Option<String>,
     /// The total amount for the list of charge types for a charge item.
-    pub total_amount: Option<String>,
+    pub total_amount: Option<StringMinorUnit>,
 
     pub types: Option<Vec<TypeElement>>,
 }
@@ -799,17 +805,17 @@ pub enum Sequence {
 
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayRefundRequest {
-    pub amount: String,
+    pub amount: StringMinorUnit,
 }
 
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayCaptureRequest {
-    pub amount: Option<String>,
+    pub amount: Option<StringMinorUnit>,
     pub capture_sequence: Option<Sequence>,
     pub reference: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayCancelRequest {
-    pub amount: Option<String>,
+    pub amount: Option<StringMinorUnit>,
 }

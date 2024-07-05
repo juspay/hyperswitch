@@ -1,3 +1,4 @@
+use common_utils::types::StringMinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ pub struct GlobalpayPaymentsResponse {
     pub action: Option<Action>,
     /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
     /// represented in the lowest denomiation of the related currency.
-    pub amount: Option<String>,
+    pub amount: Option<StringMinorUnit>,
     /// Indicates if the merchant would accept an authorization for an amount less than the
     /// requested amount. This is available for CP channel
     /// only where the balance not authorized can be processed again using a different card.

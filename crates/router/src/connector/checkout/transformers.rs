@@ -588,7 +588,7 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: Option<i32>,
+    amount: Option<MinorUnit>,
     currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
@@ -1055,11 +1055,7 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount.get_amount_as_i64())
-    }
-
-    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
+    fn get_amount_captured(&self) -> Option<MinorUnit> {
         Some(self.amount)
     }
 }
@@ -1080,13 +1076,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.map(Into::into)
-    }
-
-    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
-        let amount = self.amount.map(Into::into);
-        amount.map(MinorUnit::new)
+    fn get_amount_captured(&self) -> Option<MinorUnit> {
+        self.amount
     }
 }
 
@@ -1217,7 +1208,7 @@ pub struct CheckoutWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub balances: Option<Balances>,
     pub response_code: Option<String>,
     pub response_summary: Option<String>,

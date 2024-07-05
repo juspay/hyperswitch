@@ -4373,16 +4373,11 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
         Some(self.merchant_reference_id.clone())
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount
-            .as_ref()
-            .map(|amount_struct| amount_struct.value.get_amount_as_i64())
-    }
-
-    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
-        self.amount
-            .as_ref()
-            .map(|amount_struct| amount_struct.value)
+    fn get_amount_captured(&self) -> Option<MinorUnit> {
+        match self.amount.clone() {
+            Some(amount) => Some(amount.value),
+            None => None,
+        }
     }
 }
 

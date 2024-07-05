@@ -2180,9 +2180,7 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
-    fn get_amount_captured(&self) -> Option<i64>;
-
-    fn get_minor_amount_captured(&self) -> Option<MinorUnit>;
+    fn get_amount_captured(&self) -> Option<MinorUnit>;
 }
 
 pub fn construct_captures_response_hashmap<T>(
@@ -2204,9 +2202,7 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
-                        amount: capture_sync_response
-                            .get_amount_captured()
-                            .map(MinorUnit::new),
+                        amount: capture_sync_response.get_amount_captured(),
                     },
                 );
             }
