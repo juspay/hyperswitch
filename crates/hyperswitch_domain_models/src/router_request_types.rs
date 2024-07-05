@@ -62,6 +62,28 @@ pub struct PaymentsAuthorizeData {
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+    pub integrity_object: Option<AuthoriseIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AuthoriseIntegrityObject {
+    /// Authorise amount
+    pub amount: MinorUnit,
+    /// Authorise currency
+    pub currency: storage_enums::Currency,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyncIntegrityObject {
+    /// Sync amount
+    pub amount: Option<MinorUnit>,
+    /// Sync currency
+    pub currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -325,7 +347,7 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
-
+    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -348,6 +370,9 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+
+    pub amount: MinorUnit,
+    pub integrity_object: Option<SyncIntegrityObject>,
 }
 
 #[derive(Debug, Default, Clone)]
