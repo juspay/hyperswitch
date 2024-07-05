@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
@@ -180,6 +182,9 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+
+    /// A list of allowed domains regexes where the payout link can be embedded / opened from
+    pub allowed_domains: Option<HashSet<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

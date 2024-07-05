@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use api_models::{
     admin::{self as admin_types},
@@ -15,6 +15,7 @@ use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
+use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
@@ -1693,6 +1694,12 @@ pub async fn update_business_profile(
         .transpose()?
         .map(Secret::new);
 
+    request
+        .payout_link_config
+        .clone()
+        .and_then(|config| config.config.allowed_domains)
+        .map_or(Ok(()), validate_allowed_domains_regex)?;
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -2274,4 +2281,25 @@ pub fn validate_status_and_disabled(
     };
 
     Ok((connector_status, disabled))
+}
+
+pub fn validate_allowed_domains_regex(allowed_domains: HashSet<String>) -> RouterResult<()> {
+    let errors: Vec<String> = allowed_domains
+        .into_iter()
+        .filter_map(|domain| {
+            Regex::new(&format!(r"{}", domain))
+                .err()
+                .map(|err| format!("Failed to parse regex `{}` - {err}", domain))
+        })
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "allowed_domains contain invalid domain regexes -\n{}",
+                errors.join(", ")
+            )
+        }))
+    }
 }

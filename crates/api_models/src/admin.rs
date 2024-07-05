@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use common_utils::{
     consts,
@@ -1159,6 +1159,9 @@ pub struct BusinessPayoutLinkConfig {
 pub struct BusinessGenericLinkConfig {
     /// Custom domain name to be used for hosting the link
     pub domain_name: Option<String>,
+
+    /// A list of allowed domains regexes where this link can be embedded / opened from
+    pub allowed_domains: Option<HashSet<String>>,
 
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]

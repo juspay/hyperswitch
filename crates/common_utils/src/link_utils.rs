@@ -162,6 +162,8 @@ pub struct PayoutLinkData {
     pub amount: MinorUnit,
     /// Payout currency
     pub currency: enums::Currency,
+    /// A list of allowed domains regexes where the payout link can be embedded / opened from
+    pub allowed_domains: Option<HashSet<String>>,
 }
 
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);

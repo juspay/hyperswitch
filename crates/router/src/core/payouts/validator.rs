@@ -1,7 +1,10 @@
-use api_models::admin;
+use std::collections::HashSet;
+
 #[cfg(feature = "olap")]
-use common_utils::errors::CustomResult;
+use actix_web::http::header;
+use api_models::admin;
 use common_utils::{
+    errors::CustomResult,
     ext_traits::ValueExt,
     id_type::CustomerId,
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
@@ -14,13 +17,15 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
 use masking::Secret;
-use router_env::{instrument, tracing};
+use regex::Regex;
+use router_env::{instrument, logger, tracing, Env};
 use time::Duration;
 
 use super::helpers;
 use crate::{
     consts,
     core::{
+        admin::validate_allowed_domains_regex,
         errors::{self, RouterResult, StorageErrorExt},
         utils as core_utils,
     },
@@ -202,14 +207,12 @@ pub async fn create_payout_link(
     payout_id: &String,
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
-    // Create payment method collect link ID
-    let payout_link_id = core_utils::get_or_generate_id(
-        "payout_link_id",
-        &payout_link_config_req
-            .as_ref()
-            .and_then(|config| config.payout_link_id.clone()),
-        "payout_link",
-    )?;
+
+    // Validate allowed domains in request
+    payout_link_config_req
+        .as_ref()
+        .and_then(|config| config.allowed_domains.clone())
+        .map_or(Ok(()), validate_allowed_domains_regex)?;
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payout_link;
@@ -230,6 +233,20 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+
+    // Validate allowed_domains presence
+    let req_allowed_domains = payout_link_config_req
+        .as_ref()
+        .and_then(|req| req.allowed_domains.to_owned())
+        .or(profile_config
+            .as_ref()
+            .and_then(|config| config.config.allowed_domains.to_owned()));
+
+    if matches!(state.conf.env, Env::Production) && req_allowed_domains.is_none() {
+        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "allowed_domains"
+        }));
+    }
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {
@@ -268,6 +285,13 @@ pub async fn create_payout_link(
         .as_ref()
         .get_required_value("currency")
         .attach_printable("currency is a required value when creating payout links")?;
+    let payout_link_id = core_utils::get_or_generate_id(
+        "payout_link_id",
+        &payout_link_config_req
+            .as_ref()
+            .and_then(|config| config.payout_link_id.clone()),
+        "payout_link",
+    )?;
 
     let data = PayoutLinkData {
         payout_link_id: payout_link_id.clone(),
@@ -280,6 +304,7 @@ pub async fn create_payout_link(
         enabled_payment_methods: req_enabled_payment_methods,
         amount: MinorUnit::from(*amount),
         currency: *currency,
+        allowed_domains: req_allowed_domains,
     };
 
     create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
@@ -316,4 +341,94 @@ pub async fn create_payout_link_db_entry(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "payout link already exists".to_string(),
         })
+}
+
+pub fn validate_payout_link_render_request(
+    state: &SessionState,
+    request_headers: &header::HeaderMap,
+    payout_link: &PayoutLink,
+) -> RouterResult<()> {
+    let link_id = payout_link.link_id.to_owned();
+    let link_data = payout_link.link_data.to_owned();
+
+    // Fetch allowed domains
+    let (allowed_domains, should_validate_request_headers) = match state.conf.env {
+        Env::Production => {
+            (link_data.allowed_domains
+            .ok_or_else(|| report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "payout_link".to_string(),
+            }))
+            .attach_printable_lazy(|| {
+                format!("Access to payout_link [{}] is forbidden without setting up allowed_domains for the link", link_id)
+            })?, true)
+        },
+        _ => {
+           link_data.allowed_domains
+            .map_or((HashSet::from(["*".to_string()]), false), |allowed_domains| (allowed_domains, true))
+        }
+    };
+
+    if !should_validate_request_headers {
+        return Ok(());
+    }
+
+    // Fetch destination is "iframe"
+    match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
+        Some("iframe") => Ok(()),
+        Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden when requested through {}",
+                link_id, requestor
+            )
+        }),
+        None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
+                link_id
+            )
+        }),
+    }?;
+
+    // Validate origin / referer
+    let domain_in_req = request_headers.get("origin")
+    .or_else(|| request_headers.get("referer"))
+    .and_then(|v| v.to_str().ok())
+    .ok_or_else(|| report!(errors::ApiErrorResponse::AccessForbidden {
+        resource: "payout_link".to_string(),
+    }))
+    .attach_printable_lazy(|| {
+        format!(
+            "Access to payout_link [{}] is forbidden when both origin and referer headers are missing from the request headers",
+            link_id
+        )
+    })?;
+
+    if is_domain_allowed(domain_in_req, allowed_domains) {
+        Ok(())
+    } else {
+        Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden from requestor - {}",
+                link_id, domain_in_req
+            )
+        })
+    }
+}
+
+fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
+    allowed_domains.iter().any(|allowed_domain| {
+        Regex::new(&format!(r"{}", allowed_domain))
+            .and_then(|regex| Ok(regex.is_match(domain)))
+            .map_err(|err| logger::error!("Invalid regex! - {:?}", err))
+            .unwrap_or(false)
+    })
 }

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
     ext_traits::{Encode, OptionExt},
@@ -11,10 +12,10 @@ use error_stack::ResultExt;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
-    core::payments::helpers,
+    core::{payments::helpers, payouts::validator},
     errors,
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks},
+    services::{self, GenericLinks, GenericLinksData},
     types::domain,
 };
 
@@ -23,6 +24,7 @@ pub async fn initiate_payout_link(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
@@ -57,6 +59,8 @@ pub async fn initiate_payout_link(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payout link not found".to_string(),
         })?;
+
+    validator::validate_payout_link_render_request(&state, request_headers, &payout_link)?;
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
@@ -96,7 +100,10 @@ pub async fn initiate_payout_link(
             }
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::ExpiredLink(expired_link_data),
+                GenericLinks {
+                    allowed_domains: link_data.allowed_domains,
+                    data: GenericLinksData::ExpiredLink(expired_link_data),
+                },
             )))
         }
 
@@ -191,7 +198,10 @@ pub async fn initiate_payout_link(
                 html_meta_tags: String::new(),
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PayoutLink(generic_form_data),
+                GenericLinks {
+                    allowed_domains: link_data.allowed_domains,
+                    data: GenericLinksData::PayoutLink(generic_form_data),
+                },
             )))
         }
 
@@ -230,7 +240,10 @@ pub async fn initiate_payout_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PayoutLinkStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: link_data.allowed_domains,
+                    data: GenericLinksData::PayoutLinkStatus(generic_status_data),
+                },
             )))
         }
     }
