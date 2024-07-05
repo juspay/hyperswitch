@@ -62,8 +62,9 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
-            billing_details: intent.billing_details.clone(),
-            shipping_details: intent.shipping_details.clone(),
+            // TODO: use typed information here to avoid PII logging
+            billing_details: None,
+            shipping_details: None,
         }
     }
 }
