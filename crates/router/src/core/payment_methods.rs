@@ -17,12 +17,11 @@ use router_env::{instrument, tracing};
 use time::Duration;
 
 use super::errors::{self, RouterResponse, StorageErrorExt};
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
-    core::{
-        errors::RouterResult, payment_methods::transformers as pm_transformers, payments::helpers,
-        pm_auth as core_pm_auth,
-    },
+    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::{

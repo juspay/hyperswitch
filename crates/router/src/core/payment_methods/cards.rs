@@ -41,6 +41,8 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::{self as pm_core};
 #[cfg(not(feature = "connector_choice_mca_id"))]
 use crate::core::utils::get_connector_label;
 use crate::{
@@ -48,8 +50,7 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
-            self as pm_core, add_payment_method_status_update_task,
-            transformers as payment_methods, vault,
+            add_payment_method_status_update_task, transformers as payment_methods, vault,
         },
         payments::{
             helpers,
@@ -485,6 +486,7 @@ pub async fn add_payment_method_data(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")
         }
+        #[cfg(feature = "payouts")]
         _ => Ok(store_default_payment_method(
             &req,
             &customer_id,
@@ -521,6 +523,7 @@ pub async fn add_payment_method_data(
 
                 let req_card = match &pmd {
                     api::PaymentMethodCreateData::Card(card) => Some(card.clone()),
+                    #[cfg(feature = "payouts")]
                     _ => None,
                 };
 
@@ -615,6 +618,7 @@ pub async fn add_payment_method_data(
 
                 let req_card = match &pmd {
                     api::PaymentMethodCreateData::Card(card) => Some(card.clone()),
+                    #[cfg(feature = "payouts")]
                     _ => None,
                 };
 
@@ -709,6 +713,7 @@ pub async fn add_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")
         }
+        #[cfg(feature = "payouts")]
         _ => Ok(store_default_payment_method(
             &req,
             &customer_id,
@@ -736,6 +741,7 @@ pub async fn add_payment_method(
             payment_methods::DataDuplicationCheck::MetaDataChanged => {
                 let req_card = match &pmd {
                     api::PaymentMethodCreateData::Card(card) => Some(card.clone()),
+                    #[cfg(feature = "payouts")]
                     _ => None,
                 };
 
