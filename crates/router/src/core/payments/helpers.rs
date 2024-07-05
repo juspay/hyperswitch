@@ -3151,6 +3151,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
@@ -3212,6 +3213,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
@@ -3272,6 +3274,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
