@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
+    consts,
     core::errors,
     types::{self, api, domain, storage::enums},
 };
@@ -730,9 +731,10 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let second_factor = item.response.contents.second_factor;
+        let status = enums::AttemptStatus::from(item.response.contents.txn_status);
         match second_factor {
             Some(second_factor) => Ok(Self {
-                status: enums::AttemptStatus::from(item.response.contents.txn_status),
+                status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         second_factor.epg_txn_id,
@@ -747,20 +749,27 @@ impl<F, T>
                 }),
                 ..item.data
             }),
-            None => Ok(Self {
-                status: enums::AttemptStatus::from(item.response.contents.txn_status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    charge_id: None,
-                }),
-                ..item.data
-            }),
+            None => {
+                let message_code = item
+                    .response
+                    .contents
+                    .pgr_info
+                    .resp_message
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                Ok(Self {
+                    status,
+                    response: Err(types::ErrorResponse {
+                        code: item.response.contents.pgr_info.resp_code.clone(),
+                        message: message_code.clone(),
+                        reason: Some(message_code.clone()),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
