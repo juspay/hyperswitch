@@ -6,7 +6,7 @@ use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
-use storage_impl::errors::ApplicationError;
+use storage_impl::{config::TenantConfig, errors::ApplicationError};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -88,6 +88,14 @@ impl EventsHandler {
             }),
             Self::Logs(logger) => logger.log_event(event),
         };
+    }
+    pub fn add_tenant(&mut self, tenant_config: &dyn TenantConfig) {
+        match self {
+            Self::Kafka(kafka_producer) => {
+                kafka_producer.set_tenancy(tenant_config);
+            }
+            _ => {}
+        }
     }
 }
 

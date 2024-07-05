@@ -334,6 +334,7 @@ impl AppState {
                             .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_schema().to_string()),
+                        tenant,
                     )
                     .await,
                 ),
@@ -377,12 +378,14 @@ impl AppState {
         F: FnOnce() -> E + Copy,
     {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        let mut event_handler = self.event_handler.clone();
+        event_handler.add_tenant(tenant_conf);
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
-            event_handler: self.event_handler.clone(),
+            event_handler,
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
