@@ -36,7 +36,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
-    pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub billing_details: Option<Encryptable<Secret<Value>>>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -74,7 +74,7 @@ impl<'a> KafkaPaymentIntent<'a> {
                 .map(|email| HashedString::from(Secret::new(email.to_string()))),
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
-            billing_details: intent.billing_details.clone(),
+            billing_details: None,
         }
     }
 }
