@@ -2525,7 +2525,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
-        let browser_info = get_browser_info(item.router_data)?;
+        let browser_info = None;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method_type = item
