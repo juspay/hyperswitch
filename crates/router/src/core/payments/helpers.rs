@@ -507,8 +507,10 @@ pub async fn get_token_pm_type_mandate_details(
                             )?;
 
                         let customer_id = request
-                            .customer_id
-                            .clone()
+                            .customer
+                            .as_ref()
+                            .map(|customer| customer.id.clone())
+                            .or(request.customer_id.clone())
                             .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
@@ -713,7 +715,12 @@ pub async fn get_token_for_recurring_mandate(
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
 
-    let customer = req.customer_id.clone().get_required_value("customer_id")?;
+    let customer = req
+        .customer
+        .as_ref()
+        .map(|customer| customer.id.clone())
+        .or(req.customer_id.clone())
+        .get_required_value("customer_id")?;
 
     let payment_method_id = {
         if mandate.customer_id != customer {
