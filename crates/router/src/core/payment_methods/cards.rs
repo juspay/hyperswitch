@@ -239,7 +239,7 @@ pub async fn get_or_insert_payment_method(
                 insert_payment_method(
                     db,
                     resp,
-                    req,
+                    &req,
                     key_store,
                     &merchant_account.merchant_id,
                     customer_id,
@@ -247,7 +247,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     locker_id,
                     None,
-                    None,
+                    req.network_transaction_id.clone(),
                     merchant_account.storage_scheme,
                     None,
                 )
@@ -428,7 +428,11 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         };
 
         Some(api::CardDetailFromLocker {
-            scheme: None,
+            scheme: card_details
+                .card_network
+                .clone()
+                .or(card_info.card_network.clone())
+                .map(|card_network| card_network.to_string()),
             last4_digits,
             issuer_country: card_details
                 .card_issuing_country
@@ -445,7 +449,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             card_issuer: card_details.card_issuer.clone().or(card_info.card_issuer),
             card_network: card_details.card_network.clone().or(card_info.card_network),
             card_type: card_details.card_type.clone().or(card_info.card_type),
-            saved_to_locker: true,
+            saved_to_locker: false,
         })
     } else {
         None
@@ -1039,7 +1043,7 @@ pub async fn add_payment_method(
             let pm = insert_payment_method(
                 db,
                 &resp,
-                req,
+                &req,
                 key_store,
                 merchant_id,
                 &customer_id,
@@ -1047,7 +1051,7 @@ pub async fn add_payment_method(
                 None,
                 locker_id,
                 connector_mandate_details,
-                None,
+                req.network_transaction_id.clone(),
                 merchant_account.storage_scheme,
                 payment_method_billing_address,
             )
@@ -1064,7 +1068,7 @@ pub async fn add_payment_method(
 pub async fn insert_payment_method(
     db: &dyn db::StorageInterface,
     resp: &api::PaymentMethodResponse,
-    req: api::PaymentMethodCreate,
+    req: &api::PaymentMethodCreate,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
     customer_id: &id_type::CustomerId,
@@ -1078,7 +1082,7 @@ pub async fn insert_payment_method(
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
-        .as_ref()
+        .clone()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
     let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details)
         .await
@@ -1086,7 +1090,7 @@ pub async fn insert_payment_method(
 
     create_payment_method(
         db,
-        &req,
+        req,
         customer_id,
         &resp.payment_method_id,
         locker_id,

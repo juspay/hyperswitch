@@ -397,7 +397,7 @@ where
                                             payment_methods::cards::insert_payment_method(
                                                 db,
                                                 &resp,
-                                                payment_method_create_request.clone(),
+                                                &payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
                                                 &customer_id,
