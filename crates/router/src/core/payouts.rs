@@ -1662,8 +1662,13 @@ pub async fn create_payout_retrieve(
                 }));
             }
         }
-        // log in case of error in retrieval
-        Err(_) => logger::error!("Error in payout retrieval"),
+        Err(err) => {
+            // log in case of error in retrieval
+            logger::error!("Error in payout retrieval");
+            // show error in the response of sync
+            payout_data.payout_attempt.error_code = Some(err.code);
+            payout_data.payout_attempt.error_message = Some(err.message);
+        }
     };
 
     Ok(())
