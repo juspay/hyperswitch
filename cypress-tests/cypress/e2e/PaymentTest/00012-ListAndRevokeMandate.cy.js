@@ -1,6 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../PaymentUtils/Utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -28,7 +28,7 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
-        let data = fixtures.getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
         let req_data = data["Request"];
