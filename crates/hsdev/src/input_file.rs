@@ -13,11 +13,10 @@ pub struct InputData {
 }
 
 impl InputData {
-    pub fn read(db_table: &Value) -> InputData {
+    pub fn read(db_table: &Value) -> Result<Self, toml::de::Error> {
         db_table
             .clone()
-            .try_into::<InputData>()
-            .expect("Unable to read InputData")
+            .try_into()
     }
 
     pub fn postgres_url(&self) -> String {

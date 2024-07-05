@@ -17,6 +17,8 @@ mod tests {
         let toml_value = Value::from_str(toml_str).unwrap();
 
         let toml_table = InputData::read(&toml_value);
+        assert!(toml_table.is_ok());
+        let toml_table = toml_table.unwrap();
 
         let db_url = toml_table.postgres_url();
         assert_eq!("postgres://db_user:db_pass@localhost:5432/db_name", db_url);
