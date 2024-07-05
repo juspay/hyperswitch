@@ -314,10 +314,9 @@ where
             .data
             .0
             .into_iter()
-            .flat_map(|(k, v)| {
-                encrypted_data
-                    .remove(&k)
-                    .map(|encrypted| Ok((k.clone(), Encryptable::convert(&v, encrypted.clone())?)))
+            .map(|(k, v)| match encrypted_data.remove(&k) {
+                Some(encrypted) => Ok((k.clone(), Encryptable::convert(&v, encrypted.clone())?)),
+                None => Err(errors::CryptoError::DecodingFailed)?,
             })
             .collect()
     }
