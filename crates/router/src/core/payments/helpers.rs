@@ -4042,6 +4042,71 @@ pub async fn get_additional_payment_data(
     }
 }
 
+pub async fn populate_bin_details_for_payment_method_create_data(
+    payment_method_create_data: api_models::payment_methods::PaymentMethodCreateData,
+    db: &dyn StorageInterface,
+) -> api::PaymentMethodCreateData {
+    match payment_method_create_data {
+        api_models::payment_methods::PaymentMethodCreateData::Card(card_details) => {
+            let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+            if card_details.card_issuer.is_some()
+                && card_details.card_network.is_some()
+                && card_details.card_type.is_some()
+                && card_details.card_issuing_country.is_some()
+            {
+                api::PaymentMethodCreateData::Card(api::CardDetail {
+                    card_issuer: card_details.card_issuer.to_owned(),
+                    card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.to_owned(),
+                    card_issuing_country: card_details.card_issuing_country.to_owned(),
+                    card_exp_month: card_details.card_exp_month.clone(),
+                    card_exp_year: card_details.card_exp_year.clone(),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    card_number: card_details.card_number.clone(),
+                    nick_name: card_details.nick_name.clone(),
+                })
+            } else {
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
+                    .await
+                    .flatten()
+                    .map(|card_info| {
+                        api::PaymentMethodCreateData::Card(api::CardDetail {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info.card_network.clone(),
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                            card_exp_month: card_details.card_exp_month.clone(),
+                            card_exp_year: card_details.card_exp_year.clone(),
+                            card_holder_name: card_details.card_holder_name.clone(),
+                            card_number: card_details.card_number.clone(),
+                            nick_name: card_details.nick_name.clone(),
+                        })
+                    });
+                card_info.unwrap_or_else(|| {
+                    api::PaymentMethodCreateData::Card(api::CardDetail {
+                        card_issuer: None,
+                        card_network: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        card_exp_month: card_details.card_exp_month.clone(),
+                        card_exp_year: card_details.card_exp_year.clone(),
+                        card_holder_name: card_details.card_holder_name.clone(),
+                        card_number: card_details.card_number.clone(),
+                        nick_name: card_details.nick_name.clone(),
+                    })
+                })
+            }
+        }
+    }
+}
+
 pub fn validate_customer_access(
     payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,

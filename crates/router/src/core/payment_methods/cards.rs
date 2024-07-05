@@ -356,37 +356,17 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
         let card_isin = Some(card_number.chars().take(6).collect::<String>());
 
-        let card_info = card_isin
-            .clone()
-            .async_and_then(|card_isin| async move {
-                db.get_card_info(&card_isin)
-                    .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
-                    .ok()
-            })
-            .await
-            .flatten()
-            .map(|card_info| api_models::payments::AdditionalCardInfo {
-                card_issuer: card_info.card_issuer,
-                card_network: card_info.card_network.clone(),
-                bank_code: card_info.bank_code,
-                card_type: card_info.card_type,
-                card_issuing_country: card_info.card_issuing_country,
-                last4: last4_digits.clone(),
-                card_isin: card_isin.clone(),
-                card_extended_bin: None,
-                card_exp_month: Some(card_details.card_exp_month.clone()),
-                card_exp_year: Some(card_details.card_exp_year.clone()),
-                card_holder_name: card_details.card_holder_name.clone(),
-                payment_checks: None,
-                authentication_data: None,
-            })
-            .unwrap_or_else(|| api_models::payments::AdditionalCardInfo {
-                card_issuer: None,
-                card_network: None,
+        let card_info = if card_details.card_issuer.is_some()
+            && card_details.card_network.is_some()
+            && card_details.card_type.is_some()
+            && card_details.card_issuing_country.is_some()
+        {
+            api_models::payments::AdditionalCardInfo {
+                card_issuer: card_details.card_issuer.clone(),
+                card_network: card_details.card_network.clone(),
                 bank_code: None,
-                card_type: None,
-                card_issuing_country: None,
+                card_type: card_details.card_type.clone(),
+                card_issuing_country: card_details.card_issuing_country.clone(),
                 last4: last4_digits.clone(),
                 card_isin: card_isin.clone(),
                 card_extended_bin: None,
@@ -395,7 +375,49 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 card_holder_name: card_details.card_holder_name.clone(),
                 payment_checks: None,
                 authentication_data: None,
-            });
+            }
+        } else {
+            card_isin
+                .clone()
+                .async_and_then(|card_isin| async move {
+                    db.get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
+                })
+                .await
+                .flatten()
+                .map(|card_info| api_models::payments::AdditionalCardInfo {
+                    card_issuer: card_info.card_issuer,
+                    card_network: card_info.card_network.clone(),
+                    bank_code: card_info.bank_code,
+                    card_type: card_info.card_type,
+                    card_issuing_country: card_info.card_issuing_country,
+                    last4: last4_digits.clone(),
+                    card_isin: card_isin.clone(),
+                    card_extended_bin: None,
+                    card_exp_month: Some(card_details.card_exp_month.clone()),
+                    card_exp_year: Some(card_details.card_exp_year.clone()),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    payment_checks: None,
+                    authentication_data: None,
+                })
+                .unwrap_or_else(|| api_models::payments::AdditionalCardInfo {
+                    card_issuer: None,
+                    card_network: None,
+                    bank_code: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    last4: last4_digits.clone(),
+                    card_isin: card_isin.clone(),
+                    card_extended_bin: None,
+                    card_exp_month: Some(card_details.card_exp_month.clone()),
+                    card_exp_year: Some(card_details.card_exp_year.clone()),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    payment_checks: None,
+                    authentication_data: None,
+                })
+        };
 
         Some(api::CardDetailFromLocker {
             scheme: None,
@@ -833,6 +855,16 @@ pub async fn add_payment_method(
         },
         api_enums::PaymentMethod::Card => match req.card.clone() {
             Some(card) => {
+                if let Some(payment_method_create_data) = &req.payment_method_data {
+                    let mut req = req.clone();
+                    req.payment_method_data = Some(
+                        helpers::populate_bin_details_for_payment_method_create_data(
+                            payment_method_create_data.clone(),
+                            db,
+                        )
+                        .await,
+                    );
+                };
                 helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
                 Box::pin(add_card_to_locker(
                     &state,
