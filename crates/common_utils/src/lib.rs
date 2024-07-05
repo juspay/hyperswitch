@@ -32,6 +32,8 @@ pub mod static_cache;
 pub mod types;
 pub mod validation;
 
+/// Used for hashing
+pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 

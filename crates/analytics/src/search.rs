@@ -51,7 +51,18 @@ pub async fn msearch_results(
         if let Some(customer_email) = filters.customer_email {
             if !customer_email.is_empty() {
                 query_builder
-                    .add_filter_clause("customer_email.keyword".to_string(), customer_email.clone())
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        customer_email
+                            .iter()
+                            .filter_map(|email| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
                     .switch()?;
             }
         };
@@ -147,7 +158,18 @@ pub async fn search_results(
         if let Some(customer_email) = filters.customer_email {
             if !customer_email.is_empty() {
                 query_builder
-                    .add_filter_clause("customer_email.keyword".to_string(), customer_email.clone())
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        customer_email
+                            .iter()
+                            .filter_map(|email| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
                     .switch()?;
             }
         };

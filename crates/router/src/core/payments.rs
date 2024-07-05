@@ -944,6 +944,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
+                search_tags: None,
             }),
             ..Default::default()
         };
@@ -1230,6 +1231,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                             req.json_payload.unwrap_or(serde_json::json!({})).into(),
                         ),
                     }),
+                    search_tags: None,
                 }),
                 ..Default::default()
             };
