@@ -33,7 +33,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub billing_address_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl<'a> KafkaPaymentIntentEvent<'a> {
@@ -62,7 +62,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
-            billing_address_details: intent.billing_address_details.clone(),
+            billing_details: intent.billing_details.clone(),
         }
     }
 }

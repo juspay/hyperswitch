@@ -1046,16 +1046,11 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
-        let raw_billing_address_details = request
-            .billing
-            .clone()
-            .and_then(|billing_details| billing_details.address.clone());
-
         // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_address_details = raw_billing_address_details
+        let billing_details = request.billing
             .clone()
             .async_and_then(|_| async {
-                create_encrypted_data(key_store, raw_billing_address_details.clone()).await
+                create_encrypted_data(key_store, request.billing.clone()).await
             })
             .await;
 
@@ -1130,7 +1125,7 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            billing_address_details,
+            billing_details,
             customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
         })

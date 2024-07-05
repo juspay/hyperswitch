@@ -222,10 +222,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         let billing_details: Option<Address> = billing_address.as_ref().map(From::from);
-        payment_intent.billing_address_details = billing_details
-            .clone()
-            .async_and_then(|billing_details| async move {
-                create_encrypted_data(key_store, billing_details.address.clone()).await
+        payment_intent.billing_details = billing_details.clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, billing_details.clone()).await
             })
             .await;
 
@@ -727,7 +726,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .merchant_order_reference_id
             .clone();
-        let billing_address_details = payment_data.payment_intent.billing_address_details.clone();
+        let billing_details = payment_data.payment_intent.billing_details.clone();
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -758,7 +757,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     frm_metadata,
                     customer_details,
                     merchant_order_reference_id,
-                    billing_address_details,
+                    billing_details,
                 },
                 key_store,
                 storage_scheme,

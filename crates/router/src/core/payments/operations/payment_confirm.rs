@@ -1220,9 +1220,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         );
 
         let billing_address = payment_data.address.get_payment_billing();
-        let billing_address_details = billing_address
-            .async_and_then(|billing| async {
-                create_encrypted_data(key_store, billing.address.clone()).await
+        let billing_details = billing_address
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, billing_address.clone()).await
             })
             .await;
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
@@ -1270,7 +1270,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         frm_metadata: m_frm_metadata,
                         customer_details,
                         merchant_order_reference_id: None,
-                        billing_address_details,
+                        billing_details,
                     },
                     &m_key_store,
                     storage_scheme,
