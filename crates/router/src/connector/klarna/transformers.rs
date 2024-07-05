@@ -1,11 +1,14 @@
 use api_models::payments;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
@@ -75,12 +78,31 @@ pub struct KlarnaPaymentsRequest {
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     merchant_reference1: Option<String>,
+    merchant_reference2: Option<String>,
+    shipping_address: Option<KlarnaShippingAddress>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
+    authorized_payment_method: Option<AuthorizedPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthorizedPaymentMethod {
+    #[serde(rename = "type")]
+    payment_type: String,
+}
+
+impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
+    fn from(item: AuthorizedPaymentMethod) -> Self {
+        Self::PayLater {
+            klarna_sdk: Some(KlarnaSdkResponse {
+                payment_type: Some(item.payment_type),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -90,6 +112,21 @@ pub struct KlarnaSessionRequest {
     purchase_currency: enums::Currency,
     order_amount: i64,
     order_lines: Vec<OrderLines>,
+    shipping_address: Option<KlarnaShippingAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct KlarnaShippingAddress {
+    city: String,
+    country: enums::CountryAlpha2,
+    email: pii::Email,
+    given_name: Secret<String>,
+    family_name: Secret<String>,
+    phone: Secret<String>,
+    postal_code: Secret<String>,
+    region: Secret<String>,
+    street_address: Secret<String>,
+    street_address2: Option<Secret<String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -123,6 +160,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
+                shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                    .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details",
@@ -175,13 +214,39 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
+                merchant_reference2: item.router_data.request.merchant_order_reference_id.clone(),
                 auto_capture: request.is_auto_capture()?,
+                shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                    .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"
             })),
         }
     }
+}
+
+fn get_address_info(
+    address: Option<&payments::Address>,
+) -> Option<Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>>> {
+    address.and_then(|add| {
+        add.address.as_ref().map(
+            |address_details| -> Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>> {
+                Ok(KlarnaShippingAddress {
+                    city: address_details.get_city()?.to_owned(),
+                    country: address_details.get_country()?.to_owned(),
+                    email: add.get_email()?.to_owned(),
+                    postal_code: address_details.get_zip()?.to_owned(),
+                    region: address_details.to_state_code()?.to_owned(),
+                    street_address: address_details.get_line1()?.to_owned(),
+                    street_address2: address_details.get_optional_line2(),
+                    given_name: address_details.get_first_name()?.to_owned(),
+                    family_name: address_details.get_last_name()?.to_owned(),
+                    phone: add.get_phone_with_country_code()?.to_owned(),
+                })
+            },
+        )
+    })
 }
 
 impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
@@ -191,6 +256,17 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
+            match item.response.authorized_payment_method {
+                Some(authorized_payment_method) => {
+                    types::AdditionalPaymentMethodConnectorResponse::from(authorized_payment_method)
+                }
+                None => {
+                    types::AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk: None }
+                }
+            },
+        );
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -208,6 +284,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 item.response.fraud_status,
                 item.data.request.is_auto_capture()?,
             )),
+            connector_response: Some(connector_response),
             ..item.data
         })
     }

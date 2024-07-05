@@ -11,7 +11,10 @@ use diesel_models::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
-use super::{behaviour, types::TypeEncryption};
+use super::{
+    behaviour,
+    types::{self, AsyncLift, TypeEncryption},
+};
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -36,6 +39,7 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: enums::ConnectorStatus,
+    pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug)]
@@ -56,6 +60,10 @@ pub enum MerchantConnectorAccountUpdate {
         pm_auth_config: Option<serde_json::Value>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
+        connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    },
+    ConnectorWalletDetailsUpdate {
+        connector_wallets_details: Encryptable<Secret<serde_json::Value>>,
     },
 }
 
@@ -92,6 +100,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 applepay_verified_domains: self.applepay_verified_domains,
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
+                connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             },
         )
     }
@@ -132,6 +141,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
             status: other.status,
+            connector_wallets_details: other
+                .connector_wallets_details
+                .async_lift(|inner| types::decrypt(inner, key.peek()))
+                .await
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting connector wallets details".to_string(),
+                })?,
         })
     }
 
@@ -160,6 +176,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             applepay_verified_domains: self.applepay_verified_domains,
             pm_auth_config: self.pm_auth_config,
             status: self.status,
+            connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
         })
     }
 }
@@ -183,6 +200,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 pm_auth_config,
                 connector_label,
                 status,
+                connector_wallets_details,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -201,6 +219,29 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 pm_auth_config,
                 connector_label,
                 status,
+                connector_wallets_details: connector_wallets_details.map(Encryption::from),
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
+                merchant_id: None,
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
             },
         }
     }

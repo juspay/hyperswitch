@@ -94,10 +94,14 @@ pub struct ApiModelMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -150,6 +154,7 @@ pub struct Provider {
         }
     ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+    pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -206,8 +211,12 @@ pub struct DashboardMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }

@@ -31,7 +31,7 @@ use crate::{
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_actions<F, ApiRequest, FData>(
-    state: &app::AppState,
+    state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
@@ -165,7 +165,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
-    state: &app::AppState,
+    state: &app::SessionState,
     merchant_id: &str,
     connector_name: types::Connector,
 ) -> bool {
@@ -189,7 +189,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
 ) -> Option<i32> {
@@ -219,7 +219,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm<F, FData>(
-    state: &app::AppState,
+    state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
@@ -269,7 +269,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     req_state: ReqState,
     connector: api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest>,
@@ -299,6 +299,7 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
+        key_store,
         merchant_account.storage_scheme,
         router_data,
         is_step_up,
@@ -320,15 +321,17 @@ where
         api::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
+        true,
     )
     .await
 }
 
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
@@ -421,6 +424,13 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
+            let auth_update = if Some(router_data.auth_type)
+                != payment_data.payment_attempt.authentication_type
+            {
+                Some(router_data.auth_type)
+            } else {
+                None
+            };
 
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
@@ -436,6 +446,7 @@ where
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
                     connector_transaction_id: error_response.connector_transaction_id.clone(),
                     payment_method_data: additional_payment_method_data,
+                    authentication_type: auth_update,
                 },
                 storage_scheme,
             )
@@ -462,6 +473,7 @@ where
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
+            key_store,
             storage_scheme,
         )
         .await
@@ -510,7 +522,8 @@ pub fn make_new_payment_attempt(
         mandate_id: old_payment_attempt.mandate_id,
         browser_info: old_payment_attempt.browser_info,
         payment_token: old_payment_attempt.payment_token,
-
+        client_source: old_payment_attempt.client_source,
+        client_version: old_payment_attempt.client_version,
         created_at,
         modified_at,
         last_synced,

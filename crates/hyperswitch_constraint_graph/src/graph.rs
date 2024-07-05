@@ -26,9 +26,9 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
 }
 
 #[derive(Debug)]
-pub struct ConstraintGraph<'a, V: ValueNode> {
-    pub domain: DenseMap<DomainId, DomainInfo<'a>>,
-    pub domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
+pub struct ConstraintGraph<V: ValueNode> {
+    pub domain: DenseMap<DomainId, DomainInfo>,
+    pub domain_identifier_map: FxHashMap<DomainIdentifier, DomainId>,
     pub nodes: DenseMap<NodeId, Node<V>>,
     pub edges: DenseMap<EdgeId, Edge>,
     pub value_map: FxHashMap<NodeValue<V>, NodeId>,
@@ -36,7 +36,7 @@ pub struct ConstraintGraph<'a, V: ValueNode> {
     pub node_metadata: DenseMap<NodeId, Option<Arc<dyn Metadata>>>,
 }
 
-impl<'a, V> ConstraintGraph<'a, V>
+impl<V> ConstraintGraph<V>
 where
     V: ValueNode,
 {
@@ -70,7 +70,7 @@ where
         strength: Strength,
         memo: &mut Memoization<V>,
         cycle_map: &mut CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), GraphError<V>>
     where
         C: CheckingContext<Value = V>,
@@ -81,7 +81,7 @@ where
                     .iter()
                     .map(|domain_ident| {
                         self.domain_identifier_map
-                            .get(&DomainIdentifier::new(domain_ident))
+                            .get(&DomainIdentifier::new(domain_ident.to_string()))
                             .copied()
                             .ok_or(GraphError::DomainNotFound)
                     })
@@ -482,15 +482,15 @@ where
         Ok(())
     }
 
-    pub fn combine<'b>(g1: &'b Self, g2: &'b Self) -> Result<Self, GraphError<V>> {
+    pub fn combine(g1: &Self, g2: &Self) -> Result<Self, GraphError<V>> {
         let mut node_builder = builder::ConstraintGraphBuilder::new();
         let mut g1_old2new_id = DenseMap::<NodeId, NodeId>::new();
         let mut g2_old2new_id = DenseMap::<NodeId, NodeId>::new();
         let mut g1_old2new_domain_id = DenseMap::<DomainId, DomainId>::new();
         let mut g2_old2new_domain_id = DenseMap::<DomainId, DomainId>::new();
 
-        let add_domain = |node_builder: &mut builder::ConstraintGraphBuilder<'a, V>,
-                          domain: DomainInfo<'a>|
+        let add_domain = |node_builder: &mut builder::ConstraintGraphBuilder<V>,
+                          domain: DomainInfo|
          -> Result<DomainId, GraphError<V>> {
             node_builder.make_domain(
                 domain.domain_identifier.into_inner(),
@@ -498,7 +498,7 @@ where
             )
         };
 
-        let add_node = |node_builder: &mut builder::ConstraintGraphBuilder<'a, V>,
+        let add_node = |node_builder: &mut builder::ConstraintGraphBuilder<V>,
                         node: &Node<V>|
          -> Result<NodeId, GraphError<V>> {
             match &node.node_type {
@@ -553,14 +553,14 @@ where
                 .domain
                 .map(|domain_id| g1.domain.get(domain_id).ok_or(GraphError::DomainNotFound))
                 .transpose()?
-                .map(|domain| domain.domain_identifier);
+                .map(|domain| domain.domain_identifier.clone());
 
             node_builder.make_edge(
                 *new_pred_id,
                 *new_succ_id,
                 edge.strength,
                 edge.relation,
-                domain_ident.as_deref(),
+                domain_ident,
             )?;
         }
 
@@ -575,14 +575,14 @@ where
                 .domain
                 .map(|domain_id| g2.domain.get(domain_id).ok_or(GraphError::DomainNotFound))
                 .transpose()?
-                .map(|domain| domain.domain_identifier);
+                .map(|domain| domain.domain_identifier.clone());
 
             node_builder.make_edge(
                 *new_pred_id,
                 *new_succ_id,
                 edge.strength,
                 edge.relation,
-                domain_ident.as_deref(),
+                domain_ident,
             )?;
         }
 
@@ -604,7 +604,7 @@ mod viz {
         format!("N{}", node_id.get_id())
     }
 
-    impl<'a, V> ConstraintGraph<'a, V>
+    impl<V> ConstraintGraph<V>
     where
         V: ValueNode + NodeViz,
         <V as ValueNode>::Key: NodeViz,

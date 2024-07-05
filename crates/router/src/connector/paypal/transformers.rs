@@ -1,8 +1,8 @@
 use api_models::enums;
 use base64::Engine;
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
-use common_utils::{pii::Email, types::StringMajorUnit};
+use common_utils::pii::Email;
+use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -353,7 +353,8 @@ fn get_payment_source(
         | domain::BankRedirectData::OpenBankingUk { .. }
         | domain::BankRedirectData::Trustly { .. }
         | domain::BankRedirectData::OnlineBankingFpx { .. }
-        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+        | domain::BankRedirectData::OnlineBankingThailand { .. }
+        | domain::BankRedirectData::LocalBankRedirect {} => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?
@@ -396,7 +397,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
 
         let purchase_units = vec![PurchaseUnitRequest {
             reference_id: Some(connector_request_reference_id.clone()),
-            custom_id: Some(connector_request_reference_id.clone()),
+            custom_id: item.router_data.request.merchant_order_reference_id.clone(),
             invoice_id: Some(connector_request_reference_id),
             amount,
             payee,
@@ -502,7 +503,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
@@ -546,6 +548,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 .into())
             }
             domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
@@ -1689,7 +1692,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::foreign_from(
                     item.response.batch_header.batch_status,
                 )),
-                connector_payout_id: item.response.batch_header.payout_batch_id,
+                connector_payout_id: Some(item.response.batch_header.payout_batch_id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -1977,7 +1980,7 @@ pub struct OrderErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalOrderErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<OrderErrorDetails>>,
@@ -1991,7 +1994,7 @@ pub struct ErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<ErrorDetails>>,
@@ -2053,21 +2056,24 @@ pub enum PaypalResource {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
-    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub disputed_transactions: Vec<DisputeTransaction>,
     pub dispute_amount: OrderAmount,
-    pub dispute_outcome: DisputeOutcome,
+    pub dispute_outcome: Option<DisputeOutcome>,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub seller_response_due_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub update_time: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct DisputeTransaction {
-    pub reference_id: String,
+    pub seller_transaction_id: String,
 }
 
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, domain, storage::enums};
 
@@ -14,12 +15,12 @@ impl ConnectorActions for BamboraTest {}
 impl utils::Connector for BamboraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bambora;
-        types::api::ConnectorData {
-            connector: Box::new(&Bambora),
-            connector_name: types::Connector::Bambora,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Bambora),
+            types::Connector::Bambora,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -111,6 +112,8 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
             }),
             None,
         )
@@ -228,6 +231,8 @@ async fn should_sync_auto_captured_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
             }),
             None,
         )

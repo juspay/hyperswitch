@@ -155,7 +155,7 @@ pub async fn customer_delete(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
@@ -195,6 +195,7 @@ pub async fn list_customer_payment_method_api(
                 auth.key_store,
                 Some(req),
                 Some(&customer_id),
+                None,
             )
         },
         &auth::ApiKeyAuth,

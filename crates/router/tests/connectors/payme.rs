@@ -16,12 +16,12 @@ impl ConnectorActions for PaymeTest {}
 impl utils::Connector for PaymeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payme;
-        types::api::ConnectorData {
-            connector: Box::new(Payme::new()),
-            connector_name: types::Connector::Payme,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Payme::new()),
+            types::Connector::Payme,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -68,7 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         return_url: None,
         connector_customer: None,
         payment_method_token: None,
-        country: None,
+        #[cfg(feature = "payouts")]
         currency: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,

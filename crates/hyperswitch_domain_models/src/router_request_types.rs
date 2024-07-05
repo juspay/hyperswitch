@@ -62,6 +62,28 @@ pub struct PaymentsAuthorizeData {
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+    pub integrity_object: Option<AuthoriseIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AuthoriseIntegrityObject {
+    /// Authorise amount
+    pub amount: MinorUnit,
+    /// Authorise currency
+    pub currency: storage_enums::Currency,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyncIntegrityObject {
+    /// Sync amount
+    pub amount: Option<MinorUnit>,
+    /// Sync currency
+    pub currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -241,6 +263,9 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 
     // New amount for amount frame work
@@ -267,7 +292,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
             redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }
@@ -292,7 +320,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
             redirect_response: data.redirect_response,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -316,7 +347,7 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-
+    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -339,6 +370,9 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+
+    pub amount: MinorUnit,
+    pub integrity_object: Option<SyncIntegrityObject>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -640,13 +674,14 @@ pub struct PayoutsData {
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Default, Clone)]

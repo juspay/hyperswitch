@@ -228,6 +228,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
@@ -379,11 +380,10 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("bluesnap"),
-                    ))
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                )),
             },
             domain::PaymentMethodData::PayLater(_)
             | domain::PaymentMethodData::BankRedirect(_)
@@ -392,6 +392,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
@@ -460,10 +461,16 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
                 })
             }
         }?;
+        let domain_name = session_token_data.initiative_context.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "apple pay initiative_context",
+            },
+        )?;
+
         Ok(Self {
             wallet_type: "APPLE_PAY".to_string(),
             validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
-            domain_name: session_token_data.initiative_context,
+            domain_name,
             display_name: Some(session_token_data.display_name),
         })
     }
@@ -528,8 +535,8 @@ impl
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: api::SessionToken::ApplePay(Box::new(
                     payments::ApplepaySessionTokenResponse {
-                        session_token_data: payments::ApplePaySessionResponse::NoThirdPartySdk(
-                            session_response,
+                        session_token_data: Some(
+                            payments::ApplePaySessionResponse::NoThirdPartySdk(session_response),
                         ),
                         payment_request_data: Some(payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,

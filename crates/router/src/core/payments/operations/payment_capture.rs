@@ -12,7 +12,8 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
-    routes::{app::ReqState, AppState},
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self as core_types,
@@ -34,7 +35,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &domain::MerchantAccount,
@@ -52,7 +53,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -254,8 +260,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
-        _req_state: ReqState,
+        db: &'b SessionState,
+        req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -294,6 +300,16 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         } else {
             payment_data.payment_attempt
         };
+        let capture_amount = payment_data.payment_attempt.amount_to_capture;
+        let multiple_capture_count = payment_data.payment_attempt.multiple_capture_count;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCapture {
+                capture_amount,
+                multiple_capture_count,
+            }))
+            .with(payment_data.to_event())
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }

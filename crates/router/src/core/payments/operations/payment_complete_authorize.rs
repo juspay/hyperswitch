@@ -11,11 +11,14 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -34,7 +37,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         merchant_account: &domain::MerchantAccount,
@@ -52,7 +55,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
@@ -81,7 +89,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             })?;
 
         let recurring_details = request.recurring_details.clone();
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -119,8 +126,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
+            &payment_intent.customer_id,
         )
         .await?;
+        let customer_acceptance: Option<CustomerAcceptance> = request
+            .customer_acceptance
+            .clone()
+            .map(From::from)
+            .or(payment_method_info
+                .clone()
+                .map(|pm| {
+                    pm.customer_acceptance
+                        .parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to CustomerAcceptance")?);
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
@@ -367,11 +388,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -384,6 +406,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await?;
         Ok((op, payment_method_data, pm_id))
@@ -392,7 +415,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_attempt: &storage::PaymentAttempt,
         _requeue: bool,
         _schedule_time: Option<time::PrimitiveDateTime>,
@@ -403,7 +426,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
@@ -416,8 +439,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -429,13 +453,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b AppState,
+        state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _merchant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
@@ -450,7 +474,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
         let payment_intent = payment_data.payment_intent.clone();
 
         let updated_payment_intent = db
-            .update_payment_intent(payment_intent, payment_intent_update, storage_scheme)
+            .update_payment_intent(
+                payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 

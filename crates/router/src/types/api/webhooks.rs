@@ -146,7 +146,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source_verification_call(
         &self,
-        state: &crate::routes::AppState,
+        state: &crate::routes::SessionState,
         merchant_account: &domain::MerchantAccount,
         merchant_connector_account: domain::MerchantConnectorAccount,
         connector_name: &str,
@@ -160,8 +160,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("invalid connector name received in payment attempt")?;
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
             types::api::VerifyWebhookSource,
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,

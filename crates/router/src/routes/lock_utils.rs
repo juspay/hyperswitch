@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     ConnectorOnboarding,
     Recon,
     Poll,
+    ApplePayCertificatesMigration,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -97,6 +98,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
@@ -122,7 +124,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
-            | Flow::PaymentsCompleteAuthorize => Self::Payments,
+            | Flow::PaymentsCompleteAuthorize
+            | Flow::PaymentsManualUpdate => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -131,14 +134,17 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFulfill
             | Flow::PayoutsList
             | Flow::PayoutsFilter
-            | Flow::PayoutsAccounts => Self::Payouts,
+            | Flow::PayoutsAccounts
+            | Flow::PayoutsConfirm
+            | Flow::PayoutLinkInitiate => Self::Payouts,
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList
-            | Flow::RefundsFilters => Self::Refunds,
+            | Flow::RefundsFilters
+            | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
@@ -186,6 +192,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
 
+            Flow::ApplePayCertificatesMigration => Self::ApplePayCertificatesMigration,
+
             Flow::UserConnectAccount
             | Flow::UserSignUp
             | Flow::UserSignIn
@@ -220,7 +228,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryCodeVerify
             | Flow::RecoveryCodesGenerate
             | Flow::TerminateTwoFactorAuth
-            | Flow::TwoFactorAuthStatus => Self::User,
+            | Flow::TwoFactorAuthStatus
+            | Flow::CreateUserAuthenticationMethod
+            | Flow::UpdateUserAuthenticationMethod
+            | Flow::ListUserAuthenticationMethods
+            | Flow::GetSsoAuthUrl
+            | Flow::SignInWithSso
+            | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

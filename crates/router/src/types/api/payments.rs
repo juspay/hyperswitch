@@ -8,11 +8,11 @@ pub use api_models::payments::{
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
     PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
     PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
-    WalletData,
+    PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
@@ -21,6 +21,12 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     PreProcessing, Reject, Session, SetupMandate, Void,
 };
 
+pub use super::payments_v2::{
+    ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
+    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
+    PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
+    PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
+};
 use crate::{
     core::errors,
     services::api,
@@ -74,6 +80,15 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentAuthorizeSessionToken:
+    api::ConnectorIntegration<
+    AuthorizeSessionToken,
+    types::AuthorizeSessionTokenData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -161,6 +176,7 @@ pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
     + PaymentAuthorize
+    + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
