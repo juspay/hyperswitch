@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payments::{Address, RequestSurchargeDetails},
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -18,6 +20,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -217,6 +220,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account.storage_scheme,
         )
         .await?;
+
+        let billing_details: Option<Address> = billing_address.as_ref().map(From::from);
+        payment_intent.billing_details = billing_details
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, billing_details.clone()).await
+            })
+            .await;
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
@@ -438,7 +449,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             customer_acceptance,
             address: PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
+                billing_details,
                 payment_method_billing.as_ref().map(From::from),
                 business_profile.use_billing_as_payment_method_billing,
             ),
@@ -716,7 +727,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .merchant_order_reference_id
             .clone();
-
+        let billing_details = payment_data.payment_intent.billing_details.clone();
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -747,6 +758,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     frm_metadata,
                     customer_details,
                     merchant_order_reference_id,
+                    billing_details,
                 },
                 key_store,
                 storage_scheme,

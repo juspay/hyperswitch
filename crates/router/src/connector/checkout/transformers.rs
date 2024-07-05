@@ -415,7 +415,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = item.router_data.request.metadata.clone();
+        let metadata = item.router_data.request.metadata.clone().map(Into::into);
         Ok(Self {
             source: source_var,
             amount: item.amount.to_owned(),

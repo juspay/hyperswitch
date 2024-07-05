@@ -46,7 +46,7 @@ pub enum TableEngine {
     BasicTree,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Hash)]
 #[serde(transparent)]
 pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
 
