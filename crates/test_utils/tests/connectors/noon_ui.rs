@@ -16,7 +16,7 @@ async fn should_make_noon_3ds_payment(web_driver: WebDriver) -> Result<(), WebDr
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/176"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/176"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("redirectTo3ds1Frame"))),
             Event::Trigger(Trigger::SwitchFrame(By::Css("iframe[frameborder='0']"))),
@@ -35,7 +35,7 @@ async fn should_make_noon_3ds_mandate_payment(web_driver: WebDriver) -> Result<(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/214"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/214"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("redirectTo3ds1Frame"))),
             Event::Trigger(Trigger::SwitchFrame(By::Css("iframe[frameborder='0']"))),
@@ -61,7 +61,7 @@ async fn should_make_noon_non_3ds_mandate_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/215"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/215"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),

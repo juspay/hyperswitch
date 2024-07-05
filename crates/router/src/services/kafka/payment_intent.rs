@@ -1,6 +1,7 @@
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{crypto::Encryptable, id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
+use masking::Secret;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -31,6 +32,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -59,6 +61,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
+            billing_details: intent.billing_details.clone(),
         }
     }
 }

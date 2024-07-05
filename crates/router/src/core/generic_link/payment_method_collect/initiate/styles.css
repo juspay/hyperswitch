@@ -28,7 +28,7 @@ body {
 
 .main, #payment-method-collect {
   height: 100vh;
-  width: 100vw;
+  width: 100%;
 }
 
 .main {
@@ -45,7 +45,6 @@ body {
   }
 
   .main {
-    width: auto;
     min-width: 300px;
   }
 }

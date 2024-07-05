@@ -136,6 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
+            &request.customer_id,
         )
         .await?;
 
@@ -209,12 +210,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ),
             ));
 
-        let payment_link_data = if let Some(payment_link_create) = request.payment_link {
-            if payment_link_create {
+        let payment_link_data = match request.payment_link {
+            Some(true) => {
                 let merchant_name = merchant_account
                     .merchant_name
                     .clone()
-                    .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+                    .map(|name| name.into_inner().peek().to_owned())
                     .unwrap_or_default();
 
                 let default_domain_name = state.base_url.clone();
@@ -225,7 +226,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         business_profile.payment_link_config.clone(),
                         merchant_name,
                         default_domain_name,
+                        request.payment_link_config_id.clone(),
                     )?;
+
                 create_payment_link(
                     request,
                     payment_link_config,
@@ -239,11 +242,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     session_expiry,
                 )
                 .await?
-            } else {
-                None
             }
-        } else {
-            None
+            _ => None,
         };
 
         let payment_intent_new = Self::make_payment_intent(
@@ -506,6 +506,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -518,6 +519,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }
@@ -1044,16 +1046,22 @@ impl PaymentCreate {
             .map(Secret::new);
 
         // Derivation of directly supplied Billing Address data in our Payment Create Request
-        let raw_billing_address_details = request
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let billing_details = request
             .billing
             .clone()
-            .and_then(|billing_details| billing_details.address.clone());
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.billing.clone()).await
+            })
+            .await;
 
-        // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_address_details = raw_billing_address_details
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_details = request
+            .shipping
             .clone()
             .async_and_then(|_| async {
-                create_encrypted_data(key_store, raw_billing_address_details.clone()).await
+                create_encrypted_data(key_store, request.shipping.clone()).await
             })
             .await;
 
@@ -1128,9 +1136,10 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            billing_address_details,
-            shipping_details,
+            billing_details,
             customer_details,
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            shipping_details,
         })
     }
 

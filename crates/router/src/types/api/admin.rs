@@ -44,7 +44,6 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             locker_id: item.locker_id,
             primary_business_details,
             frm_routing_algorithm: item.frm_routing_algorithm,
-            intent_fulfillment_time: item.intent_fulfillment_time,
             #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
@@ -99,6 +98,8 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                 .transpose()?,
             collect_shipping_details_from_wallet_connector: item
                 .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: item
+                .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
         })
     }
@@ -171,7 +172,8 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             intent_fulfillment_time: request
                 .intent_fulfillment_time
                 .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time),
+                .or(merchant_account.intent_fulfillment_time)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
             frm_routing_algorithm: request
                 .frm_routing_algorithm
                 .or(merchant_account.frm_routing_algorithm),
@@ -211,7 +213,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: request
-                .collect_shipping_details_from_wallet_connector,
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: request
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
         })
     }
 }
