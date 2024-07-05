@@ -230,7 +230,7 @@ impl FlowIntegrity for CaptureIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.capture_amount != res_integrity_object.capture_amount {
-            mismatched_fields.push("amount".to_string());
+            mismatched_fields.push("capture_amount".to_string());
         }
 
         if req_integrity_object.currency != res_integrity_object.currency {
