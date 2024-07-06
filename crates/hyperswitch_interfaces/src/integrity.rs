@@ -200,11 +200,11 @@ impl FlowIntegrity for SyncIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         res_integrity_object
-            .capture_amount
-            .zip(req_integrity_object.capture_amount)
+            .captured_amount
+            .zip(req_integrity_object.captured_amount)
             .map(|tup| {
                 if tup.0 != tup.1 {
-                    mismatched_fields.push("capture_amount".to_string());
+                    mismatched_fields.push("captured_amount".to_string());
                 }
             });
 
@@ -322,7 +322,7 @@ impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
         SyncIntegrityObject {
             amount: Some(self.amount),
             currency: Some(self.currency),
-            capture_amount: self.capture_amount,
+            captured_amount: self.captured_amount,
         }
     }
 }
