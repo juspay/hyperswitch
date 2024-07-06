@@ -22,6 +22,7 @@ use crate::{
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::cards::create_encrypted_data,
         payments::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
@@ -495,6 +496,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_request = request.clone();
         let m_key_store = key_store.clone();
 
+        let payment_intent_customer_id = payment_intent.customer_id.clone();
+
         let mandate_details_fut = tokio::spawn(
             async move {
                 helpers::get_token_pm_type_mandate_details(
@@ -504,6 +507,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_merchant_account,
                     &m_key_store,
                     None,
+                    &payment_intent_customer_id,
                 )
                 .await
             }
@@ -1215,6 +1219,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .in_current_span(),
         );
 
+        let billing_address = payment_data.address.get_payment_billing();
+        let billing_details = billing_address
+            .async_and_then(|_| async { create_encrypted_data(key_store, billing_address).await })
+            .await;
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_customer_id = customer_id.clone();
         let m_shipping_address_id = shipping_address_id.clone();
@@ -1259,6 +1267,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                         customer_details,
+                        merchant_order_reference_id: None,
+                        billing_details,
                     },
                     &m_key_store,
                     storage_scheme,

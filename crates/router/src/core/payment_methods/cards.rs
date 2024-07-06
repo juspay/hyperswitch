@@ -2782,14 +2782,14 @@ pub async fn list_payment_methods(
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
             .zip(payment_intent)
-            .zip(business_profile)
+            .zip(business_profile.as_ref())
             .map(|((pa, pi), bp)| (pa, pi, bp))
         {
             Box::pin(call_surcharge_decision_management(
                 state,
                 &merchant_account,
                 &key_store,
-                &business_profile,
+                business_profile,
                 payment_attempt,
                 payment_intent,
                 billing_address,
@@ -2799,6 +2799,14 @@ pub async fn list_payment_methods(
         } else {
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
+
+    let collect_shipping_details_from_wallets = business_profile
+        .as_ref()
+        .and_then(|bp| bp.collect_shipping_details_from_wallet_connector);
+
+    let collect_billing_details_from_wallets = business_profile
+        .as_ref()
+        .and_then(|bp| bp.collect_billing_details_from_wallet_connector);
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
@@ -2835,6 +2843,8 @@ pub async fn list_payment_methods(
                 .unwrap_or_default(),
             currency,
             request_external_three_ds_authentication,
+            collect_shipping_details_from_wallets,
+            collect_billing_details_from_wallets,
         },
     ))
 }

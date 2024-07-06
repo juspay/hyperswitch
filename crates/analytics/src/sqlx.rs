@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use api_models::{
-    analytics::refunds::RefundType,
+    analytics::{frm::FrmTransactionType, refunds::RefundType},
     enums::{DisputeStage, DisputeStatus},
 };
 use common_utils::{
@@ -9,7 +9,8 @@ use common_utils::{
     DbConnectionParams,
 };
 use diesel_models::enums::{
-    AttemptStatus, AuthenticationType, Currency, IntentStatus, PaymentMethod, RefundStatus,
+    AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, IntentStatus, PaymentMethod,
+    RefundStatus,
 };
 use error_stack::ResultExt;
 use sqlx::{
@@ -91,6 +92,8 @@ db_type!(IntentStatus);
 db_type!(PaymentMethod, TEXT);
 db_type!(RefundStatus);
 db_type!(RefundType);
+db_type!(FraudCheckStatus);
+db_type!(FrmTransactionType);
 db_type!(DisputeStage);
 db_type!(DisputeStatus);
 
@@ -150,6 +153,8 @@ impl super::refunds::metrics::RefundMetricAnalytics for SqlxClient {}
 impl super::refunds::filters::RefundFilterAnalytics for SqlxClient {}
 impl super::disputes::filters::DisputeFilterAnalytics for SqlxClient {}
 impl super::disputes::metrics::DisputeMetricAnalytics for SqlxClient {}
+impl super::frm::metrics::FrmMetricAnalytics for SqlxClient {}
+impl super::frm::filters::FrmFilterAnalytics for SqlxClient {}
 
 #[async_trait::async_trait]
 impl AnalyticsDataSource for SqlxClient {
@@ -222,6 +227,49 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
             refund_status,
             connector,
             refund_type,
+            total,
+            count,
+            start_bucket,
+            end_bucket,
+        })
+    }
+}
+
+impl<'a> FromRow<'a, PgRow> for super::frm::metrics::FrmMetricRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let frm_name: Option<String> = row.try_get("frm_name").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let frm_status: Option<DBEnumWrapper<FraudCheckStatus>> =
+            row.try_get("frm_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let frm_transaction_type: Option<DBEnumWrapper<FrmTransactionType>> =
+            row.try_get("frm_transaction_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let count: Option<i64> = row.try_get("count").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        // Removing millisecond precision to get accurate diffs against clickhouse
+        let start_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        let end_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("end_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        Ok(Self {
+            frm_name,
+            frm_status,
+            frm_transaction_type,
             total,
             count,
             start_bucket,
@@ -516,6 +564,30 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
     }
 }
 
+impl<'a> FromRow<'a, PgRow> for super::frm::filters::FrmFilterRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let frm_name: Option<String> = row.try_get("frm_name").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let frm_status: Option<DBEnumWrapper<FraudCheckStatus>> =
+            row.try_get("frm_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let frm_transaction_type: Option<DBEnumWrapper<FrmTransactionType>> =
+            row.try_get("frm_transaction_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        Ok(Self {
+            frm_name,
+            frm_status,
+            frm_transaction_type,
+        })
+    }
+}
+
 impl<'a> FromRow<'a, PgRow> for super::disputes::filters::DisputeFilterRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let dispute_stage: Option<String> = row.try_get("dispute_stage").or_else(|e| match e {
@@ -604,6 +676,7 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("SdkEvents table is not implemented for Sqlx"))?,
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
+            Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::PaymentIntent => Ok("payment_intent".to_string()),
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
