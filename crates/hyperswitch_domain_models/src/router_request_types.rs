@@ -379,6 +379,7 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub capture_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]

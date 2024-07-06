@@ -322,7 +322,7 @@ impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
         SyncIntegrityObject {
             amount: Some(self.amount),
             currency: Some(self.currency),
-            capture_amount: Some(self.amount),
+            capture_amount: self.capture_amount,
         }
     }
 }
