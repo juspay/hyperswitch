@@ -43,26 +43,29 @@ pub struct MandateData {
     pub mandate_type: Option<MandateDataType>,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
     pub acceptance_type: AcceptanceType,
     /// Specifying when the customer acceptance was provided
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     /// Information required for online mandate generation
     pub online: Option<OnlineMandate>,
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AcceptanceType {
     Online,
     #[default]
     Offline,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
+    #[serde(skip_deserializing)]
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,

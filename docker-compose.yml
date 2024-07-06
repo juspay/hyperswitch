@@ -379,6 +379,7 @@ services:
     environment:
       - "discovery.type=single-node"
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=0penS3arc#
+      - LOG_LEVEL=DEBUG
     profiles:
       - olap
     ports:

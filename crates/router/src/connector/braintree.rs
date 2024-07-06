@@ -15,6 +15,7 @@ use self::transformers as braintree;
 use super::utils::{self as connector_utils, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
+    connector::utils::PaymentMethodDataType,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -174,6 +175,15 @@ impl ConnectorValidation for Braintree {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

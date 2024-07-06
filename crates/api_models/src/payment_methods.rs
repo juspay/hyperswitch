@@ -795,6 +795,12 @@ pub struct PaymentMethodListResponse {
     /// flag to indicate whether to perform external 3ds authentication
     #[schema(example = true)]
     pub request_external_three_ds_authentication: bool,
+
+    /// flag that indicates whether to collect shipping details from wallets or from the customer
+    pub collect_shipping_details_from_wallets: Option<bool>,
+
+    /// flag that indicates whether to collect billing details from wallets or from the customer
+    pub collect_billing_details_from_wallets: Option<bool>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
