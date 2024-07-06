@@ -1,4 +1,4 @@
-import { connectorDetails as CommonConnectorDetails } from "./Common.js";
+import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 
