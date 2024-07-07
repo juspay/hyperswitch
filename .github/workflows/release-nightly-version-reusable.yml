@@ -50,7 +50,7 @@ jobs:
             exit 1
           fi
 
-      # Pulling latest changes in case pre-release steps push new commits
+        # Pulling latest changes in case pre-release steps push new commits
       - name: Pull allowed branch
         shell: bash
         run: git pull

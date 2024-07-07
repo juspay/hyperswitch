@@ -13,7 +13,6 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   CONNECTORS: stripe
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -100,7 +99,7 @@ jobs:
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
       - name: Diesel migration run
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
