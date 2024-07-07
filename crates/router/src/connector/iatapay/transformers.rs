@@ -462,6 +462,7 @@ pub enum RefundStatus {
     Initiated,
     Authorized,
     Settled,
+    Cleared,
     Failed,
 }
 
@@ -474,6 +475,7 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Initiated => Self::Pending,
             RefundStatus::Authorized => Self::Pending,
             RefundStatus::Settled => Self::Success,
+            RefundStatus::Cleared => Self::Success,
         }
     }
 }
