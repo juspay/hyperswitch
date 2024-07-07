@@ -15,6 +15,7 @@ env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
   CONNECTORS: stripe
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUST_MIN_STACK: 8388608
@@ -49,11 +50,17 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Skip tests for PRs from forks
+        shell: bash
+        if: ${{ env.RUN_TESTS == 'false' }}
+        run: echo 'Skipping tests for PRs from forks'
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        if: ${{ env.RUN_TESTS == 'true' }}
 
       - name: Download encrypted TOML from S3 and decrypt
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -70,28 +77,28 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in environment variables
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           ADMIN_API_KEY="$(yq '.secrets.admin_api_key' './config/development.toml')"
           echo "ADMIN_API_KEY=${ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Rust
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
 
       - uses: Swatinem/rust-cache@v2.7.3
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
 
       - name: Install Diesel CLI
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.1.1
         with:
           crate: diesel_cli
@@ -99,21 +106,22 @@ jobs:
           args: --no-default-features
 
       - name: Run database migrations
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: make migrate locked-schema=yes
 
       - name: Install newman from fork
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: npm ci
 
       - name: Build project
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router
 
       - name: Start application server
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           # Start the server in the background
           target/debug/router &
@@ -133,7 +141,7 @@ jobs:
           done
 
       - name: Run tests
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           BASE_URL: "http://localhost:8080"
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
