@@ -7647,7 +7647,7 @@
       },
       "ChargeRefunds": {
         "type": "object",
-        "description": "Charge object for refunds",
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.",
         "required": [
           "charge_id"
         ],

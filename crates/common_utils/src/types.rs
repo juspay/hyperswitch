@@ -688,7 +688,7 @@ mod amount_conversion_tests {
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-/// Charge object for refunds
+/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
     pub charge_id: String,
