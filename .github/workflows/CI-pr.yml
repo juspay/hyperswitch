@@ -33,8 +33,8 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  # Use `sccache` for caching compilation artifacts
+  RUSTC_WRAPPER: sccache
 
 jobs:
   formatting:
@@ -88,14 +88,7 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os:
-          - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
+    runs-on: hyperswitch-runners
 
     steps:
       - name: Checkout repository
@@ -122,14 +115,17 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          save-if: false
+          tool: sccache
+          checksum: true
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.33.28
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
       - name: Deny warnings
         shell: bash
@@ -210,14 +206,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
+    runs-on: hyperswitch-runners
 
     steps:
       - name: Generate a token
@@ -256,19 +245,23 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
-      - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          crate: cargo-hack
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.2.0
+      #   uses: taiki-e/install-action@v2.33.28
       #   with:
-      #     crate: cargo-nextest
-
-      - uses: Swatinem/rust-cache@v2.7.0
-        with:
-          save-if: false
+      #     tool: cargo-nextest
+      #     checksum: true
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash

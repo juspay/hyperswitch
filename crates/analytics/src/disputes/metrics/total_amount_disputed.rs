@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -32,7 +34,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
     where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
@@ -110,7 +112,7 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<Vec<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }
