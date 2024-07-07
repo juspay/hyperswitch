@@ -17681,7 +17681,7 @@
         "properties": {
           "payout_id": {
             "type": "string",
-            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required in the Payout Create/Update Request.**",
+            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required to be included in the Payout Create/Update Request.**",
             "example": "payout_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -17689,7 +17689,7 @@
           },
           "merchant_id": {
             "type": "string",
-            "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required in the Payout Create/Update Request.**",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**",
             "example": "merchant_1668273825",
             "maxLength": 255
           },
