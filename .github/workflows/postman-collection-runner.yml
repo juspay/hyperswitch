@@ -49,10 +49,10 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Repository checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Encrypted TOML from S3 and Decrypt
+      - name: Download encrypted TOML from S3 and decrypt
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
@@ -64,25 +64,22 @@ jobs:
           S3_SOURCE_FILE_NAME: "95aa1243-4caa-4539-a65a-723aa5cbe3d7.toml.gpg"
         shell: bash
         run: |
-          mkdir -p ${HOME}/target/secrets ${HOME}/target/test
+          mkdir -p "${HOME}/target/secrets" "${HOME}/target/test"
 
           aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
-      - name: Set paths in env
+      - name: Set paths in environment variables
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        id: config_path
         shell: bash
         run: |
           echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        env:
-          TOML_PATH: "./config/development.toml"
         run: |
-          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
-          echo "ADMIN_API_KEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+          ADMIN_API_KEY="$(yq '.secrets.admin_api_key' './config/development.toml')"
+          echo "ADMIN_API_KEY=${ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Rust
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -90,19 +87,18 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - name: Build and Cache Rust Dependencies
+      - uses: Swatinem/rust-cache@v2.7.3
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: Swatinem/rust-cache@v2.7.0
 
-      - name: Install Diesel CLI with Postgres Support
+      - name: Install Diesel CLI
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.1.1
         with:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
 
-      - name: Diesel migration run
+      - name: Run database migrations
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         shell: bash
         env:
@@ -116,7 +112,7 @@ jobs:
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: cargo build --package router --bin router
 
-      - name: Setup Local Server
+      - name: Start application server
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: |
           # Start the server in the background
@@ -126,9 +122,9 @@ jobs:
           # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ "${COUNT}" -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
               echo "Server did not start within a reasonable time. Exiting."
-              kill ${SERVER_PID}
+              kill "${SERVER_PID}"
               exit 1
             else
               COUNT=$((COUNT+1))
@@ -136,7 +132,7 @@ jobs:
             fi
           done
 
-      - name: Run Tests
+      - name: Run tests
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           BASE_URL: "http://localhost:8080"
@@ -147,8 +143,8 @@ jobs:
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
-          NEWMAN_PATH=$(pwd)/node_modules/.bin
-          export PATH=${NEWMAN_PATH}:${PATH}
+          NEWMAN_PATH="$(pwd)/node_modules/.bin"
+          export PATH="${NEWMAN_PATH}:${PATH}"
           failed_connectors=()
 
           for i in $(echo "${CONNECTORS}" | tr "," "\n"); do
