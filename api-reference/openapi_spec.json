@@ -15605,13 +15605,6 @@
             "example": true,
             "nullable": true
           },
-          "capture_on": {
-            "type": "string",
-            "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
-            "example": "2022-09-10T10:11:12Z",
-            "nullable": true
-          },
           "capture_method": {
             "allOf": [
               {
@@ -17667,7 +17660,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "Custom payout link config for the particular payout, if payout link is to be generated."
       },
       "PayoutCreateRequest": {
         "type": "object",
@@ -17687,7 +17681,7 @@
         "properties": {
           "payout_id": {
             "type": "string",
-            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required in the Payout Create/Update Request.**",
             "example": "payout_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -17695,7 +17689,7 @@
           },
           "merchant_id": {
             "type": "string",
-            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required in the Payout Create/Update Request.**",
             "example": "merchant_1668273825",
             "maxLength": 255
           },
@@ -17721,7 +17715,7 @@
             "items": {
               "$ref": "#/components/schemas/PayoutConnectors"
             },
-            "description": "This allows the merchant to manually select a connector with which the payout can go through",
+            "description": "This field allows the merchant to manually select a connector with which the payout can go through.",
             "example": [
               "wise",
               "adyen"
@@ -17730,7 +17724,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "The boolean value to create payout with connector",
+            "description": "This field is used when merchant wants to confirm the Payout, thus useful for the Payout Confirm Request. Ideally Merchants should create a Payout, Update it(if required), then Confirm it.",
             "default": false,
             "example": true
           },
@@ -17831,13 +17825,13 @@
           },
           "payout_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payout method",
+            "description": "Provide a reference to a stored payout method, used to process the payout.",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile to use for this payout, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "description": "The business profile to use for this payout, especially if there are multiple business profiles associated with the account, otherwise default business profile associated with the merchant account will be used.",
             "nullable": true
           },
           "priority": {
@@ -17845,7 +17839,7 @@
           },
           "payout_link": {
             "type": "boolean",
-            "description": "Whether to get the payout link (if applicable)",
+            "description": "Whether to get the payout link (if applicable). Merchant need to specify this during the *Create Request*, this field can not be updated using the *Update Request*.",
             "default": false,
             "example": true,
             "nullable": true
@@ -18067,6 +18061,7 @@
       },
       "PayoutEntityType": {
         "type": "string",
+        "description": "Type of entity to whom the payout is being carried out to, select from the given list of options",
         "enum": [
           "Individual",
           "Company",
@@ -18307,7 +18302,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "The payout method information required for carrying out a payout"
       },
       "PayoutRequest": {
         "oneOf": [
@@ -18388,6 +18384,7 @@
       },
       "PayoutSendPriority": {
         "type": "string",
+        "description": "The send method which will be required for processing payouts, check options for better understanding.",
         "enum": [
           "instant",
           "fast",
@@ -18417,6 +18414,7 @@
       },
       "PayoutType": {
         "type": "string",
+        "description": "The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.",
         "enum": [
           "card",
           "bank",

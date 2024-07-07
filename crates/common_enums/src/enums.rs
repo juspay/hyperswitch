@@ -2211,6 +2211,7 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+/// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,
     Copy,
@@ -2237,6 +2238,7 @@ pub enum PayoutType {
     Wallet,
 }
 
+/// Type of entity to whom the payout is being carried out to, select from the given list of options
 #[derive(
     Clone,
     Copy,
@@ -2270,6 +2272,7 @@ pub enum PayoutEntityType {
     Personal,
 }
 
+/// The send method which will be required for processing payouts, check options for better understanding.
 #[derive(
     Clone,
     Copy,
