@@ -200,7 +200,7 @@ jobs:
   #       with:
   #         command: check ${{ matrix.checks }}
 
-  test:
+  check-stable:
     name: Run tests on stable toolchain
     runs-on: hyperswitch-runners
 
