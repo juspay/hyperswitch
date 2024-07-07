@@ -22,9 +22,7 @@ use futures::future::join_all;
 use hyperswitch_domain_models::errors::StorageError;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-#[cfg(feature = "olap")]
-use router_env::logger;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use scheduler::utils as pt_utils;
 use serde_json;
 
