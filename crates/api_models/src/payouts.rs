@@ -21,7 +21,7 @@ pub enum PayoutRequest {
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateRequest {
-    /// Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required in the Payout Create/Update Request.**
+    /// Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required to be included in the Payout Create/Update Request.**
     #[schema(
         value_type = Option<String>,
         min_length = 30,
@@ -30,7 +30,7 @@ pub struct PayoutCreateRequest {
     )]
     pub payout_id: Option<String>, // TODO: #1321 https://github.com/juspay/hyperswitch/issues/1321
 
-    /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required in the Payout Create/Update Request.**
+    /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
     #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
     pub merchant_id: Option<String>,
 
