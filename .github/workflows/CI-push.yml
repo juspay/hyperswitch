@@ -62,7 +62,7 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -136,7 +136,7 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
 

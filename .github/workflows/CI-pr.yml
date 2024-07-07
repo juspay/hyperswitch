@@ -116,13 +116,13 @@ jobs:
           toolchain: "${{ env.rust_version }}"
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.41.10
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.41.10
         with:
           tool: cargo-hack
           checksum: true
@@ -246,19 +246,19 @@ jobs:
           components: clippy
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.41.10
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.41.10
         with:
           tool: cargo-hack
           checksum: true
 
       # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2.41.10
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
