@@ -148,12 +148,6 @@ jobs:
           tool: cargo-hack
           checksum: true
 
-      # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2.41.10
-      #   with:
-      #     tool: cargo-nextest
-      #     checksum: true
-
       - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
@@ -181,6 +175,95 @@ jobs:
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
+
+  tests:
+    name: Run unit and documentation tests
+    runs-on: hyperswitch-runners
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: cargo-nextest
+          checksum: true
+
+      - name: Install Diesel CLI
+        uses: baptiste0928/cargo-install@v3.1.1
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Run database migrations
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: make migrate locked-schema=yes
+
+      - name: Run unit and documentation tests
+        shell: bash
+        # `cargo` does not allow us to exclude specific features from all features,
+        # so we're using `cargo metadata` to obtain all features from all workspace crates
+        # and exclude specific features from the list.
+        run: |
+          FEATURES=$(cargo metadata --all-features --format-version 1 | \
+            jq -r '
+              [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+              | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+              | del( .[] | select( any( . ; . == ("aws_kms", "aws_s3", "release") ) ) ) # Exclude some features from features list
+              | join(",") # Construct a comma-separated string of features for passing to `cargo`
+            ')
+          cargo nextest run --config-file .github/nextest.toml --profile ci -E 'kind(lib)' --build-jobs 4 --features "${FEATURES}"
+          cargo test --doc --features "${FEATURES}"
 
   typos:
     name: Spell check
