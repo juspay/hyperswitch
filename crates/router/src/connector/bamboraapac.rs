@@ -280,7 +280,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Get)
+                .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
@@ -303,7 +303,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         );
 
         let response = response_data
-            .parse_xml::<bamboraapac::BamboraapacPaymentsResponse>()
+            .parse_xml::<bamboraapac::BamboraapacSyncResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -480,7 +480,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         );
 
         let response = response_data
-            .parse_xml::<bamboraapac::BamboraapacPaymentsResponse>()
+            .parse_xml::<bamboraapac::BamboraapacRefundsResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));

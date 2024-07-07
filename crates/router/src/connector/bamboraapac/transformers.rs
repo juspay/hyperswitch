@@ -1,9 +1,10 @@
+use error_stack::ResultExt;
 use hyperswitch_interfaces::consts;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsCancelRequestData, RouterData},
+    connector::utils::{self, CardData, RouterData},
     core::{errors, mandate::MandateBehaviour},
     types::{self, domain, storage::enums, transformers::ForeignFrom},
 };
@@ -15,19 +16,19 @@ pub fn get_payment_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Vec<
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"
-    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-    xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
-        <soapenv:Body>
-        <dts:SubmitSinglePayment>
-            <dts:trnXML>
-                <![CDATA[
-                    {}
-                ]]>    
-            </dts:trnXML>
-        </dts:SubmitSinglePayment>
-        </soapenv:Body>
-    </soapenv:Envelope>
-"#,
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Body>
+                    <dts:SubmitSinglePayment>
+                        <dts:trnXML>
+                            <![CDATA[
+                                {}
+                            ]]>    
+                        </dts:trnXML>
+                    </dts:SubmitSinglePayment>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
         transaction_data
     );
 
@@ -171,7 +172,8 @@ fn get_attempt_status(
             Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
             _ => enums::AttemptStatus::Pending,
         },
-        _ => enums::AttemptStatus::Failure,
+        1 => enums::AttemptStatus::Failure,
+        _ => enums::AttemptStatus::Pending,
     }
 }
 
@@ -446,6 +448,40 @@ pub fn get_refund_body(req: &types::RefundExecuteRouterData) -> Result<Vec<u8>, 
     Ok(body.as_bytes().to_vec())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+#[serde(rename_all = "PascalCase")]
+pub struct BamboraapacRefundsResponse {
+    body: RefundBodyResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RefundBodyResponse {
+    submit_single_refund_response: SubmitSingleRefundResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSingleRefundResponse {
+    submit_single_refund_result: SubmitSingleRefundResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSingleRefundResult {
+    response: RefundResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RefundResponse {
+    response_code: u8,
+    receipt: String,
+    declined_code: Option<String>,
+    declined_message: Option<String>,
+}
+
 impl ForeignFrom<u8> for enums::RefundStatus {
     fn foreign_from(item: u8) -> Self {
         match item {
@@ -460,7 +496,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacRefundsResponse,
             types::RefundsData,
             types::RefundsResponseData,
         >,
@@ -470,7 +506,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacRefundsResponse,
             types::RefundsData,
             types::RefundsResponseData,
         >,
@@ -478,15 +514,15 @@ impl<F>
         let response_code = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .submit_single_refund_response
+            .submit_single_refund_result
             .response
             .response_code;
         let connector_refund_id = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .submit_single_refund_response
+            .submit_single_refund_result
             .response
             .receipt;
 
@@ -500,120 +536,13 @@ impl<F>
     }
 }
 
-// void body in soap format
-pub fn get_void_body(req: &types::PaymentsCancelRouterData) -> Result<Vec<u8>, Error> {
-    let receipt = req.request.connector_transaction_id.to_owned();
-    let amount = req.request.get_amount()?;
-    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
-    let body = format!(
-        r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
-                <soapenv:Header/>
-                <soapenv:Body>
-                    <dts:SubmitSingleVoid>
-                        <dts:trnXML>
-                            <![CDATA[
-                                <Void>
-                                    <Receipt>{}</Receipt>
-                                    <Amount>{}</Amount>
-                                    <Security>
-                                        <UserName>{}</UserName>
-                                        <Password>{}</Password>
-                                    </Security> 
-                                </Void>
-                            ]]>    
-                        </dts:trnXML>
-                    </dts:SubmitSingleVoid>
-                </soapenv:Body>
-            </soapenv:Envelope>
-        "#,
-        receipt,
-        amount,
-        auth_details.username.peek(),
-        auth_details.password.peek(),
-    );
-
-    Ok(body.as_bytes().to_vec())
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            BamboraapacPaymentsResponse,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BamboraapacPaymentsResponse,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let response_code = item
-            .response
-            .body
-            .submit_single_payment_response
-            .submit_single_payment_result
-            .response
-            .response_code;
-
-        // transaction voided
-        if response_code == 0 {
-            Ok(Self {
-                status: enums::AttemptStatus::Voided,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    charge_id: None,
-                }),
-                ..item.data
-            })
-        }
-        // transaction failed
-        else {
-            Ok(Self {
-                status: enums::AttemptStatus::VoidFailed,
-                response: Err(types::ErrorResponse {
-                    status_code: item.http_code,
-                    code: item
-                        .response
-                        .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
-                        .response
-                        .declined_code
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: item
-                        .response
-                        .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
-                        .response
-                        .declined_message,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            })
-        }
-    }
-}
-
 pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<u8>, Error> {
     let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let connector_transaction_id = req
+        .request
+        .connector_transaction_id
+        .get_connector_transaction_id()
+        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
     let body = format!(
         r#"
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -624,14 +553,16 @@ pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<
                         <dts:queryXML>
                             <![CDATA[
                                 <QueryTransaction>
-                                        <Criteria>
-                                            <AccountNumber>z{}</AccountNumber>
-                                            <CustRef>{}</CustRef>
-                                        </Criteria>
-                                        <Security>
-                                            <UserName>{}</UserName>
-                                            <Password>{}</Password>
-                                        </Security> 
+                                    <Criteria>
+                                        <AccountNumber>{}</AccountNumber>
+                                        <TrnStartTimestamp>2024-06-23 00:00:00</TrnStartTimestamp>
+                                        <TrnEndTimestamp>2099-12-31 23:59:59</TrnEndTimestamp>
+                                        <Receipt>{}</Receipt>
+                                    </Criteria>
+                                    <Security>
+                                        <UserName>{}</UserName>
+                                        <Password>{}</Password>
+                                    </Security>
                             </QueryTransaction>	
                             ]]>    
                         </dts:queryXML>
@@ -640,7 +571,7 @@ pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<
             </soapenv:Envelope>
         "#,
         auth_details.account_number.peek(),
-        req.connector_request_reference_id,
+        connector_transaction_id,
         auth_details.username.peek(),
         auth_details.password.peek(),
     );
@@ -648,11 +579,51 @@ pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<
     Ok(body.as_bytes().to_vec())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+#[serde(rename_all = "PascalCase")]
+pub struct BamboraapacSyncResponse {
+    body: SyncBodyResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SyncBodyResponse {
+    query_transaction_response: QueryTransactionResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QueryTransactionResponse {
+    query_transaction_result: QueryTransactionResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QueryTransactionResult {
+    query_response: QueryResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QueryResponse {
+    response: SyncResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SyncResponse {
+    response_code: u8,
+    receipt: String,
+    declined_code: Option<String>,
+    declined_message: Option<String>,
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacSyncResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
@@ -662,7 +633,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacSyncResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
@@ -670,15 +641,17 @@ impl<F>
         let response_code = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .query_transaction_response
+            .query_transaction_result
+            .query_response
             .response
             .response_code;
         let connector_transaction_id = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .query_transaction_response
+            .query_transaction_result
+            .query_response
             .response
             .receipt;
         // transaction approved
@@ -709,8 +682,9 @@ impl<F>
                     code: item
                         .response
                         .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
+                        .query_transaction_response
+                        .query_transaction_result
+                        .query_response
                         .response
                         .declined_code
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -718,8 +692,9 @@ impl<F>
                     reason: item
                         .response
                         .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
+                        .query_transaction_response
+                        .query_transaction_result
+                        .query_response
                         .response
                         .declined_message,
                     attempt_status: None,
