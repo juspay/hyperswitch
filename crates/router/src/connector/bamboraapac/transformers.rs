@@ -293,11 +293,45 @@ pub fn get_capture_body(req: &types::PaymentsCaptureRouterData) -> Result<Vec<u8
     Ok(body.as_bytes().to_vec())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+#[serde(rename_all = "PascalCase")]
+pub struct BamboraapacCaptureResponse {
+    body: CaptureBodyResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CaptureBodyResponse {
+    submit_single_capture_response: SubmitSingleCaptureResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSingleCaptureResponse {
+    submit_single_capture_result: SubmitSingleCaptureResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSingleCaptureResult {
+    response: CaptureResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CaptureResponse {
+    response_code: u8,
+    receipt: String,
+    declined_code: Option<String>,
+    declined_message: Option<String>,
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacCaptureResponse,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
@@ -307,7 +341,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BamboraapacPaymentsResponse,
+            BamboraapacCaptureResponse,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
@@ -315,15 +349,15 @@ impl<F>
         let response_code = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .submit_single_capture_response
+            .submit_single_capture_result
             .response
             .response_code;
         let connector_transaction_id = item
             .response
             .body
-            .submit_single_payment_response
-            .submit_single_payment_result
+            .submit_single_capture_response
+            .submit_single_capture_result
             .response
             .receipt;
         // transaction approved
@@ -354,8 +388,8 @@ impl<F>
                     code: item
                         .response
                         .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
+                        .submit_single_capture_response
+                        .submit_single_capture_result
                         .response
                         .declined_code
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -363,8 +397,8 @@ impl<F>
                     reason: item
                         .response
                         .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
+                        .submit_single_capture_response
+                        .submit_single_capture_result
                         .response
                         .declined_message,
                     attempt_status: None,
