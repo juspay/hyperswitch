@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.08.0
+
+### Bug Fixes
+
+- **connector:** [adyen] remove browser info for mit and [paypal] add refund key in headers ([#5225](https://github.com/juspay/hyperswitch/pull/5225)) ([`5ea09c7`](https://github.com/juspay/hyperswitch/commit/5ea09c7f9d50791fddc19cc97922659bb1bc0f57))
+
+**Full Changelog:** [`2024.07.06.0...2024.07.08.0`](https://github.com/juspay/hyperswitch/compare/2024.07.06.0...2024.07.08.0)
+
+- - -
+
 ## 2024.07.06.0
 
 ### Features
