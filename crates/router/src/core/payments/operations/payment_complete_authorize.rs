@@ -11,7 +11,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -86,7 +89,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             })?;
 
         let recurring_details = request.recurring_details.clone();
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -124,8 +126,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
+            &payment_intent.customer_id,
         )
         .await?;
+        let customer_acceptance: Option<CustomerAcceptance> = request
+            .customer_acceptance
+            .clone()
+            .map(From::from)
+            .or(payment_method_info
+                .clone()
+                .map(|pm| {
+                    pm.customer_acceptance
+                        .parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to CustomerAcceptance")?);
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
@@ -377,6 +393,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -389,6 +406,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await?;
         Ok((op, payment_method_data, pm_id))

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{errors::IntegrityCheckError, id_type, types::MinorUnit};
 use masking::Secret;
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
@@ -70,6 +70,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
+
+    pub integrity_check: Result<(), IntegrityCheckError>,
 }
 
 // Different patterns of authentication.
@@ -173,6 +175,14 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
     },
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkResponse>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaSdkResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

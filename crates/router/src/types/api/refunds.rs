@@ -4,6 +4,7 @@ pub use api_models::refunds::{
 };
 pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 
+pub use super::refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2};
 use super::ConnectorCommon;
 use crate::{
     services::api,

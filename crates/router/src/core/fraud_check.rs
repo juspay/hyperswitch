@@ -320,7 +320,7 @@ where
         .or_else(||
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.payment_intent.metadata.clone().and_then(|meta| {
-                let order_details = meta.peek().get("order_details").to_owned();
+                let order_details = meta.get("order_details").to_owned();
                 order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
@@ -723,8 +723,7 @@ pub async fn make_fulfillment_api_call(
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
     let connector_data = FraudCheckConnectorData::get_connector_by_name(&fraud_check.frm_name)?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,

@@ -102,6 +102,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
@@ -135,8 +136,7 @@ pub async fn decide_frm_flow<'a, 'b>(
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmRecordReturnRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,
         FraudCheckRecordReturnData,
         FraudCheckResponseData,

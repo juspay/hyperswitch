@@ -1,3 +1,5 @@
+console.log("[LOG]::x-request-id - " + pm.response.headers.get("x-request-id"));
+
 // Validate status 2xx
 pm.test("[POST]::/user/v2/signin - Status code is 2xx", function () {
   pm.response.to.be.success;

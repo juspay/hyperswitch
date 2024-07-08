@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Redis channel name used for publishing invalidation messages
-pub const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
+pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
 
 /// Prefix for config cache key
 const CONFIG_CACHE_PREFIX: &str = "config";
@@ -41,11 +41,11 @@ const SURCHARGE_CACHE_PREFIX: &str = "surcharge";
 /// Prefix for cgraph cache key
 const CGRAPH_CACHE_PREFIX: &str = "cgraph";
 
-/// Prefix for PM Filter cgraph cache key
-const PM_FILTERS_CGRAPH_CACHE_PREFIX: &str = "pm_filters_cgraph";
-
 /// Prefix for all kinds of cache key
 const ALL_CACHE_PREFIX: &str = "all_cache_kind";
+
+/// Prefix for PM Filter cgraph cache key
+const PM_FILTERS_CGRAPH_CACHE_PREFIX: &str = "pm_filters_cgraph";
 
 /// Time to live 30 mins
 const CACHE_TTL: u64 = 30 * 60;
@@ -148,7 +148,6 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
             PM_FILTERS_CGRAPH_CACHE_PREFIX => {
                 Ok(Self::PmFiltersCGraph(Cow::Owned(split.1.to_string())))
             }
-
             ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
@@ -411,7 +410,7 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
     let futures = keys.into_iter().map(|key| async {
         redis_conn
             .clone()
-            .publish(PUB_SUB_CHANNEL, key)
+            .publish(IMC_INVALIDATION_CHANNEL, key)
             .await
             .change_context(StorageError::KVError)
     });

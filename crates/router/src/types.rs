@@ -15,23 +15,25 @@ pub mod pm_auth;
 
 pub mod storage;
 pub mod transformers;
-
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_request_types::PayoutsData;
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_response_types::PayoutsResponseData;
+#[cfg(feature = "frm")]
+pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
+    router_data_v2::{
+        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
+        WebhookSourceVerifyData,
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
@@ -51,6 +53,11 @@ pub use hyperswitch_domain_models::{
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
+};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::{
+    router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 pub use hyperswitch_interfaces::types::Response;
 
@@ -537,6 +544,11 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
@@ -777,6 +789,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
+            merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 }
@@ -830,6 +844,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }
@@ -891,6 +906,7 @@ impl<F1, F2>
             refund_id: None,
             dispute_id: None,
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }

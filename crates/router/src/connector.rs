@@ -4,6 +4,7 @@ pub mod adyenplatform;
 pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bambora;
+pub mod bamboraapac;
 pub mod bankofamerica;
 pub mod billwerk;
 pub mod bitpay;
@@ -69,15 +70,16 @@ pub mod zsl;
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
-    authorizedotnet::Authorizedotnet, bambora::Bambora, bankofamerica::Bankofamerica,
-    billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
-    cybersource::Cybersource, datatrans::Datatrans, dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv,
-    forte::Forte, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
-    gpayments::Gpayments, helcim::Helcim, iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity,
-    mollie::Mollie, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi,
-    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme,
-    payone::Payone, paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
+    bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap,
+    boku::Boku, braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout,
+    coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource, datatrans::Datatrans,
+    dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
+    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim,
+    iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
+    paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
     square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
     tsys::Tsys, volt::Volt, wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
