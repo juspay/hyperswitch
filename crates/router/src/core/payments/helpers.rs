@@ -3161,6 +3161,7 @@ mod tests {
             customer_details: None,
             billing_details: None,
             merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3224,6 +3225,7 @@ mod tests {
             customer_details: None,
             billing_details: None,
             merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3285,6 +3287,7 @@ mod tests {
             customer_details: None,
             billing_details: None,
             merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
