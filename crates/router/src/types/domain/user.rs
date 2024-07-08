@@ -4,6 +4,8 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
+#[cfg(feature = "keymanager_create")]
+use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
@@ -18,9 +20,6 @@ use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
-
-#[cfg(feature = "keymanager_create")]
-use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 
 use crate::{
     consts,

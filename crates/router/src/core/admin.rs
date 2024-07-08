@@ -10,6 +10,8 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
+#[cfg(feature = "keymanager_create")]
+use common_utils::{keymanager, types::keymanager as km_types};
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
@@ -17,9 +19,6 @@ use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
-
-#[cfg(feature = "keymanager_create")]
-use common_utils::{keymanager, types::keymanager as km_types};
 
 use crate::{
     consts,
