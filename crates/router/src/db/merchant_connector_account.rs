@@ -440,7 +440,7 @@ impl MerchantConnectorAccountInterface for Store {
 
                 #[cfg(feature = "accounts_cache")]
                 // Redact all caches as any of might be used because of backwards compatibility
-                cache::publish_and_redact_multiple(
+                Box::pin(cache::publish_and_redact_multiple(
                     self,
                     [
                         cache::CacheKind::Accounts(
@@ -454,7 +454,7 @@ impl MerchantConnectorAccountInterface for Store {
                         ),
                     ],
                     || update,
-                )
+                ))
                 .await
                 .map_err(|error| {
                     // Returning `DatabaseConnectionError` after logging the actual error because

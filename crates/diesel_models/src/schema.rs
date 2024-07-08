@@ -438,18 +438,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    fingerprint (card_hash) {
-        id -> Int4,
-        card_hash -> Bytea,
-        #[max_length = 64]
-        card_fingerprint -> Varchar,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     fraud_check (frm_id, attempt_id, payment_id, merchant_id) {
         #[max_length = 64]
         frm_id -> Varchar,
@@ -536,19 +524,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    hash_table (hash_id) {
-        id -> Int4,
-        #[max_length = 255]
-        hash_id -> Varchar,
-        data_hash -> Bytea,
-        created_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -567,28 +542,6 @@ diesel::table! {
         #[max_length = 64]
         connector_authorization_id -> Nullable<Varchar>,
         previously_authorized_amount -> Int8,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    locker (tenant_id, merchant_id, customer_id, locker_id) {
-        id -> Int4,
-        #[max_length = 255]
-        locker_id -> Varchar,
-        #[max_length = 255]
-        tenant_id -> Varchar,
-        #[max_length = 255]
-        merchant_id -> Varchar,
-        #[max_length = 255]
-        customer_id -> Varchar,
-        enc_data -> Bytea,
-        created_at -> Timestamp,
-        #[max_length = 255]
-        hash_id -> Varchar,
-        ttl -> Nullable<Timestamp>,
     }
 }
 
@@ -679,21 +632,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant (tenant_id, merchant_id) {
-        id -> Int4,
-        #[max_length = 255]
-        tenant_id -> Varchar,
-        #[max_length = 255]
-        merchant_id -> Varchar,
-        enc_key -> Bytea,
-        created_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     merchant_account (id) {
         id -> Int4,
         #[max_length = 64]
@@ -769,8 +707,8 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
-        connector_wallets_details -> Nullable<Bytea>,
         additional_merchant_data -> Nullable<Bytea>,
+        connector_wallets_details -> Nullable<Bytea>,
     }
 }
 
@@ -1370,16 +1308,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     dispute,
     events,
     file_metadata,
-    fingerprint,
     fraud_check,
     gateway_status_map,
     generic_link,
-    hash_table,
     incremental_authorization,
-    locker,
     locker_mock_up,
     mandate,
-    merchant,
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
