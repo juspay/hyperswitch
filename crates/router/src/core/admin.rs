@@ -164,7 +164,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        self.parse_routing_alogrithm()
+        self.parse_routing_algorithm()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "routing_algorithm",
             })

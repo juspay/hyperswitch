@@ -165,7 +165,7 @@ impl MerchantAccountCreate {
             .transpose()
     }
 
-    pub fn parse_routing_alogrithm(&self) -> CustomResult<(), errors::ParsingError> {
+    pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
                 let _: routing::RoutingAlgorithm =
