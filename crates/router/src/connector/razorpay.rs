@@ -70,15 +70,19 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        _req: &types::RouterData<Flow, Request, Response>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Basic {}", connectors.razorpay.api_key.clone().expose()).into_masked(),
+            ),
+        ];
         Ok(header)
     }
 }
@@ -98,18 +102,6 @@ impl ConnectorCommon for Razorpay {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.razorpay.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = razorpay::RazorpayAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Basic {}", auth.api_key.expose()).into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -223,7 +215,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -231,7 +223,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
-        let connector_req = razorpay::RazorpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            razorpay::RazorpayPaymentsRequest::try_from((&connector_router_data, connectors))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -314,7 +307,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -322,7 +315,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
-        let connector_req = razorpay::RazorpayCreateSyncRequest::try_from(connector_router_data)?;
+        let connector_req =
+            razorpay::RazorpayCreateSyncRequest::try_from((connector_router_data, connectors))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -481,7 +475,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -489,7 +483,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
-        let connector_req = razorpay::RazorpayRefundRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            razorpay::RazorpayRefundRequest::try_from((&connector_router_data, connectors))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -567,7 +562,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -575,7 +570,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             req.request.currency,
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
-        let connector_req = razorpay::RazorpayRefundRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            razorpay::RazorpayRefundRequest::try_from((&connector_router_data, connectors))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

@@ -978,11 +978,9 @@ destination_account_number="Destination Account Number"
 [razorpay]
 [razorpay.upi]
   payment_method_type = "upiCollect"
-[razorpay.connector_auth.MultiAuthKey]
-api_key="API Key"
-key1 = "Merchant id"
-api_secret = "Razorpay Id"
-key2 = "Razorpay Secret"
+[razorpay.connector_auth.BodyKey]
+api_key="Razorpay Id"
+key1 = "Razorpay Secret"
 
 [mollie]
 [[mollie.credit]]
