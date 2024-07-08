@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-#[cfg(feature = "olap")]
 use actix_web::http::header;
 use api_models::admin;
+#[cfg(feature = "olap")]
 use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
