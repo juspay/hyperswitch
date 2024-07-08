@@ -284,8 +284,10 @@ pub async fn migrate_payment_method(
     let card_details = req
         .card
         .as_ref()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("The provide payment method can not be migrated")?;
+        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Missing field card".to_owned(),
+        })
+        .attach_printable("Card details can not be null")?;
 
     let card_number_validation_result = cards::CardNumber::from_str(&card_details.card_number);
 
