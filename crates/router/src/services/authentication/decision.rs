@@ -4,8 +4,10 @@ use router_env::opentelemetry::KeyValue;
 use serde::Serialize;
 use storage_impl::errors::ApiClientError;
 
-use crate::routes::app::settings::DecisionConfig;
-use crate::{core::metrics, routes::SessionState};
+use crate::{
+    core::metrics,
+    routes::{app::settings::DecisionConfig, SessionState},
+};
 
 // # Consts
 //
@@ -85,7 +87,7 @@ pub async fn add_api_key(
     };
 
     let rule = RuleRequest {
-        tag: state.tenant.name.clone(),
+        tag: state.tenant.schema.clone(),
         expiry,
         variant: AuthRuleType::ApiKey {
             api_key,
@@ -96,7 +98,7 @@ pub async fn add_api_key(
         },
     };
 
-    call_decision_service(&state, decision_config, rule, RULE_ADD_METHOD).await
+    call_decision_service(state, decision_config, rule, RULE_ADD_METHOD).await
 }
 
 pub async fn add_publishable_key(
@@ -112,7 +114,7 @@ pub async fn add_publishable_key(
     };
 
     let rule = RuleRequest {
-        tag: state.tenant.name.clone(),
+        tag: state.tenant.schema.clone(),
         expiry,
         variant: AuthRuleType::ApiKey {
             api_key,
@@ -120,7 +122,7 @@ pub async fn add_publishable_key(
         },
     };
 
-    call_decision_service(&state, decision_config, rule, RULE_ADD_METHOD).await
+    call_decision_service(state, decision_config, rule, RULE_ADD_METHOD).await
 }
 
 async fn call_decision_service<T: ErasedMaskSerialize + Send + 'static>(
@@ -165,11 +167,11 @@ pub async fn revoke_api_key(
     };
 
     let rule = RuleDeleteRequest {
-        tag: state.tenant.name.clone(),
+        tag: state.tenant.schema.clone(),
         variant: AuthType::ApiKey { api_key },
     };
 
-    call_decision_service(&state, decision_config, rule, RULE_DELETE_METHOD).await
+    call_decision_service(state, decision_config, rule, RULE_DELETE_METHOD).await
 }
 
 ///
