@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use transformers as zen;
 use uuid::Uuid;
 
@@ -608,16 +608,17 @@ impl api::IncomingWebhook for Zen {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                &merchant_account.merchant_id,
+                &merchant_id,
                 connector_label,
-                merchant_connector_account.connector_webhook_details,
+                connector_webhook_details,
             )
             .await?;
         let signature =
@@ -625,7 +626,7 @@ impl api::IncomingWebhook for Zen {
 
         let mut message = self.get_webhook_source_verification_message(
             request,
-            &merchant_account.merchant_id,
+            &merchant_id,
             &connector_webhook_secrets,
         )?;
         let mut secret = connector_webhook_secrets.secret;

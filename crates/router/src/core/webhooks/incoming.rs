@@ -161,7 +161,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .decode_webhook_body(
             &request_details,
             &merchant_account.merchant_id,
-            merchant_connector_account.clone(),
+            merchant_connector_account
+                .clone()
+                .and_then(|merchant_connector_account| {
+                    merchant_connector_account.connector_webhook_details
+                }),
             connector_name.as_str(),
         )
         .await
@@ -269,7 +273,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .contains(&connector_enum)
         {
             verify_webhook_source_verification_call(
-                connector,
+                connector.clone(),
                 &state,
                 &merchant_account,
                 merchant_connector_account.clone(),
@@ -288,10 +292,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .attach_printable("There was an issue in incoming webhook source verification")?
         } else {
             connector
+                .clone()
                 .verify_webhook_source(
                     &request_details,
-                    &merchant_account,
-                    merchant_connector_account.clone(),
+                    &merchant_account.merchant_id,
+                    merchant_connector_account.connector_webhook_details.clone(),
+                    merchant_connector_account.connector_account_details.clone(),
                     connector_name.as_str(),
                 )
                 .await
@@ -1568,7 +1574,7 @@ async fn verify_webhook_source_verification_call(
     > = connector_data.connector.get_connector_integration();
     let connector_webhook_secrets = connector
         .get_webhook_source_verification_merchant_secret(
-            merchant_account,
+            &merchant_account.merchant_id,
             connector_name,
             merchant_connector_account.connector_webhook_details.clone(),
         )

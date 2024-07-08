@@ -1,7 +1,7 @@
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
 pub struct IncomingWebhookRequestDetails<'a> {
@@ -129,6 +129,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self

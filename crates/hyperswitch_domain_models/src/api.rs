@@ -1,5 +1,10 @@
 use std::fmt::Display;
 
+use common_utils::{
+    events::{ApiEventMetric, ApiEventsType},
+    impl_misc_api_event_type,
+};
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
     Json(R),
@@ -12,6 +17,18 @@ pub enum ApplicationResponse<R> {
     JsonWithHeaders((R, Vec<(String, masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
 }
+
+impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        match self {
+            Self::Json(r) => r.get_api_event_type(),
+            Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
+            _ => None,
+        }
+    }
+}
+
+impl_misc_api_event_type!(PaymentLinkFormData, GenericLinkFormData);
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {

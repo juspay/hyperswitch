@@ -9,7 +9,6 @@ use crate::{
     core::payments,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    routes::app::StorageInterface,
     services::{
         api as services_api, BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
         ConnectorRedirectResponse, PaymentAction,
@@ -113,10 +112,9 @@ impl api::IncomingWebhook for ConnectorEnum {
 
     async fn decode_webhook_body(
         &self,
-        db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_name: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         match self {
@@ -125,7 +123,7 @@ impl api::IncomingWebhook for ConnectorEnum {
                     .decode_webhook_body(
                         request,
                         merchant_id,
-                        merchant_connector_account,
+                        connector_webhook_details,
                         connector_name,
                     )
                     .await
@@ -135,7 +133,7 @@ impl api::IncomingWebhook for ConnectorEnum {
                     .decode_webhook_body(
                         request,
                         merchant_id,
-                        merchant_connector_account,
+                        connector_webhook_details,
                         connector_name,
                     )
                     .await
@@ -155,7 +153,7 @@ impl api::IncomingWebhook for ConnectorEnum {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_id: &str,
         connector_name: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
@@ -163,7 +161,7 @@ impl api::IncomingWebhook for ConnectorEnum {
             Self::Old(connector) => {
                 connector
                     .get_webhook_source_verification_merchant_secret(
-                        merchant_account,
+                        merchant_id,
                         connector_name,
                         connector_webhook_details,
                     )
@@ -172,7 +170,7 @@ impl api::IncomingWebhook for ConnectorEnum {
             Self::New(connector) => {
                 connector
                     .get_webhook_source_verification_merchant_secret(
-                        merchant_account,
+                        merchant_id,
                         connector_name,
                         connector_webhook_details,
                     )
@@ -217,8 +215,9 @@ impl api::IncomingWebhook for ConnectorEnum {
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         match self {
@@ -226,8 +225,9 @@ impl api::IncomingWebhook for ConnectorEnum {
                 connector
                     .verify_webhook_source(
                         request,
-                        merchant_account,
-                        merchant_connector_account,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_account_details,
                         connector_name,
                     )
                     .await
@@ -236,8 +236,9 @@ impl api::IncomingWebhook for ConnectorEnum {
                 connector
                     .verify_webhook_source(
                         request,
-                        merchant_account,
-                        merchant_connector_account,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_account_details,
                         connector_name,
                     )
                     .await
