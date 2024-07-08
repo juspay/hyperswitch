@@ -50,12 +50,9 @@ pub async fn create_payment_method_api(
 pub async fn migrate_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
     json_payload: web::Json<payment_methods::PaymentMethodMigrate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-
-    let merchant_id_from_path = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
@@ -63,8 +60,7 @@ pub async fn migrate_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, _, req, _| {
-            let merchant_id = merchant_id_from_path.clone();
-            async move { Box::pin(cards::migrate_payment_method(state, req, merchant_id)).await }
+            async move { Box::pin(cards::migrate_payment_method(state, req)).await }
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,

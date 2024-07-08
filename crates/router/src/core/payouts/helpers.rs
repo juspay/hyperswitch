@@ -391,7 +391,7 @@ pub async fn save_payout_data_to_locker(
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
-                payment_method_billing_address: None,
+                billing: None,
                 connector_mandate_details: None,
                 network_transaction_id: None,
             };
@@ -475,7 +475,7 @@ pub async fn save_payout_data_to_locker(
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
-                    payment_method_billing_address: None,
+                    billing: None,
                     connector_mandate_details: None,
                     network_transaction_id: None,
                 },

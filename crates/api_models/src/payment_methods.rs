@@ -78,7 +78,7 @@ pub struct PaymentMethodCreate {
 
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
-    pub payment_method_billing_address: Option<payments::Address>,
+    pub billing: Option<payments::Address>,
 
     #[serde(skip_deserializing)]
     /// The connector mandate details of the payment method, this is added only for cards migration
@@ -96,6 +96,9 @@ pub struct PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
+    /// Merchant id
+    pub merchant_id: String,
+    
     /// The type of payment method use for the payment.
     pub payment_method: Option<api_enums::PaymentMethod>,
 
@@ -139,7 +142,7 @@ pub struct PaymentMethodMigrate {
     pub payment_method_data: Option<PaymentMethodCreateData>,
 
     /// The billing details of the payment method
-    pub payment_method_billing_address: Option<payments::Address>,
+    pub billing: Option<payments::Address>,
 
     /// The connector mandate details of the payment method
     pub connector_mandate_details: Option<PaymentsMandateReference>,
@@ -190,9 +193,7 @@ impl PaymentMethodCreate {
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
             connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
             client_secret: payment_method_migrate.client_secret.clone(),
-            payment_method_billing_address: payment_method_migrate
-                .payment_method_billing_address
-                .clone(),
+            billing: payment_method_migrate.billing.clone(),
             card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
             #[cfg(feature = "payouts")]

@@ -130,7 +130,7 @@ pub async fn call_to_locker(
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,
-            payment_method_billing_address: None,
+            billing: None,
             connector_mandate_details: None,
             network_transaction_id: None,
         };
