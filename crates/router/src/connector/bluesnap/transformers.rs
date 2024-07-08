@@ -258,7 +258,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let (payment_method, card_holder_info) = match item
@@ -461,21 +461,33 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
                 })
             }
         }?;
+        let domain_name = session_token_data.initiative_context.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "apple pay initiative_context",
+            },
+        )?;
+
         Ok(Self {
             wallet_type: "APPLE_PAY".to_string(),
             validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
-            domain_name: session_token_data.initiative_context,
+            domain_name,
             display_name: Some(session_token_data.display_name),
         })
     }
 }
 
-impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>>
-    for types::PaymentsSessionRouterData
+impl
+    ForeignTryFrom<(
+        types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
+        StringMajorUnit,
+    )> for types::PaymentsSessionRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
+    fn foreign_try_from(
+        (item, apple_pay_amount): (
+            types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
+            StringMajorUnit,
+        ),
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
@@ -523,8 +535,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: api::SessionToken::ApplePay(Box::new(
                     payments::ApplepaySessionTokenResponse {
-                        session_token_data: payments::ApplePaySessionResponse::NoThirdPartySdk(
-                            session_response,
+                        session_token_data: Some(
+                            payments::ApplePaySessionResponse::NoThirdPartySdk(session_response),
                         ),
                         payment_request_data: Some(payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
@@ -532,7 +544,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             total: payments::AmountInfo {
                                 label: payment_request_data.label,
                                 total_type: Some("final".to_string()),
-                                amount: item.data.request.amount.to_string(),
+                                amount: apple_pay_amount,
                             },
                             merchant_capabilities: Some(payment_request_data.merchant_capabilities),
                             supported_networks: Some(payment_request_data.supported_networks),
@@ -597,7 +609,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let token = item

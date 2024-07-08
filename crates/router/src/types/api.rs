@@ -371,7 +371,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Braintree)))
                 }
                 enums::Connector::Cashtocode => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cashtocode)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Checkout)))
@@ -427,7 +427,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
                 enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
-                enums::Connector::Iatapay => Ok(ConnectorEnum::Old(Box::new(&connector::Iatapay))),
+                enums::Connector::Iatapay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
+                }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
@@ -437,7 +439,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
-                enums::Connector::Payme => Ok(ConnectorEnum::Old(Box::new(&connector::Payme))),
+                enums::Connector::Payme => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
+                }
                 enums::Connector::Payone => Ok(ConnectorEnum::Old(Box::new(&connector::Payone))),
                 enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(&connector::Payu))),
                 enums::Connector::Placetopay => {
@@ -475,9 +479,11 @@ impl ConnectorData {
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }
-                enums::Connector::Paypal => Ok(ConnectorEnum::Old(Box::new(&connector::Paypal))),
+                enums::Connector::Paypal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
                 enums::Connector::Trustpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Trustpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(&connector::Volt))),

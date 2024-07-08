@@ -139,36 +139,36 @@ pub struct DomainId(usize);
 
 impl_entity!(DomainId);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DomainIdentifier<'a>(&'a str);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DomainIdentifier(String);
 
-impl<'a> DomainIdentifier<'a> {
-    pub fn new(identifier: &'a str) -> Self {
+impl DomainIdentifier {
+    pub fn new(identifier: String) -> Self {
         Self(identifier)
     }
 
-    pub fn into_inner(&self) -> &'a str {
-        self.0
+    pub fn into_inner(&self) -> String {
+        self.0.clone()
     }
 }
 
-impl<'a> From<&'a str> for DomainIdentifier<'a> {
-    fn from(value: &'a str) -> Self {
+impl From<String> for DomainIdentifier {
+    fn from(value: String) -> Self {
         Self(value)
     }
 }
 
-impl<'a> Deref for DomainIdentifier<'a> {
-    type Target = str;
-
-    fn deref(&self) -> &'a Self::Target {
-        self.0
-    }
-}
+// impl Deref for DomainIdentifier {
+//     type Target = &String;
+//
+//     fn deref(&self) -> Self::Target {
+//         self.0
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DomainInfo<'a> {
-    pub domain_identifier: DomainIdentifier<'a>,
+pub struct DomainInfo {
+    pub domain_identifier: DomainIdentifier,
     pub domain_description: String,
 }
 

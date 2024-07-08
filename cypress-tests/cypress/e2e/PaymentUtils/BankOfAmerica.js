@@ -52,7 +52,9 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -66,7 +68,9 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -80,7 +84,9 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -94,7 +100,9 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -108,7 +116,9 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -122,7 +132,9 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -159,7 +171,9 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -172,7 +186,9 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -185,7 +201,9 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -202,8 +220,8 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
-        },
+        mandate_data: singleUseMandateData,
+      },
       Response: {
         status: 200,
         body: {
@@ -217,7 +235,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -228,11 +246,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -243,11 +261,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -258,11 +276,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -273,11 +291,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
-          payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -292,7 +310,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -307,7 +325,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -318,11 +336,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-         payment_method_data: {
+        payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -333,7 +351,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -354,7 +374,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {

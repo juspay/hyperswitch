@@ -1,9 +1,10 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Display},
     future::Future,
     str,
     sync::Arc,
@@ -62,7 +63,10 @@ use crate::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
     },
-    services::connector_integration_interface::RouterDataConversion,
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -719,6 +723,53 @@ pub enum ApplicationResponse<R> {
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
+    GenericLinkForm(Box<GenericLinks>),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinks {
+    ExpiredLink(GenericExpiredLinkData),
+    PaymentMethodCollect(GenericLinkFormData),
+    PayoutLink(GenericLinkFormData),
+    PayoutLinkStatus(GenericLinkStatusData),
+    PaymentMethodCollectStatus(GenericLinkStatusData),
+}
+
+impl Display for Box<GenericLinks> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match **self {
+                GenericLinks::ExpiredLink(_) => "ExpiredLink",
+                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
+                GenericLinks::PayoutLink(_) => "PayoutLink",
+                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
+                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+            }
+        )
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkFormData {
+    pub js_data: String,
+    pub css_data: String,
+    pub sdk_url: String,
+    pub html_meta_tags: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericExpiredLinkData {
+    pub title: String,
+    pub message: String,
+    pub theme: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkStatusData {
+    pub js_data: String,
+    pub css_data: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1064,6 +1115,16 @@ where
             )
             .respond_to(request)
             .map_into_boxed_body()
+        }
+
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).to_string();
+            match build_generic_link_html(*boxed_generic_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => {
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
@@ -1875,6 +1936,10 @@ pub fn build_payment_link_html(
         }
     };
 
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Modify Html template with rendered js and rendered css files
     let html_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
@@ -1899,6 +1964,8 @@ pub fn build_payment_link_html(
     );
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
+
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -1941,6 +2008,10 @@ pub fn get_payment_link_status(
         }
     };
 
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_status/status.js").to_string();
@@ -1963,6 +2034,7 @@ pub fn get_payment_link_status(
     context.insert("rendered_css", &rendered_css);
 
     context.insert("rendered_js", &rendered_js);
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),

@@ -9,9 +9,9 @@ pub mod diesel_exports {
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
-        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbMandateType as MandateType,
-        DbMerchantStorageScheme as MerchantStorageScheme,
+        DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
+        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
+        DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
@@ -192,30 +192,6 @@ pub struct MandateAmountData {
 pub enum FraudCheckType {
     PreFrm,
     PostFrm,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[strum(serialize_all = "snake_case")]
-pub enum FraudCheckStatus {
-    Fraud,
-    ManualReview,
-    #[default]
-    Pending,
-    Legit,
-    TransactionFailure,
 }
 
 #[derive(
