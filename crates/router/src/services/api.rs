@@ -14,7 +14,7 @@ use std::{
 use actix_http::header::HeaderMap;
 use actix_web::{
     body,
-    http::header::{self, HeaderValue},
+    http::header::{HeaderName, HeaderValue},
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
@@ -1327,8 +1327,8 @@ pub fn http_response_html_data<T: body::MessageBody + 'static>(
 
     if let Some(headers) = optional_headers {
         for (key, value) in headers {
-            if let Ok(header_val) = header::HeaderValue::try_from(value) {
-                res_builder.insert_header((header::HeaderName::from_static(key), header_val));
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
             }
         }
     }
