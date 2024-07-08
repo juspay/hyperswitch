@@ -58,7 +58,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = bool, example = true, default = false)]
     pub confirm: Option<bool>,
 
-    /// The payout_type of the payout request can be specified here, this is a mandatory field to Confirm the Payouts, i.e., Should be passed in Create request, if not then should be updated in the Payout Update request, then only it can be confirmed.
+    /// The payout_type of the payout request can be specified here, this is a mandatory field to _Confirm_ the payout, i.e., should be passed in _Create_ request, if not then should be updated in the payout _Update_ request, then only it can be confirmed.
     #[schema(value_type = PayoutType, example = "card")]
     pub payout_type: Option<api_enums::PayoutType>,
 
