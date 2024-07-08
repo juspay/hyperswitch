@@ -88,7 +88,14 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: hyperswitch-runners
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner:
+          - ubuntu-latest
+          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
@@ -206,7 +213,14 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: hyperswitch-runners
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner:
+          - ubuntu-latest
+          - hyperswitch-runners
 
     steps:
       - name: Generate a token
