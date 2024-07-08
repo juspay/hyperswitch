@@ -7,6 +7,7 @@ use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
+use router_env::{instrument, tracing};
 
 use crate::{
     errors,
@@ -19,6 +20,7 @@ const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 /// Get keymanager client constructed from the url and state
+#[instrument(skip_all)]
 #[allow(unused_mut)]
 fn get_api_encryption_client(
     state: &KeyManagerState,
@@ -56,6 +58,7 @@ fn get_api_encryption_client(
 }
 
 /// Generic function to send the request to keymanager
+#[instrument(skip_all)]
 pub async fn send_encryption_request<T>(
     state: &KeyManagerState,
     headers: HeaderMap,
@@ -81,6 +84,7 @@ where
 }
 
 /// Generic function to call the Keymanager and parse the response back
+#[instrument(skip_all)]
 pub async fn call_encryption_service<T, R>(
     state: &KeyManagerState,
     endpoint: &str,
@@ -141,6 +145,7 @@ where
 }
 
 /// A function to create the key in keymanager
+#[instrument(skip_all)]
 pub async fn create_key_in_key_manager(
     state: &KeyManagerState,
     request_body: EncryptionCreateRequest,
@@ -151,6 +156,7 @@ pub async fn create_key_in_key_manager(
 }
 
 /// A function to transfer the key in keymanager
+#[instrument(skip_all)]
 pub async fn transfer_key_to_key_manager(
     state: &KeyManagerState,
     request_body: EncryptionTransferRequest,
