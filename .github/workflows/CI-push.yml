@@ -54,7 +54,13 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner:
+          - ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -124,7 +130,13 @@ jobs:
 
   check-stable:
     name: Run tests on stable toolchain
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner:
+          - ubuntu-latest
 
     steps:
       - name: Checkout repository

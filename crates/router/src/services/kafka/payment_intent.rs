@@ -34,10 +34,11 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub billing_details: Option<Encryptable<Secret<Value>>>,
+    pub shipping_details: Option<Encryptable<Secret<Value>>>,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
-    pub billing_details: Option<Encryptable<Secret<Value>>>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -67,6 +68,9 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
             payment_confirm_source: intent.payment_confirm_source,
+            // TODO: use typed information here to avoid PII logging
+            billing_details: None,
+            shipping_details: None,
             customer_email: intent
                 .customer_details
                 .as_ref()
@@ -76,7 +80,6 @@ impl<'a> KafkaPaymentIntent<'a> {
                 .map(|email| HashedString::from(Secret::new(email.to_string()))),
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
-            billing_details: None,
         }
     }
 }
