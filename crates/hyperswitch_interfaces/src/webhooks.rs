@@ -1,19 +1,31 @@
+//! Webhooks interface
+
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
+
+/// struct IncomingWebhookRequestDetails
+#[derive(Debug)]
 pub struct IncomingWebhookRequestDetails<'a> {
+    /// method
     pub method: http::Method,
+    /// uri
     pub uri: http::Uri,
+    /// headers
     pub headers: &'a actix_web::http::header::HeaderMap,
+    /// body
     pub body: &'a [u8],
+    /// query_params
     pub query_params: String,
 }
 
+/// Trait defining incoming webhook
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
+    /// fn get_webhook_body_decoding_algorithm
     fn get_webhook_body_decoding_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -21,6 +33,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Box::new(crypto::NoAlgorithm))
     }
 
+    /// fn get_webhook_body_decoding_message
     fn get_webhook_body_decoding_message(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -28,6 +41,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(request.body.to_vec())
     }
 
+    /// fn decode_webhook_body
     async fn decode_webhook_body(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -54,6 +68,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
+    /// fn get_webhook_source_verification_algorithm
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -61,6 +76,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Box::new(crypto::NoAlgorithm))
     }
 
+    /// fn get_webhook_source_verification_merchant_secret
     async fn get_webhook_source_verification_merchant_secret(
         &self,
         merchant_id: &str,
@@ -107,6 +123,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(merchant_secret)
     }
 
+    /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -115,6 +132,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+    /// fn get_webhook_source_verification_message
     fn get_webhook_source_verification_message(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -124,6 +142,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+    /// fn verify_webhook_source
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -162,21 +181,25 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
+    /// fn get_webhook_object_reference_id
     fn get_webhook_object_reference_id(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError>;
 
+    /// fn get_webhook_event_type
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError>;
 
+    /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
+    /// fn get_webhook_api_response
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -184,6 +207,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(ApplicationResponse::StatusOk)
     }
 
+    /// fn get_dispute_details
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -191,6 +215,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
 
+    /// fn get_external_authentication_details
     fn get_external_authentication_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,

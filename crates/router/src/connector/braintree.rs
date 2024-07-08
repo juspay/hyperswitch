@@ -179,7 +179,7 @@ impl ConnectorValidation for Braintree {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: domain::payments::PaymentMethodData,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
@@ -1397,7 +1397,7 @@ impl api::IncomingWebhook for Braintree {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

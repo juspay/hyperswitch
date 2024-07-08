@@ -616,7 +616,7 @@ impl api::IncomingWebhook for Zen {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                &merchant_id,
+                merchant_id,
                 connector_label,
                 connector_webhook_details,
             )
@@ -626,7 +626,7 @@ impl api::IncomingWebhook for Zen {
 
         let mut message = self.get_webhook_source_verification_message(
             request,
-            &merchant_id,
+            merchant_id,
             &connector_webhook_secrets,
         )?;
         let mut secret = connector_webhook_secrets.secret;

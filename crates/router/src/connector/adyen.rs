@@ -1775,7 +1775,7 @@ impl api::IncomingWebhook for Adyen {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
