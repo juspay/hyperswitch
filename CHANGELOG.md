@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.08.1
+
+### Bug Fixes
+
+- **core:** Fetch customer id from customer object during MIT ([#5218](https://github.com/juspay/hyperswitch/pull/5218)) ([`a79437d`](https://github.com/juspay/hyperswitch/commit/a79437d5f078287a3eddb9bfdc7902533efd41b4))
+- **cypress:**
+  - Remove unsupported manual confirm tests ([#5223](https://github.com/juspay/hyperswitch/pull/5223)) ([`549c293`](https://github.com/juspay/hyperswitch/commit/549c293c3f0f5393ee3c29ee74fee1a983c46755))
+  - Fix payouts failing ([#5239](https://github.com/juspay/hyperswitch/pull/5239)) ([`864d53c`](https://github.com/juspay/hyperswitch/commit/864d53c6d20ed993b55d9932e8d62abd4a64fd5a))
+- **router:** [Iatapay] add CLEARED refund status ([#5231](https://github.com/juspay/hyperswitch/pull/5231)) ([`d4813b9`](https://github.com/juspay/hyperswitch/commit/d4813b99500d2607985a8a21c888f040fff843dc))
+
+**Full Changelog:** [`2024.07.08.0...2024.07.08.1`](https://github.com/juspay/hyperswitch/compare/2024.07.08.0...2024.07.08.1)
+
+- - -
+
+## 2024.07.08.0
+
+### Bug Fixes
+
+- **connector:** [adyen] remove browser info for mit and [paypal] add refund key in headers ([#5225](https://github.com/juspay/hyperswitch/pull/5225)) ([`5ea09c7`](https://github.com/juspay/hyperswitch/commit/5ea09c7f9d50791fddc19cc97922659bb1bc0f57))
+
+**Full Changelog:** [`2024.07.06.0...2024.07.08.0`](https://github.com/juspay/hyperswitch/compare/2024.07.06.0...2024.07.08.0)
+
+- - -
+
 ## 2024.07.06.0
 
 ### Features
