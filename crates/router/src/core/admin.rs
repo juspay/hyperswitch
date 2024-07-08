@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use diesel_models::configs;
+use diesel_models::{configs};
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -142,78 +142,46 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
 
-        let primary_business_details = self
-            .primary_business_details
-            .clone()
-            .unwrap_or_default()
-            .encode_to_value()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        let primary_business_details = self.get_primary_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "primary_business_details",
-            })?;
+            },
+        )?;
 
-        let merchant_details = self
-            .merchant_details
-            .as_ref()
-            .map(|merchant_details| {
-                merchant_details.encode_to_value().change_context(
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "merchant_details",
-                    },
-                )
+        let webhook_details = self.get_webhook_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "webhook details",
+            },
+        )?;
+
+        let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "pm_collect_link_config",
+            },
+        )?;
+
+        let merchant_details = self.get_merchant_details_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_details",
+            },
+        )?;
+
+        self.parse_routing_alogrithm()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
             })
-            .transpose()?
-            .map(Secret::new);
+            .attach_printable("Invalid routing algorithm given")?;
 
-        let webhook_details = self
-            .webhook_details
-            .as_ref()
-            .map(|webhook_details| {
-                webhook_details.encode_to_value().change_context(
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "webhook details",
-                    },
-                )
-            })
-            .transpose()?;
+        let metadata = self.get_metadata_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            },
+        )?;
 
-        let pm_collect_link_config = self
-            .pm_collect_link_config
-            .as_ref()
-            .map(|c| {
-                c.encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "pm_collect_link_config",
-                    })
-            })
-            .transpose()?;
+        // Get the enable payment response hash as a boolean, where the default value is true
+        let enable_payment_response_hash = self.get_enable_payment_response_hash();
 
-        if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-                .clone()
-                .parse_value("RoutingAlgorithm")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "routing_algorithm",
-                })
-                .attach_printable("Invalid routing algorithm given")?;
-        }
-
-        let metadata = self
-            .metadata
-            .as_ref()
-            .map(|meta| {
-                meta.encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
-                    })
-            })
-            .transpose()?
-            .map(Secret::new);
-
-        let enable_payment_response_hash = self.enable_payment_response_hash.unwrap_or(true);
-
-        let payment_response_hash_key = self
-            .payment_response_hash_key
-            .or(Some(generate_cryptographically_secure_random_string(64)));
+        let payment_response_hash_key = self.get_payment_response_hash_key();
 
         let parent_merchant_id = get_parent_merchant(
             db,
@@ -223,23 +191,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization_id = if let Some(organization_id) = self.organization_id.as_ref() {
-            db.find_organization_by_org_id(organization_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "organization with the given id does not exist".to_string(),
-                })?;
-            organization_id.to_string()
-        } else {
-            let new_organization = api_models::organization::OrganizationNew::new(None);
-            let db_organization = ForeignFrom::foreign_from(new_organization);
-            let organization = db
-                .insert_organization(db_organization)
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error when creating organization")?;
-            organization.org_id
-        };
+        let organization_id = CreateOrganization::new(self.organization_id.as_deref())
+            .create_organization(db)
+            .await?;
 
         let key = key_store.key.into_inner();
 
@@ -296,46 +250,134 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         // Create a default business profile
         // If business_labels are passed, then use it as the profile_name
         // else use `default` as the profile_name
-        if let Some(business_details) = self.primary_business_details.as_ref() {
-            for business_profile in business_details {
-                let profile_name =
-                    format!("{}_{}", business_profile.country, business_profile.business);
 
-                let business_profile_create_request = api_models::admin::BusinessProfileCreate {
-                    profile_name: Some(profile_name),
-                    ..Default::default()
-                };
-
-                let _ = create_and_insert_business_profile(
-                    db,
-                    business_profile_create_request,
-                    merchant_account.clone(),
-                )
-                .await
-                .map_err(|business_profile_insert_error| {
-                    crate::logger::warn!(
-                        "Business profile already exists {business_profile_insert_error:?}"
-                    );
-                })
-                .map(|business_profile| {
-                    if business_details.len() == 1 && merchant_account.default_profile.is_none() {
-                        merchant_account.default_profile = Some(business_profile.profile_id);
-                    }
-                });
-            }
-        } else {
-            let business_profile = create_and_insert_business_profile(
-                db,
-                api_models::admin::BusinessProfileCreate::default(),
-                merchant_account.clone(),
-            )
-            .await?;
-
-            // Update merchant account with the business profile id
-            merchant_account.default_profile = Some(business_profile.profile_id);
-        };
+        // CreateBusinessProfile::new(self.primary_business_details.as_ref())
+        //     .create_business_profiles(db, merchant_account.clone())
+        //     .await?;
 
         Ok(merchant_account)
+    }
+}
+
+struct CreateOrganization<'a> {
+    organization_id: Option<&'a str>,
+}
+
+impl<'a> CreateOrganization<'a> {
+    fn new(organization_id: Option<&'a str>) -> CreateOrganization<'a> {
+        Self { organization_id }
+    }
+
+    async fn create_organization(&self, db: &dyn StorageInterface) -> RouterResult<String> {
+        Ok(match &self.organization_id {
+            Some(organization_id) => {
+                db.find_organization_by_org_id(organization_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "organization with the given id does not exist".to_string(),
+                    })?;
+                organization_id.to_string()
+            }
+            None => {
+                let new_organization = api_models::organization::OrganizationNew::new(None);
+                let db_organization = ForeignFrom::foreign_from(new_organization);
+                let organization = db
+                    .insert_organization(db_organization)
+                    .await
+                    .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error when creating organization")?;
+                organization.org_id
+            }
+        })
+    }
+}
+
+struct CreateBusinessProfile<'a> {
+    primary_business_details: Option<&'a Vec<admin_types::PrimaryBusinessDetails>>,
+}
+
+impl<'a> CreateBusinessProfile<'a> {
+    // Create business profile for each primary_business_details,
+    // If there is no default profile in merchant account and only one primary_business_detail
+    // is available, then create a default business profile.
+    // If there is no primary_business_details, then create a default business profile and assign it to the merchant account
+    // async fn create_business_profiles(
+    //     &self,
+    //     db: &dyn StorageInterface,
+    //     mut merchant_account: domain::MerchantAccount,
+    // ) -> RouterResult<()> {
+    //     // change the below to match
+    //     match self.primary_business_details {
+    //         Some(pbd) => {
+    //             CreateBusinessProfile::create_business_profiles_for_each_business_details(
+    //                 db,
+    //                 merchant_account.clone(),
+    //                 pbd,
+    //             )
+    //             .await?;
+    //         }
+    //         None => {
+    //             self.create_default_business_profile(db, merchant_account.clone())
+    //                 .await?;
+    //         }
+    //     }
+    // }
+
+    // Create default business profile and assign it to the merchant account
+    async fn create_default_business_profile(
+        &self,
+        db: &dyn StorageInterface,
+        mut merchant_account: domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        let business_profile = create_and_insert_business_profile(
+            db,
+            api_models::admin::BusinessProfileCreate::default(),
+            merchant_account.clone(),
+        )
+        .await?;
+
+        // Update merchant account with the business profile id
+        merchant_account.default_profile = Some(business_profile.profile_id);
+        Ok(())
+    }
+
+    // Create business profile for each primary_business_details,
+    // If there is no default profile in merchant account and only one primary_business_detail
+    // is available, then create a default business profile.
+    async fn create_business_profiles_for_each_business_details(
+        db: &dyn StorageInterface,
+        mut merchant_account: domain::MerchantAccount,
+        pbd: &'a Vec<admin_types::PrimaryBusinessDetails>,
+    ) -> RouterResult<()> {
+        for business_profile in pbd {
+            let profile_name =
+                format!("{}_{}", business_profile.country, business_profile.business);
+
+            let business_profile_create_request = api_models::admin::BusinessProfileCreate {
+                profile_name: Some(profile_name),
+                ..Default::default()
+            };
+
+            let _ = create_and_insert_business_profile(
+                db,
+                business_profile_create_request,
+                merchant_account.clone(),
+            )
+            .await
+            .map_err(|business_profile_insert_error| {
+                crate::logger::warn!(
+                    "Business profile already exists {business_profile_insert_error:?}"
+                );
+            })
+            .map(|business_profile| {
+                if pbd.len() == 1 && merchant_account.default_profile.is_none()
+                {
+                    merchant_account.default_profile = Some(business_profile.profile_id);
+                }
+            });
+        }
+
+        Ok(())
     }
 }
 

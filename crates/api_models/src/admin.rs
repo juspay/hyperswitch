@@ -5,8 +5,12 @@ use common_utils::new_type;
 use common_utils::{
     consts,
     crypto::{Encryptable, OptionalEncryptableName},
+    errors::{self, CustomResult},
+    ext_traits::{Encode, ValueExt},
     id_type, link_utils, pii,
 };
+use common_utils::crypto::generate_cryptographically_secure_random_string;
+use frunk::labelled::chars::O;
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 use masking::Secret;
@@ -18,7 +22,7 @@ use super::payments::AddressDetails;
 use crate::{
     enums,
     enums::{self as api_enums},
-    payment_methods,
+    payment_methods, routing,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -110,6 +114,72 @@ pub struct MerchantAccountCreate {
 impl MerchantAccountCreate {
     pub fn get_merchant_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
+    }
+
+    pub fn get_payment_response_hash_key(&self) -> Option<String> {
+        self.payment_response_hash_key.clone()
+            .or(Some(generate_cryptographically_secure_random_string(64)))
+    }
+
+    pub fn get_primary_details_as_value(
+        &self,
+    ) -> CustomResult<serde_json::Value, errors::ParsingError> {
+        self.primary_business_details
+            .clone()
+            .unwrap_or_default()
+            .encode_to_value()
+    }
+
+    pub fn get_pm_link_config_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.pm_collect_link_config
+            .as_ref()
+            .map(|pm_collect_link_config| pm_collect_link_config.encode_to_value())
+            .transpose()
+    }
+
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_webhook_details_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.webhook_details
+            .as_ref()
+            .map(|webhook_details| webhook_details.encode_to_value())
+            .transpose()
+    }
+
+    pub fn parse_routing_alogrithm(&self) -> CustomResult<(), errors::ParsingError> {
+        match self.routing_algorithm {
+            Some(ref routing_algorithm) => {
+                let _: routing::RoutingAlgorithm =
+                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    // Get the enable payment response hash as a boolean, where the default value is true
+    pub fn get_enable_payment_response_hash(&self) -> bool {
+        self.enable_payment_response_hash.unwrap_or(true)
     }
 }
 
