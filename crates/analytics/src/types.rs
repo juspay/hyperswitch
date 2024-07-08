@@ -15,6 +15,7 @@ use crate::errors::AnalyticsError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
+    Frm,
     PaymentIntents,
     AuthEvents,
     SdkEvents,
@@ -26,6 +27,7 @@ pub enum AnalyticsDomain {
 pub enum AnalyticsCollection {
     Payment,
     Refund,
+    FraudCheck,
     SdkEvents,
     SdkEventsAnalytics,
     ApiEvents,
@@ -44,7 +46,7 @@ pub enum TableEngine {
     BasicTree,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Hash)]
 #[serde(transparent)]
 pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
 
