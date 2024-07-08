@@ -17,7 +17,7 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
@@ -253,6 +253,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     }
 }
 
+#[cfg(feature = "olap")]
 /// Create an organization
 /// If organization_id is passed, then validate if this organization exists
 /// If not passed, create a new organization
@@ -264,8 +265,9 @@ enum CreateOrValidateOrganization {
     Validate { organization_id: String },
 }
 
+#[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
-    #[cfg(not(feature = "v2"))]
+    #[cfg(all(not(feature = "v2"), feature = "olap"))]
     fn new(organization_id: Option<String>) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
@@ -274,11 +276,12 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
     }
 
+    #[cfg(feature = "olap")]
     async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
         Ok(match self {
             #[cfg(not(feature = "v2"))]
@@ -304,7 +307,7 @@ impl CreateOrValidateOrganization {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -315,7 +318,7 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
 impl CreateBusinessProfile {
     fn new(primary_business_details: Option<Vec<admin_types::PrimaryBusinessDetails>>) -> Self {
         if let Some(primary_business_details) = primary_business_details {
