@@ -345,18 +345,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let card = if let Some(card_details) = &req.card {
         helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
         let card_number = card_details.card_number.clone();
-        let last4_digits = Some(
-            card_number
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
-        );
 
-        let card_isin = Some(card_number.chars().take(6).collect::<String>());
+        let (card_isin, last4_digits) = get_card_bin_and_last4_digits_for_masked_card(&card_number)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let card_info = if card_details.card_issuer.is_some()
             && card_details.card_network.is_some()
@@ -369,8 +360,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 bank_code: None,
                 card_type: card_details.card_type.clone(),
                 card_issuing_country: card_details.card_issuing_country.clone(),
-                last4: last4_digits.clone(),
-                card_isin: card_isin.clone(),
+                last4: Some(last4_digits.clone()),
+                card_isin: Some(card_isin.clone()),
                 card_extended_bin: None,
                 card_exp_month: Some(card_details.card_exp_month.clone()),
                 card_exp_year: Some(card_details.card_exp_year.clone()),
@@ -379,15 +370,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 authentication_data: None,
             }
         } else {
-            card_isin
-                .clone()
-                .async_and_then(|card_isin| async move {
-                    db.get_card_info(&card_isin)
-                        .await
-                        .map_err(|error| services::logger::warn!(card_info_error=?error))
-                        .ok()
-                })
+            db.get_card_info(&card_isin)
                 .await
+                .map_err(|error| services::logger::warn!(card_info_error=?error))
+                .ok()
                 .flatten()
                 .map(|card_info| {
                     logger::debug!("Fetching bin details");
@@ -397,8 +383,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                         bank_code: card_info.bank_code,
                         card_type: card_info.card_type,
                         card_issuing_country: card_info.card_issuing_country,
-                        last4: last4_digits.clone(),
-                        card_isin: card_isin.clone(),
+                        last4: Some(last4_digits.clone()),
+                        card_isin: Some(card_isin.clone()),
                         card_extended_bin: None,
                         card_exp_month: Some(card_details.card_exp_month.clone()),
                         card_exp_year: Some(card_details.card_exp_year.clone()),
@@ -415,8 +401,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                         bank_code: None,
                         card_type: None,
                         card_issuing_country: None,
-                        last4: last4_digits.clone(),
-                        card_isin: card_isin.clone(),
+                        last4: Some(last4_digits.clone()),
+                        card_isin: Some(card_isin.clone()),
                         card_extended_bin: None,
                         card_exp_month: Some(card_details.card_exp_month.clone()),
                         card_exp_year: Some(card_details.card_exp_year.clone()),
@@ -433,7 +419,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 .clone()
                 .or(card_info.card_network.clone())
                 .map(|card_network| card_network.to_string()),
-            last4_digits,
+            last4_digits: Some(last4_digits),
             issuer_country: card_details
                 .card_issuing_country
                 .clone()
@@ -445,7 +431,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             card_fingerprint: None,
             card_holder_name: card_details.card_holder_name.clone(),
             nick_name: card_details.nick_name.clone(),
-            card_isin,
+            card_isin: Some(card_isin),
             card_issuer: card_details.card_issuer.clone().or(card_info.card_issuer),
             card_network: card_details.card_network.clone().or(card_info.card_network),
             card_type: card_details.card_type.clone().or(card_info.card_type),
@@ -543,6 +529,26 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     Ok(services::api::ApplicationResponse::Json(
         api::PaymentMethodResponse::foreign_from((card, response)),
     ))
+}
+
+pub fn get_card_bin_and_last4_digits_for_masked_card(
+    masked_card_number: &str,
+) -> Result<(String, String), cards::CardNumberValidationErr> {
+    let last4_digits = masked_card_number
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    let card_isin = masked_card_number.chars().take(6).collect::<String>();
+
+    cards::validate::validate_card_number_chars(&card_isin)
+        .and_then(|_| cards::validate::validate_card_number_chars(&last4_digits))?;
+
+    Ok((card_isin, last4_digits))
 }
 
 #[instrument(skip_all)]
