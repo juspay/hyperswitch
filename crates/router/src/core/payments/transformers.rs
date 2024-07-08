@@ -1690,7 +1690,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
-            metadata: payment_data.payment_intent.metadata.clone(),
+            metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
         })
     }
 }
@@ -1790,6 +1790,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
             metadata: payment_data.payment_intent.metadata,
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }
