@@ -37,6 +37,8 @@ use super::{
 };
 #[cfg(feature = "olap")]
 use crate::types::domain::behaviour::Conversion;
+#[cfg(feature = "payouts")]
+use crate::types::PayoutActionData;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -55,13 +57,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
-type PayoutActionData = Vec<(
-    storage::Payouts,
-    storage::PayoutAttempt,
-    domain::Customer,
-    Option<payment_enums::Address>,
-)>;
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
