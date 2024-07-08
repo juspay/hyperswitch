@@ -26,6 +26,7 @@ pub mod diesel_exports {
     Copy,
     Debug,
     Default,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,

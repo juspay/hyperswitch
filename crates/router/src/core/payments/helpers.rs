@@ -3106,7 +3106,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3159,6 +3159,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
@@ -3167,7 +3168,9 @@ mod tests {
     }
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_expired() {
+    fn test_authenticate_client_secret_session_expired() {
+        let created_at =
+            common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3184,7 +3187,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
+            created_at,
             modified_at: common_utils::date_time::now(),
             fingerprint_id: None,
             last_synced: None,
@@ -3213,13 +3216,13 @@ mod tests {
             incremental_authorization_allowed: None,
             authorization_count: None,
             session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
@@ -3280,6 +3283,7 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
             merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
