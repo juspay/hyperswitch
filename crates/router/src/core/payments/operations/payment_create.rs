@@ -1055,6 +1055,16 @@ impl PaymentCreate {
             })
             .await;
 
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_details = request
+            .shipping
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.shipping.clone()).await
+            })
+            .await;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
@@ -1129,6 +1139,7 @@ impl PaymentCreate {
             billing_details,
             customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            shipping_details,
         })
     }
 
