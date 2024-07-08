@@ -451,6 +451,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -554,7 +555,9 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        if let Some(customer_id) = &request.customer_id {
+                        if let Some(customer_id) =
+                            &request.customer_id.clone().or(customer_id.clone())
+                        {
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -607,6 +610,21 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -614,7 +632,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                            None,
+                            payment_method_info,
                         )
                     }
                 }
@@ -3080,7 +3098,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3133,6 +3151,8 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3140,7 +3160,9 @@ mod tests {
     }
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_expired() {
+    fn test_authenticate_client_secret_session_expired() {
+        let created_at =
+            common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3157,7 +3179,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
+            created_at,
             modified_at: common_utils::date_time::now(),
             fingerprint_id: None,
             last_synced: None,
@@ -3186,13 +3208,14 @@ mod tests {
             incremental_authorization_allowed: None,
             authorization_count: None,
             session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3252,6 +3275,8 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4158,7 +4183,7 @@ pub fn get_applepay_metadata(
 
 #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: SessionState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4182,7 +4207,7 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
     let merchant_connector_account_type = get_merchant_connector_account(
-        &state,
+        state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
@@ -4998,4 +5023,26 @@ pub async fn config_skip_saving_wallet_at_connector(
             None
         }
     })
+}
+
+pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+    db: &dyn StorageInterface,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+        let skip_saving_wallet_at_connector_optional =
+            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
+                .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.payment_intent.setup_future_usage =
+                        Some(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
 }
