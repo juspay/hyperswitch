@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.28.0-hotfix3
+
+### Refactors
+
+- **router:** Changed payment method token TTL to api contract based config from const value ([#5209](https://github.com/juspay/hyperswitch/pull/5209)) ([`9417bc3`](https://github.com/juspay/hyperswitch/commit/9417bc3e6b48ac75de88dcc06e75e84f0fd4072a))
+
+- - -
+
+## 2024.06.28.0-hotfix2
+
+### Refactors
+
+- **migrations:** Add commands to make file to run migrations for api v2 ([#5205](https://github.com/juspay/hyperswitch/pull/5205)) ([`13d1640`](https://github.com/juspay/hyperswitch/commit/13d164035b8ec3dfc126eacd914fc9d4f1609ea0))
+
+- - -
+
+## 2024.06.28.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [ADYEN] send `browser_info` for all the card and googlepay payments ([#5173](https://github.com/juspay/hyperswitch/pull/5173)) ([`0f4b835`](https://github.com/juspay/hyperswitch/commit/0f4b835fd4dda993be166c34f2ee0772382f5ab8))
+
+- - -
+
 ## 2024.06.28.0
 
 ### Features

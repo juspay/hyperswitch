@@ -42,18 +42,15 @@ services:
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && make migrate'"
     working_dir: /app
     networks:
       - router_net
     volumes:
       - ./:/app
     environment:
-      - DATABASE_USER=db_user
-      - DATABASE_PASSWORD=db_pass
-      - DATABASE_HOST=pg
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=hyperswitch_db
+      # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
+      - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
   ### Application services
   hyperswitch-server:
