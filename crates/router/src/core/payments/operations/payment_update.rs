@@ -711,9 +711,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .statement_descriptor_suffix
             .clone();
-        // let raw_billing_details: Option<Address> = payment_data.address.clone()
-        //     .get_payment_method_billing()
-        //     .map(From::from);
 
         let billing_details = payment_data
             .address
