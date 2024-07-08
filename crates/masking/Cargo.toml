@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0.115", optional = true }
 subtle = "2.5.0"
 time = {version = "0.3.35", optional = true, features = ["serde-human-readable"] }
+url = { version = "2.5.0", features = ["serde"] }
 zeroize = { version = "1.7", default-features = false }
 
 [dev-dependencies]

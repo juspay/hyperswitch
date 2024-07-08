@@ -143,7 +143,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList
-            | Flow::RefundsFilters => Self::Refunds,
+            | Flow::RefundsFilters
+            | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
