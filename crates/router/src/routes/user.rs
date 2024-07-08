@@ -904,7 +904,7 @@ pub async fn transfer_user_key(state: web::Data<AppState>, req: HttpRequest) -> 
         state.clone(),
         &req,
         (),
-        |state, _, _, _| user_core::transfer_user_key_strore_keymanager(state),
+        |state, _, _, _| user_core::transfer_user_key_store_keymanager(state),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

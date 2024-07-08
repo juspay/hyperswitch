@@ -1911,7 +1911,7 @@ pub async fn generate_recovery_codes(
     }))
 }
 
-pub async fn transfer_user_key_strore_keymanager(
+pub async fn transfer_user_key_store_keymanager(
     state: SessionState,
 ) -> UserResponse<user_api::UserTransferKeyResponse> {
     let db = &state.global_store;
