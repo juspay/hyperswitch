@@ -65,4 +65,5 @@ pub struct PaymentIntent {
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
+    pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }

@@ -227,7 +227,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.first_name)
+                .and_then(|shipping_details| shipping_details.first_name)
         })
     }
 
@@ -236,7 +236,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.last_name)
+                .and_then(|shipping_details| shipping_details.last_name)
         })
     }
 
@@ -245,7 +245,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.line1)
+                .and_then(|shipping_details| shipping_details.line1)
         })
     }
 
@@ -254,7 +254,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.line2)
+                .and_then(|shipping_details| shipping_details.line2)
         })
     }
 
@@ -263,7 +263,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.city)
+                .and_then(|shipping_details| shipping_details.city)
         })
     }
 
@@ -272,7 +272,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.state)
+                .and_then(|shipping_details| shipping_details.state)
         })
     }
 
@@ -281,7 +281,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.country)
+                .and_then(|shipping_details| shipping_details.country)
         })
     }
 
@@ -290,7 +290,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.zip)
+                .and_then(|shipping_details| shipping_details.zip)
         })
     }
 
