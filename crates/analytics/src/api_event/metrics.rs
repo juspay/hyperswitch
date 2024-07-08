@@ -14,13 +14,15 @@ use crate::{
 mod api_count;
 pub mod latency;
 mod status_code_count;
+use std::collections::HashSet;
+
 use api_count::ApiCount;
 use latency::MaxLatency;
 use status_code_count::StatusCodeCount;
 
 use self::latency::LatencyAvg;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ApiEventMetricRow {
     pub latency: Option<u64>,
     pub api_count: Option<u64>,
@@ -46,7 +48,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -67,7 +69,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
             Self::Latency => {
                 MaxLatency
