@@ -2,8 +2,7 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import voidBody from "../../fixtures/void-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 

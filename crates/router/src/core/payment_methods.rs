@@ -12,6 +12,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -42,6 +43,7 @@ pub async fn retrieve_payment_method(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
@@ -52,6 +54,7 @@ pub async fn retrieve_payment_method(
                 enums::PaymentMethod::Card,
                 pm,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -74,6 +77,7 @@ pub async fn retrieve_payment_method(
                 enums::PaymentMethod::BankTransfer,
                 pm,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -87,6 +91,7 @@ pub async fn retrieve_payment_method(
                 enums::PaymentMethod::Wallet,
                 pm,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -100,6 +105,7 @@ pub async fn retrieve_payment_method(
                 enums::PaymentMethod::BankRedirect,
                 pm,
                 merchant_key_store,
+                business_profile,
             )
             .await?;
 
@@ -140,11 +146,17 @@ pub async fn initiate_pm_collect_link(
     )?;
 
     // Return response
+    let url = pm_collect_link.url.peek();
     let response = payment_methods::PaymentMethodCollectLinkResponse {
         pm_collect_link_id: pm_collect_link.link_id,
         customer_id,
         expiry: pm_collect_link.expiry,
-        link: pm_collect_link.url,
+        link: url::Url::parse(url)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("Failed to parse the payment method collect link - {}", url)
+            })?
+            .into(),
         return_url: pm_collect_link.return_url,
         ui_config: pm_collect_link.link_data.ui_config,
         enabled_payment_methods: pm_collect_link.link_data.enabled_payment_methods,
@@ -209,7 +221,7 @@ pub async fn render_pm_collect_link(
     let link_data = pm_collect_link.link_data;
     let default_config = &state.conf.generic_link.payment_method_collect;
     let default_ui_config = default_config.ui_config.clone();
-    let ui_config_data = common_utils::link_utils::GenericLinkUIConfigFormData {
+    let ui_config_data = common_utils::link_utils::GenericLinkUiConfigFormData {
         merchant_name: link_data
             .ui_config
             .merchant_name
@@ -290,7 +302,7 @@ pub async fn render_pm_collect_link(
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
-                    sdk_url: default_config.sdk_url.clone(),
+                    sdk_url: default_config.sdk_url.to_string(),
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -305,7 +317,15 @@ pub async fn render_pm_collect_link(
                 pm_collect_link_id: pm_collect_link.link_id,
                 customer_id: link_data.customer_id,
                 session_expiry: pm_collect_link.expiry,
-                return_url: pm_collect_link.return_url,
+                return_url: pm_collect_link
+                    .return_url
+                    .as_ref()
+                    .map(|url| url::Url::parse(url))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to parse return URL for payment method collect's status link",
+                    )?,
                 ui_config: ui_config_data,
                 status,
             };
