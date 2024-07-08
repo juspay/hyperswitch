@@ -210,6 +210,7 @@ CREATE TABLE active_payments (
     `created_at` DateTime64,
     `flow_type` LowCardinality(Nullable(String)),
     INDEX merchantIndex merchant_id TYPE bloom_filter GRANULARITY 1
+    INDEX flowTypeIndex flow_type TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree
 PARTITION BY toStartOfSecond(created_at)
 ORDER BY 

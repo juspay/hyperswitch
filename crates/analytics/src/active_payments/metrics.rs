@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
-    Granularity,
+    Granularity, TimeRange,
 };
 use time::PrimitiveDateTime;
 
@@ -13,7 +15,7 @@ mod active_payments;
 
 use active_payments::ActivePayments;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct ActivePaymentsMetricRow {
     pub count: Option<i64>,
 }
@@ -29,9 +31,10 @@ where
         &self,
         merchant_id: &str,
         publishable_key: &str,
+        time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -52,9 +55,10 @@ where
         &self,
         merchant_id: &str,
         publishable_key: &str,
+        time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -62,7 +66,7 @@ where
         match self {
             Self::ActivePayments => {
                 ActivePayments
-                    .load_metrics(publishable_key, merchant_id, pool)
+                    .load_metrics(publishable_key, merchant_id, time_range, pool)
                     .await
             }
         }
