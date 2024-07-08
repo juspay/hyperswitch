@@ -8785,6 +8785,10 @@ impl Default for super::settings::KeyManagerConfig {
     fn default() -> Self {
         Self {
             url: String::from("localhost:5000"),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: String::default().into(),
+            #[cfg(feature = "keymanager_mtls")]
+            cert: String::default().into(),
         }
     }
 }

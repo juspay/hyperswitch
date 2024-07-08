@@ -11,6 +11,7 @@ license.workspace = true
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls"]
 tls = ["actix-web/rustls-0_22"]
+keymanager_mtls = ["reqwest/rustls-tls"]
 email = ["external_services/email", "scheduler/email", "olap"]
 keymanager_create = []
 frm = ["api_models/frm", "hyperswitch_domain_models/frm"]
