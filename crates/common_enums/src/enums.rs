@@ -1,4 +1,5 @@
 use std::num::{ParseFloatError, TryFromIntError};
+
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
