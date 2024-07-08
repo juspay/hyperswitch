@@ -273,7 +273,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[adyen.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -473,7 +474,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[authorizedotnet.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -645,7 +647,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[bankofamerica.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -783,7 +786,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[bluesnap.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -1097,7 +1101,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[checkout.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -1264,7 +1269,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[cybersource.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -1877,7 +1883,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[nexinets.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -1990,7 +1997,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[nmi.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -2142,7 +2150,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[noon.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -2287,7 +2296,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[nuvei.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -2693,7 +2703,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[rapyd.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -2894,7 +2905,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[stripe.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -3122,7 +3134,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[trustpay.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"
@@ -3356,7 +3369,8 @@ name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
-type="Text"
+type="Select"
+options=["web","ios"]
 [[worldpay.metadata.apple_pay_v2]]
 name="initiative_context"
 label="Domain Name"

@@ -165,7 +165,6 @@ impl DashboardRequestPayload {
             }
         }
 
-        // let metadata = Self::transform_metedata(request);
         ConnectorApiIntegrationPayload {
             connector_type: api_response.connector_type,
             profile_id: api_response.profile_id,
