@@ -1,4 +1,8 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    ext_traits::ByteSliceExt,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -752,11 +756,11 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
                 // for webhook consumption flow
-                utils::construct_captures_response_hashmap(vec![payments_response])
+                utils::construct_captures_response_hashmap(vec![payments_response])?
             }
             PaymentsResponseEnum::ActionResponse(action_list) => {
                 // for captures sync
-                utils::construct_captures_response_hashmap(action_list)
+                utils::construct_captures_response_hashmap(action_list)?
             }
         };
         Ok(Self {
@@ -1055,8 +1059,8 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Option<MinorUnit> {
-        Some(self.amount)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(Some(self.amount))
     }
 }
 
@@ -1076,8 +1080,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Option<MinorUnit> {
-        self.amount
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount)
     }
 }
 

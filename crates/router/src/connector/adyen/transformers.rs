@@ -2,7 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use common_utils::{ext_traits::Encode, id_type, pii, types::MinorUnit};
+use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
@@ -3341,7 +3341,8 @@ pub fn get_webhook_response(
     };
 
     if is_multiple_capture_psync_flow {
-        let capture_sync_response_list = utils::construct_captures_response_hashmap(vec![response]);
+        let capture_sync_response_list =
+            utils::construct_captures_response_hashmap(vec![response])?;
         Ok((
             status,
             error,
@@ -4373,8 +4374,8 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
         Some(self.merchant_reference_id.clone())
     }
 
-    fn get_amount_captured(&self) -> Option<MinorUnit> {
-        self.amount.clone().map(|amount| amount.value)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount.clone().map(|amount| amount.value))
     }
 }
 

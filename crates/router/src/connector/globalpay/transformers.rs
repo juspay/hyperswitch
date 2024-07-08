@@ -1,4 +1,4 @@
-use common_enums::Currency;
+// use common_enums::Currency;
 use common_utils::{
     crypto::{self, GenerateDigest},
     types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
@@ -332,7 +332,7 @@ impl
     ) -> Result<Self, Self::Error> {
         if is_multiple_capture_sync {
             let capture_sync_response_list =
-                utils::construct_captures_response_hashmap(vec![value.response]);
+                utils::construct_captures_response_hashmap(vec![value.response])?;
             Ok(Self {
                 response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
                     capture_sync_response_list,
@@ -538,15 +538,23 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
         true
     }
 
-    fn get_amount_captured(&self) -> Option<MinorUnit> {
+    fn get_amount_captured(
+        &self,
+    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ParsingError>> {
         match self.amount.clone() {
-            Some(amount) => StringMinorUnitForConnector::convert_back(
-                &StringMinorUnitForConnector,
-                amount,
-                Currency::default(),
-            )
-            .ok(),
-            None => None,
+            Some(amount) => {
+                let minor_amount = StringMinorUnitForConnector::convert_back(
+                    &StringMinorUnitForConnector,
+                    amount,
+                    match self.currency {
+                        Some(currency) => currency,
+                        None => Err(errors::ParsingError::EnumParseFailure("Currency"))?,
+                    }, //
+                )?;
+                Ok(Some(minor_amount))
+            }
+            None => Ok(None),
+            //CustomResult<HashMap<String, types::CaptureSyncResponse>, errors::ConnectorError>
         }
     }
     fn get_connector_reference_id(&self) -> Option<String> {
