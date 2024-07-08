@@ -17724,7 +17724,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "This field is used when merchant wants to confirm the Payout, thus useful for the Payout Confirm Request. Ideally Merchants should create a Payout, Update it(if required), then Confirm it.",
+            "description": "This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.",
             "default": false,
             "example": true
           },
