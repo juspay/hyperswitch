@@ -136,6 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
+            &request.customer_id,
         )
         .await?;
 
@@ -505,6 +506,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -517,6 +519,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }
@@ -1042,6 +1045,26 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
+        // Derivation of directly supplied Billing Address data in our Payment Create Request
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let billing_details = request
+            .billing
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.billing.clone()).await
+            })
+            .await;
+
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_details = request
+            .shipping
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.shipping.clone()).await
+            })
+            .await;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
@@ -1113,7 +1136,10 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
+            billing_details,
             customer_details,
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            shipping_details,
         })
     }
 

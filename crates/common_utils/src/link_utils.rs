@@ -1,6 +1,6 @@
 //! Common
 
-use std::primitive::i64;
+use std::{collections::HashSet, primitive::i64};
 
 use common_enums::enums;
 use diesel::{
@@ -148,7 +148,7 @@ pub struct PayoutLinkData {
     /// Identifier for the payouts resource
     pub payout_id: String,
     /// Link to render the payout link
-    pub link: Secret<String>,
+    pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs
     pub client_secret: Secret<String>,
     /// Expiry in seconds from the time it was created
@@ -167,11 +167,11 @@ pub struct PayoutLinkData {
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
 
 /// Object for GenericLinkUiConfig
-#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, Serialize, ToSchema)]
 pub struct GenericLinkUiConfig {
     /// Merchant's display logo
     #[schema(value_type = Option<String>, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: Option<String>,
+    pub logo: Option<url::Url>,
 
     /// Custom merchant name for the link
     #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch")]
@@ -182,12 +182,12 @@ pub struct GenericLinkUiConfig {
     pub theme: Option<String>,
 }
 
-/// Object for GenericLinkUIConfigFormData
-#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
-pub struct GenericLinkUIConfigFormData {
+/// Object for GenericLinkUiConfigFormData
+#[derive(Clone, Debug, serde::Deserialize, Serialize, ToSchema)]
+pub struct GenericLinkUiConfigFormData {
     /// Merchant's display logo
     #[schema(value_type = String, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: String,
+    pub logo: url::Url,
 
     /// Custom merchant name for the link
     #[schema(value_type = String, max_length = 255, example = "Hyperswitch")]
@@ -206,6 +206,6 @@ pub struct EnabledPaymentMethod {
     pub payment_method: enums::PaymentMethod,
 
     /// An array of associated payment method types
-    #[schema(value_type = Vec<PaymentMethodType>)]
-    pub payment_method_types: Vec<enums::PaymentMethodType>,
+    #[schema(value_type = HashSet<PaymentMethodType>)]
+    pub payment_method_types: HashSet<enums::PaymentMethodType>,
 }

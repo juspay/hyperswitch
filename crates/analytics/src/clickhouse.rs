@@ -9,7 +9,9 @@ use time::PrimitiveDateTime;
 use super::{
     active_payments::metrics::ActivePaymentsMetricRow,
     auth_events::metrics::AuthEventMetricRow,
+    frm::{filters::FrmFilterRow, metrics::FrmMetricRow},
     health_check::HealthCheck,
+    payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
     },
@@ -129,6 +131,7 @@ impl AnalyticsDataSource for ClickhouseClient {
         match table {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
+            | AnalyticsCollection::FraudCheck
             | AnalyticsCollection::PaymentIntent
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
@@ -157,8 +160,12 @@ where
 impl super::payments::filters::PaymentFilterAnalytics for ClickhouseClient {}
 impl super::payments::metrics::PaymentMetricAnalytics for ClickhouseClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for ClickhouseClient {}
+impl super::payment_intents::filters::PaymentIntentFilterAnalytics for ClickhouseClient {}
+impl super::payment_intents::metrics::PaymentIntentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
+impl super::frm::metrics::FrmMetricAnalytics for ClickhouseClient {}
+impl super::frm::filters::FrmFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
@@ -247,6 +254,26 @@ impl TryInto<FilterRow> for serde_json::Value {
     }
 }
 
+impl TryInto<PaymentIntentMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<PaymentIntentFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentFilterRow in clickhouse results",
+        ))
+    }
+}
+
 impl TryInto<RefundMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -267,6 +294,25 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     }
 }
 
+impl TryInto<FrmMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<FrmFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmFilterRow in clickhouse results",
+        ))
+    }
+}
 impl TryInto<DisputeMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -386,6 +432,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
         match self {
             Self::Payment => Ok("payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
+            Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),

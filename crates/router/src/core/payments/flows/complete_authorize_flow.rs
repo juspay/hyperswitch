@@ -103,7 +103,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         state: &SessionState,
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>> {
+        should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
             let request = self.request.clone();
@@ -113,10 +114,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 &payments::TokenizationAction::TokenizeInConnector,
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
+                should_continue_payment,
             )
             .await
         } else {
-            Ok(None)
+            Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+            })
         }
     }
 
