@@ -18,6 +18,8 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(feature = "keymanager_create")]
+use crate::encryption;
 use crate::{
     consts,
     core::{
@@ -40,9 +42,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
-#[cfg(feature = "keymanager_create")]
-use crate::encryption;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
