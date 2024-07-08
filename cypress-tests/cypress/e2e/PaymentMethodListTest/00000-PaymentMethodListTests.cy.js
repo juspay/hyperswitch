@@ -2,7 +2,7 @@ import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
 import createConnectorBody from "../../fixtures/create-connector-body.json";
 import getConnectorDetails from "../PaymentMethodListUtils/utils";
 import merchantCreateBody from "../../fixtures/merchant-create-body.json";
-import * as utils from "../PaymentMethodListUtils/utils";
+import * as utils from "../PaymentMethodListUtils/Utils";
 import {
   card_credit_enabled,
   card_credit_enabled_in_US,
