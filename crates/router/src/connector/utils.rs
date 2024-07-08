@@ -2201,7 +2201,7 @@ where
                     amount: capture_sync_response
                         .get_amount_captured()
                         .change_context(errors::ConnectorError::ParsingFailed)
-                        .attach_printable("Failed to convert to minor unit")?,
+                        .attach_printable("failed to convert back captured response amount to minor unit")?,
                 },
             );
         }

@@ -349,7 +349,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.minor_payment_amount,
+            req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
 

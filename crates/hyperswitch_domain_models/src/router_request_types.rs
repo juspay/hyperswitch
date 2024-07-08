@@ -739,6 +739,6 @@ pub struct SetupMandateRequestData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    // Minor Unit for SetupMandateRequestData
+    // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
 }

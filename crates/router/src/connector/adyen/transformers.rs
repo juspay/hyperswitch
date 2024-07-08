@@ -3236,7 +3236,6 @@ impl<F>
                 charge_id: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
-                minor_amount: item.response.balance.value,
                 currency: item.response.balance.currency,
                 amount: item.response.balance.value,
             }),

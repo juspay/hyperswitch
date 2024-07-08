@@ -1,4 +1,3 @@
-// use common_enums::Currency;
 use common_utils::{
     crypto::{self, GenerateDigest},
     types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
@@ -56,7 +55,6 @@ impl TryFrom<&GlobalPayRouterData<&types::PaymentsAuthorizeRouterData>>
         Ok(Self {
             account_name,
             amount: Some(item.amount.to_owned()),
-            // currency: item.request.currency.to_string(),
             currency: item.router_data.request.currency.to_string(),
 
             reference: item.router_data.connector_request_reference_id.to_string(),
@@ -147,7 +145,6 @@ impl TryFrom<&GlobalPayRouterData<&types::PaymentsCancelRouterData>>
         value: &GlobalPayRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            // amount: value.request.amount.map(|amount| amount.to_string()),
             amount: Some(value.amount.clone()),
         })
     }
@@ -551,7 +548,6 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
                 Ok(Some(minor_amount))
             }
             None => Ok(None),
-            //CustomResult<HashMap<String, types::CaptureSyncResponse>, errors::ConnectorError>
         }
     }
     fn get_connector_reference_id(&self) -> Option<String> {

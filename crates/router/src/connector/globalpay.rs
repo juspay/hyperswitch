@@ -461,7 +461,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
         let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
-        // let connector_req = requests::GlobalpayCancelRequest::try_from(req)?;// audit
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -623,7 +622,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         )?;
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
-        let connector_req = requests::GlobalpayCaptureRequest::try_from(&connector_router_data)?; //audit
+        let connector_req = requests::GlobalpayCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -720,7 +719,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )?;
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
-        let connector_req = GlobalpayPaymentsRequest::try_from(&connector_router_data)?; //audit
+        let connector_req = GlobalpayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -818,7 +817,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         )?;
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
-        let connector_req = requests::GlobalpayRefundRequest::try_from(&connector_router_data)?; //audit
+        let connector_req = requests::GlobalpayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
