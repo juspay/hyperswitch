@@ -1943,8 +1943,6 @@ dependencies = [
 name = "common_enums"
 version = "0.1.0"
 dependencies = [
- "actix-web",
- "config",
  "diesel",
  "frunk",
  "frunk_core",

@@ -168,7 +168,7 @@ where
     pub fn new_with_implicit_entries(
         service: &str,
         dst_writer: W,
-        mut default_fields: HashMap<String, Value>,
+        default_fields: HashMap<String, Value>,
         formatter: F,
     ) -> error_stack::Result<Self, ConfigError> {
         let pid = std::process::id();
@@ -179,22 +179,8 @@ where
         #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
-        default_fields.retain(|key, value| {
-            if !IMPLICIT_KEYS.contains(key.as_str()) {
-                true
-            } else {
-                tracing::warn!(
-                    ?key,
-                    ?value,
-                    "Attempting to log a reserved entry. It won't be added to the logs"
-                );
-                false
-            }
-        });
-
-        // Check for invalid configuration values in default_fields
         for key in default_fields.keys() {
-            if !IMPLICIT_KEYS.contains(key.as_str()) {
+            if IMPLICIT_KEYS.contains(key.as_str()) {
                 return Err(ConfigError::Message(format!(
                     "Invalid configuration value for key: {}",
                     key

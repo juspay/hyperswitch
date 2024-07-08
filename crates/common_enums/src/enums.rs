@@ -1,10 +1,4 @@
-use std::{
-    fmt::Display,
-    num::{ParseFloatError, TryFromIntError},
-};
-
-use actix_web::ResponseError;
-use http::StatusCode;
+use std::num::{ParseFloatError, TryFromIntError};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -29,8 +23,6 @@ pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
-    // Display's impl can be overridden by the attribute error marco.
-    // Don't use Debug here, Debug gives error stack in response.
     #[error("Application configuration error")]
     ConfigurationError,
 
@@ -98,27 +90,6 @@ impl ApiClientError {
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
-    }
-}
-
-fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    actix_web::HttpResponse::BadRequest()
-        .content_type(mime::APPLICATION_JSON)
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
-}
-impl ResponseError for ApplicationError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::MetricsError
-            | Self::IoError(_)
-            | Self::ConfigurationError
-            | Self::InvalidConfigurationValueError(_)
-            | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn error_response(&self) -> actix_web::HttpResponse {
-        error_response(self)
     }
 }
 

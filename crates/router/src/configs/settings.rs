@@ -721,7 +721,8 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
-            .build().change_context(ApplicationError::ConfigurationError)?;
+            .build()
+            .change_context(ApplicationError::ConfigurationError)?;
 
         serde_path_to_error::deserialize(config)
             .attach_printable("Unable to deserialize application configuration")
