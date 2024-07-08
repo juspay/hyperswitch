@@ -1,9 +1,12 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts as payout_models;
 use api_models::{
     enums::EventType,
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
 use common_utils::ext_traits::{StringExt, ValueExt};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::tracing::{self, instrument};
@@ -13,22 +16,24 @@ use scheduler::{
     utils as scheduler_utils,
 };
 
+#[cfg(feature = "payouts")]
+use crate::core::payouts;
 use crate::{
     core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     types::{domain, storage},
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
     #[instrument(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
@@ -97,6 +102,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             request: initial_event.request,
             response: None,
             delivery_attempt: Some(delivery_attempt),
+            metadata: initial_event.metadata,
         };
 
         let event = db
@@ -114,7 +120,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     .peek()
                     .parse_struct("OutgoingWebhookRequestContent")?;
 
-                webhooks_core::trigger_webhook_and_raise_event(
+                Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                     state.clone(),
                     business_profile,
                     &key_store,
@@ -123,7 +129,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     delivery_attempt,
                     None,
                     Some(process),
-                )
+                ))
                 .await;
             }
 
@@ -135,13 +141,13 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     .await?;
 
                 // TODO: Add request state for the PT flows as well
-                let (content, event_type) = get_outgoing_webhook_content_and_event_type(
+                let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
                     state.get_req_state(),
                     merchant_account.clone(),
                     key_store.clone(),
                     &tracking_data,
-                )
+                ))
                 .await?;
 
                 match event_type {
@@ -168,7 +174,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             errors::ProcessTrackerError::EApiErrorResponse
                         })?;
 
-                        webhooks_core::trigger_webhook_and_raise_event(
+                        Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                             state.clone(),
                             business_profile,
                             &key_store,
@@ -177,7 +183,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             delivery_attempt,
                             Some(content),
                             Some(process),
-                        )
+                        ))
                         .await;
                     }
                     // Resource status has changed since the event was created, finish task
@@ -193,7 +199,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                         db.as_scheduler()
                             .finish_process_with_business_status(
                                 process.clone(),
-                                "RESOURCE_STATUS_MISMATCH".to_string(),
+                                business_status::RESOURCE_STATUS_MISMATCH,
                             )
                             .await?;
                     }
@@ -207,7 +213,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
     #[instrument(skip_all)]
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
@@ -305,7 +311,7 @@ pub(crate) async fn retry_webhook_delivery_task(
         }
         None => {
             db.as_scheduler()
-                .finish_process_with_business_status(process, "RETRIES_EXCEEDED".to_string())
+                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
                 .await
         }
     }
@@ -313,7 +319,7 @@ pub(crate) async fn retry_webhook_delivery_task(
 
 #[instrument(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -372,6 +378,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
@@ -427,6 +434,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
@@ -458,6 +466,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
@@ -471,6 +480,34 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             Ok((
                 OutgoingWebhookContent::MandateDetails(mandate_response),
+                event_type,
+            ))
+        }
+        #[cfg(feature = "payouts")]
+        diesel_models::enums::EventClass::Payouts => {
+            let payout_id = tracking_data.primary_object_id.clone();
+            let request = payout_models::PayoutRequest::PayoutActionRequest(
+                payout_models::PayoutActionRequest { payout_id },
+            );
+
+            let payout_data =
+                payouts::make_payout_data(&state, &merchant_account, &key_store, &request).await?;
+
+            let router_response =
+                payouts::response_handler(&merchant_account, &payout_data).await?;
+
+            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
+            {
+                ApplicationResponse::Json(response) => response,
+                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the payout create response")?,
+            };
+
+            let event_type = Option::<EventType>::foreign_from(payout_data.payout_attempt.status);
+            logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
+
+            Ok((
+                OutgoingWebhookContent::PayoutDetails(payout_create_response),
                 event_type,
             ))
         }

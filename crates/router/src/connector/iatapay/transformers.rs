@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use api_models::enums::PaymentMethod;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::Encode, types::FloatMajorUnit};
+use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
@@ -34,16 +34,14 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct IatapayRouterData<T> {
-    amount: f64,
+    amount: FloatMajorUnit,
     router_data: T,
 }
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
+            amount,
             router_data: item,
         })
     }
@@ -85,17 +83,26 @@ pub struct PayerInfo {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PreferredCheckoutMethod {
+    Vpa,
+    Qr,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
     merchant_payment_id: Option<String>,
-    amount: f64,
-    currency: String,
-    country: String,
+    amount: FloatMajorUnit,
+    currency: common_enums::Currency,
+    country: common_enums::CountryAlpha2,
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
+    preferred_checkout_method: Option<PreferredCheckoutMethod>,
 }
 
 impl
@@ -120,51 +127,101 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_method = item.router_data.payment_method;
-        let country = match payment_method {
-            PaymentMethod::Upi => "IN".to_string(),
-            PaymentMethod::Card
-            | PaymentMethod::CardRedirect
-            | PaymentMethod::PayLater
-            | PaymentMethod::Wallet
-            | PaymentMethod::BankRedirect
-            | PaymentMethod::BankTransfer
-            | PaymentMethod::Crypto
-            | PaymentMethod::BankDebit
-            | PaymentMethod::Reward
-            | PaymentMethod::Voucher
-            | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
-        };
         let return_url = item.router_data.get_return_url()?;
-        let payer_info = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
-                token_id: id.switch_strategy(),
-            }),
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => None,
-        };
+        // Iatapay processes transactions through the payment method selected based on the country
+        let (country, payer_info, preferred_checkout_method) =
+            match item.router_data.request.payment_method_data.clone() {
+                domain::PaymentMethodData::Upi(upi_type) => match upi_type {
+                    domain::UpiData::UpiCollect(upi_data) => (
+                        common_enums::CountryAlpha2::IN,
+                        upi_data.vpa_id.map(|id| PayerInfo {
+                            token_id: id.switch_strategy(),
+                        }),
+                        Some(PreferredCheckoutMethod::Vpa),
+                    ),
+                    domain::UpiData::UpiIntent(_) => (
+                        common_enums::CountryAlpha2::IN,
+                        None,
+                        Some(PreferredCheckoutMethod::Qr),
+                    ),
+                },
+                domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                    match bank_redirect_data {
+                        domain::BankRedirectData::Ideal { .. } => {
+                            (common_enums::CountryAlpha2::NL, None, None)
+                        }
+                        domain::BankRedirectData::LocalBankRedirect {} => {
+                            (common_enums::CountryAlpha2::AT, None, None)
+                        }
+                        domain::BankRedirectData::BancontactCard { .. }
+                        | domain::BankRedirectData::Bizum {}
+                        | domain::BankRedirectData::Blik { .. }
+                        | domain::BankRedirectData::Eps { .. }
+                        | domain::BankRedirectData::Giropay { .. }
+                        | domain::BankRedirectData::Interac { .. }
+                        | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                        | domain::BankRedirectData::OnlineBankingFinland {}
+                        | domain::BankRedirectData::OnlineBankingPoland { .. }
+                        | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                        | domain::BankRedirectData::OpenBankingUk { .. }
+                        | domain::BankRedirectData::Przelewy24 { .. }
+                        | domain::BankRedirectData::Sofort { .. }
+                        | domain::BankRedirectData::Trustly { .. }
+                        | domain::BankRedirectData::OnlineBankingFpx { .. }
+                        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                connector_util::get_unimplemented_payment_method_error_message(
+                                    "iatapay",
+                                ),
+                            ))?
+                        }
+                    }
+                }
+                domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                    match *real_time_payment_data {
+                        domain::RealTimePaymentData::DuitNow {} => {
+                            (common_enums::CountryAlpha2::MY, None, None)
+                        }
+                        domain::RealTimePaymentData::Fps {} => {
+                            (common_enums::CountryAlpha2::HK, None, None)
+                        }
+                        domain::RealTimePaymentData::PromptPay {} => {
+                            (common_enums::CountryAlpha2::TH, None, None)
+                        }
+                        domain::RealTimePaymentData::VietQr {} => {
+                            (common_enums::CountryAlpha2::VN, None, None)
+                        }
+                    }
+                }
+                domain::PaymentMethodData::Card(_)
+                | domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("iatapay"),
+                    ))?
+                }
+            };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
             merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
             amount: item.amount,
-            currency: item.router_data.request.currency.to_string(),
-            country: country.clone(),
+            currency: item.router_data.request.currency,
+            country,
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
             notification_url: item.router_data.request.get_webhook_url()?,
+            preferred_checkout_method,
         };
         Ok(payload)
     }
@@ -248,7 +305,7 @@ pub struct IatapayPaymentsResponse {
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
@@ -291,8 +348,46 @@ fn get_iatpay_response(
     };
     let connector_response_reference_id = response.merchant_payment_id.or(response.iata_payment_id);
 
-    let payment_response_data = response.checkout_methods.map_or(
-        types::PaymentsResponseData::TransactionResponse {
+    let payment_response_data = match response.checkout_methods {
+        Some(checkout_methods) => {
+            let (connector_metadata, redirection_data) =
+                match checkout_methods.redirect.redirect_url.ends_with("qr") {
+                    true => {
+                        let qr_code_info = api_models::payments::FetchQrCodeInformation {
+                            qr_code_fetch_url: url::Url::parse(
+                                &checkout_methods.redirect.redirect_url,
+                            )
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        };
+                        (
+                            Some(qr_code_info.encode_to_value())
+                                .transpose()
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                            None,
+                        )
+                    }
+                    false => (
+                        None,
+                        Some(services::RedirectForm::Form {
+                            endpoint: checkout_methods.redirect.redirect_url,
+                            method: services::Method::Get,
+                            form_fields,
+                        }),
+                    ),
+                };
+
+            types::PaymentsResponseData::TransactionResponse {
+                resource_id: id,
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id: connector_response_reference_id.clone(),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }
+        }
+        None => types::PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
             redirection_data: None,
             mandate_reference: None,
@@ -300,21 +395,10 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         },
-        |checkout_methods| types::PaymentsResponseData::TransactionResponse {
-            resource_id: id,
-            redirection_data: Some(services::RedirectForm::Form {
-                endpoint: checkout_methods.redirect.redirect_url,
-                method: services::Method::Get,
-                form_fields,
-            }),
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: connector_response_reference_id.clone(),
-            incremental_authorization_allowed: None,
-        },
-    );
+    };
+
     Ok((status, error, payment_response_data))
 }
 
@@ -343,7 +427,7 @@ impl<F, T>
 pub struct IatapayRefundRequest {
     pub merchant_id: Secret<String>,
     pub merchant_refund_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_transfer_description: Option<String>,
     pub notification_url: String,
@@ -400,7 +484,7 @@ pub struct RefundResponse {
     iata_refund_id: String,
     status: RefundStatus,
     merchant_refund_id: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: String,
     bank_transfer_description: Option<String>,
     failure_code: Option<String>,
@@ -412,7 +496,7 @@ pub struct RefundResponse {
     clearance_date_time: Option<String>,
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
-    payment_amount: Option<f64>,
+    payment_amount: Option<FloatMajorUnit>,
     merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
@@ -514,7 +598,7 @@ pub struct IatapayPaymentWebhookBody {
     pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
 }
@@ -527,7 +611,7 @@ pub struct IatapayRefundWebhookBody {
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
 }
 

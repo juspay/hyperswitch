@@ -13,6 +13,8 @@ use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
 use super::utils::is_mandate_supported;
+#[cfg(feature = "payouts")]
+use crate::connector::utils::PayoutsData;
 use crate::{
     capture_method_not_supported,
     configs::settings,
@@ -199,6 +201,8 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::CardRedirect
+                | PaymentMethodType::Fps
+                | PaymentMethodType::DuitNow
                 | PaymentMethodType::Interac
                 | PaymentMethodType::Multibanco
                 | PaymentMethodType::Przelewy24
@@ -208,13 +212,18 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
                 | PaymentMethodType::PagoEfectivo
+                | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
                 | PaymentMethodType::CryptoCurrency
                 | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
-                | PaymentMethodType::UpiCollect => {
+                | PaymentMethodType::UpiCollect
+                | PaymentMethodType::UpiIntent
+                | PaymentMethodType::VietQr
+                | PaymentMethodType::Mifinity
+                | PaymentMethodType::LocalBankRedirect => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -366,7 +375,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::foreign_from((
             req,
-            types::PaymentsAuthorizeData::from(req),
+            types::PaymentsAuthorizeData::foreign_from(req),
         ));
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
@@ -1445,11 +1454,12 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             req.test_mode,
             &req.connector_meta_data,
         )?;
+        let payout_type = req.request.get_payout_type()?;
         Ok(format!(
             "{}pal/servlet/Payout/{}/{}",
             endpoint,
             ADYEN_API_VERSION,
-            match req.request.payout_type {
+            match payout_type {
                 storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
                     "confirmThirdParty".to_string(),
                 storage_enums::PayoutType::Card => "payout".to_string(),
@@ -1470,9 +1480,17 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         )];
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let payout_type = req
+            .request
+            .payout_type
+            .to_owned()
+            .get_required_value("payout_type")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "payout_type",
+            })?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
-            match req.request.payout_type {
+            match payout_type {
                 storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
@@ -1803,6 +1821,12 @@ impl api::IncomingWebhook for Adyen {
                         .original_reference
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if adyen::is_payout_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::PayoutAttemptId(notif.merchant_reference),
             ));
         }
         Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))

@@ -16,7 +16,7 @@ async fn should_make_adyen_3ds_payment_failed(web_driver: WebDriver) -> Result<(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/177"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
             Event::Assert(Assert::IsPresent("AUTHENTICATION DETAILS")),
@@ -37,7 +37,7 @@ async fn should_make_adyen_3ds_payment_success(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/62"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
             Event::Assert(Assert::IsPresent("AUTHENTICATION DETAILS")),
@@ -58,7 +58,7 @@ async fn should_make_adyen_3ds_mandate_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/203"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/203"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
@@ -79,7 +79,7 @@ async fn should_make_adyen_3ds_mandate_with_zero_dollar_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/204"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/204"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
@@ -96,7 +96,7 @@ async fn should_make_adyen_3ds_mandate_with_zero_dollar_payment(
 async fn should_make_adyen_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_gpay_payment(web_driver,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
@@ -108,7 +108,7 @@ async fn should_make_adyen_gpay_mandate_payment(
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_gpay_payment(web_driver,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
@@ -125,7 +125,7 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_gpay_payment(web_driver,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
@@ -144,7 +144,7 @@ async fn should_make_adyen_klarna_mandate_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/195"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/195"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
             Event::Trigger(Trigger::Sleep(5)),
@@ -188,7 +188,7 @@ async fn should_make_adyen_alipay_hk_payment(web_driver: WebDriver) -> Result<()
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/162"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/162"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::EitherOr(
                 Assert::IsPresent("Payment Method Not Available"),
@@ -214,7 +214,7 @@ async fn should_make_adyen_bizum_payment(web_driver: WebDriver) -> Result<(), We
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/186"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/186"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(By::Id("iPhBizInit"), "700000000")),
             Event::Trigger(Trigger::Click(By::Id("bBizInit"))),
@@ -234,7 +234,7 @@ async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), Web
     let conn = AdyenSeleniumTest {};
     conn.make_clearpay_payment(
         driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/163"),
+        &format!("{CHECKOUT_BASE_URL}/saved/163"),
         vec![Event::Assert(Assert::IsPresent("succeeded"))],
     )
     .await?;
@@ -245,7 +245,7 @@ async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), W
     let conn = AdyenSeleniumTest {};
     conn.make_paypal_payment(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/202"),
+        &format!("{CHECKOUT_BASE_URL}/saved/202"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -264,7 +264,7 @@ async fn should_make_adyen_ach_payment(web_driver: WebDriver) -> Result<(), WebD
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/58"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/58"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
@@ -278,7 +278,7 @@ async fn should_make_adyen_sepa_payment(web_driver: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/51"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/51"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
@@ -292,7 +292,7 @@ async fn should_make_adyen_bacs_payment(web_driver: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/54"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/54"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
@@ -307,7 +307,7 @@ async fn should_make_adyen_ideal_payment(web_driver: WebDriver) -> Result<(), We
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/52"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/52"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btnLink"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -322,7 +322,7 @@ async fn should_make_adyen_eps_payment(web_driver: WebDriver) -> Result<(), WebD
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/61"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/61"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -353,7 +353,7 @@ async fn should_make_adyen_bancontact_card_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/68"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/68"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(By::Id("username"), user)),
             Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
@@ -371,7 +371,7 @@ async fn should_make_adyen_wechatpay_payment(web_driver: WebDriver) -> Result<()
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/75"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/75"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -386,7 +386,7 @@ async fn should_make_adyen_mbway_payment(web_driver: WebDriver) -> Result<(), We
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/196"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/196"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
@@ -403,7 +403,7 @@ async fn should_make_adyen_ebanking_fi_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/78"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/78"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("css-ns0tbt"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -420,7 +420,7 @@ async fn should_make_adyen_onlinebanking_pl_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/197"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/197"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -440,7 +440,7 @@ async fn should_make_adyen_giropay_payment(web_driver: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/70"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/70"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(
                 By::Css("input[id='tags']"),
@@ -474,7 +474,7 @@ async fn should_make_adyen_twint_payment(driver: WebDriver) -> Result<(), WebDri
     conn.make_redirection_payment(
         driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/170"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/170"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -489,7 +489,7 @@ async fn should_make_adyen_walley_payment(web_driver: WebDriver) -> Result<(), W
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/198"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/198"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Teknikmössor AB")),
             Event::Trigger(Trigger::SwitchFrame(By::ClassName(
@@ -527,7 +527,7 @@ async fn should_make_adyen_dana_payment(driver: WebDriver) -> Result<(), WebDriv
     conn.make_redirection_payment(
         driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/175"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/175"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(
                 By::Css("input[type='number']"),
@@ -556,7 +556,7 @@ async fn should_make_adyen_online_banking_fpx_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/172"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/172"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -573,7 +573,7 @@ async fn should_make_adyen_online_banking_thailand_payment(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/184"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/184"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -588,7 +588,7 @@ async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/185"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/185"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -607,7 +607,7 @@ async fn should_make_adyen_swish_payment(web_driver: WebDriver) -> Result<(), We
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/210"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/210"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("status")),
             Event::Assert(Assert::IsPresent("processing")),
@@ -624,7 +624,7 @@ async fn should_make_adyen_blik_payment(driver: WebDriver) -> Result<(), WebDriv
     conn.make_redirection_payment(
         driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/64"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Next Action Type")),
             Event::Assert(Assert::IsPresent("wait_screen_information")),
@@ -639,7 +639,7 @@ async fn should_make_adyen_momo_atm_payment(web_driver: WebDriver) -> Result<(),
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/238"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/238"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Sleep(5)), // Delay for provider to not reject payment for botting
             Event::Trigger(Trigger::SendKeys(

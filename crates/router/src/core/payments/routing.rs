@@ -32,7 +32,7 @@ use rand::{
     SeedableRng,
 };
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::{CGRAPH_CACHE, ROUTING_CACHE};
+use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -50,7 +50,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
-    AppState,
+    SessionState,
 };
 
 pub enum CachedAlgorithm {
@@ -61,7 +61,7 @@ pub enum CachedAlgorithm {
 }
 
 pub struct SessionFlowRoutingInput<'a> {
-    pub state: &'a AppState,
+    pub state: &'a SessionState,
     pub country: Option<CountryAlpha2>,
     pub key_store: &'a domain::MerchantKeyStore,
     pub merchant_account: &'a domain::MerchantAccount,
@@ -71,7 +71,7 @@ pub struct SessionFlowRoutingInput<'a> {
 }
 
 pub struct SessionRoutingPmTypeInput<'a> {
-    state: &'a AppState,
+    state: &'a SessionState,
     key_store: &'a domain::MerchantKeyStore,
     attempt_id: &'a str,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
@@ -138,9 +138,10 @@ pub fn make_dsl_input_for_payouts(
         setup_future_usage: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
-        payment_method: Some(api_enums::PaymentMethod::foreign_from(
-            payout_data.payouts.payout_type,
-        )),
+        payment_method: payout_data
+            .payouts
+            .payout_type
+            .map(api_enums::PaymentMethod::foreign_from),
         payment_method_type: payout_data
             .payout_method_data
             .clone()
@@ -210,7 +211,7 @@ where
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_data.payment_intent.amount.get_amount_as_i64(),
+        amount: payment_data.payment_intent.amount,
         card_bin: payment_data
             .payment_method_data
             .as_ref()
@@ -262,7 +263,7 @@ where
 }
 
 pub async fn perform_static_routing_v1<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -330,7 +331,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 }
 
 async fn ensure_algorithm_cached_v1(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -366,7 +367,10 @@ async fn ensure_algorithm_cached_v1(
     };
 
     let cached_algorithm = ROUTING_CACHE
-        .get_val::<Arc<CachedAlgorithm>>(key.as_str())
+        .get_val::<Arc<CachedAlgorithm>>(CacheKey {
+            key: key.clone(),
+            prefix: state.tenant.redis_key_prefix.clone(),
+        })
         .await;
 
     let algorithm = if let Some(algo) = cached_algorithm {
@@ -428,7 +432,7 @@ fn execute_dsl_and_get_connector_v1(
 }
 
 pub async fn refresh_routing_cache_v1(
-    state: &AppState,
+    state: &SessionState,
     key: String,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -483,7 +487,15 @@ pub async fn refresh_routing_cache_v1(
 
     let arc_cached_algorithm = Arc::new(cached_algorithm);
 
-    ROUTING_CACHE.push(key, arc_cached_algorithm.clone()).await;
+    ROUTING_CACHE
+        .push(
+            CacheKey {
+                key,
+                prefix: state.tenant.redis_key_prefix.clone(),
+            },
+            arc_cached_algorithm.clone(),
+        )
+        .await;
 
     Ok(arc_cached_algorithm)
 }
@@ -523,11 +535,11 @@ pub fn perform_volume_split(
 }
 
 pub async fn get_merchant_cgraph<'a>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
     #[cfg(feature = "business_profile_routing")]
@@ -547,14 +559,17 @@ pub async fn get_merchant_cgraph<'a>(
 
     #[cfg(not(feature = "business_profile_routing"))]
     let key = match transaction_type {
-        api_enums::TransactionType::Payment => format!("kgraph_{}", merchant_id),
+        api_enums::TransactionType::Payment => format!("cgraph_{}", merchant_id),
         #[cfg(feature = "payouts")]
-        api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
+        api_enums::TransactionType::Payout => format!("cgraph_po_{}", merchant_id),
     };
 
     let cached_cgraph = CGRAPH_CACHE
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
-            key.as_str(),
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>>(
+            CacheKey {
+                key: key.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            },
         )
         .await;
 
@@ -576,12 +591,12 @@ pub async fn get_merchant_cgraph<'a>(
 }
 
 pub async fn refresh_cgraph_cache<'a>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -650,14 +665,22 @@ pub async fn refresh_cgraph_cache<'a>(
             .attach_printable("when construction cgraph")?,
     );
 
-    CGRAPH_CACHE.push(key, Arc::clone(&cgraph)).await;
+    CGRAPH_CACHE
+        .push(
+            CacheKey {
+                key,
+                prefix: state.tenant.redis_key_prefix.clone(),
+            },
+            Arc::clone(&cgraph),
+        )
+        .await;
 
     Ok(cgraph)
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn perform_cgraph_filtering(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
@@ -708,7 +731,7 @@ async fn perform_cgraph_filtering(
 }
 
 pub async fn perform_eligibility_analysis<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -735,7 +758,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
 }
 
 pub async fn perform_fallback_routing<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     transaction_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
@@ -781,7 +804,7 @@ pub async fn perform_fallback_routing<F: Clone>(
 }
 
 pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -832,7 +855,8 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
+) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
+{
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
 
@@ -880,7 +904,7 @@ pub async fn perform_session_flow_routing(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount.get_amount_as_i64(),
+        amount: session_input.payment_intent.amount,
         currency: session_input
             .payment_intent
             .currency
@@ -939,8 +963,10 @@ pub async fn perform_session_flow_routing(
             );
     }
 
-    let mut result: FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice> =
-        FxHashMap::default();
+    let mut result: FxHashMap<
+        api_enums::PaymentMethodType,
+        Vec<routing_types::SessionRoutingChoice>,
+    > = FxHashMap::default();
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -962,20 +988,37 @@ pub async fn perform_session_flow_routing(
             ))]
             profile_id: session_input.payment_intent.profile_id.clone(),
         };
-        let maybe_choice =
-            perform_session_routing_for_pm_type(session_pm_input, transaction_type).await?;
+        let routable_connector_choice_option =
+            perform_session_routing_for_pm_type(&session_pm_input, transaction_type).await?;
 
-        // (connector, sub_label)
-        if let Some(data) = maybe_choice {
-            result.insert(
-                pm_type,
-                routing_types::SessionRoutingChoice {
-                    connector: data.0,
+        if let Some(routable_connector_choice) = routable_connector_choice_option {
+            let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
+
+            for selection in routable_connector_choice {
+                let connector_name = selection.connector.to_string();
+                if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                    let connector_data = api::ConnectorData::get_connector_by_name(
+                        &session_pm_input.state.clone().conf.connectors,
+                        &connector_name,
+                        get_token.clone(),
+                        #[cfg(feature = "connector_choice_mca_id")]
+                        selection.merchant_connector_id,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        None,
+                    )
+                    .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
                     #[cfg(not(feature = "connector_choice_mca_id"))]
-                    sub_label: data.1,
-                    payment_method_type: pm_type,
-                },
-            );
+                    let sub_label = selection.sub_label;
+
+                    session_routing_choice.push(routing_types::SessionRoutingChoice {
+                        connector: connector_data,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        sub_label: sub_label,
+                        payment_method_type: pm_type,
+                    });
+                }
+            }
+            result.insert(pm_type, session_routing_choice);
         }
     }
 
@@ -983,9 +1026,9 @@ pub async fn perform_session_flow_routing(
 }
 
 async fn perform_session_routing_for_pm_type(
-    session_pm_input: SessionRoutingPmTypeInput<'_>,
+    session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Option<(api::ConnectorData, Option<String>)>> {
+) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let chosen_connectors = match session_pm_input.routing_algorithm {
@@ -1068,7 +1111,7 @@ async fn perform_session_routing_for_pm_type(
             &session_pm_input.state.clone(),
             session_pm_input.key_store,
             fallback,
-            session_pm_input.backend_input,
+            session_pm_input.backend_input.clone(),
             None,
             #[cfg(feature = "business_profile_routing")]
             session_pm_input.profile_id.clone(),
@@ -1077,32 +1120,11 @@ async fn perform_session_routing_for_pm_type(
         .await?;
     }
 
-    let mut final_choice: Option<(api::ConnectorData, Option<String>)> = None;
-
-    for selection in final_selection {
-        let connector_name = selection.connector.to_string();
-        if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                &session_pm_input.state.clone().conf.connectors,
-                &connector_name,
-                get_token.clone(),
-                #[cfg(feature = "connector_choice_mca_id")]
-                selection.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
-            )
-            .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let sub_label = selection.sub_label;
-            #[cfg(feature = "connector_choice_mca_id")]
-            let sub_label = None;
-
-            final_choice = Some((connector_data, sub_label));
-            break;
-        }
+    if final_selection.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(final_selection))
     }
-
-    Ok(final_choice)
 }
 
 pub fn make_dsl_input_for_surcharge(
@@ -1116,7 +1138,7 @@ pub fn make_dsl_input_for_surcharge(
         payment_type: None,
     };
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount.get_amount_as_i64(),
+        amount: payment_attempt.amount,
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency

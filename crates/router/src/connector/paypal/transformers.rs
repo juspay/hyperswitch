@@ -1,8 +1,8 @@
 use api_models::enums;
 use base64::Engine;
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -18,30 +18,22 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, domain, storage::enums as storage_enums, transformers::ForeignFrom,
+        self, api, domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ConnectorAuthType, VerifyWebhookSourceResponseData,
     },
 };
 
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for PaypalRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for PaypalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -74,13 +66,13 @@ pub enum PaypalPaymentIntent {
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct OrderRequestAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
     pub breakdown: AmountBreakdown,
 }
 
@@ -88,11 +80,11 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
     fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
         Self {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             breakdown: AmountBreakdown {
                 item_total: OrderAmount {
                     currency_code: item.router_data.request.currency,
-                    value: item.amount.to_owned(),
+                    value: item.amount.clone(),
                 },
             },
         }
@@ -138,7 +130,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
             quantity: 1,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_string(),
+                value: item.amount.clone(),
             },
         }
     }
@@ -361,7 +353,8 @@ fn get_payment_source(
         | domain::BankRedirectData::OpenBankingUk { .. }
         | domain::BankRedirectData::Trustly { .. }
         | domain::BankRedirectData::OnlineBankingFpx { .. }
-        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+        | domain::BankRedirectData::OnlineBankingThailand { .. }
+        | domain::BankRedirectData::LocalBankRedirect {} => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?
@@ -387,28 +380,33 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
         let paypal_auth: PaypalAuthType =
             PaypalAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payee = get_payee(&paypal_auth);
+
+        let amount = OrderRequestAmount::from(item);
+
+        let intent = if item.router_data.request.is_auto_capture()? {
+            PaypalPaymentIntent::Capture
+        } else {
+            PaypalPaymentIntent::Authorize
+        };
+
+        let connector_request_reference_id =
+            item.router_data.connector_request_reference_id.clone();
+
+        let shipping_address = ShippingAddress::try_from(item)?;
+        let item_details = vec![ItemDetails::from(item)];
+
+        let purchase_units = vec![PurchaseUnitRequest {
+            reference_id: Some(connector_request_reference_id.clone()),
+            custom_id: item.router_data.request.merchant_order_reference_id.clone(),
+            invoice_id: Some(connector_request_reference_id),
+            amount,
+            payee,
+            shipping: Some(shipping_address),
+            items: item_details,
+        }];
+
         match item.router_data.request.payment_method_data {
             domain::PaymentMethodData::Card(ref ccard) => {
-                let intent = if item.router_data.request.is_auto_capture()? {
-                    PaypalPaymentIntent::Capture
-                } else {
-                    PaypalPaymentIntent::Authorize
-                };
-                let amount = OrderRequestAmount::from(item);
-                let connector_request_reference_id =
-                    item.router_data.connector_request_reference_id.clone();
-                let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails::from(item)];
-
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id: Some(connector_request_reference_id.clone()),
-                    custom_id: Some(connector_request_reference_id.clone()),
-                    invoice_id: Some(connector_request_reference_id),
-                    amount,
-                    payee,
-                    shipping: Some(shipping_address),
-                    items: item_details,
-                }];
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
@@ -441,27 +439,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 domain::WalletData::PaypalRedirect(_) => {
-                    let intent = if item.router_data.request.is_auto_capture()? {
-                        PaypalPaymentIntent::Capture
-                    } else {
-                        PaypalPaymentIntent::Authorize
-                    };
-                    let amount = OrderRequestAmount::from(item);
-
-                    let connector_req_reference_id =
-                        item.router_data.connector_request_reference_id.clone();
-                    let shipping_address = ShippingAddress::try_from(item)?;
-                    let item_details = vec![ItemDetails::from(item)];
-
-                    let purchase_units = vec![PurchaseUnitRequest {
-                        reference_id: Some(connector_req_reference_id.clone()),
-                        custom_id: Some(connector_req_reference_id.clone()),
-                        invoice_id: Some(connector_req_reference_id),
-                        amount,
-                        payee,
-                        shipping: Some(shipping_address),
-                        items: item_details,
-                    }];
                     let payment_source =
                         Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
                             experience_context: ContextStruct {
@@ -476,6 +453,23 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                                 } else {
                                     ShippingPreference::GetFromFile
                                 },
+                                user_action: Some(UserAction::PayNow),
+                            },
+                        }));
+
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
+                domain::WalletData::PaypalSdk(_) => {
+                    let payment_source =
+                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
+                            experience_context: ContextStruct {
+                                return_url: None,
+                                cancel_url: None,
+                                shipping_preference: ShippingPreference::GetFromFile,
                                 user_action: Some(UserAction::PayNow),
                             },
                         }));
@@ -502,7 +496,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::GooglePayThirdPartySdk(_)
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -510,12 +503,13 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
             domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = if item.router_data.request.is_auto_capture()? {
+                let bank_redirect_intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
                     Err(errors::ConnectorError::FlowNotSupported {
@@ -523,26 +517,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         connector: "Paypal".to_string(),
                     })?
                 };
-                let amount = OrderRequestAmount::from(item);
-                let connector_req_reference_id =
-                    item.router_data.connector_request_reference_id.clone();
-                let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails::from(item)];
 
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id: Some(connector_req_reference_id.clone()),
-                    custom_id: Some(connector_req_reference_id.clone()),
-                    invoice_id: Some(connector_req_reference_id),
-                    amount,
-                    payee,
-                    shipping: Some(shipping_address),
-                    items: item_details,
-                }];
                 let payment_source =
                     Some(get_payment_source(item.router_data, bank_redirection_data)?);
 
                 Ok(Self {
-                    intent,
+                    intent: bank_redirect_intent,
                     purchase_units,
                     payment_source,
                 })
@@ -568,6 +548,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 .into())
             }
             domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
@@ -1060,6 +1041,7 @@ pub struct PaypalMeta {
     pub authorize_id: Option<String>,
     pub capture_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
+    pub next_action: Option<api_models::payments::NextActionCall>,
 }
 
 fn get_id_based_on_intent(
@@ -1112,7 +1094,8 @@ impl<F, T>
                 serde_json::json!(PaypalMeta {
                     authorize_id: None,
                     capture_id: Some(id),
-                    psync_flow: item.response.intent.clone()
+                    psync_flow: item.response.intent.clone(),
+                    next_action: None,
                 }),
                 types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
@@ -1121,7 +1104,8 @@ impl<F, T>
                 serde_json::json!(PaypalMeta {
                     authorize_id: Some(id),
                     capture_id: None,
-                    psync_flow: item.response.intent.clone()
+                    psync_flow: item.response.intent.clone(),
+                    next_action: None,
                 }),
                 types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
@@ -1163,6 +1147,7 @@ impl<F, T>
                     .clone()
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1182,23 +1167,27 @@ fn get_redirect_url(
 }
 
 impl<F>
-    TryFrom<
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             PaypalSyncResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+        Option<common_enums::PaymentExperience>,
+    )> for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PaypalSyncResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
+    fn foreign_try_from(
+        (item, payment_experience): (
+            types::ResponseRouterData<
+                F,
+                PaypalSyncResponse,
+                types::PaymentsSyncData,
+                types::PaymentsResponseData,
+            >,
+            Option<common_enums::PaymentExperience>,
+        ),
     ) -> Result<Self, Self::Error> {
         match item.response {
             PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
@@ -1208,13 +1197,14 @@ impl<F>
                     http_code: item.http_code,
                 })
             }
-            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => {
-                Self::try_from(types::ResponseRouterData {
+            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => Self::foreign_try_from((
+                types::ResponseRouterData {
                     response,
                     data: item.data,
                     http_code: item.http_code,
-                })
-            }
+                },
+                payment_experience,
+            )),
             PaypalSyncResponse::PaypalPaymentsSyncResponse(response) => {
                 Self::try_from(types::ResponseRouterData {
                     response,
@@ -1234,25 +1224,38 @@ impl<F>
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    ForeignTryFrom<(
+        types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+        Option<common_enums::PaymentExperience>,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+    fn foreign_try_from(
+        (item, payment_experience): (
+            types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+            Option<common_enums::PaymentExperience>,
+        ),
     ) -> Result<Self, Self::Error> {
         let status = storage_enums::AttemptStatus::foreign_from((
             item.response.clone().status,
             item.response.intent.clone(),
         ));
         let link = get_redirect_url(item.response.links.clone())?;
+
+        // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
+        let next_action =
+            if let Some(common_enums::PaymentExperience::InvokeSdkClient) = payment_experience {
+                Some(api_models::payments::NextActionCall::CompleteAuthorize)
+            } else {
+                None
+            };
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
-            psync_flow: item.response.intent
+            psync_flow: item.response.intent,
+            next_action,
         });
         let purchase_units = item.response.purchase_units.first();
-
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1268,6 +1271,65 @@ impl<F, T>
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    ForeignTryFrom<(
+        types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+        domain::PaymentMethodData,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, payment_method_data): (
+            types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+            domain::PaymentMethodData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let status = storage_enums::AttemptStatus::foreign_from((
+            item.response.clone().status,
+            item.response.intent.clone(),
+        ));
+        let link = get_redirect_url(item.response.links.clone())?;
+
+        // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
+        let next_action =
+            if let domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) =
+                payment_method_data
+            {
+                Some(api_models::payments::NextActionCall::CompleteAuthorize)
+            } else {
+                None
+            };
+
+        let connector_meta = serde_json::json!(PaypalMeta {
+            authorize_id: None,
+            capture_id: None,
+            psync_flow: item.response.intent,
+            next_action,
+        });
+        let purchase_units = item.response.purchase_units.first();
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Some(services::RedirectForm::from((
+                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    services::Method::Get,
+                ))),
+                mandate_reference: None,
+                connector_metadata: Some(connector_meta),
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1305,6 +1367,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1333,7 +1396,8 @@ impl<F>
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
-            psync_flow: PaypalPaymentIntent::Authenticate // when there is no capture or auth id present
+            psync_flow: PaypalPaymentIntent::Authenticate, // when there is no capture or auth id present
+            next_action: None,
         });
 
         let status = storage_enums::AttemptStatus::foreign_from((
@@ -1355,6 +1419,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1423,6 +1488,7 @@ impl<F, T>
                     .clone()
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1488,7 +1554,7 @@ pub enum PaypalPayoutDataType {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize)]
 pub struct PayoutAmount {
-    value: String,
+    value: StringMajorUnit,
     currency: storage_enums::Currency,
 }
 
@@ -1517,7 +1583,7 @@ impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for P
         item: &PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let amount = PayoutAmount {
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             currency: item.router_data.request.destination_currency,
         };
 
@@ -1626,7 +1692,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::foreign_from(
                     item.response.batch_header.batch_status,
                 )),
-                connector_payout_id: item.response.batch_header.payout_batch_id,
+                connector_payout_id: Some(item.response.batch_header.payout_batch_id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -1650,7 +1716,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsCaptureRouterData>>
     ) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
         };
         Ok(Self {
             amount,
@@ -1750,7 +1816,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
                     capture_id: Some(item.response.id.clone()),
-                    psync_flow: PaypalPaymentIntent::Capture
+                    psync_flow: PaypalPaymentIntent::Capture,
+                    next_action: None,
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -1758,6 +1825,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -1809,6 +1877,7 @@ impl<F, T>
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1828,7 +1897,7 @@ impl<F> TryFrom<&PaypalRouterData<&types::RefundsRouterData<F>>> for PaypalRefun
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_owned(),
+                value: item.amount.clone(),
             },
         })
     }
@@ -1911,7 +1980,7 @@ pub struct OrderErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalOrderErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<OrderErrorDetails>>,
@@ -1925,7 +1994,7 @@ pub struct ErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<ErrorDetails>>,
@@ -1987,21 +2056,24 @@ pub enum PaypalResource {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
-    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub disputed_transactions: Vec<DisputeTransaction>,
     pub dispute_amount: OrderAmount,
-    pub dispute_outcome: DisputeOutcome,
+    pub dispute_outcome: Option<DisputeOutcome>,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub seller_response_due_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub update_time: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct DisputeTransaction {
-    pub reference_id: String,
+    pub seller_transaction_id: String,
 }
 
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]

@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
+    refunds::MinorUnit,
 };
 use euclid::{
     dirval,
@@ -77,7 +78,6 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
         api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
-        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
         api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
         api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
         api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
@@ -92,6 +92,9 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::OnlineBankingThailand => {
             Ok(dirval!(BankRedirectType = OnlineBankingThailand))
+        }
+        api_enums::PaymentMethodType::LocalBankRedirect => {
+            Ok(dirval!(BankRedirectType = LocalBankRedirect))
         }
         api_enums::PaymentMethodType::TouchNGo => Ok(dirval!(WalletType = TouchNGo)),
         api_enums::PaymentMethodType::Atome => Ok(dirval!(PayLaterType = Atome)),
@@ -133,11 +136,18 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+        api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+        api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
+        api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
+        api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
+        api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
+        api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
     }
 }
 
 fn compile_request_pm_types(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     pm_types: RequestPaymentMethodTypes,
     pm: api_enums::PaymentMethod,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -218,7 +228,7 @@ fn compile_request_pm_types(
 
     if let Some(min_amt) = pm_types.minimum_amount {
         let num_val = NumValue {
-            number: min_amt.into(),
+            number: min_amt,
             refinement: Some(NumValueRefinement::GreaterThanEqual),
         };
 
@@ -234,7 +244,7 @@ fn compile_request_pm_types(
 
     if let Some(max_amt) = pm_types.maximum_amount {
         let num_val = NumValue {
-            number: max_amt.into(),
+            number: max_amt,
             refinement: Some(NumValueRefinement::LessThanEqual),
         };
 
@@ -250,7 +260,7 @@ fn compile_request_pm_types(
 
     if !amount_nodes.is_empty() {
         let zero_num_val = NumValue {
-            number: 0,
+            number: MinorUnit::zero(),
             refinement: None,
         };
 
@@ -322,7 +332,7 @@ fn compile_request_pm_types(
 }
 
 fn compile_payment_method_enabled(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     enabled: admin_api::PaymentMethodsEnabled,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let agg_id = if !enabled
@@ -390,7 +400,7 @@ macro_rules! collect_global_variants {
 }
 fn global_vec_pmt(
     enabled_pmt: Vec<dir::DirValue>,
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
 ) -> Vec<cgraph::NodeId> {
     let mut global_vector: Vec<dir::DirValue> = Vec::new();
 
@@ -400,6 +410,7 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(BankDebitType));
     global_vector.append(collect_global_variants!(CryptoType));
     global_vector.append(collect_global_variants!(RewardType));
+    global_vector.append(collect_global_variants!(RealTimePaymentType));
     global_vector.append(collect_global_variants!(UpiType));
     global_vector.append(collect_global_variants!(VoucherType));
     global_vector.append(collect_global_variants!(GiftCardType));
@@ -426,7 +437,7 @@ fn global_vec_pmt(
 }
 
 fn compile_graph_for_countries_and_currencies(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CurrencyCountryFlowFilter,
     payment_method_type_node: cgraph::NodeId,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -492,7 +503,7 @@ fn compile_graph_for_countries_and_currencies(
 }
 
 fn compile_config_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CountryCurrencyFilter,
     connector: &api_enums::RoutableConnectors,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -585,7 +596,7 @@ fn compile_config_graph(
 }
 
 fn compile_merchant_connector_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
@@ -658,13 +669,13 @@ fn compile_merchant_connector_graph(
     Ok(())
 }
 
-pub fn make_mca_graph<'a>(
+pub fn make_mca_graph(
     accts: Vec<admin_api::MerchantConnectorResponse>,
     config: &kgraph_types::CountryCurrencyFilter,
-) -> Result<cgraph::ConstraintGraph<'a, dir::DirValue>, KgraphError> {
+) -> Result<cgraph::ConstraintGraph<dir::DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
     let _domain = builder.make_domain(
-        DOMAIN_IDENTIFIER,
+        DOMAIN_IDENTIFIER.to_string(),
         "Payment methods enabled for MerchantConnectorAccount",
     );
     for acct in accts {
@@ -690,7 +701,7 @@ mod tests {
     use super::*;
     use crate::types as kgraph_types;
 
-    fn build_test_data<'a>() -> ConstraintGraph<'a, dir::DirValue> {
+    fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
 
         let stripe_account = MerchantConnectorResponse {
@@ -719,8 +730,8 @@ mod tests {
                             api_enums::Currency::INR,
                         ])),
                         accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
                     },
@@ -735,8 +746,8 @@ mod tests {
                             api_enums::Currency::GBP,
                         ])),
                         accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
                     },

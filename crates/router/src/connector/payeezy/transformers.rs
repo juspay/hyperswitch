@@ -134,6 +134,7 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
             | diesel_models::enums::PaymentMethod::Crypto
             | diesel_models::enums::PaymentMethod::BankDebit
             | diesel_models::enums::PaymentMethod::Reward
+            | diesel_models::enums::PaymentMethod::RealTimePayment
             | diesel_models::enums::PaymentMethod::Upi
             | diesel_models::enums::PaymentMethod::Voucher
             | diesel_models::enums::PaymentMethod::GiftCard => {
@@ -254,6 +255,7 @@ fn get_payment_method_data(
         | domain::PaymentMethodData::Crypto(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::GiftCard(_)
@@ -433,6 +435,7 @@ impl<F, T>
                         .unwrap_or(item.response.transaction_id),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

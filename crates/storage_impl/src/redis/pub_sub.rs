@@ -1,8 +1,13 @@
+use std::sync::atomic;
+
 use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
-use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE};
+use crate::redis::cache::{
+    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, DECISION_MANAGER_CACHE,
+    ROUTING_CACHE, SURCHARGE_CACHE,
+};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -18,7 +23,7 @@ pub trait PubSubInterface {
 }
 
 #[async_trait::async_trait]
-impl PubSubInterface for redis_interface::RedisConnectionPool {
+impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
         // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
@@ -27,7 +32,32 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         self.subscriber
             .subscribe(channel)
             .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+            .change_context(redis_errors::RedisError::SubscribeError)?;
+
+        // Spawn only one thread handling all the published messages to different channels
+        if self
+            .subscriber
+            .is_subscriber_handler_spawned
+            .compare_exchange(
+                false,
+                true,
+                atomic::Ordering::SeqCst,
+                atomic::Ordering::SeqCst,
+            )
+            .is_ok()
+        {
+            let redis_clone = self.clone();
+            let _task_handle = tokio::spawn(
+                async move {
+                    if let Err(pubsub_error) = redis_clone.on_message().await {
+                        logger::error!(?pubsub_error);
+                    }
+                }
+                .in_current_span(),
+            );
+        }
+
+        Ok(())
     }
 
     #[inline]
@@ -44,52 +74,134 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
     #[inline]
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
-        logger::debug!("Started on message");
+        logger::debug!("Started on message: {:?}", self.key_prefix);
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
-            logger::debug!("Invalidating {message:?}");
-            let key = match CacheKind::try_from(RedisValue::new(message.value))
-                .change_context(redis_errors::RedisError::OnMessageError)
-            {
-                Ok(value) => value,
-                Err(err) => {
-                    logger::error!(value_conversion_err=?err);
-                    continue;
-                }
-            };
+            let channel_name = message.channel.to_string();
+            logger::debug!("Received message on channel: {channel_name}");
 
-            let key = match key {
-                CacheKind::Config(key) => {
-                    CONFIG_CACHE.remove(key.as_ref()).await;
-                    key
-                }
-                CacheKind::Accounts(key) => {
-                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
-                    key
-                }
-                CacheKind::CGraph(key) => {
-                    CGRAPH_CACHE.remove(key.as_ref()).await;
-                    key
-                }
-                CacheKind::Routing(key) => {
-                    ROUTING_CACHE.remove(key.as_ref()).await;
-                    key
-                }
-                CacheKind::All(key) => {
-                    CONFIG_CACHE.remove(key.as_ref()).await;
-                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
-                    CGRAPH_CACHE.remove(key.as_ref()).await;
-                    ROUTING_CACHE.remove(key.as_ref()).await;
-                    key
-                }
-            };
+            match channel_name.as_str() {
+                super::cache::IMC_INVALIDATION_CHANNEL => {
+                    let key = match CacheKind::try_from(RedisValue::new(message.value))
+                        .change_context(redis_errors::RedisError::OnMessageError)
+                    {
+                        Ok(value) => value,
+                        Err(err) => {
+                            logger::error!(value_conversion_err=?err);
+                            continue;
+                        }
+                    };
 
-            self.delete_key(key.as_ref())
-                .await
-                .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
-                .ok();
+                    let key = match key {
+                        CacheKind::Config(key) => {
+                            CONFIG_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::Accounts(key) => {
+                            ACCOUNTS_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::CGraph(key) => {
+                            CGRAPH_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::Routing(key) => {
+                            ROUTING_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::DecisionManager(key) => {
+                            DECISION_MANAGER_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::Surcharge(key) => {
+                            SURCHARGE_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            key
+                        }
+                        CacheKind::All(key) => {
+                            CONFIG_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            ACCOUNTS_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            CGRAPH_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            ROUTING_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            DECISION_MANAGER_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
+                            SURCHARGE_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: self.key_prefix.clone(),
+                                })
+                                .await;
 
-            logger::debug!("Done invalidating {key}");
+                            key
+                        }
+                    };
+
+                    self.delete_key(key.as_ref())
+                        .await
+                        .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
+                        .ok();
+
+                    logger::debug!(
+                        "Handled message on channel {channel_name} - Done invalidating {key}"
+                    );
+                }
+                _ => {
+                    logger::debug!("Received message from unknown channel: {channel_name}");
+                }
+            }
         }
         Ok(())
     }

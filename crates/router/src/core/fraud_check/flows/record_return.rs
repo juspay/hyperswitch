@@ -19,7 +19,7 @@ use crate::{
         storage::enums as storage_enums,
         ConnectorAuthType, ResponseId, RouterData,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
 #[async_trait]
@@ -28,7 +28,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -65,7 +65,9 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
+            minor_amount_captured: None,
             request: FraudCheckRecordReturnData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded
@@ -100,6 +102,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
@@ -110,7 +113,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
 impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -128,13 +131,12 @@ impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRou
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmRecordReturnRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmRecordReturnRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,
         FraudCheckRecordReturnData,
         FraudCheckResponseData,

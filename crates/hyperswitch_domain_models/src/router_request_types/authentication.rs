@@ -8,29 +8,6 @@ use crate::{
     router_request_types::BrowserInformation,
 };
 
-#[derive(Debug, Clone)]
-pub enum AuthenticationResponseData {
-    PreAuthNResponse {
-        threeds_server_transaction_id: String,
-        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
-        connector_authentication_id: String,
-        three_ds_method_data: Option<String>,
-        three_ds_method_url: Option<String>,
-        message_version: common_utils::types::SemanticVersion,
-        connector_metadata: Option<serde_json::Value>,
-    },
-    AuthNResponse {
-        authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
-        trans_status: common_enums::TransactionStatus,
-    },
-    PostAuthNResponse {
-        trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
-        eci: Option<String>,
-    },
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChallengeParams {
     pub acs_url: Option<url::Url>,
@@ -94,8 +71,7 @@ impl AuthNFlowType {
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card number
-    #[allow(dead_code)]
-    pub(crate) card_holder_account_number: CardNumber,
+    pub card_holder_account_number: CardNumber,
 }
 
 #[derive(Clone, Debug)]
@@ -134,6 +110,7 @@ pub struct PreAuthenticationData {
     pub message_version: common_utils::types::SemanticVersion,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
 }
 
@@ -160,6 +137,7 @@ impl TryFrom<&diesel_models::authentication::Authentication> for PreAuthenticati
             acquirer_bin: authentication.acquirer_bin.clone(),
             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
             connector_metadata: authentication.connector_metadata.clone(),
+            acquirer_country_code: authentication.acquirer_country_code.clone(),
         })
     }
 }
@@ -174,6 +152,7 @@ pub struct ThreeDsMethodData {
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

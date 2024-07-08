@@ -245,6 +245,7 @@ impl
                 | domain::PaymentMethodData::Crypto(_)
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
@@ -403,7 +404,8 @@ fn make_bank_redirect_request(
         | domain::BankRedirectData::Sofort { .. }
         | domain::BankRedirectData::Trustly { .. }
         | domain::BankRedirectData::OnlineBankingFpx { .. }
-        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+        | domain::BankRedirectData::OnlineBankingThailand { .. }
+        | domain::BankRedirectData::LocalBankRedirect {} => {
             return Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
             )
@@ -582,6 +584,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -636,6 +639,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

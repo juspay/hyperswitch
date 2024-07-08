@@ -11,6 +11,7 @@ use crate::types::MinorUnit;
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
 #[derive(Debug, thiserror::Error)]
 pub enum ParsingError {
     ///Failed to parse enum
@@ -34,6 +35,21 @@ pub enum ParsingError {
     /// Failed to parse phone number
     #[error("Failed to parse phone number")]
     PhoneNumberParsingError,
+    /// Failed to parse Float value for converting to decimal points
+    #[error("Failed to parse Float value for converting to decimal points")]
+    FloatToDecimalConversionFailure,
+    /// Failed to parse Decimal value for i64 value conversion
+    #[error("Failed to parse Decimal value for i64 value conversion")]
+    DecimalToI64ConversionFailure,
+    /// Failed to parse string value for f64 value conversion
+    #[error("Failed to parse string value for f64 value conversion")]
+    StringToFloatConversionFailure,
+    /// Failed to parse i64 value for f64 value conversion
+    #[error("Failed to parse i64 value for f64 value conversion")]
+    I64ToDecimalConversionFailure,
+    /// Failed to parse String value to Decimal value conversion because `error`
+    #[error("Failed to parse String value to Decimal value conversion because {error}")]
+    StringToDecimalConversionFailure { error: String },
 }
 
 /// Validation errors.
@@ -51,6 +67,15 @@ pub enum ValidationError {
     /// An invalid input was provided.
     #[error("{message}")]
     InvalidValue { message: String },
+}
+
+/// Integrity check errors.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IntegrityCheckError {
+    /// Field names for which integrity check failed!
+    pub field_names: String,
+    /// Connector transaction reference id
+    pub connector_transaction_id: Option<String>,
 }
 
 /// Cryptographic algorithm errors

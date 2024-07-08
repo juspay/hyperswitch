@@ -99,20 +99,28 @@ mod tests {
         types::{self, storage::enums},
     };
 
-    #[actix_rt::test]
-    #[ignore]
-    async fn test_payment_attempt_insert() {
+    async fn create_single_connection_test_transaction_pool() -> routes::AppState {
+        // Set pool size to 1 and minimum idle connection size to 0
+        std::env::set_var("ROUTER__MASTER_DATABASE__POOL_SIZE", "1");
+        std::env::set_var("ROUTER__MASTER_DATABASE__MIN_IDLE", "0");
+        std::env::set_var("ROUTER__REPLICA_DATABASE__POOL_SIZE", "1");
+        std::env::set_var("ROUTER__REPLICA_DATABASE__MIN_IDLE", "0");
+
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        let state = Box::pin(routes::AppState::with_storage(
+        Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
         ))
-        .await;
+        .await
+    }
 
+    #[tokio::test]
+    async fn test_payment_attempt_insert() {
+        let state = create_single_connection_test_transaction_pool().await;
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
@@ -124,8 +132,11 @@ mod tests {
             ..PaymentAttemptNew::default()
         };
 
-        let response = state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        let response = store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
@@ -134,22 +145,11 @@ mod tests {
         assert_eq!(response.payment_id, payment_id.clone());
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     /// Example of unit test
     /// Kind of test: state-based testing
     async fn test_find_payment_attempt() {
-        use crate::configs::settings::Settings;
-        let conf = Settings::new().expect("invalid settings");
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let api_client = Box::new(services::MockApiClient);
-        let state = Box::pin(routes::AppState::with_storage(
-            conf,
-            StorageImpl::PostgresqlTest,
-            tx,
-            api_client,
-        ))
-        .await;
-
+        let state = create_single_connection_test_transaction_pool().await;
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
         let attempt_id = Uuid::new_v4().to_string();
@@ -165,14 +165,16 @@ mod tests {
             attempt_id: attempt_id.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
@@ -187,23 +189,12 @@ mod tests {
         assert_eq!(response.payment_id, payment_id);
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     /// Example of unit test
     /// Kind of test: state-based testing
     async fn test_payment_attempt_mandate_field() {
-        use crate::configs::settings::Settings;
-        let conf = Settings::new().expect("invalid settings");
+        let state = create_single_connection_test_transaction_pool().await;
         let uuid = Uuid::new_v4().to_string();
-        let tx: oneshot::Sender<()> = oneshot::channel().0;
-
-        let api_client = Box::new(services::MockApiClient);
-        let state = Box::pin(routes::AppState::with_storage(
-            conf,
-            StorageImpl::PostgresqlTest,
-            tx,
-            api_client,
-        ))
-        .await;
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 
@@ -218,14 +209,16 @@ mod tests {
             attempt_id: uuid.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",

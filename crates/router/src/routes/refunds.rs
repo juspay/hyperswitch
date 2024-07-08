@@ -182,7 +182,7 @@ pub async fn refunds_update(
     let flow = Flow::RefundsUpdate;
     let mut refund_update_req = json_payload.into_inner();
     refund_update_req.refund_id = path.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -190,7 +190,7 @@ pub async fn refunds_update(
         |state, auth, req, _| refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - List
@@ -215,7 +215,7 @@ pub async fn refunds_list(
     payload: web::Json<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -227,7 +227,7 @@ pub async fn refunds_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -253,7 +253,7 @@ pub async fn refunds_filter_list(
     payload: web::Json<api_models::payments::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -265,7 +265,7 @@ pub async fn refunds_filter_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -286,7 +286,7 @@ pub async fn refunds_filter_list(
 #[cfg(feature = "olap")]
 pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::RefundsFilters;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -298,6 +298,29 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsManualUpdate))]
+#[cfg(feature = "olap")]
+pub async fn refunds_manual_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::RefundManualUpdateRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RefundsManualUpdate;
+    let mut refund_manual_update_req = payload.into_inner();
+    refund_manual_update_req.refund_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_manual_update_req,
+        |state, _auth, req, _| refund_manual_update(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

@@ -12,12 +12,12 @@ impl ConnectorActions for BitpayTest {}
 impl utils::Connector for BitpayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Bitpay;
-        api::ConnectorData {
-            connector: Box::new(&Bitpay),
-            connector_name: types::Connector::Bitpay,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Bitpay),
+            types::Connector::Bitpay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -52,7 +52,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
@@ -70,6 +70,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         currency: enums::Currency::USD,
         payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: None,
+            network: None,
         }),
         confirm: true,
         statement_descriptor_suffix: None,
@@ -99,6 +100,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         metadata: None,
         authentication_data: None,
         customer_acceptance: None,
+        ..utils::PaymentAuthorizeType::default().0
     })
 }
 

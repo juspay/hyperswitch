@@ -372,6 +372,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -455,6 +456,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -605,7 +607,8 @@ fn get_payment_details_and_product(
             | domain::BankRedirectData::Przelewy24 { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nexinets"),
                 ))?
@@ -618,6 +621,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
+        | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
@@ -722,7 +726,8 @@ fn get_wallet_details(
         | domain::WalletData::WeChatPayRedirect(_)
         | domain::WalletData::WeChatPayQr(_)
         | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }

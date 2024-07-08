@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate};
 use common_enums::{CountryAlpha2, PaymentMethod, PaymentMethodType};
+use common_utils::{id_type, types};
 use masking::Secret;
 
 #[derive(Debug, Clone)]
@@ -22,7 +23,7 @@ pub struct LinkTokenRequest {
     pub client_name: String,
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
-    pub user_info: Option<String>,
+    pub user_info: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +79,7 @@ pub struct BankAccountDetails {
     pub payment_method: PaymentMethod,
     pub account_id: Secret<String>,
     pub account_type: Option<String>,
+    pub balance: Option<types::FloatMajorUnit>,
 }
 
 #[derive(Debug, Clone)]
@@ -154,11 +156,8 @@ pub type PaymentAuthBankAccountDetailsType = dyn api::ConnectorIntegration<
     BankAccountCredentialsResponse,
 >;
 
-pub type PaymentInitiationRecipientCreateType = dyn self::api::ConnectorIntegration<
-    RecipientCreate,
-    RecipientCreateRequest,
-    RecipientCreateResponse,
->;
+pub type PaymentInitiationRecipientCreateType =
+    dyn api::ConnectorIntegration<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>;
 
 #[derive(Clone, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]

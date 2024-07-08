@@ -12,12 +12,12 @@ impl ConnectorActions for NmiTest {}
 impl utils::Connector for NmiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nmi;
-        types::api::ConnectorData {
-            connector: Box::new(&Nmi),
-            connector_name: types::Connector::Nmi,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Nmi::new()),
+            types::Connector::Nmi,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -645,7 +645,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
     let capture_response = CONNECTOR
-        .capture_payment("7899353591".to_string(), None, None)
+        .capture_payment("9123456789".to_string(), None, None)
         .await
         .unwrap();
     assert_eq!(capture_response.status, enums::AttemptStatus::CaptureFailed);
