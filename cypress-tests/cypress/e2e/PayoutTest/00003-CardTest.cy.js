@@ -17,9 +17,15 @@ describe("[Payout] Cards", () => {
       }
     });
   });
+  
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
   });
 
   context("Payout Card with Auto Fulfill", () => {
