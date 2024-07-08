@@ -2600,7 +2600,7 @@ async fn locker_recipient_create_call(
 
     let cust_id = id_type::CustomerId::from(merchant_id.to_string().into())
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to conver to CustomerId")?;
+        .attach_printable("Failed to convert to CustomerId")?;
 
     let payload = transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
         merchant_id,
