@@ -2,10 +2,6 @@ use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 use common_utils::new_type;
-
-#[cfg(not(feature = "v2"))]
-use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -13,6 +9,8 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
+#[cfg(not(feature = "v2"))]
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -21,10 +19,9 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::{enums as api_enums, payment_methods};
-
 #[cfg(not(feature = "v2"))]
 use crate::routing;
+use crate::{enums as api_enums, payment_methods};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {

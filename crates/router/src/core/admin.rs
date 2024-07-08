@@ -17,6 +17,8 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(not(feature = "v2"))]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
@@ -39,9 +41,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
-#[cfg(not(feature = "v2"))]
-use crate::types::transformers::ForeignFrom;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
