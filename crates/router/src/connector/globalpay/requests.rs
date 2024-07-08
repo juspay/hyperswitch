@@ -23,14 +23,14 @@ pub struct GlobalpayPaymentsRequest {
     pub capture_mode: Option<CaptureMode>,
     /// The amount of the transaction that relates to cashback.It is always represented in the
     /// lowest denomiation of the related currency.
-    pub cashback_amount: Option<String>,
+    pub cashback_amount: Option<StringMinorUnit>,
     /// Describes whether the transaction was processed in a face to face(CP) scenario or a
     /// Customer Not Present (CNP) scenario.
     pub channel: Channel,
     /// The amount that reflects the charge the merchant applied to the transaction for availing
     /// of a more convenient purchase.It is always represented in the lowest denomiation of the
     /// related currency.
-    pub convenience_amount: Option<String>,
+    pub convenience_amount: Option<StringMinorUnit>,
     /// The country in ISO-3166-1(alpha-2 code) format.
     pub country: api_models::enums::CountryAlpha2,
     /// The currency of the amount in ISO-4217(alpha-3)
@@ -144,7 +144,7 @@ pub struct Lodging {
     /// A reference that identifies the booking reference for a lodging stay.
     pub booking_reference: Option<String>,
     /// The amount charged for one nights lodging.
-    pub daily_rate_amount: Option<String>,
+    pub daily_rate_amount: Option<StringMinorUnit>,
     /// A reference that identifies the booking reference for a lodging stay.
     pub date_checked_in: Option<String>,
     /// The check out date for a lodging stay.

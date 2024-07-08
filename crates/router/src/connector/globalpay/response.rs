@@ -98,7 +98,7 @@ pub struct CurrencyConversion {
     /// The exchange rate used to convert one currency to another.
     pub margin_rate_percentage: Option<String>,
     /// The amount that will affect the payer's account.
-    pub payer_amount: Option<String>,
+    pub payer_amount: Option<StringMinorUnit>,
     /// The currency of the amount that will affect the payer's account.
     pub payer_currency: Option<String>,
 }
