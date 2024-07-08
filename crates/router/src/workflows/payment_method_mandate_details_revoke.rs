@@ -1,7 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use diesel_models::process_tracker::business_status::{
-    COMPLETED_BY_PT, NOT_IMPLEMENTED_FOR_THE_CONNECTOR, RETRIES_EXCEEDED,
-};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
@@ -97,7 +95,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
         match response.response {
             Ok(_mandate) => {
                 db.as_scheduler()
-                    .finish_process_with_business_status(process, COMPLETED_BY_PT)
+                    .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                     .await?;
             }
             Err(err) => {
@@ -106,7 +104,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                     db.as_scheduler()
                         .finish_process_with_business_status(
                             process,
-                            NOT_IMPLEMENTED_FOR_THE_CONNECTOR,
+                            business_status::NOT_IMPLEMENTED_FOR_THE_CONNECTOR,
                         )
                         .await?;
                 } else {
@@ -141,7 +139,7 @@ async fn connector_reschedule_task(
             .map_err(Into::<errors::ProcessTrackerError>::into)?,
         None => db
             .as_scheduler()
-            .finish_process_with_business_status(process, RETRIES_EXCEEDED)
+            .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
             .await
             .map_err(Into::<errors::ProcessTrackerError>::into)?,
     };
