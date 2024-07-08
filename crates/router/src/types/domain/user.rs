@@ -380,30 +380,33 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    pub async fn create_new_merchant_and_insert_in_db(
-        &self,
-        state: SessionState,
-    ) -> UserResult<()> {
-        self.check_if_already_exists_in_db(state.clone()).await?;
+    #[cfg(feature = "v2")]
+    fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
+        let merchant_name = if let Some(company_name) = self.company_name.clone() {
+            MerchantName::try_from(company_name)
+        } else {
+            MerchantName::new("merchant".to_string())
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("merchant name validation failed")
+        }
+        .map(Secret::new)?;
 
-        #[cfg(feature = "v2")]
-        let merchant_account_create_request = admin_api::MerchantAccountCreate {
-            merchant_name: self
-                .company_name
-                .clone()
-                .map(MerchantName::try_from)
-                .transpose()?
-                .map(Secret::new),
+        Ok(admin_api::MerchantAccountCreate {
+            merchant_name,
             organization_id: self.new_organization.get_organization_id(),
             metadata: None,
             merchant_details: None,
-        };
+        })
+    }
 
-        #[cfg(not(feature = "v2"))]
-        let merchant_account_create_request = admin_api::MerchantAccountCreate {
+    #[cfg(not(feature = "v2"))]
+    fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
+        Ok(admin_api::MerchantAccountCreate {
             merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())
-                .change_context(UserErrors::CompanyNameParsingError)
-                .attach_printable("Unable to convert")?,
+                .change_context(UserErrors::MerchantIdParsingError)
+                .attach_printable(
+                    "Unable to convert to MerchantId type because of constraint violations",
+                )?,
             metadata: None,
             locker_id: None,
             return_url: None,
@@ -423,7 +426,18 @@ impl NewUserMerchant {
             enable_payment_response_hash: None,
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
-        };
+        })
+    }
+
+    pub async fn create_new_merchant_and_insert_in_db(
+        &self,
+        state: SessionState,
+    ) -> UserResult<()> {
+        self.check_if_already_exists_in_db(state.clone()).await?;
+
+        let merchant_account_create_request = self
+            .create_merchant_account_request()
+            .attach_printable("unable to construct merchant account create request")?;
 
         Box::pin(admin::create_merchant_account(
             state.clone(),

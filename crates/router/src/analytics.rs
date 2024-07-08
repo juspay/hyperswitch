@@ -370,7 +370,7 @@ pub mod routes {
                 analytics::active_payments::get_metrics(
                     &state.pool,
                     &auth.merchant_account.publishable_key,
-                    Some(&auth.merchant_account.merchant_id),
+                    &auth.merchant_account.merchant_id,
                     req,
                 )
                 .await

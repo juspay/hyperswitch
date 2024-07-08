@@ -2,17 +2,19 @@ use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 use common_utils::new_type;
+
+#[cfg(not(feature = "v2"))]
+use common_utils::crypto::OptionalEncryptableName;
+
 use common_utils::{
     consts,
-    crypto::{
-        generate_cryptographically_secure_random_string, Encryptable, OptionalEncryptableName,
-    },
+    crypto::Encryptable,
     errors::{self, CustomResult},
-    ext_traits::{Encode, ValueExt},
+    ext_traits::Encode,
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
+use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
@@ -22,7 +24,7 @@ use super::payments::AddressDetails;
 use crate::{
     enums,
     enums::{self as api_enums},
-    payment_methods, routing,
+    payment_methods,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -188,9 +190,9 @@ impl MerchantAccountCreate {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
-    /// Name of the Merchant Account
-    #[schema(value_type= Option<String>, max_length = 32, example = "NewAge Retailer")]
-    pub merchant_name: Option<Secret<new_type::MerchantName>>,
+    /// Name of the Merchant Account, This will be used as a prefix to generate the id
+    #[schema(value_type= String, max_length = 32, example = "NewAge Retailer")]
+    pub merchant_name: Secret<new_type::MerchantName>,
 
     /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
@@ -206,11 +208,31 @@ pub struct MerchantAccountCreate {
 #[cfg(feature = "v2")]
 impl MerchantAccountCreate {
     pub fn get_merchant_id(&self) -> id_type::MerchantId {
-        self.merchant_name
-            .clone()
-            .expose_option()
-            .map(id_type::MerchantId::from_merchant_name)
-            .unwrap_or_default()
+        id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
+    }
+
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_primary_details_as_value(
+        &self,
+    ) -> CustomResult<serde_json::Value, errors::ParsingError> {
+        Vec::<PrimaryBusinessDetails>::new().encode_to_value()
     }
 }
 
@@ -409,8 +431,8 @@ pub struct MerchantAccountResponse {
     pub id: String,
 
     /// Name of the Merchant Account
-    #[schema(value_type = Option<String>,example = "NewAge Retailer")]
-    pub merchant_name: OptionalEncryptableName,
+    #[schema(value_type = String,example = "NewAge Retailer")]
+    pub merchant_name: Secret<String>,
 
     /// Details about the merchant
     #[schema(value_type = Option<MerchantDetails>)]

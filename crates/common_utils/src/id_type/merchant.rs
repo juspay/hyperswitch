@@ -13,12 +13,11 @@ use diesel::{
     sql_types, Queryable,
 };
 use error_stack::{Result, ResultExt};
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     consts::{MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH},
-    errors, generate_ref_id_with_default_length,
+    errors, generate_id_with_default_len, generate_ref_id_with_default_length,
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
 };
@@ -76,15 +75,10 @@ impl MerchantId {
     pub fn from_merchant_name(merchant_name: MerchantName) -> Self {
         let merchant_name_string = merchant_name.into_inner();
 
-        let merchant_id = merchant_name_string.trim().to_lowercase().replace(' ', "_");
+        let merchant_id_prefix = merchant_name_string.trim().to_lowercase().replace(' ', "");
 
-        // Generate a 3 digit random number so that collision will be less
-        let mut rng = rand::thread_rng();
-        let randomness: u32 = rng.gen_range(100..1000);
-
-        let merchant_id = format!("{merchant_id}{randomness}");
-
-        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id);
+        let alphanumeric_id =
+            AlphaNumericId::new_unchecked(generate_id_with_default_len(&merchant_id_prefix));
         let length_id = LengthId::new_unchecked(alphanumeric_id);
 
         Self(length_id)

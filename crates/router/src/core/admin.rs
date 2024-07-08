@@ -17,8 +17,6 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
@@ -258,12 +256,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 /// If not passed, create a new organization
 enum CreateOrValidateOrganization {
     /// Create a new organization
+    #[cfg(not(feature = "v2"))]
     Create,
     /// Validate if this organization exists in the records
     Validate { organization_id: String },
 }
 
 impl CreateOrValidateOrganization {
+    #[cfg(not(feature = "v2"))]
     fn new(organization_id: Option<String>) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
@@ -272,8 +272,13 @@ impl CreateOrValidateOrganization {
         }
     }
 
+    fn validate(organization_id: String) -> Self {
+        Self::Validate { organization_id }
+    }
+
     async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
         Ok(match self {
+            #[cfg(not(feature = "v2"))]
             CreateOrValidateOrganization::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -296,6 +301,7 @@ impl CreateOrValidateOrganization {
     }
 }
 
+#[cfg(not(feature = "v2"))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -306,6 +312,7 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
+#[cfg(not(feature = "v2"))]
 impl CreateBusinessProfile {
     fn new(primary_business_details: Option<Vec<admin_types::PrimaryBusinessDetails>>) -> Self {
         if let Some(primary_business_details) = primary_business_details {
@@ -420,58 +427,42 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
 
-        let merchant_details = self
-            .merchant_details
-            .as_ref()
-            .map(|merchant_details| {
-                merchant_details.encode_to_value().change_context(
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "merchant_details",
-                    },
-                )
-            })
-            .transpose()?
-            .map(Secret::new);
+        let metadata = self.get_metadata_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            },
+        )?;
 
-        let metadata = self
-            .metadata
-            .as_ref()
-            .map(|meta| {
-                meta.encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
-                    })
-            })
-            .transpose()?
-            .map(Secret::new);
+        let merchant_details = self.get_merchant_details_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_details",
+            },
+        )?;
 
-        db.find_organization_by_org_id(&self.organization_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "organization with the given id does not exist".to_string(),
-            })?;
+        let primary_business_details = self.get_primary_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            },
+        )?;
+
+        CreateOrValidateOrganization::validate(self.organization_id.clone())
+            .create_or_validate(db)
+            .await?;
 
         let key = key_store.key.into_inner();
-
-        let primary_business_details = Vec::<api_models::admin::PrimaryBusinessDetails>::new()
-            .encode_to_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount {
                     merchant_id: self.get_merchant_id().get_string_repr().to_owned(),
-                    merchant_name: self
-                        .merchant_name
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
-                                inner.map(|merchant_name| {
-                                    merchant_name.map(|merchant_name| merchant_name.into_inner())
-                                }),
-                                key.peek(),
-                            )
-                        })
+                    merchant_name: Some(
+                        domain_types::encrypt(
+                            self.merchant_name
+                                .map(|merchant_name| merchant_name.into_inner()),
+                            key.peek(),
+                        )
                         .await?,
+                    ),
                     merchant_details: merchant_details
                         .async_lift(|inner| domain_types::encrypt_optional(inner, key.peek()))
                         .await?,
