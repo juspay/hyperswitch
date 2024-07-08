@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.28.0-hotfix4
+
+### Bug Fixes
+
+- Fix(router): [Iatapay] add CLEARED refund status ([#5244](https://github.com/juspay/hyperswitch/pull/5244)) ([`6263c85`](https://github.com/juspay/hyperswitch/commit/6263c85380647faaf8ab169b988e911e65af6167))
+
+- - -
+
 ## 2024.06.28.0-hotfix3
 
 ### Refactors
