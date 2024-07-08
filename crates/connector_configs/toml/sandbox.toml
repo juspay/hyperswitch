@@ -231,63 +231,50 @@ key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[adyen.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[adyen.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[adyen.metadata.apple_pay_v2]]
+[[adyen.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -450,63 +437,50 @@ key1="Transaction Key"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[authorizedotnet.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[authorizedotnet.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[authorizedotnet.metadata.apple_pay_v2]]
+[[authorizedotnet.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -622,63 +596,50 @@ api_secret="Shared Secret"
 [bankofamerica.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[bankofamerica.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[bankofamerica.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[bankofamerica.metadata.apple_pay_v2]]
+[[bankofamerica.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -760,63 +721,50 @@ key1="Username"
 [bluesnap.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[bluesnap.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[bluesnap.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[bluesnap.metadata.apple_pay_v2]]
+[[bluesnap.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -1074,63 +1022,50 @@ api_secret="Checkout API Secret Key"
 [checkout.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[checkout.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[checkout.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[checkout.metadata.apple_pay_v2]]
+[[checkout.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -1241,63 +1176,50 @@ api_secret="Shared Secret"
 [cybersource.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[cybersource.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[cybersource.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[cybersource.metadata.apple_pay_v2]]
+[[cybersource.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -1853,63 +1775,51 @@ api_key="API Key"
 key1="Merchant ID"
 [nexinets.connector_webhook_details]
 merchant_secret="Source verification key"
-[nexinets.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[nexinets.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
 
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[nexinets.metadata.apple_pay_v2]]
+[[nexinets.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -1966,63 +1876,50 @@ key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[nmi.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[nmi.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[nmi.metadata.apple_pay_v2]]
+[[nmi.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -2118,63 +2015,50 @@ api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[noon.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[noon.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[noon.metadata.apple_pay_v2]]
+[[noon.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -2263,63 +2147,50 @@ api_secret="Merchant Secret"
 [nuvei.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[nuvei.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[nuvei.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[nuvei.metadata.apple_pay_v2]]
+[[nuvei.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -2669,63 +2540,50 @@ key1="API Secret"
 [rapyd.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[rapyd.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[rapyd.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[rapyd.metadata.apple_pay_v2]]
+[[rapyd.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -2870,63 +2728,50 @@ api_key="Secret Key"
 [stripe.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[stripe.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[stripe.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[stripe.metadata.apple_pay_v2]]
+[[stripe.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -3098,63 +2943,50 @@ api_secret="Secret Key"
 [trustpay.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[trustpay.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[trustpay.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[trustpay.metadata.apple_pay_v2]]
+[[trustpay.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -3331,63 +3163,50 @@ key1="Password"
 [worldpay.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[worldpay.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[worldpay.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
 placeholder="Enter Merchant Certificate (Base64 Encoded)"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="certificate_keys"
 label="Merchant PrivateKey (Base64 Encoded)"
 placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="merchant_identifier"
 label="Apple Merchant Identifier"
 placeholder="Enter Apple Merchant Identifier"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="display_name"
 label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="initiative_context"
 label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
 required=true
 type="Select"
 options=[]
-[[worldpay.metadata.apple_pay_v2]]
+[[worldpay.metadata.apple_pay]]
 name="payment_processing_details_at"
 label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
@@ -3474,13 +3293,13 @@ api_key="API Key"
 [zen.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[[zen.metadata.apple_pay_v2]]
+[[zen.metadata.apple_pay]]
 name="terminal_uuid"
 label="Terminal UUID"
 placeholder="Enter Terminal UUID"
 required=true
 type="Text"
-[[zen.metadata.apple_pay_v2]]
+[[zen.metadata.apple_pay]]
 name="pay_wall_secret"
 label="Pay Wall Secret"
 placeholder="Enter Pay Wall Secret"
