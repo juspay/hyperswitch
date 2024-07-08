@@ -27,7 +27,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    encryption,
     routes::{metrics, SessionState},
     services::{self, api as service_api},
     types::{
@@ -41,6 +40,9 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+
+#[cfg(feature = "keymanager_create")]
+use crate::encryption;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
