@@ -1007,15 +1007,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_and_payment_method_types() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            "bank_transfer": "ach,bacs",
-            "wallet": "paypal,venmo",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("bank_transfer".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,venmo".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,
@@ -1041,15 +1036,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_and_payment_method_types_with_spaces() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            " bank_transfer ": " ach , bacs ",
-            "wallet ": " paypal , pix , venmo ",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            (" bank_transfer ".to_string(), " ach , bacs ".to_string()),
+            ("wallet ".to_string(), " paypal , pix , venmo ".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,
@@ -1079,15 +1069,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_deserializer_error() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            "unknown": "ach,bacs",
-            "wallet": "paypal,unknown",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("unknown".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,unknown".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,
