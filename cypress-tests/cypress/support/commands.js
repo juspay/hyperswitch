@@ -96,7 +96,13 @@ Cypress.Commands.add(
         );
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
-        createConnectorBody.metadata = authDetails?.metadata;
+
+        if (authDetails && authDetails.metadata) {
+          createConnectorBody.metadata = {
+            ...createConnectorBody.metadata, // Preserve existing metadata fields
+            ...authDetails.metadata, // Merge with authDetails.metadata
+          };
+        }
 
         cy.request({
           method: "POST",
@@ -153,7 +159,13 @@ Cypress.Commands.add(
 
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
-        createConnectorBody.metadata = authDetails?.metadata;
+
+        if (authDetails && authDetails.metadata) {
+          createConnectorBody.metadata = {
+            ...createConnectorBody.metadata, // Preserve existing metadata fields
+            ...authDetails.metadata, // Merge with authDetails.metadata
+          };
+        }
 
         cy.request({
           method: "POST",
