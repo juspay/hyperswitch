@@ -1,3 +1,4 @@
+use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::consts;
 use masking::{PeekInterface, Secret};
@@ -703,6 +704,96 @@ impl<F>
                 ..item.data
             })
         }
+    }
+}
+
+pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>, Error> {
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let connector_refund_id: String = req
+        .request
+        .connector_refund_id
+        .clone()
+        .get_required_value("connector_refund_id")
+        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+    let body = format!(
+        r#"
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <dts:QueryTransaction>
+                        <dts:queryXML>
+                            <![CDATA[
+                                <QueryTransaction>
+                                    <Criteria>
+                                        <AccountNumber>{}</AccountNumber>
+                                        <TrnStartTimestamp>2024-06-23 00:00:00</TrnStartTimestamp>
+                                        <TrnEndTimestamp>2099-12-31 23:59:59</TrnEndTimestamp>
+                                        <Receipt>{}</Receipt>
+                                    </Criteria>
+                                    <Security>
+                                        <UserName>{}</UserName>
+                                        <Password>{}</Password>
+                                    </Security>
+                            </QueryTransaction>	
+                            ]]>    
+                        </dts:queryXML>
+                    </dts:QueryTransaction>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        "#,
+        auth_details.account_number.peek(),
+        connector_refund_id,
+        auth_details.username.peek(),
+        auth_details.password.peek(),
+    );
+
+    Ok(body.as_bytes().to_vec())
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacSyncResponse,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
+    > for types::RouterData<F, types::RefundsData, types::RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacSyncResponse,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .query_transaction_response
+            .query_transaction_result
+            .query_response
+            .response
+            .response_code;
+        let connector_refund_id = item
+            .response
+            .body
+            .query_transaction_response
+            .query_transaction_result
+            .query_response
+            .response
+            .receipt;
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: connector_refund_id.to_owned(),
+                refund_status: enums::RefundStatus::foreign_from(response_code),
+            }),
+            ..item.data
+        })
     }
 }
 
