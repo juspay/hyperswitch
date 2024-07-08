@@ -83,6 +83,12 @@ describe("[Payout] Saved Card", () => {
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("create customer", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
@@ -214,6 +220,12 @@ describe("[Payout] Saved Bank transfer", () => {
     "[Payout] [Bank Transfer] Save payment method after successful transaction",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
 
       it("create customer", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
