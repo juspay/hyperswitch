@@ -592,7 +592,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth(Permission::GenerateReport),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -634,7 +634,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::JWTAuth(Permission::GenerateReport),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -676,7 +676,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::PaymentRead),
+            &auth::JWTAuth(Permission::GenerateReport),
             api_locking::LockAction::NotApplicable,
         ))
         .await
