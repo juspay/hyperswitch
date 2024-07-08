@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use common_utils::new_type;
 
 #[cfg(not(feature = "v2"))]
-use common_utils::crypto::OptionalEncryptableName;
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 
 use common_utils::{
     consts,
@@ -21,11 +21,10 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::{
-    enums,
-    enums::{self as api_enums},
-    payment_methods,
-};
+use crate::{enums as api_enums, payment_methods};
+
+#[cfg(not(feature = "v2"))]
+use crate::routing;
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -119,9 +118,9 @@ impl MerchantAccountCreate {
     }
 
     pub fn get_payment_response_hash_key(&self) -> Option<String> {
-        self.payment_response_hash_key
-            .clone()
-            .or(Some(generate_cryptographically_secure_random_string(64)))
+        self.payment_response_hash_key.clone().or(Some(
+            common_utils::crypto::generate_cryptographically_secure_random_string(64),
+        ))
     }
 
     pub fn get_primary_details_as_value(
@@ -240,7 +239,7 @@ impl MerchantAccountCreate {
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
-    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    pub authentication_connectors: Vec<api_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
@@ -416,7 +415,7 @@ pub struct MerchantAccountResponse {
 
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
-    pub recon_status: enums::ReconStatus,
+    pub recon_status: api_enums::ReconStatus,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
@@ -454,7 +453,7 @@ pub struct MerchantAccountResponse {
 
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
-    pub recon_status: enums::ReconStatus,
+    pub recon_status: api_enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

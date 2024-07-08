@@ -6,7 +6,7 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
@@ -60,6 +60,8 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
         let merchant_name = item
             .merchant_name
             .get_required_value("merchant_name")?

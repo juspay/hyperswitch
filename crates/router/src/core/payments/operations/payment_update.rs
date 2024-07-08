@@ -11,7 +11,9 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::payments::payment_intent::{
+    CustomerData, PaymentIntentUpdateFields,
+};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -719,6 +721,26 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .statement_descriptor_suffix
             .clone();
+
+        let billing_details = payment_data
+            .address
+            .get_payment_billing()
+            .async_and_then(|_| async {
+                create_encrypted_data(
+                    key_store,
+                    payment_data.address.get_payment_billing().cloned(),
+                )
+                .await
+            })
+            .await;
+
+        let shipping_details = payment_data
+            .address
+            .get_shipping()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, payment_data.address.get_shipping().cloned()).await
+            })
+            .await;
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
@@ -727,12 +749,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .merchant_order_reference_id
             .clone();
-        let billing_details = payment_data.payment_intent.billing_details.clone();
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::Update {
+                storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     setup_future_usage,
@@ -759,7 +780,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     customer_details,
                     merchant_order_reference_id,
                     billing_details,
-                },
+                    shipping_details,
+                })),
                 key_store,
                 storage_scheme,
             )

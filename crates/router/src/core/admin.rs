@@ -40,6 +40,9 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[cfg(not(feature = "v2"))]
+use crate::types::transformers::ForeignFrom;
+
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
     format!(
@@ -272,14 +275,15 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    fn validate(organization_id: String) -> Self {
+    #[cfg(feature = "v2")]
+    fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
     }
 
     async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
         Ok(match self {
             #[cfg(not(feature = "v2"))]
-            CreateOrValidateOrganization::Create => {
+            Self::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 let organization = db
@@ -289,7 +293,7 @@ impl CreateOrValidateOrganization {
                     .attach_printable("Error when creating organization")?;
                 organization.org_id
             }
-            CreateOrValidateOrganization::Validate { organization_id } => {
+            Self::Validate { organization_id } => {
                 db.find_organization_by_org_id(organization_id)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -330,16 +334,15 @@ impl CreateBusinessProfile {
         merchant_account: &mut domain::MerchantAccount,
     ) -> RouterResult<()> {
         match self {
-            CreateBusinessProfile::CreateFromPrimaryBusinessDetails {
+            Self::CreateFromPrimaryBusinessDetails {
                 primary_business_details,
             } => {
-                let business_profiles =
-                    CreateBusinessProfile::create_business_profiles_for_each_business_details(
-                        db,
-                        merchant_account.clone(),
-                        primary_business_details,
-                    )
-                    .await?;
+                let business_profiles = Self::create_business_profiles_for_each_business_details(
+                    db,
+                    merchant_account.clone(),
+                    primary_business_details,
+                )
+                .await?;
 
                 // Update the default business profile in merchant account
                 if business_profiles.len() == 1 {
@@ -348,7 +351,7 @@ impl CreateBusinessProfile {
                         .map(|business_profile| business_profile.profile_id.clone())
                 }
             }
-            CreateBusinessProfile::CreateDefaultBusinessProfile => {
+            Self::CreateDefaultBusinessProfile => {
                 let business_profile = self
                     .create_default_business_profile(db, merchant_account.clone())
                     .await?;
@@ -445,7 +448,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        CreateOrValidateOrganization::validate(self.organization_id.clone())
+        CreateOrValidateOrganization::new(self.organization_id.clone())
             .create_or_validate(db)
             .await?;
 
