@@ -2,6 +2,7 @@ mod clickhouse;
 pub mod core;
 pub mod disputes;
 pub mod errors;
+pub mod frm;
 pub mod metrics;
 pub mod payment_intents;
 pub mod payments;
@@ -31,7 +32,7 @@ pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
@@ -40,6 +41,7 @@ use api_models::analytics::{
     },
     auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
+    frm::{FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier},
     payment_intents::{
         PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics,
         PaymentIntentMetricsBucketIdentifier,
@@ -65,6 +67,7 @@ use strum::Display;
 use self::{
     active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
     auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
+    frm::metrics::{FrmMetric, FrmMetricRow},
     payment_intents::metrics::{PaymentIntentMetric, PaymentIntentMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
@@ -113,7 +116,7 @@ impl AnalyticsProvider {
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         // Metrics to get the fetch time for each payment metric
         metrics::request::record_operation_time(
             async {
@@ -327,7 +330,7 @@ impl AnalyticsProvider {
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    ) -> types::MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
     {
         // Metrics to get the fetch time for each payment intent metric
         metrics::request::record_operation_time(
@@ -432,7 +435,7 @@ impl AnalyticsProvider {
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
@@ -524,6 +527,106 @@ impl AnalyticsProvider {
         .await
     }
 
+    pub async fn get_frm_metrics(
+        &self,
+        metric: &FrmMetrics,
+        dimensions: &[FrmDimensions],
+        merchant_id: &str,
+        filters: &FrmFilters,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
+        // Metrics to get the fetch time for each refund metric
+        metrics::request::record_operation_time(
+            async {
+                        match self {
+                            Self::Sqlx(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::Clickhouse(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::CombinedCkh(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres frm analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                ckh_result
+                            }
+                            Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres frm analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                sqlx_result
+                            }
+                        }
+                    },
+                   &metrics::METRIC_FETCH_TIME,
+       metric,
+            self,
+        )
+        .await
+    }
+
     pub async fn get_dispute_metrics(
         &self,
         metric: &DisputeMetrics,
@@ -532,7 +635,7 @@ impl AnalyticsProvider {
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
@@ -632,7 +735,7 @@ impl AnalyticsProvider {
         filters: &SdkEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
@@ -670,7 +773,7 @@ impl AnalyticsProvider {
         publishable_key: &str,
         time_range: &TimeRange,
     ) -> types::MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -697,7 +800,7 @@ impl AnalyticsProvider {
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
@@ -728,7 +831,7 @@ impl AnalyticsProvider {
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> types::MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
@@ -870,12 +973,14 @@ pub enum AnalyticsFlow {
     GetPaymentMetrics,
     GetPaymentIntentMetrics,
     GetRefundsMetrics,
+    GetFrmMetrics,
     GetSdkMetrics,
     GetAuthMetrics,
     GetActivePaymentsMetrics,
     GetPaymentFilters,
     GetPaymentIntentFilters,
     GetRefundFilters,
+    GetFrmFilters,
     GetSdkEventFilters,
     GetApiEvents,
     GetSdkEvents,

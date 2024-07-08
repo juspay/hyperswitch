@@ -45,6 +45,8 @@ tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
+blake3 = { version = "1.5.1", features = ["serde"] }
+
 
 # First party crates
 rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }

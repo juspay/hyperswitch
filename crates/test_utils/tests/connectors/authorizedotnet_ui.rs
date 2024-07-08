@@ -22,7 +22,7 @@ async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriver
         .authorizedotnet_gateway_merchant_id
         .unwrap();
     conn.make_gpay_payment(web_driver,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=authorizenet&gatewaymerchantid={pub_key}&amount={amount}&country=US&currency=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=authorizenet&gatewaymerchantid={pub_key}&amount={amount}&country=US&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("status")),
         Event::Assert(Assert::IsPresent("processing")), // This connector status will be processing for one day
@@ -34,7 +34,7 @@ async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriv
     let conn = AuthorizedotnetSeleniumTest {};
     conn.make_paypal_payment(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/156"),
+        &format!("{CHECKOUT_BASE_URL}/saved/156"),
         vec![
             Event::EitherOr(
                 Assert::IsElePresent(By::Css(".reviewButton")),

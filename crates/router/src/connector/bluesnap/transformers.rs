@@ -258,7 +258,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let (payment_method, card_holder_info) = match item
@@ -609,7 +609,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let token = item

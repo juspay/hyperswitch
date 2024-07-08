@@ -8,8 +8,7 @@ use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
-    keymanager, pii,
-    types::keymanager as km_types,
+    pii,
 };
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
@@ -18,6 +17,9 @@ use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
+
+#[cfg(feature = "keymanager_create")]
+use common_utils::{keymanager, types::keymanager as km_types};
 
 use crate::{
     consts,
@@ -135,15 +137,18 @@ pub async fn create_merchant_account(
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
 
-    keymanager::create_key_in_key_manager(
-        &(&state).into(),
-        km_types::EncryptionCreateRequest {
-            identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
-        },
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-    .attach_printable("Failed to insert key to KeyManager")?;
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            &(&state).into(),
+            km_types::EncryptionCreateRequest {
+                identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
 
     db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
         .await

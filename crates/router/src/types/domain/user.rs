@@ -4,12 +4,7 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-use common_utils::{
-    crypto::Encryptable,
-    errors::CustomResult,
-    pii,
-    types::keymanager::{EncryptionCreateRequest, Identifier},
-};
+use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -23,6 +18,9 @@ use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
+
+#[cfg(feature = "keymanager_create")]
+use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 
 use crate::{
     consts,
@@ -932,14 +930,17 @@ impl UserFromStorage {
                 created_at: common_utils::date_time::now(),
             };
 
-            common_utils::keymanager::create_key_in_key_manager(
-                &state.into(),
-                EncryptionCreateRequest {
-                    identifier: Identifier::User(key_store.user_id.clone()),
-                },
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
+            #[cfg(feature = "keymanager_create")]
+            {
+                common_utils::keymanager::create_key_in_key_manager(
+                    &state.into(),
+                    EncryptionCreateRequest {
+                        identifier: Identifier::User(key_store.user_id.clone()),
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+            }
 
             state
                 .global_store

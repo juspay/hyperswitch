@@ -377,7 +377,7 @@ pub struct AuthIdQueryParam {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthSelectRequest {
-    pub id: String,
+    pub id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
