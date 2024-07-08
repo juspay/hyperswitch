@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use diesel_models::{configs};
+use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -370,8 +370,7 @@ impl<'a> CreateBusinessProfile<'a> {
                 );
             })
             .map(|business_profile| {
-                if pbd.len() == 1 && merchant_account.default_profile.is_none()
-                {
+                if pbd.len() == 1 && merchant_account.default_profile.is_none() {
                     merchant_account.default_profile = Some(business_profile.profile_id);
                 }
             });

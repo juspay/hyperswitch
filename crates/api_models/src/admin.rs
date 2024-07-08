@@ -4,12 +4,13 @@ use std::collections::HashMap;
 use common_utils::new_type;
 use common_utils::{
     consts,
-    crypto::{Encryptable, OptionalEncryptableName},
+    crypto::{
+        generate_cryptographically_secure_random_string, Encryptable, OptionalEncryptableName,
+    },
     errors::{self, CustomResult},
     ext_traits::{Encode, ValueExt},
     id_type, link_utils, pii,
 };
-use common_utils::crypto::generate_cryptographically_secure_random_string;
 use frunk::labelled::chars::O;
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
@@ -117,7 +118,8 @@ impl MerchantAccountCreate {
     }
 
     pub fn get_payment_response_hash_key(&self) -> Option<String> {
-        self.payment_response_hash_key.clone()
+        self.payment_response_hash_key
+            .clone()
             .or(Some(generate_cryptographically_secure_random_string(64)))
     }
 
