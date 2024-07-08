@@ -54,7 +54,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
-    /// This field is used when merchant wants to confirm the Payout, thus useful for the Payout Confirm Request. Ideally Merchants should create a Payout, Update it(if required), then Confirm it.
+    /// This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.
     #[schema(value_type = bool, example = true, default = false)]
     pub confirm: Option<bool>,
 
