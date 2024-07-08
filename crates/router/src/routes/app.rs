@@ -50,6 +50,8 @@ use super::{pm_auth, poll::retrieve_poll_status};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
+#[cfg(feature = "partial-auth")]
+use crate::errors::RouterResult;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -68,8 +70,6 @@ use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
 };
-#[cfg(feature = "partial-auth")]
-use crate::errors::RouterResult;
 
 #[derive(Clone)]
 pub struct ReqState {

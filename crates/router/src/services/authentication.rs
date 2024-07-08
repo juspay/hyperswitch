@@ -28,6 +28,8 @@ use crate::configs::Settings;
 use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
+#[cfg(feature = "partial-auth")]
+use crate::core::metrics;
 #[cfg(feature = "recon")]
 use crate::routes::SessionState;
 use crate::{
@@ -40,9 +42,6 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
-
-#[cfg(feature = "partial-auth")]
-use crate::core::metrics;
 
 pub mod blacklist;
 pub mod cookies;
