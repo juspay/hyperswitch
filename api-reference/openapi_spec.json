@@ -13757,7 +13757,7 @@
             ],
             "nullable": true
           },
-          "payment_method_billing_address": {
+          "billing": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
