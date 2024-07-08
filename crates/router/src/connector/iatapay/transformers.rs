@@ -462,6 +462,7 @@ pub enum RefundStatus {
     Initiated,
     Authorized,
     Settled,
+    Cleared,
     Failed,
 }
 
@@ -474,6 +475,7 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Initiated => Self::Pending,
             RefundStatus::Authorized => Self::Pending,
             RefundStatus::Settled => Self::Success,
+            RefundStatus::Cleared => Self::Success,
         }
     }
 }
@@ -640,9 +642,9 @@ impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
                 | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
             },
             IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => match wh_body.status {
-                IatapayRefundWebhookStatus::Authorized | IatapayRefundWebhookStatus::Settled => {
-                    Ok(Self::RefundSuccess)
-                }
+                IatapayRefundWebhookStatus::Cleared
+                | IatapayRefundWebhookStatus::Authorized
+                | IatapayRefundWebhookStatus::Settled => Ok(Self::RefundSuccess),
                 IatapayRefundWebhookStatus::Failed => Ok(Self::RefundFailure),
                 IatapayRefundWebhookStatus::Created
                 | IatapayRefundWebhookStatus::Locked
@@ -678,6 +680,7 @@ pub enum IatapayRefundWebhookStatus {
     Authorized,
     Settled,
     Failed,
+    Cleared,
     Locked,
     #[serde(other)]
     Unknown,
