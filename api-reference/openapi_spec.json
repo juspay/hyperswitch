@@ -9494,6 +9494,14 @@
               }
             ],
             "nullable": true
+          },
+          "search_tags": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RedirectResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
