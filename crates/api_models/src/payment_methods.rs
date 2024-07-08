@@ -98,7 +98,7 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodMigrate {
     /// Merchant id
     pub merchant_id: String,
-    
+
     /// The type of payment method use for the payment.
     pub payment_method: Option<api_enums::PaymentMethod>,
 

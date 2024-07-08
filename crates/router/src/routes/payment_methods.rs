@@ -59,9 +59,7 @@ pub async fn migrate_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| {
-            async move { Box::pin(cards::migrate_payment_method(state, req)).await }
-        },
+        |state, _, req, _| async move { Box::pin(cards::migrate_payment_method(state, req)).await },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
