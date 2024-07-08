@@ -11,7 +11,6 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
     id_type, link_utils, pii,
 };
-use frunk::labelled::chars::O;
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 use masking::Secret;

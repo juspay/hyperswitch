@@ -727,6 +727,16 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    my_table (id) {
+        id -> Int4,
+        data -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     organization (org_id) {
         #[max_length = 32]
         org_id -> Varchar,
@@ -1316,6 +1326,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    my_table,
     organization,
     payment_attempt,
     payment_intent,

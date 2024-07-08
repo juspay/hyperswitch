@@ -4,8 +4,6 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
-use common_utils::crypto::generate_cryptographically_secure_random_string;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
@@ -191,8 +189,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization_id = CreateOrganization::new(self.organization_id.as_deref())
-            .create_organization(db)
+        let organization_id = CreateOrValidateOrganization::new(self.organization_id)
+            .create_or_validate(db)
             .await?;
 
         let key = key_store.key.into_inner();
@@ -247,38 +245,36 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        // Create a default business profile
-        // If business_labels are passed, then use it as the profile_name
-        // else use `default` as the profile_name
-
-        // CreateBusinessProfile::new(self.primary_business_details.as_ref())
-        //     .create_business_profiles(db, merchant_account.clone())
-        //     .await?;
+        CreateBusinessProfile::new(self.primary_business_details.clone())
+            .create_business_profiles(db, &mut merchant_account)
+            .await?;
 
         Ok(merchant_account)
     }
 }
 
-struct CreateOrganization<'a> {
-    organization_id: Option<&'a str>,
+/// Create an organization
+/// If organization_id is passed, then validate if this organization exists
+/// If not passed, create a new organization
+enum CreateOrValidateOrganization {
+    /// Create a new organization
+    Create,
+    /// Validate if this organization exists in the records
+    Validate { organization_id: String },
 }
 
-impl<'a> CreateOrganization<'a> {
-    fn new(organization_id: Option<&'a str>) -> CreateOrganization<'a> {
-        Self { organization_id }
+impl CreateOrValidateOrganization {
+    fn new(organization_id: Option<String>) -> Self {
+        if let Some(organization_id) = organization_id {
+            Self::Validate { organization_id }
+        } else {
+            Self::Create
+        }
     }
 
-    async fn create_organization(&self, db: &dyn StorageInterface) -> RouterResult<String> {
-        Ok(match &self.organization_id {
-            Some(organization_id) => {
-                db.find_organization_by_org_id(organization_id)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "organization with the given id does not exist".to_string(),
-                    })?;
-                organization_id.to_string()
-            }
-            None => {
+    async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
+        Ok(match self {
+            CreateOrValidateOrganization::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 let organization = db
@@ -288,47 +284,81 @@ impl<'a> CreateOrganization<'a> {
                     .attach_printable("Error when creating organization")?;
                 organization.org_id
             }
+            CreateOrValidateOrganization::Validate { organization_id } => {
+                db.find_organization_by_org_id(organization_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "organization with the given id does not exist".to_string(),
+                    })?;
+                organization_id.to_string()
+            }
         })
     }
 }
 
-struct CreateBusinessProfile<'a> {
-    primary_business_details: Option<&'a Vec<admin_types::PrimaryBusinessDetails>>,
+enum CreateBusinessProfile {
+    /// Create business profiles from primary business details
+    /// If there is only one business profile created, then set this profile as default
+    CreateFromPrimaryBusinessDetails {
+        primary_business_details: Vec<admin_types::PrimaryBusinessDetails>,
+    },
+    /// Create a default business profile, set this as default profile
+    CreateDefaultBusinessProfile,
 }
 
-impl<'a> CreateBusinessProfile<'a> {
-    // Create business profile for each primary_business_details,
-    // If there is no default profile in merchant account and only one primary_business_detail
-    // is available, then create a default business profile.
-    // If there is no primary_business_details, then create a default business profile and assign it to the merchant account
-    // async fn create_business_profiles(
-    //     &self,
-    //     db: &dyn StorageInterface,
-    //     mut merchant_account: domain::MerchantAccount,
-    // ) -> RouterResult<()> {
-    //     // change the below to match
-    //     match self.primary_business_details {
-    //         Some(pbd) => {
-    //             CreateBusinessProfile::create_business_profiles_for_each_business_details(
-    //                 db,
-    //                 merchant_account.clone(),
-    //                 pbd,
-    //             )
-    //             .await?;
-    //         }
-    //         None => {
-    //             self.create_default_business_profile(db, merchant_account.clone())
-    //                 .await?;
-    //         }
-    //     }
-    // }
+impl CreateBusinessProfile {
+    fn new(primary_business_details: Option<Vec<admin_types::PrimaryBusinessDetails>>) -> Self {
+        if let Some(primary_business_details) = primary_business_details {
+            Self::CreateFromPrimaryBusinessDetails {
+                primary_business_details,
+            }
+        } else {
+            Self::CreateDefaultBusinessProfile
+        }
+    }
 
-    // Create default business profile and assign it to the merchant account
+    async fn create_business_profiles(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_account: &mut domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        match self {
+            CreateBusinessProfile::CreateFromPrimaryBusinessDetails {
+                primary_business_details,
+            } => {
+                let business_profiles =
+                    CreateBusinessProfile::create_business_profiles_for_each_business_details(
+                        db,
+                        merchant_account.clone(),
+                        primary_business_details,
+                    )
+                    .await?;
+
+                // Update the default business profile in merchant account
+                if business_profiles.len() == 1 {
+                    merchant_account.default_profile = business_profiles
+                        .first()
+                        .map(|business_profile| business_profile.profile_id.clone())
+                }
+            }
+            CreateBusinessProfile::CreateDefaultBusinessProfile => {
+                let business_profile = self
+                    .create_default_business_profile(db, merchant_account.clone())
+                    .await?;
+
+                merchant_account.default_profile = Some(business_profile.profile_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Create default business profile
     async fn create_default_business_profile(
         &self,
         db: &dyn StorageInterface,
-        mut merchant_account: domain::MerchantAccount,
-    ) -> RouterResult<()> {
+        merchant_account: domain::MerchantAccount,
+    ) -> RouterResult<diesel_models::business_profile::BusinessProfile> {
         let business_profile = create_and_insert_business_profile(
             db,
             api_models::admin::BusinessProfileCreate::default(),
@@ -336,20 +366,23 @@ impl<'a> CreateBusinessProfile<'a> {
         )
         .await?;
 
-        // Update merchant account with the business profile id
-        merchant_account.default_profile = Some(business_profile.profile_id);
-        Ok(())
+        Ok(business_profile)
     }
 
-    // Create business profile for each primary_business_details,
-    // If there is no default profile in merchant account and only one primary_business_detail
-    // is available, then create a default business profile.
+    /// Create business profile for each primary_business_details,
+    /// If there is no default profile in merchant account and only one primary_business_detail
+    /// is available, then create a default business profile.
     async fn create_business_profiles_for_each_business_details(
         db: &dyn StorageInterface,
-        mut merchant_account: domain::MerchantAccount,
-        pbd: &'a Vec<admin_types::PrimaryBusinessDetails>,
-    ) -> RouterResult<()> {
-        for business_profile in pbd {
+        merchant_account: domain::MerchantAccount,
+        primary_business_details: &Vec<admin_types::PrimaryBusinessDetails>,
+    ) -> RouterResult<Vec<diesel_models::business_profile::BusinessProfile>> {
+        let mut business_profiles_vector = Vec::with_capacity(primary_business_details.len());
+
+        // This must ideally be run in a transaction,
+        // if there is an error in inserting some business profile, because of unique constraints
+        // the whole query must be rolled back
+        for business_profile in primary_business_details {
             let profile_name =
                 format!("{}_{}", business_profile.country, business_profile.business);
 
@@ -358,7 +391,7 @@ impl<'a> CreateBusinessProfile<'a> {
                 ..Default::default()
             };
 
-            let _ = create_and_insert_business_profile(
+            create_and_insert_business_profile(
                 db,
                 business_profile_create_request,
                 merchant_account.clone(),
@@ -369,14 +402,11 @@ impl<'a> CreateBusinessProfile<'a> {
                     "Business profile already exists {business_profile_insert_error:?}"
                 );
             })
-            .map(|business_profile| {
-                if pbd.len() == 1 && merchant_account.default_profile.is_none() {
-                    merchant_account.default_profile = Some(business_profile.profile_id);
-                }
-            });
+            .map(|business_profile| business_profiles_vector.push(business_profile))
+            .ok();
         }
 
-        Ok(())
+        Ok(business_profiles_vector)
     }
 }
 
