@@ -4,6 +4,8 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
+#[cfg(feature = "keymanager_create")]
+use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
@@ -929,10 +931,10 @@ impl UserFromStorage {
 
             #[cfg(feature = "keymanager_create")]
             {
-                crate::encryption::create_key_in_key_manager(
-                    state,
-                    super::EncryptionCreateRequest {
-                        identifier: super::Identifier::User(key_store.user_id.clone()),
+                common_utils::keymanager::create_key_in_key_manager(
+                    &state.into(),
+                    EncryptionCreateRequest {
+                        identifier: Identifier::User(key_store.user_id.clone()),
                     },
                 )
                 .await

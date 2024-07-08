@@ -10,6 +10,8 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
+#[cfg(feature = "keymanager_create")]
+use common_utils::{keymanager, types::keymanager as km_types};
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
@@ -18,11 +20,10 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(feature = "keymanager_create")]
-use crate::encryption;
 use crate::{
     consts,
     core::{
+        encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
         routing::helpers as routing_helpers,
@@ -137,10 +138,10 @@ pub async fn create_merchant_account(
 
     #[cfg(feature = "keymanager_create")]
     {
-        encryption::create_key_in_key_manager(
-            &state,
-            domain::EncryptionCreateRequest {
-                identifier: domain::Identifier::Merchant(req.merchant_id.clone()),
+        keymanager::create_key_in_key_manager(
+            &(&state).into(),
+            km_types::EncryptionCreateRequest {
+                identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
             },
         )
         .await
@@ -2230,6 +2231,18 @@ pub(crate) fn validate_connector_auth_type(
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey => Ok(()),
     }
+}
+
+pub async fn transfer_key_store_to_key_manager(
+    state: SessionState,
+) -> RouterResponse<admin_types::TransferKeyResponse> {
+    let resp = transfer_encryption_key(&state).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        admin_types::TransferKeyResponse {
+            total_transferred: resp,
+        },
+    ))
 }
 
 #[cfg(feature = "dummy_connector")]

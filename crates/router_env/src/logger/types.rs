@@ -314,6 +314,8 @@ pub enum Flow {
     UserSignUpWithMerchantId,
     /// User Sign In
     UserSignIn,
+    /// User transfer key
+    UserTransferKey,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config

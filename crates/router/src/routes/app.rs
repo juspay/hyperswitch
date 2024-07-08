@@ -1016,6 +1016,9 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(
+                web::resource("/transfer").route(web::post().to(merchant_account_transfer_keys)),
+            )
             .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
@@ -1385,6 +1388,11 @@ impl User {
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
             );
+
+        route = route.service(
+            web::scope("/key")
+                .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
+        );
 
         // Two factor auth routes
         route = route.service(
