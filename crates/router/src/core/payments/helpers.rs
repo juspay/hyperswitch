@@ -4107,7 +4107,7 @@ pub async fn populate_bin_details_for_payment_method_create(
             .async_and_then(|card_isin| async move {
                 db.get_card_info(&card_isin)
                     .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
                     .ok()
             })
             .await

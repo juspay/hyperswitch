@@ -282,15 +282,10 @@ pub async fn migrate_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let card_details = req
-        .card
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Missing field card".to_owned(),
-        })
-        .attach_printable("Card details can not be null")?;
+    let card_details = req.card.as_ref().get_required_value("card")?;
 
-    let card_number_validation_result = cards::CardNumber::from_str(&card_details.card_number);
+    let card_number_validation_result =
+        cards::CardNumber::from_str(card_details.card_number.peek());
 
     match card_number_validation_result {
         Ok(card_number) => {
@@ -307,8 +302,8 @@ pub async fn migrate_payment_method(
             )
             .await
         }
-        Err(_) => {
-            logger::debug!("Card number to be migrated is invalid, skip saving in locker");
+        Err(card_validation_error) => {
+            logger::debug!("Card number to be migrated is invalid, skip saving in locker {card_validation_error}");
             skip_locker_call_and_migrate_payment_method(
                 state,
                 &req,
@@ -357,10 +352,12 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
         let card_number = card_details.card_number.clone();
 
-        let (card_isin, last4_digits) = get_card_bin_and_last4_digits_for_masked_card(&card_number)
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid card number".to_string(),
-            })?;
+        let (card_isin, last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
+            card_number.peek(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid card number".to_string(),
+        })?;
 
         if card_details.card_issuer.is_some()
             && card_details.card_network.is_some()
@@ -404,7 +401,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             Some(
                 db.get_card_info(&card_isin)
                     .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
                     .ok()
                     .flatten()
                     .map(|card_info| {

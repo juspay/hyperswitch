@@ -272,7 +272,7 @@ pub struct CardDetail {
 pub struct MigrateCardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
-    pub card_number: String,
+    pub card_number: masking::Secret<String>,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
