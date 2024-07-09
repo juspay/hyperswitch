@@ -432,23 +432,23 @@ async fn store_bank_details_in_payment_methods(
             );
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
-            let encrypted_data =
-                cards::create_encrypted_data_optional(&key_store, Some(payment_method_data))
-                    .await
-                    .map(|details| details.into())
-                    .ok_or(ApiErrorResponse::InternalServerError)?;
+            let encrypted_data = cards::create_encrypted_data(&key_store, payment_method_data)
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt customer details")?;
+
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                payment_method_data: Some(encrypted_data),
+                payment_method_data: Some(encrypted_data.into()),
             };
 
             update_entries.push((pm.clone(), pm_update));
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_data_optional(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
-                    .map(|details| details.into())
-                    .ok_or(ApiErrorResponse::InternalServerError)?;
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt customer details")?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let now = common_utils::date_time::now();
             let pm_new = storage::PaymentMethodNew {
@@ -461,7 +461,7 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_issuer: None,
                 scheme: None,
                 metadata: None,
-                payment_method_data: Some(encrypted_data),
+                payment_method_data: Some(encrypted_data.into()),
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,

@@ -449,9 +449,12 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_data_optional(key_store, Some(pm_data))
-                    .await
-                    .map(|details| details.into()),
+                Some(
+                    cards::create_encrypted_data(key_store, pm_data)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt customer details")?,
+                ),
                 payment_method,
             )
         } else {
@@ -488,7 +491,7 @@ pub async fn save_payout_data_to_locker(
             &merchant_account.merchant_id,
             None,
             None,
-            card_details_encrypted.clone(),
+            card_details_encrypted.clone().map(Into::into),
             key_store,
             None,
             None,
@@ -550,7 +553,7 @@ pub async fn save_payout_data_to_locker(
 
         // Update card's metadata in payment_methods table
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-            payment_method_data: card_details_encrypted,
+            payment_method_data: card_details_encrypted.map(Into::into),
         };
         db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
             .await

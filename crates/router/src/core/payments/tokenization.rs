@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
 use common_utils::{
-    ext_traits::{Encode, ValueExt},
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, Encode, ValueExt},
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
@@ -15,7 +16,9 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
-        mandate, payment_methods, payments,
+        mandate,
+        payment_methods::{self, cards::create_encrypted_data},
+        payments,
     },
     logger,
     routes::{metrics, SessionState},
@@ -64,7 +67,7 @@ pub async fn save_payment_method<FData>(
     key_store: &domain::MerchantKeyStore,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-    billing_name: Option<masking::Secret<String>>,
+    billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
@@ -209,20 +212,20 @@ where
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                 });
 
-                let pm_data_encrypted = payment_methods::cards::create_encrypted_data_optional(
-                    key_store,
-                    pm_card_details,
-                )
-                .await
-                .map(|details| details.into());
+                let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                    pm_card_details
+                        .async_map(|pm_card| create_encrypted_data(key_store, pm_card))
+                        .await
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let encrypted_payment_method_billing_address =
-                    payment_methods::cards::create_encrypted_data_optional(
-                        key_store,
-                        payment_method_billing_address,
-                    )
+                let encrypted_payment_method_billing_address: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = payment_method_billing_address
+                    .async_map(|address| create_encrypted_data(key_store, address.clone()))
                     .await
-                    .map(|details| details.into());
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
@@ -313,13 +316,14 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             customer_acceptance,
-                                            pm_data_encrypted,
+                                            pm_data_encrypted.map(Into::into),
                                             key_store,
                                             connector_mandate_details,
                                             None,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
-                                            encrypted_payment_method_billing_address,
+                                            encrypted_payment_method_billing_address
+                                                .map(Into::into),
                                         )
                                         .await
                                     } else {
@@ -409,7 +413,8 @@ where
                                                 connector_mandate_details,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
-                                                encrypted_payment_method_billing_address,
+                                                encrypted_payment_method_billing_address
+                                                    .map(Into::into),
                                             )
                                             .await
                                         } else {
@@ -504,18 +509,20 @@ where
                                         card.clone(),
                                     ))
                                 });
-                                let pm_data_encrypted =
-                                    payment_methods::cards::create_encrypted_data_optional(
-                                        key_store,
-                                        updated_pmd,
-                                    )
+                                let pm_data_encrypted: Option<
+                                    Encryptable<Secret<serde_json::Value>>,
+                                > = updated_pmd
+                                    .async_map(|pmd| create_encrypted_data(key_store, pmd))
                                     .await
-                                    .map(|details| details.into());
+                                    .transpose()
+                                    .change_context(
+                                        errors::ApiErrorResponse::InternalServerError,
+                                    )?;
 
                                 payment_methods::cards::update_payment_method_and_last_used(
                                     db,
                                     existing_pm,
-                                    pm_data_encrypted,
+                                    pm_data_encrypted.map(Into::into),
                                     merchant_account.storage_scheme,
                                 )
                                 .await
@@ -597,13 +604,13 @@ where
                                 merchant_id,
                                 pm_metadata,
                                 customer_acceptance,
-                                pm_data_encrypted,
+                                pm_data_encrypted.map(Into::into),
                                 key_store,
                                 connector_mandate_details,
                                 None,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
-                                encrypted_payment_method_billing_address,
+                                encrypted_payment_method_billing_address.map(Into::into),
                             )
                             .await?;
                         };
@@ -871,9 +878,9 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
         match payment_method_token_result.payment_method_token_result {
             Ok(pm_token_result) => {
                 router_data.payment_method_token = pm_token_result.map(|pm_token| {
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                        masking::Secret::new(pm_token),
-                    )
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
+                        pm_token,
+                    ))
                 });
 
                 true

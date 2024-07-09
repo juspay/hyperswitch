@@ -468,14 +468,16 @@ pub async fn add_payment_method_data(
                             saved_to_locker: true,
                         };
 
-                        let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                        let pm_data_encrypted =
-                            create_encrypted_data_optional(&key_store, updated_pmd)
-                                .await
-                                .map(|details| details.into());
+                        let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
+                            create_encrypted_data(
+                                &key_store,
+                                PaymentMethodsData::Card(updated_card),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
-                            payment_method_data: pm_data_encrypted,
+                            payment_method_data: Some(pm_data_encrypted.into()),
                             status: Some(enums::PaymentMethodStatus::Active),
                             locker_id: Some(locker_id),
                             payment_method: req.payment_method,
@@ -693,12 +695,15 @@ pub async fn add_payment_method(
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data_optional(key_store, updated_pmd)
-                        .await
-                        .map(|details| details.into());
+                    let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                        updated_pmd
+                            .async_map(|updated_pmd| create_encrypted_data(key_store, updated_pmd))
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                     let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                        payment_method_data: pm_data_encrypted,
+                        payment_method_data: pm_data_encrypted.map(Into::into),
                     };
 
                     db.update_payment_method(
@@ -769,9 +774,13 @@ pub async fn insert_payment_method(
         .card
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-    let pm_data_encrypted = create_encrypted_data_optional(key_store, pm_card_details)
+
+    let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_card_details
+        .clone()
+        .async_map(|pm_card| create_encrypted_data(key_store, pm_card))
         .await
-        .map(|details| details.into());
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     create_payment_method(
         db,
@@ -782,7 +791,7 @@ pub async fn insert_payment_method(
         merchant_id,
         pm_metadata,
         customer_acceptance,
-        pm_data_encrypted,
+        pm_data_encrypted.map(Into::into),
         key_store,
         connector_mandate_details,
         None,
@@ -952,12 +961,16 @@ pub async fn update_customer_payment_method(
             let updated_pmd = updated_card
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-            let pm_data_encrypted = create_encrypted_data_optional(&key_store, updated_pmd)
+
+            let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
+                .async_map(|updated_pmd| create_encrypted_data(&key_store, updated_pmd))
                 .await
-                .map(|details| details.into());
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt payment method data")?;
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                payment_method_data: pm_data_encrypted,
+                payment_method_data: pm_data_encrypted.map(Into::into),
             };
 
             add_card_resp
@@ -4435,35 +4448,6 @@ pub async fn delete_payment_method(
             deleted: true,
         },
     ))
-}
-
-pub async fn create_encrypted_data_optional<T>(
-    key_store: &domain::MerchantKeyStore,
-    data: Option<T>,
-) -> Option<Encryptable<Secret<serde_json::Value>>>
-where
-    T: Debug + serde::Serialize,
-{
-    let key = key_store.key.get_inner().peek();
-
-    data.as_ref()
-        .map(Encode::encode_to_value)
-        .transpose()
-        .change_context(errors::StorageError::SerializationFailed)
-        .attach_printable("Unable to convert data to a value")
-        .unwrap_or_else(|err| {
-            logger::error!(err=?err);
-            None
-        })
-        .map(Secret::<_, masking::WithType>::new)
-        .async_lift(|inner| encrypt_optional(inner, key))
-        .await
-        .change_context(errors::StorageError::EncryptionError)
-        .attach_printable("Unable to encrypt data")
-        .unwrap_or_else(|err| {
-            logger::error!(err=?err);
-            None
-        })
 }
 
 pub async fn create_encrypted_data<T>(
