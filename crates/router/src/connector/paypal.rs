@@ -152,7 +152,7 @@ where
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let key = &req.attempt_id;
+        let key = &req.connector_request_reference_id;
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let mut headers = vec![
             (

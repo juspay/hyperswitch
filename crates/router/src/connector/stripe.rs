@@ -681,15 +681,26 @@ impl
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            response.amount_received,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -827,13 +838,24 @@ impl
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    response.amount,
+                    response.currency.clone(),
+                    response.amount_received,
+                )?;
+
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
+                let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
+                });
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
                 })
             }
             Err(err) => {
@@ -1011,13 +1033,25 @@ impl
                         .parse_struct("ChargesResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                    let response_integrity_object =
+                        connector_utils::get_authorise_integrity_object(
+                            self.amount_converter,
+                            response.amount,
+                            response.currency.clone(),
+                        )?;
+
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
+                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
                         response,
                         data: data.clone(),
                         http_code: res.status_code,
+                    });
+
+                    new_router_data.map(|mut router_data| {
+                        router_data.request.integrity_object = Some(response_integrity_object);
+                        router_data
                     })
                 }
                 _ => {
@@ -1026,13 +1060,25 @@ impl
                         .parse_struct("PaymentIntentResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                    let response_integrity_object =
+                        connector_utils::get_authorise_integrity_object(
+                            self.amount_converter,
+                            response.amount,
+                            response.currency.clone(),
+                        )?;
+
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
+                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
                         response,
                         data: data.clone(),
                         http_code: res.status_code,
+                    });
+
+                    new_router_data.map(|mut router_data| {
+                        router_data.request.integrity_object = Some(response_integrity_object);
+                        router_data
                     })
                 }
             },
@@ -1042,15 +1088,26 @@ impl
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                let response_integrity_object = connector_utils::get_authorise_integrity_object(
+                    self.amount_converter,
+                    response.amount,
+                    response.currency.clone(),
+                )?;
+
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
+                let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
             }
         }
     }
@@ -1434,8 +1491,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
         let request_body = match req.request.charges.as_ref() {
-            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from(req)?)),
+            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
+                req,
+                refund_amount,
+            ))?)),
             Some(_) => RequestContent::FormUrlEncoded(Box::new(
                 stripe::ChargeRefundRequest::try_from(req)?,
             )),
@@ -1474,15 +1539,27 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -1586,15 +1663,27 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

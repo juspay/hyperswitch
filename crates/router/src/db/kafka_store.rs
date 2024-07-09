@@ -83,7 +83,7 @@ pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
-    kafka_producer: KafkaProducer,
+    pub kafka_producer: KafkaProducer,
     pub diesel_store: Store,
     pub tenant_id: TenantID,
 }

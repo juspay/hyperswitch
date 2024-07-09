@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, domain, storage::enums, AccessToken, ConnectorAuthType};
 
@@ -144,6 +145,9 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                captured_amount: None,
             }),
             get_default_payment_info(),
         )
@@ -343,6 +347,9 @@ async fn should_sync_auto_captured_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::USD,
                 payment_experience: None,
+                amount: MinorUnit::new(100),
+                integrity_object: None,
+                captured_amount: None,
             }),
             get_default_payment_info(),
         )

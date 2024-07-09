@@ -15,7 +15,6 @@ pub mod pm_auth;
 
 pub mod storage;
 pub mod transformers;
-
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates, payments as payment_enums};
@@ -798,6 +797,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
+            merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 }
@@ -851,6 +852,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }
@@ -912,6 +914,7 @@ impl<F1, F2>
             refund_id: None,
             dispute_id: None,
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }
