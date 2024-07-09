@@ -69,8 +69,10 @@ transforms:
       .message = parse_json!(.message)
       if exists(.labels."com.docker.compose.service") {
         .source = "console"
+        .job_label = "console_logs"
       } else {
         .source = "file"
+        .job_label = "file_logs"
       }
 
   events:
@@ -152,8 +154,8 @@ sinks:
       - parsed_hs_server_logs
     endpoint: http://loki:3100
     labels:
-     source: "{{ .source }}"
-      job: app_logs
+      source: "{{ .source }}"
+      job: "{{ .job_label }}"
       container: "{{ .container_name }}"
       stream: "{{ .stream }}"
     encoding:
