@@ -1,9 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payments::{Address, RequestSurchargeDetails},
+    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
