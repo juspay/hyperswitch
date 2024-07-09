@@ -279,20 +279,20 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 }
 
 #[cfg(feature = "olap")]
-/// Create an organization
-/// If organization_id is passed, then validate if this organization exists
-/// If not passed, create a new organization
 enum CreateOrValidateOrganization {
-    /// Create a new organization
+    /// Creates a new organization
     #[cfg(not(feature = "v2"))]
     Create,
-    /// Validate if this organization exists in the records
+    /// Validates if this organization exists in the records
     Validate { organization_id: String },
 }
 
 #[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
     #[cfg(all(not(feature = "v2"), feature = "olap"))]
+    /// Create an action to either create or validate the given organization_id
+    /// If organization_id is passed, then validate if this organization exists
+    /// If not passed, create a new organization
     fn new(organization_id: Option<String>) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
@@ -302,11 +302,13 @@ impl CreateOrValidateOrganization {
     }
 
     #[cfg(all(feature = "v2", feature = "olap"))]
+    /// Create an action to validate the provided organzation_id
     fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
     }
 
     #[cfg(feature = "olap")]
+    /// Apply the action, whether to create the organization or validate the given organization_id
     async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
         Ok(match self {
             #[cfg(not(feature = "v2"))]
@@ -345,13 +347,17 @@ enum CreateBusinessProfile {
 
 #[cfg(all(not(feature = "v2"), feature = "olap"))]
 impl CreateBusinessProfile {
+    /// Create a new business profile action from the given information
+    /// If primary business details exist, then create business profiles from them
+    /// If primary business details are empty, then create default business profile
     fn new(primary_business_details: Option<Vec<admin_types::PrimaryBusinessDetails>>) -> Self {
-        if let Some(primary_business_details) = primary_business_details {
-            Self::CreateFromPrimaryBusinessDetails {
-                primary_business_details,
+        match primary_business_details {
+            Some(primary_business_details) if !primary_business_details.is_empty() => {
+                Self::CreateFromPrimaryBusinessDetails {
+                    primary_business_details,
+                }
             }
-        } else {
-            Self::CreateDefaultBusinessProfile
+            _ => Self::CreateDefaultBusinessProfile,
         }
     }
 

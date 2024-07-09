@@ -187,7 +187,7 @@ impl MerchantAccountCreate {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// Name of the Merchant Account, This will be used as a prefix to generate the id
-    #[schema(value_type= String, max_length = 32, example = "NewAge Retailer")]
+    #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]
     pub merchant_name: Secret<new_type::MerchantName>,
 
     /// Details about the merchant, contains phone and emails of primary and secondary contact person.
