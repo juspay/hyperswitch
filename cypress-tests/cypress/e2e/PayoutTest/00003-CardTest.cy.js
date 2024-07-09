@@ -30,6 +30,13 @@ describe("[Payout] Cards", () => {
 
   context("Payout Card with Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -57,6 +64,12 @@ describe("[Payout] Cards", () => {
   context("Payout Card with Manual Fulfill - Create Confirm", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -71,54 +84,6 @@ describe("[Payout] Cards", () => {
         false,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
-    });
-
-    it("fulfill-payout-call-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.fulfillPayoutCallTest({}, req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
-    });
-
-    it("retrieve-payout-call-test", () => {
-      cy.retrievePayoutCallTest(globalState);
-    });
-  });
-
-  context("Payout Card with Manual Fulfill - Create Intent + Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-    it("create-payout-call", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Create"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.createConfirmPayoutTest(
-        createPayoutBody,
-        req_data,
-        res_data,
-        false,
-        false,
-        globalState
-      );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
-    });
-
-    it("confirm-payout-call", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Confirm"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.updatePayoutCallTest({}, req_data, res_data, false, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });

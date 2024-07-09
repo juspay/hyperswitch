@@ -22,7 +22,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
-    /// ```
+    /// ```text
     /// get_original_amount()
     /// get_surcharge_amount()
     /// get_tax_on_surcharge_amount()
@@ -56,7 +56,7 @@ pub struct PaymentsAuthorizeData {
     pub surcharge_details: Option<SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub charges: Option<PaymentCharges>,
 
@@ -84,6 +84,8 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
+    /// Sync capture amount in case of automatic capture
+    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -102,12 +104,21 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptureIntegrityObject {
+    /// capture amount
+    pub capture_amount: Option<MinorUnit>,
+    /// capture currency
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -346,8 +357,8 @@ pub struct CompleteAuthorizeData {
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-
+    pub metadata: Option<serde_json::Value>,
+    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -373,6 +384,7 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -390,7 +402,7 @@ pub struct PaymentsCancelData {
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
 
     // minor amount data for amount framework
@@ -534,6 +546,15 @@ pub struct RefundsData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
+    pub integrity_object: Option<RefundIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefundIntegrityObject {
+    /// refund currency
+    pub currency: storage_enums::Currency,
+    /// refund amount
+    pub refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

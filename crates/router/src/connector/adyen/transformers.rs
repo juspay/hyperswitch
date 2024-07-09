@@ -2525,19 +2525,17 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
-        let browser_info = get_browser_info(item.router_data)?;
+        let browser_info = None;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method_type = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+        let payment_method_type = item.router_data.request.payment_method_type;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
-                    payment_type: PaymentType::try_from(payment_method_type)?,
+                    payment_type: match payment_method_type {
+                        Some(pm_type) => PaymentType::try_from(&pm_type)?,
+                        None => PaymentType::Scheme,
+                    },
                     stored_payment_method_id: Secret::new(
                         connector_mandate_ids.get_connector_mandate_id()?,
                     ),
@@ -2610,7 +2608,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
@@ -2673,7 +2671,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
@@ -2727,7 +2725,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
@@ -2782,7 +2780,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
@@ -2833,7 +2831,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
@@ -2884,7 +2882,7 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
@@ -2945,7 +2943,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
@@ -3041,7 +3039,7 @@ impl<'a>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
@@ -3117,7 +3115,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
@@ -3176,7 +3174,7 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
