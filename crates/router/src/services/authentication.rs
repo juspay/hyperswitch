@@ -41,7 +41,6 @@ use crate::{
 pub mod blacklist;
 pub mod cookies;
 pub mod decision;
-pub mod user_authentication_method;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {

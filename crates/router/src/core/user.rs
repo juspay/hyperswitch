@@ -27,9 +27,10 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
+    db::domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
     routes::{app::ReqState, SessionState},
     services::{
-        authentication::{self as auth, user_authentication_method::DEFAULT_USER_AUTH_METHOD},
+        authentication::{self as auth},
         authorization::roles,
         openidconnect, ApplicationResponse,
     },
