@@ -128,9 +128,9 @@ impl MerchantKeyStoreInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            cache::publish_and_redact(
+            cache::db_call_with_redact_and_publish(
                 self,
-                CacheKind::Accounts(key_store_cache_key.into()),
+                [CacheKind::Accounts(key_store_cache_key.into())],
                 delete_func,
             )
             .await

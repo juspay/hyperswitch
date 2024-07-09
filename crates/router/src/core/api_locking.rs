@@ -129,13 +129,19 @@ impl LockAction {
                     Ok(val) => {
                         if val == state.get_request_id() {
                             match redis_conn.delete_key(redis_locking_key.as_str()).await {
-                                Ok(redis::types::DelReply::KeyDeleted) => {
+                                Ok(redis::types::DelReply::KeysDeleted(1)) => {
                                     logger::info!("Lock freed for locking input {:?}", input);
                                     tracing::Span::current()
                                         .record("redis_lock_released", redis_locking_key);
                                     Ok(())
                                 }
-                                Ok(redis::types::DelReply::KeyNotDeleted) => {
+                                Ok(redis::types::DelReply::KeysDeleted(n)) => {
+                                    Err(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable_lazy(|| {
+                                            format!("Deleted {n} keys from redis instead of 1")
+                                        })
+                                }
+                                Ok(redis::types::DelReply::NoKeysDeleted) => {
                                     Err(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable(
                                         "Status release lock called but key is not found in redis",

@@ -440,7 +440,7 @@ impl MerchantConnectorAccountInterface for Store {
 
                 #[cfg(feature = "accounts_cache")]
                 // Redact all caches as any of might be used because of backwards compatibility
-                cache::publish_and_redact_multiple(
+                cache::db_call_with_redact_and_publish(
                     self,
                     [
                         cache::CacheKind::Accounts(
@@ -526,7 +526,7 @@ impl MerchantConnectorAccountInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact all caches as any of might be used because of backwards compatibility
-            cache::publish_and_redact_multiple(
+            cache::db_call_with_redact_and_publish(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -586,7 +586,7 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
-            cache::publish_and_redact_multiple(
+            cache::db_call_with_redact_and_publish(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -1021,9 +1021,11 @@ mod merchant_connector_account_cache_tests {
             .await
         };
 
-        cache::publish_and_redact(
+        cache::db_call_with_redact_and_publish(
             &db,
-            CacheKind::Accounts(format!("{}_{}", merchant_id, connector_label).into()),
+            [CacheKind::Accounts(
+                format!("{}_{}", merchant_id, connector_label).into(),
+            )],
             delete_call,
         )
         .await
