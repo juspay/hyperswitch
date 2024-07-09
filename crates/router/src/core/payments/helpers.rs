@@ -513,7 +513,7 @@ pub async fn get_token_pm_type_mandate_details(
                             &payment_method_info.merchant_id,
                             &merchant_account.merchant_id,
                             &payment_method_info.customer_id,
-                            &customer_id,
+                            customer_id,
                         )?;
 
                         (
