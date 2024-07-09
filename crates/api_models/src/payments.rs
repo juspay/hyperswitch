@@ -518,6 +518,62 @@ pub struct PaymentsRequest {
     pub merchant_order_reference_id: Option<String>,
 }
 
+/// Checks if the inner values of two options are equal
+/// Returns true if values are not equal, if values match returns false
+fn are_optional_values_invalid<T: PartialEq>(
+    first_option: Option<&T>,
+    second_option: Option<&T>,
+) -> bool {
+    first_option
+        .zip(second_option)
+        .map(|(value1, value2)| value1 != value2)
+        .unwrap_or(true)
+}
+
+impl PaymentsRequest {
+    /// Get the customer id
+    ///
+    /// First check the id for `customer.id`
+    /// If not present, check for `customer_id` at the root level
+    pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
+        self.customer_id
+            .as_ref()
+            .or(self.customer.as_ref().map(|customer| &customer.id))
+    }
+
+    /// Checks if the customer details are passed in both places
+    /// If they are passed in both places, check for both the values to be equal
+    /// Or else, return the field which has inconsistent data
+    pub fn validate_customer_details_in_request(&self) -> Option<&str> {
+        if let Some(customer_details) = self.customer.as_ref() {
+            if are_optional_values_invalid(self.customer_id.as_ref(), Some(&customer_details.id)) {
+                return Some("customer_id");
+            }
+
+            if are_optional_values_invalid(self.email.as_ref(), customer_details.email.as_ref()) {
+                return Some("email");
+            }
+
+            if are_optional_values_invalid(self.name.as_ref(), customer_details.name.as_ref()) {
+                return Some("name");
+            }
+
+            if are_optional_values_invalid(self.phone.as_ref(), customer_details.phone.as_ref()) {
+                return Some("phone");
+            }
+
+            if are_optional_values_invalid(
+                self.phone_country_code.as_ref(),
+                customer_details.phone_country_code.as_ref(),
+            ) {
+                return Some("phone_country_code");
+            }
+        }
+
+        None
+    }
+}
+
 /// Fee information to be charged on the payment being collected
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]

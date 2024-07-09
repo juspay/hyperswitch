@@ -508,7 +508,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_merchant_account,
                     &m_key_store,
                     None,
-                    &payment_intent_customer_id,
+                    payment_intent_customer_id.as_ref(),
                 )
                 .await
             }
@@ -1353,7 +1353,14 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        helpers::validate_customer_details_in_request(request)?;
+        if let Some(mismatched_field) = request.validate_customer_details_in_request() {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "The field name `{mismatched_field}` sent in both places is ambiguous"
+                ),
+            })?
+        }
+
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
         }

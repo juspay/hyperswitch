@@ -451,7 +451,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
-    customer_id: &Option<id_type::CustomerId>,
+    payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -505,7 +505,8 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
-                        let customer_id = get_customer_id_from_payment_request(request)
+                        let customer_id = request
+                            .get_customer_id()
                             .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
@@ -552,10 +553,9 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        let payment_request_customer_id =
-                            get_customer_id_from_payment_request(request);
+                        let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
-                            &payment_request_customer_id.or(customer_id.clone())
+                            payment_request_customer_id.or(payment_intent_customer_id)
                         {
                             let customer_saved_pm_option = match state
                                 .store
@@ -711,10 +711,10 @@ pub async fn get_token_for_recurring_mandate(
         .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
-    let customer = get_customer_id_from_payment_request(req).get_required_value("customer_id")?;
+    let customer = req.get_customer_id().get_required_value("customer_id")?;
 
     let payment_method_id = {
-        if mandate.customer_id != customer {
+        if &mandate.customer_id != customer {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id must match mandate customer_id".into()
             }))?
@@ -1453,25 +1453,6 @@ pub async fn get_customer_from_details<F: Clone>(
     }
 }
 
-// Checks if the inner values of two options are not equal and throws appropriate error
-fn validate_options_for_inequality<T: PartialEq>(
-    first_option: Option<&T>,
-    second_option: Option<&T>,
-    field_name: &str,
-) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(
-        first_option
-            .zip(second_option)
-            .map(|(value1, value2)| value1 != value2)
-            .unwrap_or(false),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!("The field name `{field_name}` sent in both places is ambiguous"),
-            })
-        },
-    )
-}
-
 pub fn validate_max_amount(
     amount: api_models::payments::Amount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1490,58 +1471,13 @@ pub fn validate_max_amount(
     }
 }
 
-// Checks if the customer details are passed in both places
-// If so, raise an error
-pub fn validate_customer_details_in_request(
-    request: &api_models::payments::PaymentsRequest,
-) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(customer_details) = request.customer.as_ref() {
-        validate_options_for_inequality(
-            request.customer_id.as_ref(),
-            Some(&customer_details.id),
-            "customer_id",
-        )?;
-
-        validate_options_for_inequality(
-            request.email.as_ref(),
-            customer_details.email.as_ref(),
-            "email",
-        )?;
-
-        validate_options_for_inequality(
-            request.name.as_ref(),
-            customer_details.name.as_ref(),
-            "name",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone.as_ref(),
-            customer_details.phone.as_ref(),
-            "phone",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone_country_code.as_ref(),
-            customer_details.phone_country_code.as_ref(),
-            "phone_country_code",
-        )?;
-    }
-
-    Ok(())
-}
-
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
-    let customer_id = request
-        .customer
-        .as_ref()
-        .map(|customer_details| &customer_details.id)
-        .or(request.customer_id.as_ref())
-        .map(ToOwned::to_owned);
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -1574,16 +1510,6 @@ pub fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
     }
-}
-
-fn get_customer_id_from_payment_request(
-    request: &api_models::payments::PaymentsRequest,
-) -> Option<id_type::CustomerId> {
-    request
-        .customer
-        .as_ref()
-        .map(|customer| customer.id.clone())
-        .or(request.customer_id.clone())
 }
 
 pub async fn get_connector_default(
@@ -4079,8 +4005,8 @@ pub fn validate_customer_access(
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_same_customer = request.customer_id == payment_intent.customer_id;
+    if auth_flow == services::AuthFlow::Client && request.get_customer_id().is_some() {
+        let is_same_customer = request.get_customer_id() == payment_intent.customer_id.as_ref();
         if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
