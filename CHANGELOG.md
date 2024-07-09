@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.09.0
+
+### Features
+
+- **core:** Addition of shipping address details in payment intent ([#5112](https://github.com/juspay/hyperswitch/pull/5112)) ([`2d31d38`](https://github.com/juspay/hyperswitch/commit/2d31d38c1e35be99e9b0297b197bab81fa5f5030))
+- **router:** Add integrity check for refund refund sync and capture flow with stripe as connector ([#5187](https://github.com/juspay/hyperswitch/pull/5187)) ([`adc760f`](https://github.com/juspay/hyperswitch/commit/adc760f0a6c75b5a51d9955f5e507776e7a88d1a))
+- Add `hsdev` binary to run migrations ([#4877](https://github.com/juspay/hyperswitch/pull/4877)) ([`f64b522`](https://github.com/juspay/hyperswitch/commit/f64b522154cf4d3702ad39babc75c7ba940f8217))
+
+### Bug Fixes
+
+- **connector:** Remove mandatory payment_method_type check in MIT ([#5246](https://github.com/juspay/hyperswitch/pull/5246)) ([`19744ce`](https://github.com/juspay/hyperswitch/commit/19744cec1042f8b7c5cc496c3b4d201604aca204))
+
+**Full Changelog:** [`2024.07.08.1...2024.07.09.0`](https://github.com/juspay/hyperswitch/compare/2024.07.08.1...2024.07.09.0)
+
+- - -
+
 ## 2024.07.08.1
 
 ### Bug Fixes
