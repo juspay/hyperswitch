@@ -11333,7 +11333,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "Metadata is useful for storing additional, ustructured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "locker_id": {
