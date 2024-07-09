@@ -115,9 +115,7 @@ pub fn make_dsl_input_for_payouts(
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payouts")
-        .unwrap_or_else(|err| {
-            None
-        });
+        .unwrap_or(None);
     let payment = dsl_inputs::PaymentInput {
         amount: payout_data.payouts.amount,
         card_bin: None,
@@ -248,9 +246,7 @@ where
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
-        .unwrap_or_else(|_| {
-            None
-        });
+        .unwrap_or(None);
 
     Ok(dsl_inputs::BackendInput {
         metadata,
@@ -935,9 +931,7 @@ pub async fn perform_session_flow_routing(
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
-        .unwrap_or_else(|err| {
-            None
-        });
+        .unwrap_or(None);
 
     let mut backend_input = dsl_inputs::BackendInput {
         metadata,
@@ -1163,9 +1157,7 @@ pub fn make_dsl_input_for_surcharge(
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
-        .unwrap_or_else(|err| {
-            None
-        });
+        .unwrap_or(None);
     let payment_method_input = dsl_inputs::PaymentMethodInput {
         payment_method: None,
         payment_method_type: None,
