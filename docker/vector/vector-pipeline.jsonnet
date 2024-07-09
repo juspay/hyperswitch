@@ -8,41 +8,70 @@ vector
 })
 .components({
   // Ingest
-  kafka_source: vector.sources.file({
-    include: ['sample.log'],
-    start_at_beginning: true,
+  kafka_source: vector.sources.kafka({
+    bootstrap_servers: 'kafka0:29092',
+    group_id: 'sessionizer',
+    topics: ['hyperswitch-consolidated-events'],
+    decoding: { codec: 'json' },
   }),
 
-  // Structure and parse the data
-  regex_parser: vector.transforms.remap({
-    drop_on_error: false,
+  init_sessionizer_vars: vector.transforms.remap({
+    drop_on_error: true,
+    reroute_dropped: true,
     source: |||
-      . |= parse_regex!(.message, r'^(?P<host>[\w\.]+) - (?P<user>[\w-]+) \[(?P<timestamp>.*)\] "(?P<method>[\w]+) (?P<path>.*)" (?P<status>[\d]+) (?P<bytes_out>[\d]+)$'),
+      .sessionizer = {
+        "table": "${CASSANDRA_TABLE:-payments}",
+        "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
+        "db_log_type": "payment_intent"
+      };
+      log({"log": ., "type": "individual"}, rate_limit_secs:0);
     |||,
   }),
 
-  // Transform into metrics
-  log_to_metric: vector.transforms.log_to_metric({
-    metrics: [
-      { type: 'counter', field: 'message' },
-      { type: 'counter', field: 'bytes_out', name: 'bytes_out_total', increment_by_value: true },
-      { type: 'gauge', field: 'bytes_out' },
-      { type: 'set', field: 'user' },
-      { type: 'histogram', field: 'bytes_out', name: 'bytes_out_histogram' },
-    ],
+  buffer_each_log_type: vector.transforms.reduce({
+    group_by: ['log.log_type', 'log.merchant_id', 'log.payment_id', 'log.attempt_id', 'log.refund_id', 'log.dispute_id'],
+    merge_strategies: {
+      log: 'retain',
+    },
+    expire_after_ms: 3000,
   }),
 
-  // Output data
-  console_metrics: vector.sinks.console({ encoding: { codec: 'json' } }),
-  console_logs: vector.sinks.console({ encoding: { codec: 'text' } }),
-  prometheus: vector.sinks.prometheus_exporter({
-    default_namespace: 'vector',
-    buckets: [0.0, 10.0, 100.0, 1000.0, 10000.0, 100001.0],
+  concat_all_log_types: vector.transforms.reduce({
+    group_by: ['log.merchant_id', 'log.payment_id'],
+    merge_strategies: {
+      log: 'array',
+      log_type: 'array',
+    },
+    expire_after_ms: 5000,
+  }),
+
+  debug_log: vector.transforms.remap({
+    drop_on_error: true,
+    reroute_dropped: true,
+    source: |||
+      log({"log": ., "type": "combined"}, rate_limit_secs:0);
+    |||,
+  }),
+
+  generate_signed_events: vector.transforms.remap({
+    drop_on_error: true,
+    reroute_dropped: true,
+    source: |||
+      events = [];
+      if exists(.old_log) {
+        .old_log = parse_json(.old_log) ?? {};
+        .old_log.sign_flag = -1;
+        events = push(events, .old_log);
+      };
+      .log.sign_flag = 1;
+      events = push(events, .log);
+      . = events
+    |||,
   }),
 })
 .pipelines([
-  ['file', 'regex_parser', 'log_to_metric', 'console_metrics'],
-  ['file', 'regex_parser', 'log_to_metric', 'prometheus'],
-  ['file', 'regex_parser', 'console_logs'],
+  ['kafka_source', 'regex_parser', 'log_to_metric', 'console_metrics'],
+  ['kafka_source', 'regex_parser', 'log_to_metric', 'prometheus'],
+  ['kafka_source', 'regex_parser', 'console_logs'],
 ])
 .json
