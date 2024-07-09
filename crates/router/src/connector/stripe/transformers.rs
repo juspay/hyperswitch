@@ -2876,13 +2876,14 @@ pub struct RefundRequest {
     pub meta_data: StripeMetadata,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F> TryFrom<(&types::RefundsRouterData<F>, MinorUnit)> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.minor_refund_amount;
+    fn try_from(
+        (item, refund_amount): (&types::RefundsRouterData<F>, MinorUnit),
+    ) -> Result<Self, Self::Error> {
         let payment_intent = item.request.connector_transaction_id.clone();
         Ok(Self {
-            amount: Some(amount),
+            amount: Some(refund_amount),
             payment_intent,
             meta_data: StripeMetadata {
                 order_id: Some(item.request.refund_id.clone()),
