@@ -82,6 +82,7 @@ audit_events_topic = "topic"               # Kafka topic to be used for Payment 
 payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
 consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
+fraud_check_analytics_topic = "topic"      # Kafka topic to be used for Fraud Check events
 
 # File storage configuration
 [file_storage]

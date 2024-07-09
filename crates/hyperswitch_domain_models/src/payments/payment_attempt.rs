@@ -530,7 +530,9 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
 
@@ -592,7 +594,15 @@ impl behaviour::Conversion for PaymentIntent {
                     .customer_details
                     .async_lift(inner_decrypt)
                     .await?,
+                billing_details: storage_model
+                    .billing_details
+                    .async_lift(inner_decrypt)
+                    .await?,
                 merchant_order_reference_id: storage_model.merchant_order_reference_id,
+                shipping_details: storage_model
+                    .shipping_details
+                    .async_lift(inner_decrypt)
+                    .await?,
             })
         }
         .await
@@ -647,7 +657,9 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
 }
