@@ -414,26 +414,29 @@ impl<F>
         }
         // transaction failed
         else {
+            let code = item
+                .response
+                .body
+                .submit_single_capture_response
+                .submit_single_capture_result
+                .response
+                .declined_code
+                .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            let declined_message = item
+                .response
+                .body
+                .submit_single_capture_response
+                .submit_single_capture_result
+                .response
+                .declined_message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
                     status_code: item.http_code,
-                    code: item
-                        .response
-                        .body
-                        .submit_single_capture_response
-                        .submit_single_capture_result
-                        .response
-                        .declined_code
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: item
-                        .response
-                        .body
-                        .submit_single_capture_response
-                        .submit_single_capture_result
-                        .response
-                        .declined_message,
+                    code,
+                    message: declined_message.to_owned(),
+                    reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
