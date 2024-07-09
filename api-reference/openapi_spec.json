@@ -9758,6 +9758,12 @@
             "enum": [
               "user_date_of_birth"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_vpa_id"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
