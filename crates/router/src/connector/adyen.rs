@@ -982,6 +982,8 @@ impl
             })?,
         };
 
+        let amount = convert_amount(self.amount_converter, amount, currency)?;
+
         if response.balance.currency != currency || response.balance.value < amount {
             Ok(types::RouterData {
                 response: Err(types::ErrorResponse {

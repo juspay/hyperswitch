@@ -175,8 +175,7 @@ pub enum AdyenTransactionType {
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        let request =
-            item.request.to_owned();
+        let request = item.request.to_owned();
         match item.get_payout_method_data()? {
             payouts::PayoutMethodData::Card(_) | payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotImplemented(

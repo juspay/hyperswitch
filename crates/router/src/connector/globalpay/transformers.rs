@@ -543,7 +543,7 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
                 let minor_amount = StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
                     amount,
-                    self.currency.unwrap_or_default() //it is ignored in convert_back function 
+                    self.currency.unwrap_or_default(), //it is ignored in convert_back function
                 )?;
                 Ok(Some(minor_amount))
             }

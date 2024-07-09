@@ -2200,8 +2200,10 @@ where
                         .get_connector_reference_id(),
                     amount: capture_sync_response
                         .get_amount_captured()
-                        .change_context(errors::ConnectorError::ParsingFailed)
-                        .attach_printable("failed to convert back captured response amount to minor unit")?,
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
                 },
             );
         }
