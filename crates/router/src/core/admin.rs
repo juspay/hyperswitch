@@ -28,7 +28,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api},
+    services::{self, api as service_api, authentication},
     types::{
         self, api,
         domain::{
@@ -280,6 +280,25 @@ pub async fn create_merchant_account(
         .insert_merchant(merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    if let Some(api_key) = merchant_account.publishable_key.as_ref() {
+        let state = state.clone();
+        let api_key = api_key.clone();
+        let merchant_id = merchant_account.merchant_id.clone();
+
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::add_publishable_key(
+                    &state,
+                    api_key.into(),
+                    merchant_id,
+                    None,
+                )
+                .await
+            },
+            authentication::decision::ADD,
+        );
+    }
 
     db.insert_config(configs::ConfigNew {
         key: format!("{}_requires_cvv", merchant_account.merchant_id),
@@ -650,6 +669,20 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
+
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -660,6 +693,14 @@ pub async fn merchant_account_delete(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
+
+    if let Some(api_key) = merchant_account.publishable_key {
+        let state = state.clone();
+        authentication::decision::spawn_tracked_job(
+            async move { authentication::decision::revoke_api_key(&state, api_key.into()).await },
+            authentication::decision::REVOKE,
+        )
     }
 
     match db
