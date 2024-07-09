@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -36,7 +38,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
         let mut dimensions = dimensions.to_vec();
 
@@ -107,6 +109,8 @@ where
                         i.authentication_type.as_ref().map(|i| i.0),
                         i.payment_method.clone(),
                         i.payment_method_type.clone(),
+                        i.client_source.clone(),
+                        i.client_version.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -122,7 +126,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
+                HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

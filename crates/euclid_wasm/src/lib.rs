@@ -33,12 +33,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
-struct SeedData<'a> {
-    cgraph: hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>,
+struct SeedData {
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
 static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
@@ -91,8 +91,12 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
+    let pm_filter = kgraph_utils::types::PaymentMethodFilters(HashMap::new());
+    let config = kgraph_utils::types::CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: Some(pm_filter),
+    };
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
     let analysis_graph =
         hyperswitch_constraint_graph::ConstraintGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH)
             .err_to_js()?;
@@ -258,6 +262,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+        dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector

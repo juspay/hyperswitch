@@ -3,7 +3,7 @@ pub mod payout_attempt;
 pub mod payouts;
 
 use common_enums as storage_enums;
-use common_utils::consts;
+use common_utils::{consts, id_type};
 use time::PrimitiveDateTime;
 
 pub enum PayoutFetchConstraints {
@@ -20,7 +20,7 @@ pub struct PayoutListParams {
     pub status: Option<Vec<storage_enums::PayoutStatus>>,
     pub payout_method: Option<Vec<common_enums::PayoutType>>,
     pub profile_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
     pub entity_type: Option<common_enums::PayoutEntityType>,

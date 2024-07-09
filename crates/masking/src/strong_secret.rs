@@ -117,3 +117,12 @@ impl StrongEq for String {
         bool::from(lhs.ct_eq(rhs))
     }
 }
+
+impl StrongEq for Vec<u8> {
+    fn strong_eq(&self, other: &Self) -> bool {
+        let lhs = &self;
+        let rhs = &other;
+
+        bool::from(lhs.ct_eq(rhs))
+    }
+}

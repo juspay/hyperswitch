@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::ResultExt;
 
@@ -23,14 +24,14 @@ pub trait PaymentMethodInterface {
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
@@ -39,7 +40,7 @@ pub trait PaymentMethodInterface {
 
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError>;
@@ -66,12 +67,14 @@ pub trait PaymentMethodInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::fallback_reverse_lookup_not_found;
+    use common_utils::{fallback_reverse_lookup_not_found, id_type};
     use diesel_models::{kv, PaymentMethodUpdateInternal};
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::PaymentMethodInterface;
     use crate::{
@@ -97,7 +100,12 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                self,
+                storage_scheme,
+                Op::Find,
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -141,7 +149,12 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                self,
+                storage_scheme,
+                Op::Find,
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -176,7 +189,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
@@ -194,9 +207,16 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_payment_method(
             &self,
-            payment_method_new: storage_types::PaymentMethodNew,
+            mut payment_method_new: storage_types::PaymentMethodNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
+            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            )
+            .await;
+            payment_method_new.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -211,7 +231,7 @@ mod storage {
 
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id: &merchant_id,
-                        customer_id: &customer_id,
+                        customer_id: customer_id.get_string_repr(),
                     };
                     let key_str = key.to_string();
                     let field =
@@ -278,25 +298,35 @@ mod storage {
             payment_method_update: storage_types::PaymentMethodUpdate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
+            let merchant_id = payment_method.merchant_id.clone();
+            let customer_id = payment_method.customer_id.clone();
+            let key = PartitionKey::MerchantIdCustomerId {
+                merchant_id: &merchant_id,
+                customer_id: customer_id.get_string_repr(),
+            };
+            let field = format!("payment_method_id_{}", payment_method.payment_method_id);
+            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, payment_method.updated_by.as_deref()),
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     payment_method
-                        .update_with_payment_method_id(&conn, payment_method_update.into())
+                        .update_with_payment_method_id(
+                            &conn,
+                            payment_method_update.convert_to_payment_method_update(storage_scheme),
+                        )
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let merchant_id = payment_method.merchant_id.clone();
-                    let customer_id = payment_method.customer_id.clone();
-                    let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id: &merchant_id,
-                        customer_id: &customer_id,
-                    };
                     let key_str = key.to_string();
-                    let field = format!("payment_method_id_{}", payment_method.payment_method_id);
 
-                    let p_update: PaymentMethodUpdateInternal = payment_method_update.into();
+                    let p_update: PaymentMethodUpdateInternal =
+                        payment_method_update.convert_to_payment_method_update(storage_scheme);
                     let updated_payment_method =
                         p_update.clone().apply_changeset(payment_method.clone());
 
@@ -335,7 +365,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
@@ -353,7 +383,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
@@ -377,7 +407,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id,
+                        customer_id: customer_id.get_string_repr(),
                     };
 
                     let pattern = "payment_method_id_*";
@@ -427,6 +457,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use common_utils::id_type;
     use error_stack::report;
     use router_env::{instrument, tracing};
 
@@ -437,6 +468,7 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums::MerchantStorageScheme},
     };
+
     #[async_trait::async_trait]
     impl PaymentMethodInterface for Store {
         #[instrument(skip_all)]
@@ -466,7 +498,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
@@ -511,7 +543,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
@@ -529,7 +561,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
@@ -608,7 +640,7 @@ impl PaymentMethodInterface for MockDb {
 
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
@@ -616,7 +648,7 @@ impl PaymentMethodInterface for MockDb {
         let count = payment_methods
             .iter()
             .filter(|pm| {
-                pm.customer_id == customer_id
+                pm.customer_id == *customer_id
                     && pm.merchant_id == merchant_id
                     && pm.status == status
             })
@@ -662,6 +694,8 @@ impl PaymentMethodInterface for MockDb {
             status: payment_method_new.status,
             client_secret: payment_method_new.client_secret,
             network_transaction_id: payment_method_new.network_transaction_id,
+            updated_by: payment_method_new.updated_by,
+            payment_method_billing_address: payment_method_new.payment_method_billing_address,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)
@@ -669,14 +703,14 @@ impl PaymentMethodInterface for MockDb {
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
-            .filter(|pm| pm.customer_id == customer_id && pm.merchant_id == merchant_id)
+            .filter(|pm| pm.customer_id == *customer_id && pm.merchant_id == merchant_id)
             .cloned()
             .collect();
 
@@ -692,7 +726,7 @@ impl PaymentMethodInterface for MockDb {
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         _limit: Option<i64>,
@@ -702,7 +736,7 @@ impl PaymentMethodInterface for MockDb {
         let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
             .filter(|pm| {
-                pm.customer_id == customer_id
+                pm.customer_id == *customer_id
                     && pm.merchant_id == merchant_id
                     && pm.status == status
             })

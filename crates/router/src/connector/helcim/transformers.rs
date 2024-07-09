@@ -159,6 +159,7 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -260,6 +261,7 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -369,6 +371,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -424,6 +427,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -483,6 +487,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -569,6 +574,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -631,6 +637,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

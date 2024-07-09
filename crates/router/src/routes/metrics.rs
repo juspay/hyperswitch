@@ -1,3 +1,7 @@
+pub mod bg_metrics_collector;
+pub mod request;
+pub mod utils;
+
 use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
 metrics_context!(CONTEXT);
@@ -52,7 +56,6 @@ counter_metric!(MCA_CREATE, GLOBAL_METER);
 
 // Flow Specific Metrics
 
-counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
 histogram_metric!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
 counter_metric!(SESSION_TOKEN_CREATED, GLOBAL_METER);
 
@@ -73,7 +76,6 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
-counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Connector http status code metrics
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
@@ -88,10 +90,6 @@ counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
-
-// Encryption and Decryption metrics
-histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
 
 // Apple Pay Flow Metrics
 counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
@@ -123,5 +121,16 @@ counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process trac
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
-pub mod request;
-pub mod utils;
+// Access token metrics
+//
+// A counter to indicate the number of new access tokens created
+counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
+
+// A counter to indicate the access token cache hits
+counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
+
+// A counter to indicate the access token cache miss
+counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
+
+// A counter to indicate the integrity check failures
+counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);

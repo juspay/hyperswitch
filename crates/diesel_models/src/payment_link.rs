@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel::{Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -12,7 +13,7 @@ pub struct PaymentLink {
     pub payment_id: String,
     pub link_to_pay: String,
     pub merchant_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -42,7 +43,7 @@ pub struct PaymentLinkNew {
     pub payment_id: String,
     pub link_to_pay: String,
     pub merchant_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,

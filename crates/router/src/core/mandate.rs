@@ -1,11 +1,11 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 
 use super::payments::helpers as payment_helper;
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         payments::CallConnectorAction,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -32,7 +32,7 @@ use crate::{
 
 #[instrument(skip(state))]
 pub async fn get_mandate(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: mandates::MandateId,
@@ -60,7 +60,7 @@ pub async fn get_mandate(
 
 #[instrument(skip(state))]
 pub async fn revoke_mandate(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: mandates::MandateId,
@@ -78,9 +78,13 @@ pub async fn revoke_mandate(
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
-            let profile_id =
-                helpers::get_profile_id_for_mandate(&state, &merchant_account, mandate.clone())
-                    .await?;
+            let profile_id = helpers::get_profile_id_for_mandate(
+                &state,
+                &merchant_account,
+                &key_store,
+                mandate.clone(),
+            )
+            .await?;
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
@@ -99,8 +103,7 @@ pub async fn revoke_mandate(
                 GetToken::Connector,
                 mandate.merchant_connector_id.clone(),
             )?;
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
+            let connector_integration: services::BoxedMandateRevokeConnectorIntegrationInterface<
                 types::api::MandateRevoke,
                 types::MandateRevokeRequestData,
                 types::MandateRevokeResponseData,
@@ -223,7 +226,7 @@ pub async fn update_connector_mandate_id(
 
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
@@ -235,7 +238,7 @@ pub async fn get_customer_mandates(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while finding mandate: merchant_id: {}, customer_id: {}",
+                "Failed while finding mandate: merchant_id: {}, customer_id: {:?}",
                 merchant_account.merchant_id, req.customer_id
             )
         })?;
@@ -271,7 +274,7 @@ where
     }
 }
 pub async fn update_mandate_procedure<F, FData>(
-    state: &AppState,
+    state: &SessionState,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     mandate: Mandate,
     merchant_id: &str,
@@ -342,9 +345,9 @@ where
 }
 
 pub async fn mandate_procedure<F, FData>(
-    state: &AppState,
+    state: &SessionState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
@@ -404,10 +407,7 @@ where
             metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes(
-                    "connector",
-                    mandate.connector,
-                )],
+                &add_attributes([("connector", mandate.connector)]),
             );
             Ok(Some(mandate_id.clone()))
         }
@@ -463,7 +463,7 @@ where
             metrics::MANDATE_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes("connector", connector)],
+                &add_attributes([("connector", connector)]),
             );
             Ok(Some(res_mandate_id))
         }
@@ -472,7 +472,7 @@ where
 
 #[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     constraints: api_models::mandates::MandateListConstraints,

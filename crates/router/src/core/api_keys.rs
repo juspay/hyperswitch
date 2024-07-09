@@ -3,14 +3,14 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
-    routes::{metrics, AppState},
-    services::ApplicationResponse,
+    routes::{metrics, SessionState},
+    services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
@@ -110,7 +110,7 @@ impl PlaintextApiKey {
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
-    state: AppState,
+    state: SessionState,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -148,10 +148,30 @@ pub async fn create_api_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
 
+    let state_inner = state.clone();
+    let hashed_api_key = api_key.hashed_api_key.clone();
+    let merchant_id_inner = merchant_id.clone();
+    let key_id = api_key.key_id.clone();
+    let expires_at = api_key.expires_at;
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_api_key(
+                &state_inner,
+                hashed_api_key.into_inner().into(),
+                merchant_id_inner,
+                key_id,
+                expires_at.map(authentication::decision::convert_expiry),
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
+
     metrics::API_KEY_CREATED.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("merchant", merchant_id)],
+        &add_attributes([("merchant", merchant_id)]),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
@@ -236,7 +256,7 @@ pub async fn add_api_key_expiry_task(
     metrics::TASKS_ADDED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+        &add_attributes([("flow", "ApiKeyExpiry")]),
     );
 
     Ok(())
@@ -244,7 +264,7 @@ pub async fn add_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
@@ -261,7 +281,7 @@ pub async fn retrieve_api_key(
 
 #[instrument(skip_all)]
 pub async fn update_api_key(
-    state: AppState,
+    state: SessionState,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let merchant_id = api_key.merchant_id.clone();
@@ -276,6 +296,25 @@ pub async fn update_api_key(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+
+    let state_inner = state.clone();
+    let hashed_api_key = api_key.hashed_api_key.clone();
+    let key_id_inner = api_key.key_id.clone();
+    let expires_at = api_key.expires_at;
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_api_key(
+                &state_inner,
+                hashed_api_key.into_inner().into(),
+                merchant_id.clone(),
+                key_id_inner,
+                expires_at.map(authentication::decision::convert_expiry),
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
 
     #[cfg(feature = "email")]
     {
@@ -381,7 +420,9 @@ pub async fn update_api_key_expiry_task(
         retry_count: Some(0),
         schedule_time,
         tracking_data: Some(updated_api_key_expiry_workflow_model),
-        business_status: Some("Pending".to_string()),
+        business_status: Some(String::from(
+            diesel_models::process_tracker::business_status::PENDING,
+        )),
         status: Some(storage_enums::ProcessTrackerStatus::New),
         updated_at: Some(current_time),
     };
@@ -395,15 +436,34 @@ pub async fn update_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
+
+    let api_key = store
+        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+
     let revoked = store
         .revoke_api_key(merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+
+    if let Some(api_key) = api_key {
+        let hashed_api_key = api_key.hashed_api_key;
+        let state = state.clone();
+
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::revoke_api_key(&state, hashed_api_key.into_inner().into())
+                    .await
+            },
+            authentication::decision::REVOKE,
+        );
+    }
 
     metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
@@ -450,7 +510,7 @@ pub async fn revoke_api_key_expiry_task(
     let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
-        business_status: Some("Revoked".to_string()),
+        business_status: Some(String::from(diesel_models::business_status::REVOKED)),
     };
 
     store
@@ -463,7 +523,7 @@ pub async fn revoke_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn list_api_keys(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     limit: Option<i64>,
     offset: Option<i64>,

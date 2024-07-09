@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, domain, storage::enums, AccessToken, ConnectorAuthType};
 
@@ -13,12 +14,12 @@ impl ConnectorActions for PaypalTest {}
 impl Connector for PaypalTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Paypal;
-        types::api::ConnectorData {
-            connector: Box::new(&Paypal),
-            connector_name: types::Connector::Paypal,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Paypal::new()),
+            types::Connector::Paypal,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
@@ -143,6 +144,10 @@ async fn should_sync_authorized_payment() {
                 connector_meta,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                captured_amount: None,
             }),
             get_default_payment_info(),
         )
@@ -341,6 +346,10 @@ async fn should_sync_auto_captured_payment() {
                 connector_meta,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                payment_experience: None,
+                amount: MinorUnit::new(100),
+                integrity_object: None,
+                captured_amount: None,
             }),
             get_default_payment_info(),
         )

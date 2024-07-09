@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use common_utils::pii::Email;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
+use unidecode::unidecode;
 
 use crate::{
     connector::utils::{AddressDetailsData, PhoneDetailsData},
@@ -116,8 +118,8 @@ pub struct ThreeDSRequestor {
     /// External IP address (i.e., the device public IP address) used by the 3DS Requestor App when it connects to the
     /// 3DS Requestor environment. The value length is maximum 45 characters. Accepted values are:
     ///
-    ///     IPv4 address is represented in the dotted decimal f. Refer to RFC 791.
-    ///     IPv6 address. Refer to RFC 4291.
+    /// - IPv4 address is represented in the dotted decimal f. Refer to RFC 791.
+    /// - IPv6 address. Refer to RFC 4291.
     ///
     /// This field is required when deviceChannel = 01 (APP) and unless market or regional mandate restricts sending
     /// this information.
@@ -701,7 +703,13 @@ impl
                 .address
                 .as_ref()
                 .and_then(|add| add.city.clone()),
-            bill_addr_country: None,
+            bill_addr_country: billing_address.address.as_ref().and_then(|add| {
+                add.country.map(|country| {
+                    common_enums::Country::from_alpha2(country)
+                        .to_numeric()
+                        .to_string()
+                })
+            }),
             bill_addr_line1: billing_address
                 .address
                 .as_ref()
@@ -739,15 +747,25 @@ impl
                 .clone()
                 .map(PhoneNumber::try_from)
                 .transpose()?,
-            cardholder_name: billing_address
-                .address
-                .as_ref()
-                .and_then(|add| add.first_name.clone()),
+            cardholder_name: billing_address.address.and_then(|address| {
+                address
+                    .get_optional_full_name()
+                    .map(|name| masking::Secret::new(unidecode(&name.expose())))
+            }),
             ship_addr_city: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
                 .and_then(|add| add.city.clone()),
-            ship_addr_country: None,
+            ship_addr_country: shipping_address
+                .as_ref()
+                .and_then(|shipping_add| shipping_add.address.as_ref())
+                .and_then(|add| {
+                    add.country.map(|country| {
+                        common_enums::Country::from_alpha2(country)
+                            .to_numeric()
+                            .to_string()
+                    })
+                }),
             ship_addr_line1: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
@@ -1313,7 +1331,7 @@ pub struct Browser {
     /// - with message version = 2.1.0 and deviceChannel = 02 (BRW).
     /// - with message version = 2.2.0 and deviceChannel = 02 (BRW) and browserJavascriptEnabled = true.
     #[serde(rename = "browserTZ")]
-    browser_tz: Option<u32>,
+    browser_tz: Option<i32>,
 
     /// Exact content of the HTTP user-agent header. The field is limited to maximum 2048 characters. If the total length of
     /// the User-Agent sent by the browser exceeds 2048 characters, the 3DS Server truncates the excess portion.
@@ -1364,7 +1382,7 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_color_depth: value.color_depth.map(|cd| cd.to_string()),
             browser_screen_height: value.screen_height,
             browser_screen_width: value.screen_width,
-            browser_tz: Some(1),
+            browser_tz: value.time_zone,
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
@@ -1436,27 +1454,27 @@ pub struct Sdk {
     /// The Split-SDK Server:
     ///    Creates a JSON object of the following data as the JWS payload to be signed:
     ///
-    ///        SDK Reference Number -> Identifies the vendor and version of the 3DS SDK that is utilised for a specific
-    ///                                transaction. The value is assigned by EMVCo when the Letter of Approval of the
-    ///                                specific 3DS SDK is issued. The field is limited to 32 characters.
-    ///        SDK Signature Timestamp -> Date and time indicating when the 3DS SDK generated the Split-SDK Server Signed
-    ///                                   Content converted into UTC. The value is limited to 14 characters. Accepted
-    ///                                   format: YYYYMMDDHHMMSS.
-    ///        SDK Transaction ID -> Universally unique transaction identifier assigned by the 3DS SDK to identify a
-    ///                              single transaction. The field is limited to 36 characters and it shall be in a
-    ///                              canonical format as defined in IETF RFC 4122. This may utilize any of the specified
-    ///                              versions as long as the output meets specific requirements.
-    ///        Split-SDK Server ID -> DS assigned Split-SDK Server identifier. Each DS can provide a unique ID to each
-    ///                               Split-SDK Server on an individual basis. The field is limited to 32 characters.
-    ///                               Any individual DS may impose specific formatting and character requirements on the
-    ///                               contents of this field.
+    ///    - SDK Reference Number -> Identifies the vendor and version of the 3DS SDK that is utilised for a specific
+    ///                              transaction. The value is assigned by EMVCo when the Letter of Approval of the
+    ///                              specific 3DS SDK is issued. The field is limited to 32 characters.
+    ///    - SDK Signature Timestamp -> Date and time indicating when the 3DS SDK generated the Split-SDK Server Signed
+    ///                                 Content converted into UTC. The value is limited to 14 characters. Accepted
+    ///                                 format: YYYYMMDDHHMMSS.
+    ///    - SDK Transaction ID -> Universally unique transaction identifier assigned by the 3DS SDK to identify a
+    ///                            single transaction. The field is limited to 36 characters and it shall be in a
+    ///                            canonical format as defined in IETF RFC 4122. This may utilize any of the specified
+    ///                            versions as long as the output meets specific requirements.
+    ///    - Split-SDK Server ID -> DS assigned Split-SDK Server identifier. Each DS can provide a unique ID to each
+    ///                             Split-SDK Server on an individual basis. The field is limited to 32 characters.
+    ///                             Any individual DS may impose specific formatting and character requirements on the
+    ///                             contents of this field.
     ///
     ///    Generates a digital signature of the full JSON object according to JWS (RFC 7515) using JWS Compact
     ///    Serialization. The parameter values for this version of the specification and to be included in the JWS
     ///    header are:
     ///
-    ///        "alg": PS2567 or ES256
-    ///        "x5c": X.5C v3: Cert (PbSDK) and chaining certificates if present
+    ///    - `alg`: PS2567 or ES256
+    ///    - `x5c`: X.5C v3: Cert (PbSDK) and chaining certificates if present
     ///
     ///    All other parameters: optional
     ///

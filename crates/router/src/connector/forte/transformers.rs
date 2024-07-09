@@ -111,6 +111,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment {}
             | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -278,6 +279,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -326,6 +328,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -394,6 +397,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -462,6 +466,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

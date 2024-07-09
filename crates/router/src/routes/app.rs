@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
@@ -14,13 +14,16 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(feature = "payouts")]
+use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(feature = "olap")]
@@ -29,8 +32,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*, webhook_events::*,
+    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -43,7 +46,8 @@ use super::{ephemeral_key::*, webhooks::*};
 use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
-use crate::configs::secrets_transformers;
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsProvider;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -53,10 +57,14 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
-    services::get_store,
+    services::{get_cache_store, get_store},
+};
+use crate::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
 };
 
 #[derive(Clone)]
@@ -65,32 +73,89 @@ pub struct ReqState {
 }
 
 #[derive(Clone)]
+pub struct SessionState {
+    pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn GlobalStorageInterface>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+    pub event_handler: EventsHandler,
+    #[cfg(feature = "email")]
+    pub email_client: Arc<dyn EmailService>,
+    #[cfg(feature = "olap")]
+    pub pool: AnalyticsProvider,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub request_id: Option<RequestId>,
+    pub base_url: String,
+    pub tenant: Tenant,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: Arc<OpenSearchClient>,
+}
+impl scheduler::SchedulerSessionState for SessionState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
+}
+impl SessionState {
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+}
+
+pub trait SessionStateInfo {
+    fn conf(&self) -> settings::Settings<RawSecret>;
+    fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> EventsHandler;
+    fn get_request_id(&self) -> Option<String>;
+    fn add_request_id(&mut self, request_id: RequestId);
+}
+
+impl SessionStateInfo for SessionState {
+    fn store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
+    fn conf(&self) -> settings::Settings<RawSecret> {
+        self.conf.as_ref().to_owned()
+    }
+    fn event_handler(&self) -> EventsHandler {
+        self.event_handler.clone()
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id);
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
+    }
+}
+#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Box<dyn StorageInterface>,
+    pub global_store: Box<dyn GlobalStorageInterface>,
+    pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pool: crate::analytics::AnalyticsProvider,
+    pub pools: HashMap<String, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub opensearch_client: OpenSearchClient,
+    pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
-
 impl scheduler::SchedulerAppState for AppState {
-    fn get_db(&self) -> Box<dyn SchedulerInterface> {
-        self.store.get_scheduler_db()
+    fn get_tenants(&self) -> Vec<String> {
+        self.conf.multitenancy.get_tenant_names()
     }
 }
-
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
-    fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
@@ -104,9 +169,6 @@ impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {
         self.conf.as_ref().to_owned()
     }
-    fn store(&self) -> Box<dyn StorageInterface> {
-        self.store.to_owned()
-    }
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
@@ -116,7 +178,6 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -163,7 +224,11 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+        let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
+            conf,
+            &*secret_management_client,
+        ))
+        .await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -183,42 +248,47 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = conf
-                .opensearch
-                .get_opensearch_client()
-                .await
-                .expect("Failed to create opensearch client");
-
-            let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                    EventsHandler::Kafka(kafka_client) => Box::new(
-                        crate::db::KafkaStore::new(
-                            #[allow(clippy::expect_used)]
-                            get_store(&conf.clone(), shut_down_signal, testable)
-                                .await
-                                .expect("Failed to create store"),
-                            kafka_client.clone(),
-                        )
-                        .await,
-                    ),
-                    EventsHandler::Logs(_) => Box::new(
-                        #[allow(clippy::expect_used)]
-                        get_store(&conf, shut_down_signal, testable)
-                            .await
-                            .expect("Failed to create store"),
-                    ),
-                },
-                #[allow(clippy::expect_used)]
-                StorageImpl::Mock => Box::new(
-                    MockDb::new(&conf.redis)
-                        .await
-                        .expect("Failed to create mock store"),
-                ),
-            };
+            let opensearch_client = Arc::new(
+                conf.opensearch
+                    .get_opensearch_client()
+                    .await
+                    .expect("Failed to create opensearch client"),
+            );
 
             #[cfg(feature = "olap")]
-            let pool =
-                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
+            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
+            let mut stores = HashMap::new();
+            #[allow(clippy::expect_used)]
+            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
+                .await
+                .expect("Failed to create store");
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                &conf.multitenancy.global_tenant,
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await
+            .get_global_storage_interface();
+            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
+                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                )
+                .await
+                .get_storage_interface();
+                stores.insert(tenant_name.clone(), store);
+                #[cfg(feature = "olap")]
+                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
+                #[cfg(feature = "olap")]
+                pools.insert(tenant_name.clone(), pool);
+            }
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -227,14 +297,15 @@ impl AppState {
 
             Self {
                 flow_name: String::from("default"),
-                store,
+                stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
-                pool,
+                pools,
                 #[cfg(feature = "olap")]
                 opensearch_client,
                 request_id: None,
@@ -243,6 +314,43 @@ impl AppState {
             }
         })
         .await
+    }
+
+    async fn get_store_interface(
+        storage_impl: &StorageImpl,
+        event_handler: &EventsHandler,
+        conf: &Settings,
+        tenant: &dyn TenantConfig,
+        cache_store: Arc<RedisStore>,
+        testable: bool,
+    ) -> Box<dyn CommonStorageInterface> {
+        match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
+                EventsHandler::Kafka(kafka_client) => Box::new(
+                    KafkaStore::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
+                            .await
+                            .expect("Failed to create store"),
+                        kafka_client.clone(),
+                        TenantID(tenant.get_schema().to_string()),
+                    )
+                    .await,
+                ),
+                EventsHandler::Logs(_) => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+            },
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
+        }
     }
 
     pub async fn new(
@@ -263,6 +371,29 @@ impl AppState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
+    }
+    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
+    where
+        F: FnOnce() -> E + Copy,
+    {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        Ok(SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
+            conf: Arc::clone(&self.conf),
+            api_client: self.api_client.clone(),
+            event_handler: self.event_handler.clone(),
+            #[cfg(feature = "olap")]
+            pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
+            file_storage_client: self.file_storage_client.clone(),
+            request_id: self.request_id,
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
+            #[cfg(feature = "email")]
+            email_client: Arc::clone(&self.email_client),
+            #[cfg(feature = "olap")]
+            opensearch_client: Arc::clone(&self.opensearch_client),
+        })
     }
 }
 
@@ -332,7 +463,11 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(
+                    web::resource("/{payment_id}/manual-update")
+                        .route(web::put().to(payments_manual_update)),
+                )
         }
         #[cfg(feature = "oltp")]
         {
@@ -385,7 +520,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize))
+                        .route(web::get().to(payments_complete_authorize_redirect))
+                        .route(web::post().to(payments_complete_authorize_redirect)),
+                )
+                .service(
+                    web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments_complete_authorize)),
                 )
                 .service(
@@ -715,7 +854,12 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
-                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/{id}/manual-update")
+                        .route(web::put().to(refunds_manual_update)),
+                );
         }
         #[cfg(feature = "oltp")]
         {
@@ -759,6 +903,7 @@ impl Payouts {
                     .route(web::get().to(payouts_retrieve))
                     .route(web::put().to(payouts_update)),
             )
+            .service(web::resource("/{payout_id}/confirm").route(web::post().to(payouts_confirm)))
             .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
             .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
         route
@@ -785,6 +930,13 @@ impl PaymentMethods {
                     web::resource("")
                         .route(web::post().to(create_payment_method_api))
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
+                )
+                .service(
+                    web::resource("/collect/{merchant_id}/{collect_id}")
+                        .route(web::get().to(render_pm_collect_link)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")
@@ -864,6 +1016,7 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
@@ -995,6 +1148,19 @@ impl Configs {
     }
 }
 
+pub struct ApplePayCertificatesMigration;
+
+#[cfg(feature = "olap")]
+impl ApplePayCertificatesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/apple_pay_certificates_migration")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
+    }
+}
+
 pub struct Poll;
 
 #[cfg(feature = "oltp")]
@@ -1104,6 +1270,20 @@ impl PaymentLink {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub struct PayoutLink;
+
+#[cfg(feature = "payouts")]
+impl PayoutLink {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
+        );
+        route
+    }
+}
+
 pub struct BusinessProfile;
 
 #[cfg(feature = "olap")]
@@ -1179,6 +1359,8 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            // signin/signup with sso using openidconnect
+            .service(web::resource("/oidc").route(web::post().to(sso_sign)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1191,6 +1373,11 @@ impl User {
             // TODO: Remove this endpoint once migration to /merchants/list is done
             .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
+            // The route is utilized to select an invitation from a list of merchants in an intermediate state
+            .service(
+                web::resource("/merchants_select/list")
+                    .route(web::get().to(list_merchants_for_user)),
+            )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
@@ -1198,6 +1385,49 @@ impl User {
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
             );
+
+        // Two factor auth routes
+        route = route.service(
+            web::scope("/2fa")
+                .service(web::resource("").route(web::get().to(check_two_factor_auth_status)))
+                .service(
+                    web::scope("/totp")
+                        .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(web::resource("/reset").route(web::get().to(totp_reset)))
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(totp_verify))
+                                .route(web::put().to(totp_update)),
+                        ),
+                )
+                .service(
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify").route(web::post().to(verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(generate_recovery_codes)),
+                        ),
+                )
+                .service(
+                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/auth")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_user_authentication_method))
+                        .route(web::put().to(update_user_authentication_method)),
+                )
+                .service(
+                    web::resource("/list").route(web::get().to(list_user_authentication_methods)),
+                )
+                .service(web::resource("/url").route(web::get().to(get_sso_auth_url)))
+                .service(web::resource("/select").route(web::post().to(terminate_auth_select))),
+        );
 
         #[cfg(feature = "email")]
         {
@@ -1238,7 +1468,11 @@ impl User {
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(
+                    web::resource("/invite/accept")
+                        .route(web::post().to(merchant_select))
+                        .route(web::put().to(accept_invitation)),
+                )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(
                     web::resource("/transfer_ownership")

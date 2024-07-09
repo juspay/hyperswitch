@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -27,7 +29,7 @@ use success_rate::PaymentSuccessRate;
 
 use self::retries_count::RetriesCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct PaymentMetricRow {
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
     pub status: Option<DBEnumWrapper<storage_enums::AttemptStatus>>,
@@ -35,6 +37,8 @@ pub struct PaymentMetricRow {
     pub authentication_type: Option<DBEnumWrapper<storage_enums::AuthenticationType>>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -58,7 +62,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -79,7 +83,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
                 PaymentSuccessRate

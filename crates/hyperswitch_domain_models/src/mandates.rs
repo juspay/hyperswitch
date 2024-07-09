@@ -4,7 +4,7 @@ use api_models::payments::{
     OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
-use common_utils::{date_time, errors::ParsingError, pii};
+use common_utils::{date_time, errors::ParsingError, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
@@ -24,7 +24,7 @@ pub enum MandateDataType {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
@@ -43,26 +43,29 @@ pub struct MandateData {
     pub mandate_type: Option<MandateDataType>,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
     pub acceptance_type: AcceptanceType,
     /// Specifying when the customer acceptance was provided
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     /// Information required for online mandate generation
     pub online: Option<OnlineMandate>,
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AcceptanceType {
     Online,
     #[default]
     Offline,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
+    #[serde(skip_deserializing)]
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,

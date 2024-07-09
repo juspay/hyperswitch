@@ -1,6 +1,8 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
+use crate::id_type;
+
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
@@ -10,7 +12,9 @@ pub trait ApiEventMetric {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
-    Payout,
+    Payout {
+        payout_id: String,
+    },
     Payment {
         payment_id: String,
     },
@@ -24,11 +28,9 @@ pub enum ApiEventsType {
         payment_method_type: Option<PaymentMethodType>,
     },
     Customer {
-        customer_id: String,
+        customer_id: id_type::CustomerId,
     },
     User {
-        //specified merchant_id will overridden on global defined
-        merchant_id: String,
         user_id: String,
     },
     PaymentMethodList {
@@ -48,6 +50,7 @@ pub enum ApiEventsType {
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
     RustLocker,
+    ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
     Dispute {
@@ -56,9 +59,13 @@ pub enum ApiEventsType {
     Events {
         merchant_id_or_profile_id: String,
     },
+    PaymentMethodCollectLink {
+        link_id: String,
+    },
     Poll {
         poll_id: String,
     },
+    Analytics,
 }
 
 impl ApiEventMetric for serde_json::Value {}

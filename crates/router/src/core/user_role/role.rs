@@ -7,7 +7,7 @@ use error_stack::{report, ResultExt};
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{
         authentication::{blacklist, UserFromToken},
         authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub async fn get_role_from_token_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
@@ -38,7 +38,7 @@ pub async fn get_role_from_token_with_permissions(
 }
 
 pub async fn get_role_from_token_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
@@ -54,7 +54,7 @@ pub async fn get_role_from_token_with_groups(
 }
 
 pub async fn create_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     req: role_api::CreateRoleRequest,
     _req_state: ReqState,
@@ -107,7 +107,7 @@ pub async fn create_role(
 
 // TODO: To be deprecated once groups are stable
 pub async fn list_invitable_roles_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
@@ -156,7 +156,7 @@ pub async fn list_invitable_roles_with_permissions(
 }
 
 pub async fn list_invitable_roles_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
@@ -198,7 +198,7 @@ pub async fn list_invitable_roles_with_groups(
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_role_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoResponse> {
@@ -232,7 +232,7 @@ pub async fn get_role_with_permissions(
 }
 
 pub async fn get_role_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoResponse> {
@@ -260,7 +260,7 @@ pub async fn get_role_with_groups(
 }
 
 pub async fn update_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     req: role_api::UpdateRoleRequest,
     role_id: &str,

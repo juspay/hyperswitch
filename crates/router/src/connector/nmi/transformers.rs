@@ -1,11 +1,7 @@
 use api_models::webhooks;
 use cards::CardNumber;
 use common_enums::CountryAlpha2;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::XmlExt,
-    pii::{self, Email},
-};
+use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -57,25 +53,16 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct NmiRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for NmiRouterData<T> {
-    type Error = Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+impl<T> From<(FloatMajorUnit, T)> for NmiRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -225,6 +212,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -250,7 +238,7 @@ impl
 
 #[derive(Debug, Serialize)]
 pub struct NmiCompleteRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
@@ -378,6 +366,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -420,7 +409,7 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     security_key: Secret<String>,
     currency: enums::Currency,
     #[serde(flatten)]
@@ -437,8 +426,8 @@ pub struct NmiMerchantDefinedField {
 }
 
 impl NmiMerchantDefinedField {
-    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
-        let metadata_as_string = metadata.peek().to_string();
+    pub fn new(metadata: &serde_json::Value) -> Self {
+        let metadata_as_string = metadata.to_string();
         let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
             serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
         let inner = hash_map
@@ -576,7 +565,8 @@ impl
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => {
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => {
                     Err(report!(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nmi"),
                     )))
@@ -590,6 +580,7 @@ impl
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -623,7 +614,7 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             cardholder_auth: None,
-            three_ds_version: Some(auth_data.message_version.clone()),
+            three_ds_version: Some(auth_data.message_version.to_string()),
             directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
         };
 
@@ -673,7 +664,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth_type.api_key,
-            amount: 0.0,
+            amount: FloatMajorUnit::zero(),
             currency: item.request.currency,
             payment_method,
             merchant_defined_field: None,
@@ -705,7 +696,7 @@ pub struct NmiCaptureRequest {
     pub transaction_type: TransactionType,
     pub security_key: Secret<String>,
     pub transactionid: String,
-    pub amount: Option<f64>,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCaptureRouterData>> for NmiCaptureRequest {
@@ -754,6 +745,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -848,6 +840,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -904,6 +897,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -954,6 +948,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -1004,6 +999,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             }),
@@ -1055,7 +1051,7 @@ pub struct NmiRefundRequest {
     security_key: Secret<String>,
     transactionid: String,
     orderid: String,
-    amount: f64,
+    amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&NmiRouterData<&types::RefundsRouterData<F>>> for NmiRefundRequest {

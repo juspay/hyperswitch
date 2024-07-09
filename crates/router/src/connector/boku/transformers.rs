@@ -88,6 +88,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -157,7 +158,8 @@ fn get_wallet_type(wallet_data: &domain::WalletData) -> Result<String, errors::C
         | domain::WalletData::WeChatPayRedirect(_)
         | domain::WalletData::WeChatPayQr(_)
         | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("boku"),
         )),
     }
@@ -274,6 +276,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

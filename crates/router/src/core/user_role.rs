@@ -6,7 +6,7 @@ use router_env::logger;
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
         authorization::{info, roles},
@@ -20,7 +20,7 @@ pub mod role;
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_authorization_info_with_modules(
-    _state: AppState,
+    _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
@@ -33,7 +33,7 @@ pub async fn get_authorization_info_with_modules(
 }
 
 pub async fn get_authorization_info_with_groups(
-    _state: AppState,
+    _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
@@ -46,7 +46,7 @@ pub async fn get_authorization_info_with_groups(
 }
 
 pub async fn update_user_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
     _req_state: ReqState,
@@ -117,7 +117,7 @@ pub async fn update_user_role(
 }
 
 pub async fn transfer_org_ownership(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::TransferOrgOwnershipRequest,
     _req_state: ReqState,
@@ -169,9 +169,39 @@ pub async fn transfer_org_ownership(
 }
 
 pub async fn accept_invitation(
-    state: AppState,
-    user_token: auth::UserFromSinglePurposeToken,
+    state: SessionState,
+    user_token: auth::UserFromToken,
     req: user_role_api::AcceptInvitationRequest,
+) -> UserResponse<()> {
+    futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
+        state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user_token.user_id.as_str(),
+                merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user_token.user_id.clone(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                logger::error!("Error while accepting invitation {}", e);
+            })
+            .ok()
+    }))
+    .await
+    .into_iter()
+    .reduce(Option::or)
+    .flatten()
+    .ok_or(UserErrors::MerchantIdNotFound.into())
+    .map(|_| ApplicationResponse::StatusOk)
+}
+
+pub async fn merchant_select(
+    state: SessionState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -198,7 +228,7 @@ pub async fn accept_invitation(
 
     if let Some(true) = req.need_dashboard_entry_response {
         let user_from_db = state
-            .store
+            .global_store
             .find_user_by_id(user_token.user_id.as_str())
             .await
             .change_context(UserErrors::InternalServerError)?
@@ -207,7 +237,6 @@ pub async fn accept_invitation(
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
-
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
@@ -223,10 +252,10 @@ pub async fn accept_invitation(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn accept_invitation_token_only_flow(
-    state: AppState,
+pub async fn merchant_select_token_only_flow(
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::AcceptInvitationRequest,
+    req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -252,14 +281,14 @@ pub async fn accept_invitation_token_only_flow(
     .ok_or(UserErrors::MerchantIdNotFound)?;
 
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(user_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
 
     let current_flow =
-        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::MerchantSelect.into())?;
+        domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     let token = next_flow
@@ -274,13 +303,13 @@ pub async fn accept_invitation_token_only_flow(
 }
 
 pub async fn delete_user_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
     _req_state: ReqState,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
         .await
         .map_err(|e| {
@@ -340,7 +369,7 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?
     } else {
         state
-            .store
+            .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
@@ -21,6 +23,7 @@ pub mod outgoing_webhook_logs;
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
     PaymentIntent,
+    FraudCheck,
     PaymentAttempt,
     Refund,
     ApiLogs,
@@ -30,6 +33,8 @@ pub enum EventType {
     AuditEvent,
     #[cfg(feature = "payouts")]
     Payout,
+    Consolidated,
+    Authentication,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -79,7 +84,7 @@ impl EventsConfig {
 impl EventsHandler {
     pub fn log_event<T: KafkaMessage>(&self, event: &T) {
         match self {
-            Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
+            Self::Kafka(kafka) => kafka.log_event(event).unwrap_or_else(|e| {
                 logger::error!("Failed to log event: {:?}", e);
             }),
             Self::Logs(logger) => logger.log_event(event),
@@ -93,14 +98,15 @@ impl MessagingInterface for EventsHandler {
     fn send_message<T>(
         &self,
         data: T,
+        metadata: HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
         T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
     {
         match self {
-            Self::Kafka(a) => a.send_message(data, timestamp),
-            Self::Logs(a) => a.send_message(data, timestamp),
+            Self::Kafka(a) => a.send_message(data, metadata, timestamp),
+            Self::Logs(a) => a.send_message(data, metadata, timestamp),
         }
     }
 }

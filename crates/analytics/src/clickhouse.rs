@@ -7,7 +7,11 @@ use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::{
+    active_payments::metrics::ActivePaymentsMetricRow,
+    auth_events::metrics::AuthEventMetricRow,
+    frm::{filters::FrmFilterRow, metrics::FrmMetricRow},
     health_check::HealthCheck,
+    payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
     },
@@ -34,6 +38,7 @@ pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
 #[derive(Clone, Debug)]
 pub struct ClickhouseClient {
     pub config: Arc<ClickhouseConfig>,
+    pub database: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -41,7 +46,6 @@ pub struct ClickhouseConfig {
     username: String,
     password: Option<String>,
     host: String,
-    database_name: String,
 }
 
 impl Default for ClickhouseConfig {
@@ -50,7 +54,6 @@ impl Default for ClickhouseConfig {
             username: "default".to_string(),
             password: None,
             host: "http://localhost:8123".to_string(),
-            database_name: "default".to_string(),
         }
     }
 }
@@ -62,7 +65,7 @@ impl ClickhouseClient {
         let params = CkhQuery {
             date_time_output_format: String::from("iso"),
             output_format_json_quote_64bit_integers: 0,
-            database: self.config.database_name.clone(),
+            database: self.database.clone(),
         };
         let response = client
             .post(&self.config.host)
@@ -128,14 +131,18 @@ impl AnalyticsDataSource for ClickhouseClient {
         match table {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
+            | AnalyticsCollection::FraudCheck
             | AnalyticsCollection::PaymentIntent
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
-            AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ApiEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ConnectorEvents => TableEngine::BasicTree,
-            AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
+            AnalyticsCollection::SdkEvents
+            | AnalyticsCollection::SdkEventsAnalytics
+            | AnalyticsCollection::ApiEvents
+            | AnalyticsCollection::ConnectorEvents
+            | AnalyticsCollection::ApiEventsAnalytics
+            | AnalyticsCollection::OutgoingWebhookEvent
+            | AnalyticsCollection::ActivePaymentsAnalytics => TableEngine::BasicTree,
         }
     }
 }
@@ -153,11 +160,17 @@ where
 impl super::payments::filters::PaymentFilterAnalytics for ClickhouseClient {}
 impl super::payments::metrics::PaymentMetricAnalytics for ClickhouseClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for ClickhouseClient {}
+impl super::payment_intents::filters::PaymentIntentFilterAnalytics for ClickhouseClient {}
+impl super::payment_intents::metrics::PaymentIntentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
+impl super::frm::metrics::FrmMetricAnalytics for ClickhouseClient {}
+impl super::frm::filters::FrmFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
+impl super::active_payments::metrics::ActivePaymentsMetricAnalytics for ClickhouseClient {}
+impl super::auth_events::metrics::AuthEventMetricAnalytics for ClickhouseClient {}
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
@@ -241,6 +254,26 @@ impl TryInto<FilterRow> for serde_json::Value {
     }
 }
 
+impl TryInto<PaymentIntentMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<PaymentIntentFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<PaymentIntentFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentIntentFilterRow in clickhouse results",
+        ))
+    }
+}
+
 impl TryInto<RefundMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -257,6 +290,26 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse RefundFilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<FrmMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<FrmFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmFilterRow in clickhouse results",
         ))
     }
 }
@@ -320,6 +373,16 @@ impl TryInto<SdkEventFilter> for serde_json::Value {
     }
 }
 
+impl TryInto<AuthEventMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<AuthEventMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse AuthEventMetricRow in clickhouse results",
+        ))
+    }
+}
+
 impl TryInto<ApiEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -336,6 +399,16 @@ impl TryInto<OutgoingWebhookLogsResult> for serde_json::Value {
     fn try_into(self) -> Result<OutgoingWebhookLogsResult, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse OutgoingWebhookLogsResult in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<ActivePaymentsMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<ActivePaymentsMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse ActivePaymentsMetricRow in clickhouse results",
         ))
     }
 }
@@ -359,12 +432,16 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
         match self {
             Self::Payment => Ok("payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
+            Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
+            Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::ApiEventsAnalytics => Ok("api_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),
+            Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
         }
     }
 }
@@ -420,6 +497,29 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to max aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "quantilesExact(0.{})({})[1]{}",
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
+            Self::DistinctCount { field, alias } => {
+                format!(
+                    "count(distinct {}){}",
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }

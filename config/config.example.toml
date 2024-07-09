@@ -11,6 +11,15 @@ host = "127.0.0.1"
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+
+# HTTPS Server Configuration
+# Self-signed Private Key and Certificate can be generated with mkcert for local development
+[server.tls]
+port = 8081
+host = "127.0.0.1"
+private_key = "/path/to/private_key.pem"
+certificate = "/path/to/certificate.pem"
+
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
@@ -112,6 +121,7 @@ otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
+bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
 
 # This section provides some secret values.
 [secrets]
@@ -124,11 +134,12 @@ recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authent
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""                   # Locker host
-host_rs = ""                # Rust Locker host
-mock_locker = true          # Emulate a locker locally using Postgres
-locker_signing_key_id = "1" # Key_id to sign basilisk hs locker
-locker_enabled = true       # Boolean to enable or disable saving cards in locker
+host = ""                           # Locker host
+host_rs = ""                        # Rust Locker host
+mock_locker = true                  # Emulate a locker locally using Postgres
+locker_signing_key_id = "1"         # Key_id to sign basilisk hs locker
+locker_enabled = true               # Boolean to enable or disable saving cards in locker
+ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -165,10 +176,12 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyen.secondary_base_url = "https://pal-test.adyen.com/"
+adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bamboraapac.base_url = "https://demo.bambora.co.nz/interface/api/dts.asmx"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
@@ -183,6 +196,7 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
+datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -191,9 +205,10 @@ forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
+gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
@@ -208,6 +223,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
@@ -260,20 +276,22 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna",
-    "mifinity", "braintree", "applepay"]
+wallets = ["klarna", "mifinity", "braintree", "applepay"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "adyen",
+    "adyenplatform",
     "authorizedotnet",
     "coinbase",
     "cryptopay",
     "braintree",
     "checkout",
     "cybersource",
+    "datatrans",
     "globalpay",
     "globepay",
     "gocardless",
+    "gpayments",
     "helcim",
     "mollie",
     "paypal",
@@ -338,7 +356,6 @@ wildcard_origin = false                 # If true, allows any origin to make req
 [email]
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
-base_url = ""                        # Base url used when adding links that should redirect to self
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
 active_email_client = "SES"          # The currently active email client
 
@@ -348,7 +365,10 @@ email_role_arn = ""        # The amazon resource name ( arn ) of the role which 
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 [user]
-password_validity_in_days = 90        # Number of days after which password should be updated
+password_validity_in_days = 90       # Number of days after which password should be updated
+two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should be done again if doing update/change from inside
+totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
+base_url = ""                        # Base url used for user specific redirects and emails
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -359,7 +379,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
-billwerk = {long_lived_token = false, payment_method = "card"}
+billwerk = { long_lived_token = false, payment_method = "card" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -392,16 +412,16 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica"}           # Mandate supported payment method type and connector for card
-wallet.paypal = { connector_list = "adyen" }                            # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }                         # Mandate supported payment method type and connector for pay_later
-bank_debit.ach = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
-bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }     # Mandate supported payment method type and connector for bank_redirect
+card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica" }           # Mandate supported payment method type and connector for card
+wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
+pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless" }                                    # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless" }                                   # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless" }                                   # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
-wallet.google_pay = { connector_list = "bankofamerica"}
+wallet.google_pay = { connector_list = "bankofamerica" }
 bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
@@ -490,6 +510,12 @@ card_redirect = { currency = "USD" }
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 
+[pm_filters.klarna]
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
+
+[pm_filters.mifinity]
+mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD" }
+
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "stripe,wise"
@@ -525,6 +551,31 @@ common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"             
 merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"                                           # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
 merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"                                   # Private key generate by RSA:2048 algorithm. Refer Hyperswitch Docs (https://docs.hyperswitch.io/hyperswitch-cloud/payment-methods-setup/wallets/apple-pay/ios-application/) to generate the private key
 applepay_endpoint = "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant" # Apple pay gateway merchant endpoint
+
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#1A1A1A"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#1A1A1A"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -571,16 +622,19 @@ enabled = true                      # Switch to enable or disable PayPal onboard
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                          # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"      # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"     # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
-api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
-outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
-dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
-audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
-payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
+brokers = []                               # Kafka broker urls for bootstrapping the client
+fraud_check_analytics_topic = "topic"      # Kafka topic to be used for FraudCheck events
+intent_analytics_topic = "topic"           # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"          # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"           # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                   # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"             # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"      # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"          # Kafka topic to be used for Dispute events
+audit_events_topic = "topic"               # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
+consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
+authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
 
 # File storage configuration
 [file_storage]
@@ -621,3 +675,13 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" } # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant 
+
+[user_auth_methods]
+encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table
