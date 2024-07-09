@@ -9,7 +9,7 @@ use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
@@ -135,6 +135,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             ))
         }
     };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(payment_method_list_surcharge_source = surcharge_source_log_message);
 
     let mut backend_input =
         make_dsl_input_for_surcharge(payment_attempt, payment_intent, billing_address)
@@ -289,6 +294,11 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         }
         (None, None) => return Ok(surcharge_metadata),
     };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(customer_saved_card_list_surcharge_source = surcharge_source_log_message);
     let mut backend_input = make_dsl_input_for_surcharge(payment_attempt, payment_intent, None)
         .change_context(ConfigError::InputConstructionError)?;
 
