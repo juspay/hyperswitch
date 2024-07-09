@@ -29,11 +29,7 @@ use crate::{
     consts,
     db::domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
     routes::{app::ReqState, SessionState},
-    services::{
-        authentication::{self as auth},
-        authorization::roles,
-        openidconnect, ApplicationResponse,
-    },
+    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
