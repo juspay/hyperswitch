@@ -7763,6 +7763,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "shift4",
           "square",
           "stax",
@@ -9756,6 +9757,12 @@
             "type": "string",
             "enum": [
               "user_date_of_birth"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_vpa_id"
             ]
           }
         ],
@@ -19476,6 +19483,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "riskified",
           "shift4",
           "signifyd",
