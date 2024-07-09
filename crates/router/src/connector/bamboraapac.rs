@@ -117,7 +117,10 @@ impl ConnectorCommon for Bamboraapac {
                     code: response_data
                         .declined_code
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    message: response_data
+                        .declined_message
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: response_data.declined_message,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -180,7 +183,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = bamboraapac::get_payment_body(req)?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+
+        let connector_req = bamboraapac::get_payment_body(&connector_router_data)?;
 
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -352,7 +362,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = bamboraapac::get_capture_body(req)?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+
+        let connector_req = bamboraapac::get_capture_body(&connector_router_data)?;
 
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -444,7 +461,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = bamboraapac::get_refund_body(req)?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+
+        let connector_req = bamboraapac::get_refund_body(&connector_router_data)?;
 
         Ok(RequestContent::RawBytes(connector_req))
     }

@@ -1,4 +1,3 @@
-use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::consts;
 use masking::{PeekInterface, Secret};
@@ -6,14 +5,38 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, CardData, RouterData},
-    core::{errors, mandate::MandateBehaviour},
+    core::errors,
     types::{self, domain, storage::enums, transformers::ForeignFrom},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+pub struct BamboraapacRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for BamboraapacRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 // request body in soap format
-pub fn get_payment_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Vec<u8>, Error> {
+pub fn get_payment_body(
+    req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
+) -> Result<Vec<u8>, Error> {
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"
@@ -36,11 +59,12 @@ pub fn get_payment_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Vec<
     Ok(body.as_bytes().to_vec())
 }
 
-fn get_transaction_body(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
-    let amount = req.request.get_amount();
-    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
-    let transaction_type = get_transaction_type(req.request.capture_method)?;
-    let card_info = get_card_data(req)?;
+fn get_transaction_body(
+    req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
+) -> Result<String, Error> {
+    let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
+    let transaction_type = get_transaction_type(req.router_data.request.capture_method)?;
+    let card_info = get_card_data(req.router_data)?;
     let transaction_data = format!(
         r#"
         <Transaction>
@@ -55,8 +79,8 @@ fn get_transaction_body(req: &types::PaymentsAuthorizeRouterData) -> Result<Stri
             </Security>
         </Transaction>
     "#,
-        req.connector_request_reference_id.to_owned(),
-        amount,
+        req.router_data.connector_request_reference_id.to_owned(),
+        req.amount,
         transaction_type,
         auth_details.account_number.peek(),
         card_info,
@@ -232,26 +256,30 @@ impl<F>
         }
         // transaction failed
         else {
+            let code = item
+                .response
+                .body
+                .submit_single_payment_response
+                .submit_single_payment_result
+                .response
+                .declined_code
+                .unwrap_or(consts::NO_ERROR_CODE.to_string());
+
+            let declined_message = item
+                .response
+                .body
+                .submit_single_payment_response
+                .submit_single_payment_result
+                .response
+                .declined_message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Err(types::ErrorResponse {
                     status_code: item.http_code,
-                    code: item
-                        .response
-                        .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
-                        .response
-                        .declined_code
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: item
-                        .response
-                        .body
-                        .submit_single_payment_response
-                        .submit_single_payment_result
-                        .response
-                        .declined_message,
+                    code,
+                    message: declined_message.to_owned(),
+                    reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
@@ -262,9 +290,11 @@ impl<F>
 }
 
 // capture body in soap format
-pub fn get_capture_body(req: &types::PaymentsCaptureRouterData) -> Result<Vec<u8>, Error> {
-    let receipt = req.request.connector_transaction_id.to_owned();
-    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+pub fn get_capture_body(
+    req: &BamboraapacRouterData<&types::PaymentsCaptureRouterData>,
+) -> Result<Vec<u8>, Error> {
+    let receipt = req.router_data.request.connector_transaction_id.to_owned();
+    let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
     let body = format!(
         r#"
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -288,7 +318,7 @@ pub fn get_capture_body(req: &types::PaymentsCaptureRouterData) -> Result<Vec<u8
             </soapenv:Envelope>
         "#,
         receipt,
-        req.request.amount_to_capture,
+        req.amount,
         auth_details.username.peek(),
         auth_details.password.peek(),
     );
@@ -414,9 +444,11 @@ impl<F>
 }
 
 // refund body in soap format
-pub fn get_refund_body(req: &types::RefundExecuteRouterData) -> Result<Vec<u8>, Error> {
-    let receipt = req.request.connector_transaction_id.to_owned();
-    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+pub fn get_refund_body(
+    req: &BamboraapacRouterData<&types::RefundExecuteRouterData>,
+) -> Result<Vec<u8>, Error> {
+    let receipt = req.router_data.request.connector_transaction_id.to_owned();
+    let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
     let body = format!(
         r#"
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -427,6 +459,7 @@ pub fn get_refund_body(req: &types::RefundExecuteRouterData) -> Result<Vec<u8>, 
                         <dts:trnXML>
                             <![CDATA[
                             <Refund>
+                                <CustRef>{}</CustRef>
                                 <Receipt>{}</Receipt>
                                 <Amount>{}</Amount>
                                 <Security>
@@ -440,8 +473,9 @@ pub fn get_refund_body(req: &types::RefundExecuteRouterData) -> Result<Vec<u8>, 
                 </soapenv:Body>
             </soapenv:Envelope>
         "#,
+        req.router_data.request.refund_id.to_owned(),
         receipt,
-        req.request.refund_amount,
+        req.amount,
         auth_details.username.peek(),
         auth_details.password.peek(),
     );
@@ -676,28 +710,31 @@ impl<F>
         }
         // transaction failed
         else {
+            let code = item
+                .response
+                .body
+                .query_transaction_response
+                .query_transaction_result
+                .query_response
+                .response
+                .declined_code
+                .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            let declined_message = item
+                .response
+                .body
+                .query_transaction_response
+                .query_transaction_result
+                .query_response
+                .response
+                .declined_message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Err(types::ErrorResponse {
                     status_code: item.http_code,
-                    code: item
-                        .response
-                        .body
-                        .query_transaction_response
-                        .query_transaction_result
-                        .query_response
-                        .response
-                        .declined_code
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: item
-                        .response
-                        .body
-                        .query_transaction_response
-                        .query_transaction_result
-                        .query_response
-                        .response
-                        .declined_message,
+                    code,
+                    message: declined_message.to_owned(),
+                    reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
@@ -709,12 +746,6 @@ impl<F>
 
 pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>, Error> {
     let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
-    let connector_refund_id: String = req
-        .request
-        .connector_refund_id
-        .clone()
-        .get_required_value("connector_refund_id")
-        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
     let body = format!(
         r#"
@@ -730,7 +761,7 @@ pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>
                                         <AccountNumber>{}</AccountNumber>
                                         <TrnStartTimestamp>2024-06-23 00:00:00</TrnStartTimestamp>
                                         <TrnEndTimestamp>2099-12-31 23:59:59</TrnEndTimestamp>
-                                        <Receipt>{}</Receipt>
+                                        <CustRef>{}</CustRef>
                                     </Criteria>
                                     <Security>
                                         <UserName>{}</UserName>
@@ -744,7 +775,7 @@ pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>
             </soapenv:Envelope>
         "#,
         auth_details.account_number.peek(),
-        connector_refund_id,
+        req.request.refund_id,
         auth_details.username.peek(),
         auth_details.password.peek(),
     );
