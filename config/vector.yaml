@@ -67,6 +67,11 @@ transforms:
       - local_file_logs 
     source: |-
       .message = parse_json!(.message)
+      if exists(.labels."com.docker.compose.service") {
+        .source = "console"
+      } else {
+        .source = "file"
+      }
 
   events:
     type: remap
@@ -147,7 +152,7 @@ sinks:
       - parsed_hs_server_logs
     endpoint: http://loki:3100
     labels:
-      source: vector
+     source: "{{ .source }}"
       job: app_logs
       container: "{{ .container_name }}"
       stream: "{{ .stream }}"
