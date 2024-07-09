@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payment_methods, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -186,7 +186,8 @@ pub struct PayoutCreatePayoutLinkConfig {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
     Card(CardPayout),
-    Bank(Bank),
+    #[schema(value_type = BankData)]
+    Bank(payment_methods::BankData),
     Wallet(Wallet),
 }
 

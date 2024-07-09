@@ -4,6 +4,15 @@ use common_utils::id_type;
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(feature = "v2")]
+use crate::{
+    compatibility::{stripe::errors, wrap},
+    core::{api_locking, customers},
+    routes,
+    services::{api, authentication as auth},
+    types::api::customers as customer_types,
+};
+#[cfg(not(feature = "v2"))]
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, customers, payment_methods::cards},
@@ -163,6 +172,7 @@ pub async fn customer_delete(
     ))
     .await
 }
+#[cfg(not(feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,

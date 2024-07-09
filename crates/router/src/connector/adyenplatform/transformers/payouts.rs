@@ -10,7 +10,11 @@ use crate::{
         utils::{self, PayoutsData, RouterData},
     },
     core::errors,
-    types::{self, api::payouts, storage::enums},
+    types::{
+        self,
+        api::{payment_methods, payouts},
+        storage::enums,
+    },
 };
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -184,25 +188,33 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
             }
 
             payouts::PayoutMethodData::Bank(bd) => {
-                let bank_details = match bd {
-                    payouts::BankPayout::Sepa(b) => AdyenBankAccountIdentification {
-                        bank_type: "iban".to_string(),
-                        account_details: AdyenBankAccountIdentificationDetails::Sepa(SepaDetails {
-                            iban: b.iban,
-                        }),
-                    },
-                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyenplatform",
-                    })?,
-                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyenplatform",
-                    })?,
-                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyenplatform",
-                    })?,
+                let bank_details = match &bd.bank_account_data {
+                    payment_methods::BankAccountData::Sepa { iban, .. } => {
+                        AdyenBankAccountIdentification {
+                            bank_type: "iban".to_string(),
+                            account_details: AdyenBankAccountIdentificationDetails::Sepa(
+                                SepaDetails { iban: iban.clone() },
+                            ),
+                        }
+                    }
+                    payment_methods::BankAccountData::Ach { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via ACH is not supported".to_string(),
+                            connector: "Adyenplatform",
+                        })?
+                    }
+                    payment_methods::BankAccountData::Bacs { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Bacs is not supported".to_string(),
+                            connector: "Adyenplatform",
+                        })?
+                    }
+                    payment_methods::BankAccountData::Pix { .. } => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Pix is not supported".to_string(),
+                            connector: "Adyenplatform",
+                        })?
+                    }
                 };
                 let billing_address = item.get_optional_billing();
                 let address = adyen::get_address_info(billing_address).transpose()?;

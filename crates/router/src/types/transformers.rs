@@ -1043,6 +1043,18 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<payment_methods::BankData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: payment_methods::BankData) -> Self {
+        match value.bank_account_data {
+            payment_methods::BankAccountData::Ach { .. } => Self::Ach,
+            payment_methods::BankAccountData::Bacs { .. } => Self::Bacs,
+            payment_methods::BankAccountData::Sepa { .. } => Self::Sepa,
+            payment_methods::BankAccountData::Pix { .. } => Self::Pix,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {

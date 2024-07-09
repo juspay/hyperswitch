@@ -395,40 +395,47 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
                     external_account: "tok_visa_debit".to_string(),
                 }))
             }
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Ach(bank_details) => {
-                    Ok(Self::Bank(RecipientBankAccountRequest {
-                        external_account_object: "bank_account".to_string(),
-                        external_account_country: bank_details
-                            .bank_country_code
-                            .get_required_value("bank_country_code")
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "bank_country_code",
-                            })?,
-                        external_account_currency: request.destination_currency.to_owned(),
-                        external_account_account_holder_name: customer_name,
-                        external_account_account_holder_type: payout_vendor_details
-                            .individual_details
-                            .get_external_account_account_holder_type()?,
-                        external_account_account_number: bank_details.bank_account_number,
-                        external_account_routing_number: bank_details.bank_routing_number,
-                    }))
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank.bank_account_data {
+                api_models::payment_methods::BankAccountData::Ach {
+                    bank_routing_number,
+                    bank_account_number,
+                } => Ok(Self::Bank(RecipientBankAccountRequest {
+                    external_account_object: "bank_account".to_string(),
+                    external_account_country: bank
+                        .bank_country_code
+                        .get_required_value("bank_country_code")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_country_code",
+                        })?,
+                    external_account_currency: request.destination_currency.to_owned(),
+                    external_account_account_holder_name: customer_name,
+                    external_account_account_holder_type: payout_vendor_details
+                        .individual_details
+                        .get_external_account_account_holder_type()?,
+                    external_account_account_number: bank_account_number,
+                    external_account_routing_number: bank_routing_number,
+                })),
+                api_models::payment_methods::BankAccountData::Bacs { .. } => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "BACS payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                api_models::payouts::Bank::Bacs(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "BACS payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payment_methods::BankAccountData::Sepa { .. } => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "SEPA payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Sepa(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "SEPA payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payment_methods::BankAccountData::Pix { .. } => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "PIX payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Pix(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "PIX payouts are not supported".to_string(),
-                    connector: "stripe",
-                }
-                .into()),
             },
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {
