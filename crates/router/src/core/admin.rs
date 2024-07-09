@@ -4,11 +4,13 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+#[cfg(feature = "keymanager_create")]
+use common_utils::keymanager;
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
-    keymanager, pii,
+    pii,
     types::keymanager::{self as km_types, KeyManagerState},
 };
 use diesel_models::configs;
@@ -141,15 +143,18 @@ pub async fn create_merchant_account(
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
 
-    keymanager::create_key_in_key_manager(
-        key_manager_state,
-        km_types::EncryptionCreateRequest {
-            identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
-        },
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-    .attach_printable("Failed to insert key to KeyManager")?;
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            key_manager_state,
+            km_types::EncryptionCreateRequest {
+                identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
 
     db.insert_merchant_key_store(&state, key_store.clone(), &master_key.to_vec().into())
         .await

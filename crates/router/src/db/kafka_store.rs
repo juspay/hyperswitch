@@ -84,7 +84,7 @@ pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
-    kafka_producer: KafkaProducer,
+    pub kafka_producer: KafkaProducer,
     pub diesel_store: Store,
     pub tenant_id: TenantID,
 }
@@ -3062,6 +3062,14 @@ impl UserKeyStoreInterface for KafkaStore {
         self.diesel_store
             .get_user_key_store_by_user_id(state, user_id, key)
             .await
+    }
+
+    async fn get_all_user_key_store(
+        &self,
+        state: &SessionState,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
+        self.diesel_store.get_all_user_key_store(state, key).await
     }
 }
 

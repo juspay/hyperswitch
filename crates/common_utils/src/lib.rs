@@ -21,6 +21,7 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+#[cfg(feature = "keymanager")]
 pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
@@ -35,6 +36,8 @@ pub mod transformers;
 pub mod types;
 pub mod validation;
 
+/// Used for hashing
+pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 
