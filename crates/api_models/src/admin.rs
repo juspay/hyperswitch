@@ -384,7 +384,7 @@ pub struct MerchantAccountResponse {
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
-    /// Metadata is useful for storing additional, ustructured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -438,7 +438,7 @@ pub struct MerchantAccountResponse {
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: String,
 
-    /// Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
