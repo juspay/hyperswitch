@@ -318,14 +318,10 @@ where
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address,
-                                            resp
-                                                .card
-                                                .map(|card| {
-                                                    card.card_network.map(|card_network| {
-                                                        card_network.to_string()
-                                                    })
-                                                })
-                                                .flatten(),
+                                            resp.card.and_then(|card| {
+                                                card.card_network
+                                                    .map(|card_network| card_network.to_string())
+                                            }),
                                         )
                                         .await
                                     } else {
@@ -610,12 +606,10 @@ where
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address,
-                                resp.card
-                                    .map(|card| {
-                                        card.card_network
-                                            .map(|card_network| card_network.to_string())
-                                    })
-                                    .flatten(),
+                                resp.card.and_then(|card| {
+                                    card.card_network
+                                        .map(|card_network| card_network.to_string())
+                                }),
                             )
                             .await?;
                         };

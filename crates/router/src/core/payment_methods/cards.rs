@@ -1123,13 +1123,10 @@ pub async fn insert_payment_method(
         network_transaction_id,
         storage_scheme,
         payment_method_billing_address,
-        resp.card
-            .clone()
-            .map(|card| {
-                card.card_network
-                    .map(|card_network| card_network.to_string())
-            })
-            .flatten(),
+        resp.card.clone().and_then(|card| {
+            card.card_network
+                .map(|card_network| card_network.to_string())
+        }),
     )
     .await
 }
