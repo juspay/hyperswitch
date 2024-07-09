@@ -74,6 +74,12 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+
   context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
