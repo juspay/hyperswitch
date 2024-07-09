@@ -22,6 +22,12 @@ describe("[Payout] Cards", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+
   context("Payout Card with Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
