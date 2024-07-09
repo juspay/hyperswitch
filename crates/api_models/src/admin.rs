@@ -40,7 +40,7 @@ pub struct MerchantAccountCreate {
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
     pub merchant_name: Option<Secret<String>>,
 
-    /// Details about the merchant
+    /// Details about the merchant, can contain phone and emails of primary and secondary contact person
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -110,7 +110,7 @@ pub struct MerchantAccountCreate {
 
 #[cfg(not(feature = "v2"))]
 impl MerchantAccountCreate {
-    pub fn get_merchant_id(&self) -> id_type::MerchantId {
+    pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
     }
 
@@ -190,20 +190,20 @@ pub struct MerchantAccountCreate {
     #[schema(value_type= String, max_length = 32, example = "NewAge Retailer")]
     pub merchant_name: Secret<new_type::MerchantName>,
 
-    /// Details about the merchant
+    /// Details about the merchant, contains phone and emails of primary and secondary contact person.
     pub merchant_details: Option<MerchantDetails>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object
+    /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
-    /// The id of the organization to which the merchant belongs to
+    /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
     pub organization_id: String,
 }
 
 #[cfg(feature = "v2")]
 impl MerchantAccountCreate {
-    pub fn get_merchant_id(&self) -> id_type::MerchantId {
+    pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
     }
 
@@ -384,7 +384,7 @@ pub struct MerchantAccountResponse {
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, ustructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -438,7 +438,7 @@ pub struct MerchantAccountResponse {
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: String,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 

@@ -223,14 +223,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        let billing_details: Option<Address> = billing_address.as_ref().map(From::from);
-        payment_intent.billing_details = billing_details
-            .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, billing_details.clone()).await
-            })
-            .await;
-
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
             request
@@ -451,7 +443,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             customer_acceptance,
             address: PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
-                billing_details,
+                billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
                 business_profile.use_billing_as_payment_method_billing,
             ),

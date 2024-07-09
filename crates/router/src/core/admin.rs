@@ -87,7 +87,7 @@ pub async fn create_merchant_account(
 
     let master_key = db.get_master_key();
 
-    let merchant_id = req.get_merchant_id().get_string_repr().to_owned();
+    let merchant_id = req.get_merchant_reference_id().get_string_repr().to_owned();
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
