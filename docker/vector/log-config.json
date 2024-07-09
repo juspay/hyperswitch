@@ -1,0 +1,118 @@
+{
+  "level": "payment_intent",
+  "id": "payment_id",
+  "log_label": "intents",
+  "pass_down": {},
+  "roll_up": {
+    "total_count": {
+      "kind": "count"
+    },
+    "success_count": {
+      "kind": "count",
+      "filters": {
+        "status": "charged"
+      }
+    },
+    "total_amount": {
+      "kind": "sum",
+      "field": "amount"
+    },
+    "success_amount": {
+      "kind": "sum",
+      "field": "amount",
+      "filters": {
+        "status": "charged"
+      }
+    }
+  },
+  "children": [
+    {
+      "level": "payment_attempt",
+      "id": "attempt_id",
+      "log_label": "attempts",
+      "pass_down": { "connector": "connector" },
+      "roll_up": {
+        "total_count": {
+          "kind": "count"
+        },
+        "success_count": {
+          "kind": "count",
+          "filters": {
+            "status": "charged"
+          }
+        },
+        "total_amount": {
+          "kind": "sum",
+          "field": "amount"
+        },
+        "success_amount": {
+          "kind": "sum",
+          "field": "amount",
+          "filters": {
+            "status": "charged"
+          }
+        }
+      },
+      "children": [
+        {
+          "level": "refund",
+          "id": "refund_id",
+          "log_label": "refunds",
+          "pass_down": {},
+          "roll_up": {
+            "total_count": {
+              "kind": "count"
+            },
+            "success_count": {
+              "kind": "count",
+              "filters": {
+                "refund_status": "success"
+              }
+            },
+            "total_amount": {
+              "kind": "sum",
+              "field": "refund_amount"
+            },
+            "success_amount": {
+              "kind": "sum",
+              "field": "refund_amount",
+              "filters": {
+                "refund_status": "success"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "level": "dispute",
+          "id": "dispute_id",
+          "log_label": "disputes",
+          "pass_down": {},
+          "roll_up": {
+            "total_count": {
+              "kind": "count"
+            },
+            "success_count": {
+              "kind": "count",
+              "filters": {
+                "dispute_status": "dispute_won"
+              }
+            },
+            "total_amount": {
+              "kind": "sum",
+              "field": "dispute_amount"
+            },
+            "success_amount": {
+              "kind": "sum",
+              "field": "dispute_amount",
+              "filters": {
+                "dispute_status": "dispute_won"
+              }
+            }
+          },
+          "children": []
+        }
+      ]
+    }
+  ]
+}

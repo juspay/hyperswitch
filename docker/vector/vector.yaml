@@ -264,84 +264,66 @@ transforms:
     drop_on_error: true
     reroute_dropped: true
     source: >-
-      attempts = object(.attempts) ?? {};
-      attempt_total_count = 0;
-      attempt_total_amount = 0;
-      attempt_success_count = 0;
-      attempt_success_amount = 0;
+      roll_up = {};
+      pass_down = {};
+      payment_intent_log = .;
+      pass_down_payment_intent = {};
+      pass_down = merge(pass_down, pass_down_payment_intent);
+      roll_up_payment_attempt = {"payment_attempt_success_amount":0, "payment_attempt_success_count":0, "payment_attempt_total_amount":0, "payment_attempt_total_count":0, };
+      roll_up = merge(roll_up, roll_up_payment_attempt);
 
-      for_each(attempts) -> |attempt_id, attempt| {
+      attempts = object(payment_intent_log.attempts) ?? {};
+      for_each(attempts) -> |attempt_id, payment_attempt| {
+          payment_attempt_log = object(payment_attempt) ?? {};
+          payment_attempt_log = merge(payment_attempt_log, pass_down);
 
-        attempt_log = object(attempt) ?? {};
+          roll_up.payment_attempt_success_amount = roll_up.payment_attempt_success_amount + to_int(payment_attempt_log.amount) ?? 0;
+      roll_up.payment_attempt_success_count = roll_up.payment_attempt_success_count + 1;
+      roll_up.payment_attempt_total_amount = roll_up.payment_attempt_total_amount + to_int(payment_attempt_log.amount) ?? 0;
+      roll_up.payment_attempt_total_count = roll_up.payment_attempt_total_count + 1;
 
-        attempt_total_count = attempt_total_count + 1;
-        attempt_total_amount = attempt_total_amount + to_float(attempt_log.amount) ?? 0;
-        if attempt_log.status == "charged" {
-          attempt_success_count = attempt_success_count + 1;
-          attempt_success_amount = attempt_success_amount + to_float(attempt_log.amount) ?? 0;
-        }
+          pass_down_payment_attempt = {"payment_attempt_connector":payment_attempt_log.connector, };
+      pass_down = merge(pass_down, pass_down_payment_attempt);
+      roll_up_refund = {"refund_success_amount":0, "refund_success_count":0, "refund_total_amount":0, "refund_total_count":0, };
+      roll_up = merge(roll_up, roll_up_refund);
 
-        refunds = object(attempt_log.refunds) ?? {};
-        refund_total_count = 0;
-        refund_total_amount = 0;
-        refund_success_count = 0;
-        refund_success_amount = 0;
-
-        for_each(refunds) -> |_refund_id, refund| {
+      refunds = object(payment_attempt_log.refunds) ?? {};
+      for_each(refunds) -> |refund_id, refund| {
           refund_log = object(refund) ?? {};
+          refund_log = merge(refund_log, pass_down);
+
+          roll_up.refund_success_amount = roll_up.refund_success_amount + to_int(refund_log.refund_amount) ?? 0;
+      roll_up.refund_success_count = roll_up.refund_success_count + 1;
+      roll_up.refund_total_amount = roll_up.refund_total_amount + to_int(refund_log.refund_amount) ?? 0;
+      roll_up.refund_total_count = roll_up.refund_total_count + 1;
+
           
-          refund_total_count = refund_total_count + 1;
-          refund_total_amount = refund_total_amount + to_float(refund_log.refund_amount) ?? 0;
-          if refund_log.status == "succeeded" {
-            refund_success_count = refund_success_count + 1;
-            refund_success_amount = refund_success_amount + to_float(refund_log.refund_amount) ?? 0;
-          }
-        }
+          payment_attempt_log.refunds = set!(payment_attempt_log.refunds, [refund_id], refund_log);
+      };
+      roll_up_dispute = {"dispute_success_amount":0, "dispute_success_count":0, "dispute_total_amount":0, "dispute_total_count":0, };
+      roll_up = merge(roll_up, roll_up_dispute);
 
-        .refund_total_count = refund_total_count + to_int(.refund_total_count) ?? 0;
-        .refund_total_amount = refund_total_amount + to_float(.refund_total_amount) ?? 0;
-        .refund_success_count = refund_success_count + to_int(.refund_success_count) ?? 0;
-        .refund_success_amount = refund_success_amount + to_float(.refund_success_amount) ?? 0;
-
-        attempt_log.refund_total_count = refund_total_count;
-        attempt_log.refund_total_amount = refund_total_amount;
-        attempt_log.refund_success_count = refund_success_count;
-        attempt_log.refund_success_amount = refund_success_amount;
-
-        disputes = object(attempt_log.disputes) ?? {};
-        dispute_total_count = 0;
-        dispute_total_amount = 0;
-        dispute_success_count = 0;
-        dispute_success_amount = 0;
-
-        for_each(disputes) -> |_dispute_id, dispute| {
+      disputes = object(payment_attempt_log.disputes) ?? {};
+      for_each(disputes) -> |dispute_id, dispute| {
           dispute_log = object(dispute) ?? {};
+          dispute_log = merge(dispute_log, pass_down);
 
-          dispute_total_count = dispute_total_count + 1;
-          dispute_total_amount = dispute_total_amount + to_float(dispute_log.dispute_amount) ?? 0;
-          if dispute_log.dispute_status == "dispute_won" {
-            dispute_success_count = dispute_success_count + 1;
-            dispute_success_amount = dispute_success_amount + to_float(dispute_log.dispute_amount) ?? 0;
-          }
-        }
+          roll_up.dispute_success_amount = roll_up.dispute_success_amount + to_int(dispute_log.dispute_amount) ?? 0;
+      roll_up.dispute_success_count = roll_up.dispute_success_count + 1;
+      roll_up.dispute_total_amount = roll_up.dispute_total_amount + to_int(dispute_log.dispute_amount) ?? 0;
+      roll_up.dispute_total_count = roll_up.dispute_total_count + 1;
 
-        .dispute_total_count = dispute_total_count + to_int(.dispute_total_count) ?? 0;
-        .dispute_total_amount = dispute_total_amount + to_float(.dispute_total_amount) ?? 0;
-        .dispute_success_count = dispute_success_count + to_int(.dispute_success_count) ?? 0;
-        .dispute_success_amount = dispute_success_amount + to_float(.dispute_success_amount) ?? 0;
+          
+          payment_attempt_log.disputes = set!(payment_attempt_log.disputes, [dispute_id], dispute_log);
+      };
+      payment_attempt_log = merge(payment_attempt_log, roll_up);
 
-        attempt_log.dispute_total_count = dispute_total_count;
-        attempt_log.dispute_total_amount = dispute_total_amount;
-        attempt_log.dispute_success_count = dispute_success_count;
-        attempt_log.dispute_success_amount = dispute_success_amount;
 
-        .attempts = set!(.attempts, [attempt_id], attempt_log)
-      }
+          payment_intent_log.attempts = set!(payment_intent_log.attempts, [attempt_id], payment_attempt_log);
+      };
+      payment_intent_log = merge(payment_intent_log, roll_up);
 
-      .attempt_total_count = attempt_total_count + to_int(.attempt_total_count) ?? 0;
-      .attempt_total_amount = attempt_total_amount + to_float(.attempt_total_amount) ?? 0;
-      .attempt_success_count = attempt_success_count + to_int(.attempt_success_count) ?? 0;
-      .attempt_success_amount = attempt_success_amount + to_float(.attempt_success_amount) ?? 0;
+      . = payment_intent_log;
 
   consolidate_events_intents:
     type: remap

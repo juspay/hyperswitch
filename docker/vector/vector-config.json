@@ -1,0 +1,7 @@
+{
+  "kafka": {
+    "topics": ["hyperswitch-consolidated-events"],
+    "bootstrap_servers": "kafka0:29092"
+  },
+  "top_level_additional_ids": ["merchant_id"]
+}
