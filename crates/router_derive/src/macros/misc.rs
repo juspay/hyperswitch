@@ -23,9 +23,10 @@ pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStre
 
             let field_ident_string = field_ident.to_string();
             let is_optional_field = field_type_ident.eq("Option");
+            let is_secret_field = field_type_ident.eq("Secret");
 
             // Do not call validate if it is an optional field
-            if !is_optional_field {
+            if !is_optional_field && !is_secret_field {
                 let is_leaf_field = field_type_ident.eq("String");
                 let validate_expansion = if is_leaf_field {
                 quote::quote!(common_utils::fp_utils::when(
