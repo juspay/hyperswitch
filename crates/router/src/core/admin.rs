@@ -302,7 +302,7 @@ impl CreateOrValidateOrganization {
     }
 
     #[cfg(all(feature = "v2", feature = "olap"))]
-    /// Create an action to validate the provided organzation_id
+    /// Create an action to validate the provided organization_id
     fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
     }
