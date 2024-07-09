@@ -29,7 +29,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api},
+    services::{self, api as service_api, authentication},
     types::{
         self, api,
         domain::{
@@ -75,6 +75,29 @@ pub async fn insert_merchant_configs(
 }
 
 #[cfg(feature = "olap")]
+fn add_publishable_key_to_decision_service(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) {
+    let state = state.clone();
+    let publishable_key = merchant_account.publishable_key.clone();
+    let merchant_id = merchant_account.merchant_id.clone();
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_publishable_key(
+                &state,
+                publishable_key.into(),
+                merchant_id,
+                None,
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
+}
+
+#[cfg(feature = "olap")]
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
@@ -110,6 +133,8 @@ pub async fn create_merchant_account(
         .insert_merchant(domain_merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    add_publishable_key_to_decision_service(&state, &merchant_account);
 
     insert_merchant_configs(db, &merchant_id).await?;
 
@@ -459,7 +484,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount {
-                    merchant_id: self.get_merchant_id().get_string_repr().to_owned(),
+                    merchant_id: self
+                        .get_merchant_reference_id()
+                        .get_string_repr()
+                        .to_owned(),
                     merchant_name: Some(
                         domain_types::encrypt(
                             self.merchant_name
@@ -860,6 +888,20 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
+
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -871,6 +913,18 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    let state = state.clone();
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::revoke_api_key(
+                &state,
+                merchant_account.publishable_key.into(),
+            )
+            .await
+        },
+        authentication::decision::REVOKE,
+    );
 
     match db
         .delete_config_by_key(format!("{}_requires_cvv", merchant_id).as_str())
