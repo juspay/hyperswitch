@@ -361,7 +361,7 @@ pub struct RazorpayCard {
 
 fn generate_12_digit_number() -> u64 {
     let mut rng = rand::thread_rng();
-    rng.gen_range(100000000000..=999999999999)
+    rng.gen_range(100_000_000_000..=999_999_999_999)
 }
 
 impl
@@ -1161,7 +1161,7 @@ impl<F>
             version: VERSION,
         };
         let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> =
-            Secret::new("9490419802@ybl".to_string());
+            Secret::new("".to_string());
 
         let pm = common_enums::enums::PaymentMethod::Upi;
 
