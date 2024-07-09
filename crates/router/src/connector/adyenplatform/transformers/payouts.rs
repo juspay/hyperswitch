@@ -242,7 +242,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenTransfe
                 let payout_type = request.get_payout_type()?;
                 Ok(Self {
                     amount: adyen::Amount {
-                        value: request.minor_amount,
+                        value: item.amount,
                         currency: request.destination_currency,
                     },
                     balance_account_id,
