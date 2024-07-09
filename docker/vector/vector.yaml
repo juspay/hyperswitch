@@ -184,11 +184,14 @@ transforms:
 
       function merge_log(db_log, new_log, traverse_map)
         local log = get_value(db_log, traverse_map)
-
-        for k, v in pairs(new_log) do
-          log[k] = v
+        local db_modified_at = log["modified_at"] or 0
+        local new_modified_at = new_log["modified_at"] or 0
+        print("checking modified_at")
+        if(new_modified_at > db_modified_at) then
+          for k, v in pairs(new_log) do
+            log[k] = v
+          end
         end
-
         return set_value(db_log, traverse_map, log)
       end
 
