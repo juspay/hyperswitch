@@ -8659,7 +8659,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.upi.upi_collect.vpa_id".to_string(),
                                                     display_name: "vpa_id".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserVpaId,
                                                     value: None,
                                                 }
                                             ),

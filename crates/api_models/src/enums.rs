@@ -468,6 +468,7 @@ pub enum FieldType {
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
+    UserVpaId,
 }
 
 impl FieldType {
@@ -553,6 +554,7 @@ impl PartialEq for FieldType {
                 },
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
+            (Self::UserVpaId, Self::UserVpaId) => true,
             _unused => false,
         }
     }
