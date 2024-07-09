@@ -433,7 +433,7 @@ async fn store_bank_details_in_payment_methods(
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data_optional(&key_store, Some(payment_method_data))
                     .await
                     .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;
@@ -445,7 +445,7 @@ async fn store_bank_details_in_payment_methods(
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data_optional(&key_store, Some(payment_method_data))
                     .await
                     .map(|details| details.into())
                     .ok_or(ApiErrorResponse::InternalServerError)?;

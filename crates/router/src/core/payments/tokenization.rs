@@ -209,13 +209,15 @@ where
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                 });
 
-                let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details)
-                        .await
-                        .map(|details| details.into());
+                let pm_data_encrypted = payment_methods::cards::create_encrypted_data_optional(
+                    key_store,
+                    pm_card_details,
+                )
+                .await
+                .map(|details| details.into());
 
                 let encrypted_payment_method_billing_address =
-                    payment_methods::cards::create_encrypted_data(
+                    payment_methods::cards::create_encrypted_data_optional(
                         key_store,
                         payment_method_billing_address,
                     )
@@ -503,7 +505,7 @@ where
                                     ))
                                 });
                                 let pm_data_encrypted =
-                                    payment_methods::cards::create_encrypted_data(
+                                    payment_methods::cards::create_encrypted_data_optional(
                                         key_store,
                                         updated_pmd,
                                     )

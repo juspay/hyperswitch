@@ -33,6 +33,7 @@ use diesel_models::{
 };
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::type_encryption::encrypt;
 use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
 use strum::IntoEnumIterator;
@@ -468,9 +469,10 @@ pub async fn add_payment_method_data(
                         };
 
                         let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
-                        let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
-                            .await
-                            .map(|details| details.into());
+                        let pm_data_encrypted =
+                            create_encrypted_data_optional(&key_store, updated_pmd)
+                                .await
+                                .map(|details| details.into());
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
                             payment_method_data: pm_data_encrypted,
@@ -691,7 +693,7 @@ pub async fn add_payment_method(
                     let updated_pmd = updated_card.as_ref().map(|card| {
                         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                     });
-                    let pm_data_encrypted = create_encrypted_data(key_store, updated_pmd)
+                    let pm_data_encrypted = create_encrypted_data_optional(key_store, updated_pmd)
                         .await
                         .map(|details| details.into());
 
@@ -767,7 +769,7 @@ pub async fn insert_payment_method(
         .card
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-    let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details)
+    let pm_data_encrypted = create_encrypted_data_optional(key_store, pm_card_details)
         .await
         .map(|details| details.into());
 
@@ -950,7 +952,7 @@ pub async fn update_customer_payment_method(
             let updated_pmd = updated_card
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-            let pm_data_encrypted = create_encrypted_data(&key_store, updated_pmd)
+            let pm_data_encrypted = create_encrypted_data_optional(&key_store, updated_pmd)
                 .await
                 .map(|details| details.into());
 
@@ -4435,7 +4437,7 @@ pub async fn delete_payment_method(
     ))
 }
 
-pub async fn create_encrypted_data<T>(
+pub async fn create_encrypted_data_optional<T>(
     key_store: &domain::MerchantKeyStore,
     data: Option<T>,
 ) -> Option<Encryptable<Secret<serde_json::Value>>>
@@ -4462,6 +4464,30 @@ where
             logger::error!(err=?err);
             None
         })
+}
+
+pub async fn create_encrypted_data<T>(
+    key_store: &domain::MerchantKeyStore,
+    data: T,
+) -> Result<Encryptable<Secret<serde_json::Value>>, errors::StorageError>
+where
+    T: Debug + serde::Serialize,
+{
+    let key = key_store.key.get_inner().peek();
+
+    let encoded_data = Encode::encode_to_value(&data).map_err(|err| {
+        logger::error!(err=?err, "Unable to convert data to a value");
+        errors::StorageError::SerializationFailed
+    })?;
+
+    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+
+    let encrypted_data = encrypt(secret_data, key).await.map_err(|err| {
+        logger::error!(err=?err, "Unable to encrypt data");
+        errors::StorageError::EncryptionError
+    })?;
+
+    Ok(encrypted_data)
 }
 
 pub async fn list_countries_currencies_for_connector_payment_method(
