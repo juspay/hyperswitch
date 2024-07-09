@@ -3,7 +3,7 @@ use error_stack::{report, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use super::Error;
+use super::{AdyenRouterData, Error};
 use crate::{
     connector::{
         adyen::transformers as adyen,
@@ -172,11 +172,11 @@ pub enum AdyenTransactionType {
     Refund,
 }
 
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
+impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenTransferRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        let request = item.request.to_owned();
-        match item.get_payout_method_data()? {
+    fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
+        let request = item.router_data.request.to_owned();
+        match item.router_data.get_payout_method_data()? {
             payouts::PayoutMethodData::Card(_) | payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
@@ -204,12 +204,17 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                         connector: "Adyenplatform",
                     })?,
                 };
-                let billing_address = item.get_optional_billing();
+                let billing_address = item.router_data.get_optional_billing();
                 let address = adyen::get_address_info(billing_address).transpose()?;
                 let account_holder = AdyenBankAccountHolder {
                     address,
-                    full_name: item.get_billing_full_name()?,
-                    customer_id: Some(item.get_customer_id()?.get_string_repr().to_owned()),
+                    full_name: item.router_data.get_billing_full_name()?,
+                    customer_id: Some(
+                        item.router_data
+                            .get_customer_id()?
+                            .get_string_repr()
+                            .to_owned(),
+                    ),
                     entity_type: Some(EntityType::from(request.entity_type)),
                 };
                 let counterparty = AdyenPayoutMethodDetails {
@@ -220,7 +225,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                 };
 
                 let adyen_connector_metadata_object =
-                    AdyenPlatformConnectorMetadataObject::try_from(&item.connector_meta_data)?;
+                    AdyenPlatformConnectorMetadataObject::try_from(
+                        &item.router_data.connector_meta_data,
+                    )?;
                 let balance_account_id = adyen_connector_metadata_object
                     .source_balance_account
                     .ok_or(errors::ConnectorError::InvalidConnectorConfig {
@@ -244,7 +251,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                     priority: AdyenPayoutPriority::from(priority),
                     reference: request.payout_id.clone(),
                     reference_for_beneficiary: request.payout_id,
-                    description: item.description.clone(),
+                    description: item.router_data.description.clone(),
                 })
             }
         }

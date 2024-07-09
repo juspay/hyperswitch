@@ -465,11 +465,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 field_name: "currency",
             })?,
         };
-        let amount = connector_utils::convert_amount(
-            self.amount_converter,
-            amount,
-            currency,
-        )?;
+        let amount = connector_utils::convert_amount(self.amount_converter, amount, currency)?;
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
         let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;

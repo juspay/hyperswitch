@@ -348,9 +348,9 @@ impl ConnectorData {
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
-                enums::Connector::Adyenplatform => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Adyenplatform)))
-                }
+                enums::Connector::Adyenplatform => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Adyenplatform::new(),
+                ))),
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }

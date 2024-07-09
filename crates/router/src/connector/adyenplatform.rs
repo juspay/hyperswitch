@@ -1,13 +1,18 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+#[cfg(feature = "payouts")]
+use common_utils::types::MinorUnitForConnector;
+#[cfg(feature = "payouts")]
+use common_utils::types::{AmountConvertor, MinorUnit};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 
 use self::transformers as adyenplatform;
+#[cfg(feature = "payouts")]
+use crate::connector::utils::convert_amount;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -25,8 +30,19 @@ use crate::{
 #[cfg(feature = "payouts")]
 use crate::{events::connector_api_logs::ConnectorEvent, utils::BytesExt};
 
-#[derive(Debug, Clone)]
-pub struct Adyenplatform;
+#[derive(Clone)]
+pub struct Adyenplatform {
+    #[cfg(feature = "payouts")]
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+impl Adyenplatform {
+    pub const fn new() -> &'static Self {
+        &Self {
+            #[cfg(feature = "payouts")]
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl ConnectorCommon for Adyenplatform {
     fn id(&self) -> &'static str {
@@ -200,7 +216,13 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = adyenplatform::AdyenTransferRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.destination_currency,
+        )?;
+        let connector_router_data = adyenplatform::AdyenRouterData::try_from((amount, req))?;
+        let connector_req = adyenplatform::AdyenTransferRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
