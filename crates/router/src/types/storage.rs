@@ -17,6 +17,7 @@ pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod generic_link;
 pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
@@ -35,16 +36,18 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_authentication_method;
 pub mod user_role;
 
 use std::collections::HashMap;
 
 pub use diesel_models::{
-    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
+    process_tracker::business_status, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
+    ProcessTrackerUpdate,
 };
 pub use hyperswitch_domain_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::{PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateFields},
     PaymentIntent,
 };
 #[cfg(feature = "payouts")]
@@ -58,10 +61,10 @@ pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, capture::*, cards_info::*,
     configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
-    file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
-    merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
-    process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
-    user_role::*,
+    file::*, fraud_check::*, generic_link::*, gsm::*, locker_mock_up::*, mandate::*,
+    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
+    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
+    routing_algorithm::*, user::*, user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
 
@@ -81,14 +84,21 @@ pub struct RoutingData {
 pub struct PaymentRoutingInfo {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
     pub pre_routing_results:
-        Option<HashMap<api_models::enums::PaymentMethodType, routing::RoutableConnectorChoice>>,
+        Option<HashMap<api_models::enums::PaymentMethodType, PreRoutingConnectorChoice>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentRoutingInfoInner {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
     pub pre_routing_results:
-        Option<HashMap<api_models::enums::PaymentMethodType, routing::RoutableConnectorChoice>>,
+        Option<HashMap<api_models::enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum PreRoutingConnectorChoice {
+    Single(routing::RoutableConnectorChoice),
+    Multiple(Vec<routing::RoutableConnectorChoice>),
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

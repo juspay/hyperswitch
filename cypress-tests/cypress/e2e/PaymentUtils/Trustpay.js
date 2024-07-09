@@ -16,11 +16,30 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -34,7 +53,9 @@ export const connectorDetails = {
     }),
     "3DSAutoCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -43,31 +64,14 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-        },
-      },
-    },
-    "3DSManualCapture": {
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "manual is not supported by trustpay",
-          },
         },
       },
     },
     No3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -79,28 +83,11 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "manual is not supported by trustpay",
-          },
-        },
-      },
-    },
     Capture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -118,7 +105,9 @@ export const connectorDetails = {
     },
     PartialCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         paymentSuccessfulStatus: "succeeded",
         paymentSyncStatus: "succeeded",
@@ -149,7 +138,9 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -162,7 +153,9 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -176,7 +169,9 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -187,148 +182,13 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUse3DSAutoCapture: {
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateSingleUse3DSManualCapture: {
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateMultiUseNo3DSAutoCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
     MandateMultiUse3DSAutoCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -337,39 +197,7 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUse3DSManualCapture: {
-      Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
     ZeroAuthMandate: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
       Response: {
         status: 501,
         body: {
@@ -383,7 +211,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -399,31 +229,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
         },
       },
     },
@@ -448,8 +253,24 @@ export const connectorDetails = {
           bank_redirect: {
             ideal: {
               bank_name: "ing",
-              country: "NL",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
           },
         },
       },
@@ -470,9 +291,24 @@ export const connectorDetails = {
               bank_name: "",
               bank_account_bic: "",
               bank_account_iban: "",
-              preferred_language: "en",
-              country: "DE",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
           },
         },
       },
@@ -489,10 +325,24 @@ export const connectorDetails = {
         payment_method_type: "sofort",
         payment_method_data: {
           bank_redirect: {
-            sofort: {
-              country: "DE",
-              preferred_language: "en",
-            },
+            sofort: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
           },
         },
       },
@@ -513,6 +363,23 @@ export const connectorDetails = {
             eps: {
               bank_name: "ing",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
           },
         },
       },

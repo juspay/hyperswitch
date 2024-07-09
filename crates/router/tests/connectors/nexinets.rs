@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentsAuthorizeData};
 
@@ -16,12 +17,12 @@ static CONNECTOR: NexinetsTest = NexinetsTest {};
 impl utils::Connector for NexinetsTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nexinets;
-        types::api::ConnectorData {
-            connector: Box::new(&Nexinets),
-            connector_name: types::Connector::Nexinets,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Nexinets),
+            types::Connector::Nexinets,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -127,6 +128,9 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::EUR,
                 payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                captured_amount: None,
             }),
             None,
         )

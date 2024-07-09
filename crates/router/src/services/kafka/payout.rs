@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use time::OffsetDateTime;
@@ -12,8 +12,8 @@ pub struct KafkaPayout<'a> {
     pub address_id: &'a String,
     pub profile_id: &'a String,
     pub payout_method_id: Option<&'a String>,
-    pub payout_type: storage_enums::PayoutType,
-    pub amount: i64,
+    pub payout_type: Option<storage_enums::PayoutType>,
+    pub amount: MinorUnit,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub description: Option<&'a String>,
@@ -28,6 +28,7 @@ pub struct KafkaPayout<'a> {
     pub last_modified_at: OffsetDateTime,
     pub attempt_count: i16,
     pub status: storage_enums::PayoutStatus,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 
     pub connector: Option<&'a String>,
     pub connector_payout_id: Option<&'a String>,
@@ -63,6 +64,7 @@ impl<'a> KafkaPayout<'a> {
             last_modified_at: payouts.last_modified_at.assume_utc(),
             attempt_count: payouts.attempt_count,
             status: payouts.status,
+            priority: payouts.priority,
             connector: payout_attempt.connector.as_ref(),
             connector_payout_id: payout_attempt.connector_payout_id.as_ref(),
             is_eligible: payout_attempt.is_eligible,

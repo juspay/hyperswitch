@@ -6,19 +6,21 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
+        payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
-        PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
+        PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
 };
 use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
@@ -253,6 +255,10 @@ pub enum Aggregate<R> {
         alias: Option<&'static str>,
         percentile: Option<&'static u8>,
     },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
@@ -317,6 +323,7 @@ impl std::fmt::Display for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,
@@ -364,19 +371,26 @@ impl_to_sql_for_to_string!(
     String,
     &str,
     &PaymentDimensions,
+    &PaymentIntentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
+    PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
     Connector,
     AttemptStatus,
+    IntentStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
     Flow,
     &String,
     &bool,

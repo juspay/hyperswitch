@@ -1,7 +1,8 @@
+pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-
+pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
 pub(crate) const MAX_ID_LENGTH: usize = 64;
@@ -31,8 +32,6 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
 
 // String literals
-pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
-pub(crate) const NO_ERROR_CODE: &str = "No error code";
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
@@ -102,6 +101,12 @@ pub const MAX_SESSION_EXPIRY: u32 = 7890000;
 
 /// Min payment session expiry
 pub const MIN_SESSION_EXPIRY: u32 = 60;
+
+/// Max payment intent fulfillment expiry
+pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
+
+/// Min payment intent fulfillment expiry
+pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
 

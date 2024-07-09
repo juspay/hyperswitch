@@ -5,6 +5,7 @@ pub mod transformers;
 
 use strum::IntoEnumIterator;
 
+// use common_utils::types::MinorUnit;
 use crate::{enums as euclid_enums, frontend::ast, types};
 
 #[macro_export]
@@ -26,7 +27,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -74,7 +75,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -311,6 +312,13 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "card_redirect")]
     CardRedirectType,
+    #[serde(rename = "real_time_payment")]
+    #[strum(
+        serialize = "real_time_payment",
+        detailed_message = "Supported types of real time payment method",
+        props(Category = "Payment Method Types")
+    )]
+    RealTimePaymentType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -358,6 +366,7 @@ impl DirKeyKind {
             Self::BusinessLabel => types::DataType::StrValue,
             Self::SetupFutureUsage => types::DataType::EnumVariant,
             Self::CardRedirectType => types::DataType::EnumVariant,
+            Self::RealTimePaymentType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -484,6 +493,11 @@ impl DirKeyKind {
                     .map(DirValue::CardRedirectType)
                     .collect(),
             ),
+            Self::RealTimePaymentType => Some(
+                enums::RealTimePaymentType::iter()
+                    .map(DirValue::RealTimePaymentType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -549,6 +563,8 @@ pub enum DirValue {
     SetupFutureUsage(enums::SetupFutureUsage),
     #[serde(rename = "card_redirect")]
     CardRedirectType(enums::CardRedirectType),
+    #[serde(rename = "real_time_payment")]
+    RealTimePaymentType(enums::RealTimePaymentType),
 }
 
 impl DirValue {
@@ -582,6 +598,7 @@ impl DirValue {
             Self::CardRedirectType(_) => (DirKeyKind::CardRedirectType, None),
             Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
+            Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
         };
 
         DirKey::new(kind, data)
@@ -616,6 +633,7 @@ impl DirValue {
             Self::BusinessLabel(_) => None,
             Self::SetupFutureUsage(_) => None,
             Self::CardRedirectType(_) => None,
+            Self::RealTimePaymentType(_) => None,
         }
     }
 
@@ -655,6 +673,7 @@ impl DirValue {
             (Self::MandateType(mt1), Self::MandateType(mt2)) => mt1 == mt2,
             (Self::MandateAcceptanceType(mat1), Self::MandateAcceptanceType(mat2)) => mat1 == mat2,
             (Self::RewardType(rt1), Self::RewardType(rt2)) => rt1 == rt2,
+            (Self::RealTimePaymentType(rtp1), Self::RealTimePaymentType(rtp2)) => rtp1 == rtp2,
             (Self::Connector(c1), Self::Connector(c2)) => c1 == c2,
             (Self::BusinessLabel(bl1), Self::BusinessLabel(bl2)) => bl1 == bl2,
             (Self::SetupFutureUsage(sfu1), Self::SetupFutureUsage(sfu2)) => sfu1 == sfu2,

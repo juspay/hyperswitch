@@ -9,9 +9,9 @@ pub mod diesel_exports {
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
-        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbMandateType as MandateType,
-        DbMerchantStorageScheme as MerchantStorageScheme,
+        DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
+        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
+        DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
@@ -24,7 +24,7 @@ pub mod diesel_exports {
 }
 pub use common_enums::*;
 use common_utils::pii;
-use diesel::serialize::{Output, ToSql};
+use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Jsonb};
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
 
@@ -142,12 +142,6 @@ pub enum MandateType {
     #[default]
     MultiUse,
 }
-use diesel::{
-    backend::Backend,
-    deserialize::{FromSql, FromSqlRow},
-    expression::AsExpression,
-    sql_types::Jsonb,
-};
 
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
@@ -157,29 +151,9 @@ use diesel::{
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
 }
-impl<DB: Backend> FromSql<Jsonb, DB> for MandateDetails
-where
-    serde_json::Value: FromSql<Jsonb, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_value(value)?)
-    }
-}
 
-impl ToSql<Jsonb, diesel::pg::Pg> for MandateDetails
-where
-    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = serde_json::to_value(self)?;
+common_utils::impl_to_sql_from_sql_json!(MandateDetails);
 
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
-}
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
 )]
@@ -190,29 +164,7 @@ pub enum MandateDataType {
     MultiUse(Option<MandateAmountData>),
 }
 
-impl<DB: Backend> FromSql<Jsonb, DB> for MandateDataType
-where
-    serde_json::Value: FromSql<Jsonb, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_value(value)?)
-    }
-}
-
-impl ToSql<Jsonb, diesel::pg::Pg> for MandateDataType
-where
-    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = serde_json::to_value(self)?;
-
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
-}
+common_utils::impl_to_sql_from_sql_json!(MandateDataType);
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
@@ -240,30 +192,6 @@ pub struct MandateAmountData {
 pub enum FraudCheckType {
     PreFrm,
     PostFrm,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[strum(serialize_all = "snake_case")]
-pub enum FraudCheckStatus {
-    Fraud,
-    ManualReview,
-    #[default]
-    Pending,
-    Legit,
-    TransactionFailure,
 }
 
 #[derive(

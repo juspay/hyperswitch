@@ -45,7 +45,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -57,7 +57,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
@@ -72,6 +72,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       it("revoke-revoked-mandate-call-test", () => {
         cy.revokeMandateCallTest(globalState);
       });
-    },
+    }
   );
 });

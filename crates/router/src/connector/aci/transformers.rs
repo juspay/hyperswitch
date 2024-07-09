@@ -140,9 +140,10 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
             | domain::WalletData::SwishQr(_)
             | domain::WalletData::AliPayQr(_)
             | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::GooglePayRedirect(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment method".to_string()),
-            )?,
+            | domain::WalletData::GooglePayRedirect(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
         };
         Ok(payment_data)
     }
@@ -271,6 +272,7 @@ impl
             | domain::BankRedirectData::OnlineBankingPoland { .. }
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {}
             | domain::BankRedirectData::OpenBankingUk { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
@@ -440,6 +442,7 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | domain::PaymentMethodData::BankDebit(_)
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Upi(_)

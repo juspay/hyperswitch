@@ -2,8 +2,7 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import voidBody from "../../fixtures/void-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
@@ -39,7 +38,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -97,7 +96,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           res_data,
           "no_three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -117,7 +116,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 
   context(
@@ -143,7 +142,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           res_data,
           "no_three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -176,6 +175,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 });

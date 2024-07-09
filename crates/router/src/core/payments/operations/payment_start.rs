@@ -50,7 +50,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -295,6 +300,7 @@ where
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
@@ -314,6 +320,7 @@ where
                 merchant_key_store,
                 customer,
                 storage_scheme,
+                business_profile,
             )
             .await
         } else {
@@ -337,6 +344,7 @@ where
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

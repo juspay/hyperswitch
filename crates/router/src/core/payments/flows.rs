@@ -47,6 +47,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -58,6 +59,7 @@ pub trait Feature<F, T> {
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -82,13 +84,17 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>>
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(None)
+        Ok(types::PaymentMethodTokenResult {
+            payment_method_token_result: Ok(None),
+            is_payment_method_tokenization_performed: false,
+        })
     }
 
     async fn preprocessing_steps<'a>(
@@ -156,8 +162,10 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
+    connector::Bamboraapac,
     connector::Billwerk,
     connector::Bitpay,
     connector::Boku,
@@ -165,6 +173,7 @@ default_imp_for_complete_authorize!(
     connector::Checkout,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -229,11 +238,13 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -245,6 +256,7 @@ default_imp_for_webhook_source_verification!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -319,11 +331,13 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -335,6 +349,7 @@ default_imp_for_create_customer!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -409,8 +424,10 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
+    connector::Bamboraapac,
     connector::Bitpay,
     connector::Bankofamerica,
     connector::Billwerk,
@@ -419,6 +436,7 @@ default_imp_for_connector_redirect_response!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -468,12 +486,14 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Adyenplatform,
     connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -485,6 +505,7 @@ default_imp_for_connector_request_id!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -560,11 +581,13 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -575,6 +598,7 @@ default_imp_for_accept_dispute!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -672,11 +696,13 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -687,6 +713,7 @@ default_imp_for_file_upload!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -761,11 +788,13 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -776,6 +805,7 @@ default_imp_for_submit_evidence!(
     connector::Cybersource,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -850,11 +880,13 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -865,6 +897,7 @@ default_imp_for_defend_dispute!(
     connector::Cybersource,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -940,9 +973,11 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
@@ -952,6 +987,7 @@ default_imp_for_pre_processing_steps!(
     connector::Checkout,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Iatapay,
@@ -968,7 +1004,6 @@ default_imp_for_pre_processing_steps!(
     connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
@@ -979,7 +1014,6 @@ default_imp_for_pre_processing_steps!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
     connector::Square,
     connector::Stax,
@@ -1009,6 +1043,7 @@ default_imp_for_payouts!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1019,6 +1054,7 @@ default_imp_for_payouts!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1090,10 +1126,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1105,6 +1143,7 @@ default_imp_for_payouts_create!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1180,10 +1219,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1195,6 +1236,7 @@ default_imp_for_payouts_eligibility!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1273,6 +1315,7 @@ default_imp_for_payouts_fulfill!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1283,6 +1326,7 @@ default_imp_for_payouts_fulfill!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1354,10 +1398,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1369,6 +1415,7 @@ default_imp_for_payouts_cancel!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1442,11 +1489,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1458,6 +1507,7 @@ default_imp_for_payouts_quote!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1532,11 +1582,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1548,6 +1600,7 @@ default_imp_for_payouts_recipient!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -1624,11 +1677,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1640,6 +1695,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1714,11 +1770,13 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1730,6 +1788,7 @@ default_imp_for_approve!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1805,11 +1864,13 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1821,6 +1882,7 @@ default_imp_for_reject!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1880,11 +1942,13 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1896,6 +1960,7 @@ default_imp_for_fraud_check!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1971,11 +2036,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1987,6 +2054,7 @@ default_imp_for_frm_sale!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2062,11 +2130,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2078,6 +2148,7 @@ default_imp_for_frm_checkout!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2153,11 +2224,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2169,6 +2242,7 @@ default_imp_for_frm_transaction!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2244,11 +2318,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2260,6 +2336,7 @@ default_imp_for_frm_fulfillment!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2335,11 +2412,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2351,6 +2430,7 @@ default_imp_for_frm_record_return!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2424,11 +2504,13 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2439,6 +2521,7 @@ default_imp_for_incremental_authorization!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2512,11 +2595,13 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2527,6 +2612,7 @@ default_imp_for_revoking_mandates!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2660,11 +2746,13 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2676,6 +2764,7 @@ default_imp_for_connector_authentication!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2747,9 +2836,11 @@ impl<const T: u8>
 default_imp_for_authorize_session_token!(
     connector::Aci,
     connector::Adyen,
+    connector::Adyenplatform,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2761,6 +2852,7 @@ default_imp_for_authorize_session_token!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,

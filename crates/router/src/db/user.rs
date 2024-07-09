@@ -1,4 +1,4 @@
-use diesel_models::{user as storage, user_role::UserRole};
+use diesel_models::user as storage;
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -46,10 +46,10 @@ pub trait UserInterface {
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
-    async fn find_users_and_roles_by_merchant_id(
+    async fn find_users_by_user_ids(
         &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError>;
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -123,13 +123,12 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
-    async fn find_users_and_roles_by_merchant_id(
+    async fn find_users_by_user_ids(
         &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
+        storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -245,7 +244,7 @@ impl UserInterface for MockDb {
                         ..user.to_owned()
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: password.clone().unwrap_or(user.password.clone()),
+                        password: Some(password.clone()),
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
@@ -300,7 +299,7 @@ impl UserInterface for MockDb {
                         ..user.to_owned()
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: password.clone().unwrap_or(user.password.clone()),
+                        password: Some(password.clone()),
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
@@ -330,10 +329,10 @@ impl UserInterface for MockDb {
         Ok(true)
     }
 
-    async fn find_users_and_roles_by_merchant_id(
+    async fn find_users_by_user_ids(
         &self,
-        _merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
+        _user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }

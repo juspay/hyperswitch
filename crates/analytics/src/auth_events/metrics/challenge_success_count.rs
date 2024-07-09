@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     auth_events::{AuthEventFlows, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -32,7 +34,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::ApiEventsAnalytics);
 
@@ -86,7 +88,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>,
+                HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

@@ -47,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
@@ -76,6 +77,8 @@ pub mod headers {
     pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
     pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
     pub const CONTENT_LENGTH: &str = "Content-Length";
+    pub const BROWSER_NAME: &str = "x-browser-name";
+    pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
 }
 
 pub mod pii {
@@ -144,6 +147,7 @@ pub fn mk_app(
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::ApplePayCertificatesMigration::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
@@ -153,7 +157,9 @@ pub fn mk_app(
 
     #[cfg(feature = "payouts")]
     {
-        server_app = server_app.service(routes::Payouts::server(state.clone()));
+        server_app = server_app
+            .service(routes::Payouts::server(state.clone()))
+            .service(routes::PayoutLink::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
@@ -194,11 +200,65 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     );
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers)
-        .shutdown_timeout(server.shutdown_timeout)
-        .run();
+
+    let server_builder =
+        actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
+            .bind((server.host.as_str(), server.port))?
+            .workers(server.workers)
+            .shutdown_timeout(server.shutdown_timeout);
+
+    #[cfg(feature = "tls")]
+    let server = match server.tls {
+        None => server_builder.run(),
+        Some(tls_conf) => {
+            let cert_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.certificate).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+            let key_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.private_key).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+
+            let cert_chain = rustls_pemfile::certs(cert_file)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            let mut keys = rustls_pemfile::pkcs8_private_keys(key_file)
+                .map(|key| key.map(rustls::pki_types::PrivateKeyDer::Pkcs8))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            // exit if no keys could be parsed
+            if keys.is_empty() {
+                return Err(errors::ApplicationError::InvalidConfigurationValueError(
+                    "Could not locate PKCS8 private keys.".into(),
+                ));
+            }
+
+            let config_builder = rustls::ServerConfig::builder().with_no_client_auth();
+            let config = config_builder
+                .with_single_cert(cert_chain, keys.remove(0))
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            server_builder
+                .bind_rustls_0_22(
+                    (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
+                    config,
+                )?
+                .run()
+        }
+    };
+
+    #[cfg(not(feature = "tls"))]
+    let server = server_builder.run();
+
     let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }

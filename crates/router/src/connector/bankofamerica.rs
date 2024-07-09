@@ -211,33 +211,57 @@ impl ConnectorCommon for Bankofamerica {
         };
         match response {
             transformers::BankOfAmericaErrorResponse::StandardError(response) => {
-                let (code, connector_reason) = match response.error_information {
-                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-                    None => (
-                        response
-                            .reason
-                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                                reason.to_string()
-                            }),
-                        response
-                            .message
-                            .map_or(error_message.to_string(), |message| message),
-                    ),
-                };
-                let message = match response.details {
-                    Some(details) => details
-                        .iter()
-                        .map(|det| format!("{} : {}", det.field, det.reason))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    None => connector_reason.clone(),
+                let (code, message, reason) = match response.error_information {
+                    Some(ref error_info) => {
+                        let detailed_error_info = error_info.details.as_ref().map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            error_info.reason.clone(),
+                            error_info.reason.clone(),
+                            transformers::get_error_reason(
+                                Some(error_info.message.clone()),
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
+                    None => {
+                        let detailed_error_info = response.details.map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            response
+                                .reason
+                                .clone()
+                                .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                    reason.to_string()
+                                }),
+                            response
+                                .reason
+                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                            transformers::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
                 };
 
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code,
                     message,
-                    reason: Some(connector_reason),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })

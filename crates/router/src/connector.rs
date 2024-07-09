@@ -1,8 +1,10 @@
 pub mod aci;
 pub mod adyen;
+pub mod adyenplatform;
 pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bambora;
+pub mod bamboraapac;
 pub mod bankofamerica;
 pub mod billwerk;
 pub mod bitpay;
@@ -14,6 +16,7 @@ pub mod checkout;
 pub mod coinbase;
 pub mod cryptopay;
 pub mod cybersource;
+pub mod datatrans;
 pub mod dlocal;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
@@ -66,10 +69,11 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
-    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
-    checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
+    bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap,
+    boku::Boku, braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout,
+    coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource, datatrans::Datatrans,
     dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
     globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim,
     iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,

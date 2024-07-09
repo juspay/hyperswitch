@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use router_env::metrics::add_attributes;
 
 use crate::{
     consts,
@@ -21,7 +22,7 @@ pub async fn create_access_token<F: Clone + 'static>(
     connector_data: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &mut types::PayoutsRouterData<F>,
-    payout_type: enums::PayoutType,
+    payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<()> {
     let connector_access_token = add_access_token_for_payout(
         state,
@@ -52,8 +53,10 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::PayoutsRouterData<F>,
-    payout_type: enums::PayoutType,
+    payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
+    use crate::types::api::ConnectorCommon;
+
     if connector
         .connector_name
         .supports_access_token_for_payout(payout_type)
@@ -141,8 +144,7 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     >,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
@@ -185,10 +187,7 @@ pub async fn refresh_connector_auth(
     metrics::ACCESS_TOKEN_CREATION.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            connector.connector_name.to_string(),
-        )],
+        &add_attributes([("connector", connector.connector_name.to_string())]),
     );
     Ok(access_token_router_data)
 }

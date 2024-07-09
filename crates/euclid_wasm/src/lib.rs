@@ -33,12 +33,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
-struct SeedData<'a> {
-    cgraph: hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>,
+struct SeedData {
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
 static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
@@ -262,6 +262,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+        dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
