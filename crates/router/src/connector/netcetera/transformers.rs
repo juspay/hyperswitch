@@ -96,14 +96,17 @@ impl
                         three_ds_method_url,
                         message_version: maximum_supported_3ds_version,
                         connector_metadata: None,
+                        directory_server_id: card_range
+                            .as_ref()
+                            .and_then(|card_range| card_range.directory_server_id.clone()),
                     },
                 )
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => {
                 Err(types::ErrorResponse {
                     code: error_response.error_details.error_code,
-                    message: error_response.error_details.error_detail,
-                    reason: Some(error_response.error_details.error_description),
+                    message: error_response.error_details.error_description,
+                    reason: error_response.error_details.error_detail,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -164,13 +167,15 @@ impl
                         authn_flow_type,
                         authentication_value: response.authentication_value,
                         trans_status: response.trans_status,
+                        connector_metadata: None,
+                        ds_trans_id: response.authentication_response.ds_trans_id,
                     },
                 )
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(types::ErrorResponse {
                 code: error_response.error_details.error_code,
-                message: error_response.error_details.error_detail,
-                reason: Some(error_response.error_details.error_description),
+                message: error_response.error_details.error_description,
+                reason: error_response.error_details.error_detail,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
@@ -230,20 +235,20 @@ pub struct NetceteraErrorDetails {
     pub error_code: String,
 
     /// Code indicating the 3-D Secure component that identified the error.
-    pub error_component: String,
+    pub error_component: Option<String>,
 
     /// Text describing the problem identified.
     pub error_description: String,
 
     /// Additional detail regarding the problem identified.
-    pub error_detail: String,
+    pub error_detail: Option<String>,
 
     /// Universally unique identifier for the transaction assigned by the 3DS SDK.
     #[serde(rename = "sdkTransID")]
     pub sdk_trans_id: Option<String>,
 
     /// The Message Type that was identified as erroneous.
-    pub error_message_type: String,
+    pub error_message_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -449,27 +454,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         item: &NetceteraRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let now = common_utils::date_time::now();
-        let three_ds_req_auth_timestamp = common_utils::date_time::format_date(
-            now,
-            common_utils::date_time::DateFormat::YYYYMMDDHHmm,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
-            "Failed to format Date".to_string(),
-        ))?;
         let request = item.router_data.request.clone();
         let pre_authn_data = request.pre_authentication_data.clone();
         let three_ds_requestor = netcetera_types::ThreeDSRequestor {
             three_ds_requestor_authentication_ind:
                 netcetera_types::ThreeDSRequestorAuthenticationIndicator::Payment,
-            three_ds_requestor_authentication_info: Some(
-                netcetera_types::SingleOrListElement::new_single(
-                    netcetera_types::ThreeDSRequestorAuthenticationInformation {
-                        three_ds_req_auth_method: netcetera_types::ThreeDSReqAuthMethod::Guest,
-                        three_ds_req_auth_timestamp,
-                        three_ds_req_auth_data: None,
-                    },
-                ),
-            ),
+            three_ds_requestor_authentication_info: None,
             three_ds_requestor_challenge_ind: None,
             three_ds_requestor_prior_authentication_info: None,
             three_ds_requestor_dec_req_ind: None,
@@ -513,8 +503,8 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                     ),
                 )?,
             ),
-            recurring_expiry: Some("20240401".to_string()),
-            recurring_frequency: Some(1),
+            recurring_expiry: None,
+            recurring_frequency: None,
             trans_type: None,
             recurring_amount: None,
             recurring_currency: None,
@@ -526,7 +516,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let acquirer_details = netcetera_types::AcquirerData {
             acquirer_bin: request.pre_authentication_data.acquirer_bin,
             acquirer_merchant_id: request.pre_authentication_data.acquirer_merchant_id,
-            acquirer_country_code: None,
+            acquirer_country_code: request.pre_authentication_data.acquirer_country_code,
         };
         let connector_meta_data: NetceteraMetaData = item
             .router_data
@@ -547,8 +537,18 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             seller_info: None,
             results_response_notification_url: Some(request.webhook_url),
         };
-        let browser_information = request.browser_details.map(netcetera_types::Browser::from);
-        let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
+        let browser_information = match request.device_channel {
+            api_models::payments::DeviceChannel::Browser => {
+                request.browser_details.map(netcetera_types::Browser::from)
+            }
+            api_models::payments::DeviceChannel::App => None,
+        };
+        let sdk_information = match request.device_channel {
+            api_models::payments::DeviceChannel::App => {
+                request.sdk_information.map(netcetera_types::Sdk::from)
+            }
+            api_models::payments::DeviceChannel::Browser => None,
+        };
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {
                 Some(netcetera_types::DeviceRenderingOptionsSupported {
@@ -638,6 +638,8 @@ pub struct AuthenticationResponse {
     pub acs_reference_number: Option<String>,
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: Option<String>,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
 }
 

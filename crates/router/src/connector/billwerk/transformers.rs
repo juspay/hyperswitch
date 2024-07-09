@@ -1,4 +1,7 @@
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::{
+    id_type,
+    pii::{Email, SecretSerdeValue},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -96,6 +99,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Crypto(_)
             | domain::payments::PaymentMethodData::MandatePayment
             | domain::payments::PaymentMethodData::Reward
+            | domain::payments::PaymentMethodData::RealTimePayment(_)
             | domain::payments::PaymentMethodData::Upi(_)
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
@@ -145,7 +149,7 @@ impl<T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCustomerObject {
-    handle: Option<String>,
+    handle: Option<id_type::CustomerId>,
     email: Option<Email>,
     address: Option<Secret<String>>,
     address2: Option<Secret<String>>,
@@ -178,7 +182,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
+            types::PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),
@@ -198,7 +202,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
                 first_name: item.router_data.get_optional_billing_first_name(),
                 last_name: item.router_data.get_optional_billing_last_name(),
             },
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             settle: item.router_data.request.is_auto_capture()?,
         })
     }
@@ -276,6 +280,7 @@ impl<F, T>
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

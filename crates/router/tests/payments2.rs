@@ -2,8 +2,11 @@
 
 mod utils;
 
+use std::sync::Arc;
+
+use common_utils::{id_type, types::MinorUnit};
 use router::{
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     types::api::{self, enums as api_enums},
     *,
@@ -35,13 +38,16 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let key_store = state
         .store
@@ -63,10 +69,10 @@ async fn payments_create_core() {
             "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
         )),
         merchant_id: Some("jarnura".to_string()),
-        amount: Some(6540.into()),
+        amount: Some(MinorUnit::new(6540).into()),
         currency: Some(api_enums::Currency::USD),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
-        amount_to_capture: Some(6540),
+        amount_to_capture: Some(MinorUnit::new(6540)),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
         customer_id: None,
@@ -111,7 +117,7 @@ async fn payments_create_core() {
     let expected_response = api::PaymentsResponse {
         payment_id: Some("pay_mbabizu24mvu3mela5njyhpit10".to_string()),
         status: api_enums::IntentStatus::Succeeded,
-        amount: 6540,
+        amount: MinorUnit::new(6540),
         amount_capturable: None,
         amount_received: None,
         client_secret: None,
@@ -131,7 +137,6 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),
@@ -224,13 +229,16 @@ async fn payments_create_core_adyen_no_redirect() {
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
@@ -254,13 +262,13 @@ async fn payments_create_core_adyen_no_redirect() {
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
         merchant_id: Some(merchant_id.clone()),
-        amount: Some(6540.into()),
+        amount: Some(MinorUnit::new(6540).into()),
         currency: Some(api_enums::Currency::USD),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
-        amount_to_capture: Some(6540),
+        amount_to_capture: Some(MinorUnit::new(6540)),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
-        customer_id: Some(customer_id),
+        customer_id: Some(id_type::CustomerId::from(customer_id.into()).unwrap()),
         description: Some("Its my first payment request".to_string()),
         return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OffSession),
@@ -302,7 +310,7 @@ async fn payments_create_core_adyen_no_redirect() {
         api::PaymentsResponse {
             payment_id: Some(payment_id.clone()),
             status: api_enums::IntentStatus::Processing,
-            amount: 6540,
+            amount: MinorUnit::new(6540),
             amount_capturable: None,
             amount_received: None,
             client_secret: None,
@@ -322,7 +330,6 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),

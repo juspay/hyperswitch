@@ -67,12 +67,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
@@ -86,12 +86,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
@@ -103,6 +103,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -254,6 +255,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -360,6 +362,7 @@ impl<F, T>
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

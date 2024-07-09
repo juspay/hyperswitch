@@ -15,7 +15,10 @@ use url::Url;
 use super::utils::{PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData};
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils::RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentMethodDataType, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -208,33 +211,57 @@ impl ConnectorCommon for Bankofamerica {
         };
         match response {
             transformers::BankOfAmericaErrorResponse::StandardError(response) => {
-                let (code, connector_reason) = match response.error_information {
-                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-                    None => (
-                        response
-                            .reason
-                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                                reason.to_string()
-                            }),
-                        response
-                            .message
-                            .map_or(error_message.to_string(), |message| message),
-                    ),
-                };
-                let message = match response.details {
-                    Some(details) => details
-                        .iter()
-                        .map(|det| format!("{} : {}", det.field, det.reason))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    None => connector_reason.clone(),
+                let (code, message, reason) = match response.error_information {
+                    Some(ref error_info) => {
+                        let detailed_error_info = error_info.details.as_ref().map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            error_info.reason.clone(),
+                            error_info.reason.clone(),
+                            transformers::get_error_reason(
+                                Some(error_info.message.clone()),
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
+                    None => {
+                        let detailed_error_info = response.details.map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            response
+                                .reason
+                                .clone()
+                                .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                    reason.to_string()
+                                }),
+                            response
+                                .reason
+                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                            transformers::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
                 };
 
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code,
                     message,
-                    reason: Some(connector_reason),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
@@ -266,6 +293,19 @@ impl ConnectorValidation for Bankofamerica {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

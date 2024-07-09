@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken};
 use common_enums::{PaymentMethod, PaymentMethodType};
+use common_utils::{id_type, types};
 use masking::Secret;
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
@@ -21,7 +22,7 @@ pub struct LinkTokenRequest {
     pub client_name: String,
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
-    pub user_info: Option<String>,
+    pub user_info: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +78,7 @@ pub struct BankAccountDetails {
     pub payment_method: PaymentMethod,
     pub account_id: Secret<String>,
     pub account_type: Option<String>,
+    pub balance: Option<types::FloatMajorUnit>,
 }
 
 #[derive(Debug, Clone)]

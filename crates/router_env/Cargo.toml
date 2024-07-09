@@ -22,7 +22,7 @@ serde_path_to_error = "0.1.16"
 strum = { version = "0.26.2", features = ["derive"] }
 time = { version = "0.3.35", default-features = false, features = ["formatting"] }
 tokio = { version = "1.37.0" }
-tracing = { version = "0.1.40" }
+tracing = { workspace = true }
 tracing-actix-web = { version = "0.7.10", features = ["opentelemetry_0_19", "uuid_v7"], optional = true }
 tracing-appender = { version = "0.2.3" }
 tracing-attributes = "0.1.27"

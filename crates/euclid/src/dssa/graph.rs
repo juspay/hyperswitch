@@ -12,6 +12,7 @@ use crate::{
 pub mod euclid_graph_prelude {
     pub use hyperswitch_constraint_graph as cgraph;
     pub use rustc_hash::{FxHashMap, FxHashSet};
+    pub use strum::EnumIter;
 
     pub use crate::{
         dssa::graph::*,
@@ -22,11 +23,53 @@ pub mod euclid_graph_prelude {
 
 impl cgraph::KeyNode for dir::DirKey {}
 
+impl cgraph::NodeViz for dir::DirKey {
+    fn viz(&self) -> String {
+        self.kind.to_string()
+    }
+}
+
 impl cgraph::ValueNode for dir::DirValue {
     type Key = dir::DirKey;
 
     fn get_key(&self) -> Self::Key {
         Self::get_key(self)
+    }
+}
+
+impl cgraph::NodeViz for dir::DirValue {
+    fn viz(&self) -> String {
+        match self {
+            Self::PaymentMethod(pm) => pm.to_string(),
+            Self::CardBin(bin) => bin.value.clone(),
+            Self::CardType(ct) => ct.to_string(),
+            Self::CardNetwork(cn) => cn.to_string(),
+            Self::PayLaterType(plt) => plt.to_string(),
+            Self::WalletType(wt) => wt.to_string(),
+            Self::UpiType(ut) => ut.to_string(),
+            Self::BankTransferType(btt) => btt.to_string(),
+            Self::BankRedirectType(brt) => brt.to_string(),
+            Self::BankDebitType(bdt) => bdt.to_string(),
+            Self::CryptoType(ct) => ct.to_string(),
+            Self::RewardType(rt) => rt.to_string(),
+            Self::PaymentAmount(amt) => amt.number.to_string(),
+            Self::PaymentCurrency(curr) => curr.to_string(),
+            Self::AuthenticationType(at) => at.to_string(),
+            Self::CaptureMethod(cm) => cm.to_string(),
+            Self::BusinessCountry(bc) => bc.to_string(),
+            Self::BillingCountry(bc) => bc.to_string(),
+            Self::Connector(conn) => conn.connector.to_string(),
+            Self::MetaData(mv) => format!("[{} = {}]", mv.key, mv.value),
+            Self::MandateAcceptanceType(mat) => mat.to_string(),
+            Self::MandateType(mt) => mt.to_string(),
+            Self::PaymentType(pt) => pt.to_string(),
+            Self::VoucherType(vt) => vt.to_string(),
+            Self::GiftCardType(gct) => gct.to_string(),
+            Self::BusinessLabel(bl) => bl.value.to_string(),
+            Self::SetupFutureUsage(sfu) => sfu.to_string(),
+            Self::CardRedirectType(crt) => crt.to_string(),
+            Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
+        }
     }
 }
 
@@ -71,6 +114,7 @@ impl<V: cgraph::ValueNode> AnalysisError<V> {
     }
 }
 
+#[derive(Debug)]
 pub struct AnalysisContext {
     keywise_values: FxHashMap<dir::DirKey, FxHashSet<dir::DirValue>>,
 }
@@ -177,7 +221,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn value_analysis(
@@ -186,7 +230,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn check_value_validity(
@@ -195,7 +239,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>>;
 
     fn key_value_analysis(
@@ -204,7 +248,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn assertion_analysis(
@@ -213,7 +257,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn negation_analysis(
@@ -222,25 +266,25 @@ pub trait CgraphExt {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn perform_context_analysis(
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 }
 
-impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
+impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
     fn key_analysis(
         &self,
         key: dir::DirKey,
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Key(key))
@@ -263,7 +307,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Value(val))
@@ -286,7 +330,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>> {
         let maybe_node_id = self.value_map.get(&cgraph::NodeValue::Value(val));
 
@@ -321,7 +365,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.key_analysis(val.get_key(), ctx, memo, cycle_map, domains)
             .and_then(|_| self.value_analysis(val, ctx, memo, cycle_map, domains))
@@ -333,7 +377,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         positive_ctx.iter().try_for_each(|(value, metadata)| {
             self.key_value_analysis((*value).clone(), analysis_ctx, memo, cycle_map, domains)
@@ -347,7 +391,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut keywise_metadata: FxHashMap<dir::DirKey, Vec<&Metadata>> = FxHashMap::default();
         let mut keywise_negation: FxHashMap<dir::DirKey, FxHashSet<&dir::DirValue>> =
@@ -405,7 +449,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
-        domains: Option<&[&str]>,
+        domains: Option<&[String]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut analysis_ctx = AnalysisContext::from_dir_values(
             ctx.iter()

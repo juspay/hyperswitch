@@ -3,24 +3,35 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
-use super::BoxedConnector;
+pub use super::authentication_v2::{
+    ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
+    ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+};
 use crate::core::errors;
 
 #[derive(Debug, Clone)]
 pub struct PreAuthentication;
 
 #[derive(Debug, Clone)]
+pub struct PreAuthenticationVersionCall;
+
+#[derive(Debug, Clone)]
 pub struct Authentication;
 
 #[derive(Debug, Clone)]
 pub struct PostAuthentication;
-use crate::{connector, services, types, types::storage};
+use crate::{
+    connector, services, services::connector_integration_interface::ConnectorEnum, types,
+    types::storage,
+};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_mid: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -50,7 +61,7 @@ impl TryFrom<storage::Authentication> for AuthenticationResponse {
             challenge_request: authentication.challenge_request,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
-            three_dsserver_trans_id: authentication.three_ds_server_trans_id,
+            three_dsserver_trans_id: authentication.threeds_server_transaction_id,
             acs_signed_content: authentication.acs_signed_content,
         })
     }
@@ -61,12 +72,6 @@ pub struct PostAuthenticationResponse {
     pub trans_status: String,
     pub authentication_value: Option<String>,
     pub eci: Option<String>,
-}
-
-#[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
-pub enum MessageCategory {
-    Payment,
-    NonPayment,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
@@ -94,6 +99,15 @@ pub trait ConnectorPreAuthentication:
 {
 }
 
+pub trait ConnectorPreAuthenticationVersionCall:
+    services::ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+>
+{
+}
+
 pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
@@ -107,13 +121,14 @@ pub trait ExternalAuthentication:
     super::ConnectorCommon
     + ConnectorAuthentication
     + ConnectorPreAuthentication
+    + ConnectorPreAuthenticationVersionCall
     + ConnectorPostAuthentication
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AuthenticationConnectorData {
-    pub connector: BoxedConnector,
+    pub connector: ConnectorEnum,
     pub connector_name: enums::AuthenticationConnectors,
 }
 
@@ -131,12 +146,17 @@ impl AuthenticationConnectorData {
 
     fn convert_connector(
         connector_name: enums::AuthenticationConnectors,
-    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
             enums::AuthenticationConnectors::Threedsecureio => {
-                Ok(Box::new(&connector::Threedsecureio))
+                Ok(ConnectorEnum::Old(Box::new(&connector::Threedsecureio)))
             }
-            enums::AuthenticationConnectors::Netcetera => Ok(Box::new(&connector::Netcetera)),
+            enums::AuthenticationConnectors::Netcetera => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
+            }
+            enums::AuthenticationConnectors::Gpayments => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Gpayments)))
+            }
         }
     }
 }

@@ -50,6 +50,16 @@ where
                 )
                 .attach_printable("Error adding payment method filter")?;
         }
+        if !self.client_source.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ClientSource, &self.client_source)
+                .attach_printable("Error adding client source filter")?;
+        }
+        if !self.client_version.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ClientVersion, &self.client_version)
+                .attach_printable("Error adding client version filter")?;
+        }
         Ok(())
     }
 }

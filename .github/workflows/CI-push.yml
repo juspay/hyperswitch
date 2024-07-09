@@ -39,14 +39,13 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+
     strategy:
       fail-fast: true
       matrix:
-        os:
+        runner:
           - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
 
     steps:
       - name: Checkout repository
@@ -115,14 +114,13 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        os:
+        runner:
           - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
 
     steps:
       - name: Checkout repository

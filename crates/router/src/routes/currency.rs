@@ -31,7 +31,7 @@ pub async fn convert_forex(
     params: web::Query<api_models::currency::CurrencyConversionParams>,
 ) -> HttpResponse {
     let flow = Flow::RetrieveForexFlow;
-    let amount = &params.amount;
+    let amount = params.amount;
     let to_currency = &params.to_currency;
     let from_currency = &params.from_currency;
     Box::pin(api::server_wrap(
@@ -42,7 +42,7 @@ pub async fn convert_forex(
         |state, _, _, _| {
             currency::convert_forex(
                 state,
-                *amount,
+                amount.get_amount_as_i64(),
                 to_currency.to_string(),
                 from_currency.to_string(),
             )

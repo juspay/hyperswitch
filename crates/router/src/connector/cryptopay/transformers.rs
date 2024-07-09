@@ -1,47 +1,41 @@
-use common_utils::pii;
-use error_stack::ResultExt;
+use common_utils::{
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use super::utils as connector_utils;
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
-    types::{self, domain, storage::enums},
+    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize)]
 pub struct CryptopayRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for CryptopayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CryptopayRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
 #[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
-    price_amount: String,
+    price_amount: StringMajorUnit,
     price_currency: enums::Currency,
     pay_currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<String>,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -60,9 +54,10 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
-                    price_amount: item.amount.to_owned(),
+                    price_amount: item.amount.clone(),
                     price_currency: item.router_data.request.currency,
                     pay_currency,
+                    network: cryptodata.network.to_owned(),
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
                     //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.
@@ -79,6 +74,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::MandatePayment {}
             | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -137,20 +133,20 @@ impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CryptopayPaymentsResponse {
-    data: CryptopayPaymentResponseData,
+    pub data: CryptopayPaymentResponseData,
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-        diesel_models::enums::Currency,
+        Option<MinorUnit>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (item, currency): (
+    fn foreign_try_from(
+        (item, amount_captured_in_minor_units): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-            diesel_models::enums::Currency,
+            Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
@@ -190,21 +186,17 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
-
-        match item.response.data.price_amount {
-            Some(price_amount) => {
-                let amount_captured = Some(
-                    connector_utils::to_currency_lower_unit(price_amount, currency)?
-                        .parse::<i64>()
-                        .change_context(errors::ConnectorError::ParsingFailed)?,
-                );
-
+        match amount_captured_in_minor_units {
+            Some(minor_amount) => {
+                let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
                     status,
                     response,
                     amount_captured,
+                    minor_amount_captured: amount_captured_in_minor_units,
                     ..item.data
                 })
             }
@@ -239,9 +231,9 @@ pub struct CryptopayPaymentResponseData {
     pub address: Option<Secret<String>>,
     pub network: Option<String>,
     pub uri: Option<String>,
-    pub price_amount: Option<String>,
+    pub price_amount: Option<StringMajorUnit>,
     pub price_currency: Option<String>,
-    pub pay_amount: Option<String>,
+    pub pay_amount: Option<StringMajorUnit>,
     pub pay_currency: Option<String>,
     pub fee: Option<String>,
     pub fee_currency: Option<String>,
