@@ -90,6 +90,7 @@ pub async fn create_payment_method(
     network_transaction_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: Option<Encryption>,
+    card_scheme: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(
@@ -118,7 +119,7 @@ pub async fn create_payment_method(
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 payment_method_issuer: req.payment_method_issuer.clone(),
-                scheme: req.card_network.clone(),
+                scheme: req.card_network.clone().or(card_scheme),
                 metadata: pm_metadata.map(Secret::new),
                 payment_method_data,
                 connector_mandate_details,
@@ -397,7 +398,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                     .card_type
                     .clone()
                     .or(card_details.card_type.clone()),
-                saved_to_locker: true,
+                saved_to_locker: false,
             })
         } else {
             Some(
@@ -433,7 +434,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                                 .clone()
                                 .or(card_info.card_network),
                             card_type: card_details.card_type.clone().or(card_info.card_type),
-                            saved_to_locker: true,
+                            saved_to_locker: false,
                         }
                     })
                     .unwrap_or_else(|| {
@@ -456,7 +457,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                             card_issuer: card_details.card_issuer.clone(),
                             card_network: card_details.card_network.clone(),
                             card_type: card_details.card_type.clone(),
-                            saved_to_locker: true,
+                            saved_to_locker: false,
                         }
                     }),
             )
@@ -613,6 +614,7 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             merchant_account.storage_scheme,
             payment_method_billing_address,
+            None,
         )
         .await?;
 
@@ -854,8 +856,6 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let payment_method = req.payment_method.get_required_value("payment_method")?;
-    // req is made as mut to update the bin details when the payment method is card
-    let mut req = req.clone();
     let payment_method_billing_address = create_encrypted_data(key_store, req.billing.clone())
         .await
         .map(|details| details.into());
@@ -889,20 +889,20 @@ pub async fn add_payment_method(
         },
         api_enums::PaymentMethod::Card => match req.card.clone() {
             Some(card) => {
-                if let Some(payment_method_create_data) = &req.payment_method_data {
-                    req.payment_method_data = Some(
-                        helpers::populate_bin_details_for_payment_method_create_data(
-                            payment_method_create_data.clone(),
-                            db,
-                        )
-                        .await,
-                    );
-                };
-                helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+                let mut card_details = card;
+                card_details = helpers::populate_bin_details_for_payment_method_create(
+                    card_details.clone(),
+                    db,
+                )
+                .await;
+                helpers::validate_card_expiry(
+                    &card_details.card_exp_month,
+                    &card_details.card_exp_year,
+                )?;
                 Box::pin(add_card_to_locker(
                     &state,
                     req.clone(),
-                    &card,
+                    &card_details,
                     &customer_id,
                     merchant_account,
                     None,
@@ -1123,6 +1123,13 @@ pub async fn insert_payment_method(
         network_transaction_id,
         storage_scheme,
         payment_method_billing_address,
+        resp.card
+            .clone()
+            .map(|card| {
+                card.card_network
+                    .map(|card_network| card_network.to_string())
+            })
+            .flatten(),
     )
     .await
 }
@@ -4241,12 +4248,8 @@ pub async fn get_card_details_with_locker_fallback(
             });
 
     Ok(if let Some(mut crd) = card_decrypted {
-        if crd.saved_to_locker {
-            crd.scheme.clone_from(&pm.scheme);
-            Some(crd)
-        } else {
-            None
-        }
+        crd.scheme.clone_from(&pm.scheme);
+        Some(crd)
     } else {
         logger::debug!(
             "Getting card details from locker as it is not found in payment methods table"
