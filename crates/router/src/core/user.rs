@@ -28,7 +28,11 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication::{self as auth, user_authentication_method::DEFAULT_USER_AUTH_METHOD},
+        authorization::roles,
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
 };
@@ -2306,38 +2310,25 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if let Some(id) = &req.id {
-        let user_authentication_method = state
+    let user_authentication_method = if let Some(id) = &req.id {
+        state
             .store
             .get_user_authentication_method_by_id(id)
             .await
-            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
+    } else {
+        DEFAULT_USER_AUTH_METHOD.clone()
+    };
 
-        let current_flow =
-            domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
-        let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
-
-        // Skip SSO if continue with password(TOTP)
-        if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
-            && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
-        {
-            next_flow = next_flow.skip(user_from_db, &state).await?;
-        }
-        let token = next_flow.get_token(&state).await?;
-
-        return auth::cookies::set_cookie_response(
-            user_api::TokenResponse {
-                token: token.clone(),
-                token_type: next_flow.get_flow().into(),
-            },
-            token,
-        );
-    }
-
-    // Giving totp token for hyperswtich users when no id is present in the request body
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;
-    next_flow = next_flow.skip(user_from_db, &state).await?;
+
+    // Skip SSO if continue with password(TOTP)
+    if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
+        && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
+    {
+        next_flow = next_flow.skip(user_from_db, &state).await?;
+    }
     let token = next_flow.get_token(&state).await?;
 
     auth::cookies::set_cookie_response(
