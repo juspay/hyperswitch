@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use rand::distributions::DistString;
 use ring::hmac;
@@ -44,8 +44,10 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
-        let request_payload =
-            types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).expose();
+        let request_payload = self
+            .get_request_body(req, connectors)?
+            .get_inner_value()
+            .expose();
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()
@@ -570,7 +572,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             data: data.clone(),
             http_code: res.status_code,
         };
-        let router_data = types::RefundsRouterData::try_from(response_data)
+        let router_data = types::RouterData::try_from(response_data)
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(router_data)
@@ -595,7 +597,7 @@ impl api::IncomingWebhook for Payeezy {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -609,6 +611,6 @@ impl api::IncomingWebhook for Payeezy {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

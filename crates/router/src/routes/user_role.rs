@@ -1,5 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::user_role::{self as user_role_api, role as role_api};
+use api_models::{
+    user as user_api,
+    user_role::{self as user_role_api, role as role_api},
+};
+use common_enums::TokenPurpose;
 use router_env::Flow;
 
 use super::AppState;
@@ -27,7 +31,7 @@ pub async fn get_authorization_info(
         state.clone(),
         &http_req,
         (),
-        |state, _: (), _| async move {
+        |state, _: (), _, _| async move {
             // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 user_role_core::get_authorization_info_with_groups(state).await
@@ -54,7 +58,7 @@ pub async fn get_role_from_token(
         state.clone(),
         &req,
         (),
-        |state, user, _| async move {
+        |state, user, _, _| async move {
             // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 role_core::get_role_from_token_with_groups(state, user).await
@@ -98,7 +102,7 @@ pub async fn list_all_roles(
         state.clone(),
         &req,
         (),
-        |state, user, _| async move {
+        |state, user, _, _| async move {
             // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 role_core::list_invitable_roles_with_groups(state, user).await
@@ -128,7 +132,7 @@ pub async fn get_role(
         state.clone(),
         &req,
         request_payload,
-        |state, user, payload| async move {
+        |state, user, payload, _| async move {
             // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 role_core::get_role_with_groups(state, user, payload).await
@@ -156,7 +160,7 @@ pub async fn update_role(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, user, req| role_core::update_role(state, user, req, &role_id),
+        |state, user, req, _| role_core::update_role(state, user, req, &role_id),
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -213,8 +217,35 @@ pub async fn accept_invitation(
         state.clone(),
         &req,
         payload,
-        user_role_core::accept_invitation,
-        &auth::UserWithoutMerchantJWTAuth,
+        |state, user, req_body, _| user_role_core::accept_invitation(state, user, req_body),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn merchant_select(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::MerchantSelectRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::MerchantSelect;
+    let payload = json_payload.into_inner();
+    let is_token_only = query.into_inner().token_only;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| async move {
+            if let Some(true) = is_token_only {
+                user_role_core::merchant_select_token_only_flow(state, user, req_body).await
+            } else {
+                user_role_core::merchant_select(state, user, req_body).await
+            }
+        },
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await

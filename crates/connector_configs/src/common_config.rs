@@ -55,6 +55,12 @@ pub enum GooglePayData {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkData {
+    pub client_id: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum GoogleApiModelData {
@@ -79,9 +85,32 @@ pub struct ApiModelMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GoogleApiModelData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
 }
 
 #[serde_with::skip_serializing_none]
@@ -125,6 +154,7 @@ pub struct Provider {
         }
     ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+    pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -172,7 +202,21 @@ pub struct DashboardMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }

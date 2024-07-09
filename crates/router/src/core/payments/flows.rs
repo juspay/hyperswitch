@@ -19,9 +19,9 @@ use crate::{
         errors::{ConnectorError, CustomResult, RouterResult},
         payments::{self, helpers},
     },
-    routes::AppState,
+    routes::SessionState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -29,7 +29,7 @@ use crate::{
 pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -44,13 +44,12 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
+        business_profile: &storage::business_profile::BusinessProfile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -59,32 +58,50 @@ pub trait Feature<F, T> {
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
-    async fn add_payment_method_token<'a>(
-        &mut self,
-        _state: &AppState,
+    async fn add_session_token<'a>(
+        self,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
-        _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>>
+    ) -> RouterResult<Self>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(None)
+        Ok(self)
+    }
+
+    async fn add_payment_method_token<'a>(
+        &mut self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::PaymentMethodTokenResult {
+            payment_method_token_result: Ok(None),
+            is_payment_method_tokenization_performed: false,
+        })
     }
 
     async fn preprocessing_steps<'a>(
         self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Self>
     where
@@ -110,7 +127,7 @@ pub trait Feature<F, T> {
 
     async fn create_connector_customer<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>>
     where
@@ -124,7 +141,7 @@ pub trait Feature<F, T> {
     /// Returns the connector request and a bool which specifies whether to proceed with further
     async fn build_flow_specific_connector_request(
         &mut self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -160,28 +177,37 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
+    connector::Bamboraapac,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Boku,
     connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Rapyd,
@@ -190,13 +216,15 @@ default_imp_for_complete_authorize!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 macro_rules! default_imp_for_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
@@ -225,12 +253,15 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
@@ -240,17 +271,22 @@ default_imp_for_webhook_source_verification!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -259,6 +295,7 @@ default_imp_for_webhook_source_verification!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -270,13 +307,15 @@ default_imp_for_webhook_source_verification!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -307,12 +346,15 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -322,16 +364,21 @@ default_imp_for_create_customer!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -339,8 +386,9 @@ default_imp_for_create_customer!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -350,13 +398,15 @@ default_imp_for_create_customer!(
     connector::Shift4,
     connector::Signifyd,
     connector::Square,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -389,28 +439,37 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
+    connector::Bamboraapac,
     connector::Bitpay,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Boku,
     connector::Cashtocode,
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -421,11 +480,13 @@ default_imp_for_connector_redirect_response!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_request_id {
@@ -440,12 +501,16 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Adyenplatform,
+    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -455,16 +520,21 @@ default_imp_for_connector_request_id!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
@@ -472,6 +542,7 @@ default_imp_for_connector_request_id!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -484,6 +555,7 @@ default_imp_for_connector_request_id!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -524,12 +596,15 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -538,17 +613,22 @@ default_imp_for_accept_dispute!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -556,8 +636,9 @@ default_imp_for_accept_dispute!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -569,13 +650,15 @@ default_imp_for_accept_dispute!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -628,12 +711,15 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -642,25 +728,31 @@ default_imp_for_file_upload!(
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -671,6 +763,7 @@ default_imp_for_file_upload!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -678,7 +771,8 @@ default_imp_for_file_upload!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -709,12 +803,15 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -723,25 +820,31 @@ default_imp_for_submit_evidence!(
     connector::Cybersource,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -752,6 +855,7 @@ default_imp_for_submit_evidence!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -759,7 +863,8 @@ default_imp_for_submit_evidence!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -790,12 +895,15 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -804,25 +912,31 @@ default_imp_for_defend_dispute!(
     connector::Cybersource,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Globepay,
     connector::Forte,
     connector::Globalpay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -834,6 +948,7 @@ default_imp_for_defend_dispute!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -841,7 +956,8 @@ default_imp_for_defend_dispute!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -887,10 +1003,12 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Adyenplatform,
     connector::Aci,
-    connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -899,38 +1017,44 @@ default_imp_for_pre_processing_steps!(
     connector::Checkout,
     connector::Coinbase,
     connector::Cryptopay,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Iatapay,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gpayments,
     connector::Helcim,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "dummy_connector")]
@@ -1017,7 +1141,9 @@ default_imp_for_payouts!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1025,19 +1151,22 @@ default_imp_for_payouts!(
     connector::Cashtocode,
     connector::Checkout,
     connector::Cryptopay,
-    connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1046,7 +1175,6 @@ default_imp_for_payouts!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
-    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1056,14 +1184,15 @@ default_imp_for_payouts!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1095,11 +1224,14 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1109,17 +1241,21 @@ default_imp_for_payouts_create!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1128,7 +1264,7 @@ default_imp_for_payouts_create!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
-    connector::Paypal,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1138,14 +1274,15 @@ default_imp_for_payouts_create!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1180,11 +1317,14 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1194,17 +1334,21 @@ default_imp_for_payouts_eligibility!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1213,6 +1357,7 @@ default_imp_for_payouts_eligibility!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1225,12 +1370,14 @@ default_imp_for_payouts_eligibility!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1266,7 +1413,9 @@ default_imp_for_payouts_fulfill!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1274,19 +1423,22 @@ default_imp_for_payouts_fulfill!(
     connector::Cashtocode,
     connector::Checkout,
     connector::Cryptopay,
-    connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1295,7 +1447,6 @@ default_imp_for_payouts_fulfill!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
-    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1305,14 +1456,15 @@ default_imp_for_payouts_fulfill!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1344,11 +1496,14 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1358,17 +1513,21 @@ default_imp_for_payouts_cancel!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1377,6 +1536,7 @@ default_imp_for_payouts_cancel!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1387,14 +1547,15 @@ default_imp_for_payouts_cancel!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1426,12 +1587,15 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1441,17 +1605,21 @@ default_imp_for_payouts_quote!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1460,6 +1628,7 @@ default_imp_for_payouts_quote!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1472,12 +1641,14 @@ default_imp_for_payouts_quote!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1509,12 +1680,15 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1524,17 +1698,21 @@ default_imp_for_payouts_recipient!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1543,6 +1721,7 @@ default_imp_for_payouts_recipient!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1553,14 +1732,112 @@ default_imp_for_payouts_recipient!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_payouts_recipient_account {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutRecipientAccount for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PoRecipientAccount,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PayoutRecipientAccount for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PoRecipientAccount,
+        types::PayoutsData,
+        types::PayoutsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_payouts_recipient_account!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_approve {
@@ -1591,12 +1868,15 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1606,17 +1886,22 @@ default_imp_for_approve!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1625,6 +1910,7 @@ default_imp_for_approve!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1637,13 +1923,15 @@ default_imp_for_approve!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_reject {
@@ -1674,12 +1962,15 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1689,17 +1980,22 @@ default_imp_for_reject!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1708,6 +2004,7 @@ default_imp_for_reject!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1720,13 +2017,15 @@ default_imp_for_reject!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_fraud_check {
@@ -1741,12 +2040,15 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1756,17 +2058,22 @@ default_imp_for_fraud_check!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1775,6 +2082,7 @@ default_imp_for_fraud_check!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1785,13 +2093,15 @@ default_imp_for_fraud_check!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1824,12 +2134,15 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1839,17 +2152,22 @@ default_imp_for_frm_sale!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1858,6 +2176,7 @@ default_imp_for_frm_sale!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1868,13 +2187,15 @@ default_imp_for_frm_sale!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1907,12 +2228,15 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1922,17 +2246,22 @@ default_imp_for_frm_checkout!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1941,6 +2270,7 @@ default_imp_for_frm_checkout!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1951,13 +2281,15 @@ default_imp_for_frm_checkout!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1990,12 +2322,15 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2005,17 +2340,22 @@ default_imp_for_frm_transaction!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2024,6 +2364,7 @@ default_imp_for_frm_transaction!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2034,13 +2375,15 @@ default_imp_for_frm_transaction!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2073,12 +2416,15 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2088,17 +2434,22 @@ default_imp_for_frm_fulfillment!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2107,6 +2458,7 @@ default_imp_for_frm_fulfillment!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2117,13 +2469,15 @@ default_imp_for_frm_fulfillment!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2156,12 +2510,15 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2171,17 +2528,22 @@ default_imp_for_frm_record_return!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2190,6 +2552,7 @@ default_imp_for_frm_record_return!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2200,13 +2563,15 @@ default_imp_for_frm_record_return!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -2237,12 +2602,15 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2251,17 +2619,22 @@ default_imp_for_incremental_authorization!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
+    connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2270,6 +2643,7 @@ default_imp_for_incremental_authorization!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2282,13 +2656,15 @@ default_imp_for_incremental_authorization!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -2317,12 +2693,15 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2331,7 +2710,161 @@ default_imp_for_revoking_mandates!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Datatrans,
     connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_connector_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::ExternalAuthentication for $path::$connector {}
+            impl api::ConnectorAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthenticationVersionCall for $path::$connector {}
+            impl api::ConnectorPostAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Authentication,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthentication,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthenticationVersionCall,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PostAuthentication,
+            types::authentication::ConnectorPostAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthenticationVersionCall for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Authentication,
+        types::authentication::ConnectorAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_connector_authentication!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
@@ -2340,15 +2873,18 @@ default_imp_for_revoking_mandates!(
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2367,5 +2903,95 @@ default_imp_for_revoking_mandates!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_authorize_session_token {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentAuthorizeSessionToken for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::AuthorizeSessionToken,
+                types::AuthorizeSessionTokenData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentAuthorizeSessionToken for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_authorize_session_token!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
 );

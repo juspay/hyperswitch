@@ -2,6 +2,14 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+use masking::{PeekInterface, Secret};
+
+use crate::{
+    consts::ID_LENGTH,
+    id_type::{CustomerId, MerchantReferenceId},
+};
+
+pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
@@ -10,6 +18,8 @@ pub mod errors;
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod id_type;
+pub mod link_utils;
 pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
@@ -21,23 +31,25 @@ pub mod static_cache;
 pub mod types;
 pub mod validation;
 
+/// Used for hashing
+pub mod hashing;
+#[cfg(feature = "metrics")]
+pub mod metrics;
+
 /// Date-time utilities.
 pub mod date_time {
+    #[cfg(feature = "async_ext")]
+    use std::time::Instant;
     use std::{marker::PhantomData, num::NonZeroU8};
 
     use masking::{Deserialize, Serialize};
-    #[cfg(feature = "async_ext")]
-    use time::Instant;
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
-            FormatItem,
+            BorrowedFormatItem,
         },
         OffsetDateTime, PrimitiveDateTime,
     };
-    /// Struct to represent milliseconds in time sensitive data fields
-    #[derive(Debug)]
-    pub struct Milliseconds(i32);
 
     /// Enum to represent date formats
     #[derive(Debug)]
@@ -46,6 +58,8 @@ pub mod date_time {
         YYYYMMDDHHmmss,
         /// Format the date in 20191105 format
         YYYYMMDD,
+        /// Format the date in 201911050811 format
+        YYYYMMDDHHmm,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -71,7 +85,7 @@ pub mod date_time {
     ) -> (T, f64) {
         let start = Instant::now();
         let result = block().await;
-        (result, start.elapsed().as_seconds_f64() * 1000f64)
+        (result, start.elapsed().as_secs_f64() * 1000f64)
     }
 
     /// Return the given date and time in UTC with the given format Eg: format: YYYYMMDDHHmmss Eg: 20191105081132
@@ -79,7 +93,7 @@ pub mod date_time {
         date: PrimitiveDateTime,
         format: DateFormat,
     ) -> Result<String, time::error::Format> {
-        let format = <&[FormatItem<'_>]>::from(format);
+        let format = <&[BorrowedFormatItem<'_>]>::from(format);
         date.format(&format)
     }
 
@@ -93,11 +107,12 @@ pub mod date_time {
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
     }
 
-    impl From<DateFormat> for &[FormatItem<'_>] {
+    impl From<DateFormat> for &[BorrowedFormatItem<'_>] {
         fn from(format: DateFormat) -> Self {
             match format {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
+                DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
             }
         }
     }
@@ -192,9 +207,76 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
+/// Generate a MerchantRefId with the default length
+fn generate_merchant_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+    prefix: &str,
+) -> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
+    MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+}
+
+/// Generate a customer id with default length
+pub fn generate_customer_id_of_default_length() -> CustomerId {
+    CustomerId::new(generate_merchant_ref_id_with_default_length("cus"))
+}
+
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
-    let len = consts::ID_LENGTH;
+    let len = ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
+}
+
+/// Generate a time-ordered (time-sortable) unique identifier using the current time
+#[inline]
+pub fn generate_time_ordered_id(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}
+
+#[allow(missing_docs)]
+pub trait DbConnectionParams {
+    fn get_username(&self) -> &str;
+    fn get_password(&self) -> Secret<String>;
+    fn get_host(&self) -> &str;
+    fn get_port(&self) -> u16;
+    fn get_dbname(&self) -> &str;
+    fn get_database_url(&self, schema: &str) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            self.get_username(),
+            self.get_password().peek(),
+            self.get_host(),
+            self.get_port(),
+            self.get_dbname(),
+            schema,
+            schema,
+        )
+    }
+}
+
+#[cfg(test)]
+mod nanoid_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use crate::{
+        consts::{
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        },
+        id_type::AlphaNumericId,
+    };
+
+    #[test]
+    fn test_generate_id_with_alphanumeric_id() {
+        let alphanumeric_id = AlphaNumericId::from(generate_id(10, "def").into());
+        assert!(alphanumeric_id.is_ok())
+    }
+
+    #[test]
+    fn test_generate_merchant_ref_id_with_default_length() {
+        let ref_id = MerchantReferenceId::<
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
+            MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        >::from(generate_id_with_default_len("def").into());
+
+        assert!(ref_id.is_ok())
+    }
 }

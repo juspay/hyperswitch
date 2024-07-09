@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as stax;
 
@@ -107,7 +107,6 @@ impl ConnectorCommon for Stax {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(
                 std::str::from_utf8(&res.response)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .to_owned(),
             ),
@@ -870,29 +869,25 @@ impl api::IncomingWebhook for Stax {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         match webhook_body.transaction_type {
-            stax::StaxWebhookEventType::Refund => {
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
-                ))
-            }
-            stax::StaxWebhookEventType::Unknown => {
+            StaxWebhookEventType::Refund => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
+            )),
+            StaxWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
-            stax::StaxWebhookEventType::PreAuth
-            | stax::StaxWebhookEventType::Capture
-            | stax::StaxWebhookEventType::Charge
-            | stax::StaxWebhookEventType::Void => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(match webhook_body
-                        .transaction_type
-                    {
-                        stax::StaxWebhookEventType::Capture => webhook_body
+            StaxWebhookEventType::PreAuth
+            | StaxWebhookEventType::Capture
+            | StaxWebhookEventType::Charge
+            | StaxWebhookEventType::Void => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    match webhook_body.transaction_type {
+                        StaxWebhookEventType::Capture => webhook_body
                             .auth_id
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                         _ => webhook_body.id,
-                    }),
-                ))
-            }
+                    },
+                ),
+            )),
         }
     }
 
@@ -927,7 +922,6 @@ impl api::IncomingWebhook for Stax {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
     }

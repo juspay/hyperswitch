@@ -1,3 +1,4 @@
+use api_models::payments::AmountFilter;
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
@@ -10,7 +11,7 @@ use diesel_models::{
     query::generics::db_metrics,
     schema::refund::dsl,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -104,8 +105,28 @@ impl RefundDbExt for Refund {
             }
         }
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id));
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
@@ -123,7 +144,6 @@ impl RefundDbExt for Refund {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
@@ -152,7 +172,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::connector.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?;
 
@@ -163,7 +182,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::currency.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?;
 
@@ -173,7 +191,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::refund_status.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by refund status")?;
 
@@ -231,8 +248,28 @@ impl RefundDbExt for Refund {
             }
         }
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
@@ -248,7 +285,6 @@ impl RefundDbExt for Refund {
         filter
             .get_result_async::<i64>(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }

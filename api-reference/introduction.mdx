@@ -1,0 +1,51 @@
+---
+tags: [Getting Started]
+stoplight-id: 3lmsk7ocvq21v
+---
+
+# 👋 Welcome to Hyperswitch API Reference
+
+Hyperswitch provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body and return standard HTTP response codes. You can consume the APIs directly using your favorite HTTP/REST library.
+
+## Environment
+
+We have a testing environment referred to "sandbox," which you can set up to test API calls without affecting production data. You can sign up on our Dashboard to get API keys to access Hyperswitch API.
+
+Use the following base URLs when making requests to the APIs:
+
+| Environment | Base URL                       |
+| ----------- | ------------------------------ |
+| Sandbox     | https://sandbox.hyperswitch.io |
+| Production  | https://api.hyperswitch.io     |
+
+<Note> If you **do not hold a PCI certification** to collect and store card data on your servers, we recommend using [**Unified Checkout**](https://hyperswitch.io/docs/sdkIntegrations/unifiedCheckoutWeb/#unified-checkout) to accept card information from users. </Note>
+
+## Authentication and API keys
+
+Hyperswitch authenticates your API requests using your account’s API keys. Each account has two API keys for authentication:
+
+| Key                  | Example         | When to Use                                                                                                                              |
+| -------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret key (API-key) | `snd_c69***`    | Used to authenticate API requests from your merchant server. **Don’t expose this key** on a website or embed it in a mobile application. |
+| Publishable key      | `pk_snd_3b3***` | Used to authenticate API requests from your app’s client. Can be publicly-accessible in your web or mobile app’s client-side code.       |
+
+<Check>
+Get your [API key](https://app.hyperswitch.io/developers?tabIndex=1) and [Publishable Key](https://app.hyperswitch.io/home)
+</Check>
+<Check>
+[Postman Collection](https://www.postman.com/hyperswitch/workspace/hyperswitch-development/collection/25176162-630b5353-7002-44d1-8ba1-ead6c230f2e3)
+</Check>
+
+## Payment Status Lifecycle
+Hyperswitch handles the complex functionality of a comprehensive payments flow through the Payments object that transitions through multiple states during its payments lifecycle. Given below are the various statuses a payment can have:
+| Payment Status           | Description                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| requires_payment_method  | Once you create a payment through payments/create endpoint with no payment method attached to it, the payments object transitions to ‘requires_payment_method’.                                             |
+| requires_confirmation    | After attaching a payment method through payments/update endpoint, the payments object requires you to confirm the payment.                                                                                 |
+| requires_customer_action | Once the payment is confirmed through payments/confirm endpoint, if additional authentication is required, the payments object transitions to this state.                                                   |
+| requires_capture         | If you want to do separate authorize and capture, setting capture field to ‘manual’ during payments/create or confirm call will transition the payment object to this state after customer action succeeds. |
+| processing               | In case of automatic capture, the payments object transitions to processing state post confirm call and subsequent customer authentication if available.                                                    |
+| succeeded                | The payments object reaches success state post confirmation of successful processing from the payment processor.                                                                                            |
+| failed                   | The payments object transitions to a failed state when the payment processor confirms the processing failure.                                                                                               |
+| expired                  | You can expire the payments object while it is in any state except when it is under ‘processing’ or ‘succeeded’ state.                                                                                      |
+  <img src="assets/images/image.png" />

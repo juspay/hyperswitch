@@ -1,14 +1,17 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils::{self as connector_utils};
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::{
@@ -25,8 +28,18 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug)]
-pub struct Nmi;
+#[derive(Clone)]
+pub struct Nmi {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Nmi {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Nmi {}
 impl api::PaymentSession for Nmi {}
@@ -195,7 +208,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -283,7 +295,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -327,12 +338,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -365,7 +376,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -416,12 +426,12 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCompleteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -454,7 +464,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::NmiCompleteResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -569,12 +578,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -605,7 +614,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -677,7 +685,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -719,12 +726,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = nmi::NmiRouterData::from((refund_amount, req));
         let connector_req = nmi::NmiRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -755,7 +763,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -865,19 +872,17 @@ impl api::IncomingWebhook for Nmi {
         let regex_pattern = r"t=(.*),s=(.*)";
 
         if let Some(captures) = Regex::new(regex_pattern)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?
             .captures(sig_header)
         {
             let signature = captures
                 .get(1)
-                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()?
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
             return Ok(signature.as_bytes().to_vec());
         }
 
-        Err(errors::ConnectorError::WebhookSignatureNotFound).into_report()
+        Err(report!(errors::ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_source_verification_message(
@@ -892,21 +897,19 @@ impl api::IncomingWebhook for Nmi {
         let regex_pattern = r"t=(.*),s=(.*)";
 
         if let Some(captures) = Regex::new(regex_pattern)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?
             .captures(sig_header)
         {
             let nonce = captures
                 .get(0)
-                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()?
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
 
             let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body));
 
             return Ok(message.into_bytes());
         }
-        Err(errors::ConnectorError::WebhookSignatureNotFound).into_report()
+        Err(report!(errors::ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_object_reference_id(
@@ -942,7 +945,7 @@ impl api::IncomingWebhook for Nmi {
             nmi::NmiActionType::Refund => api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::RefundId(reference_body.event_body.order_id),
             ),
-            _ => Err(errors::ConnectorError::WebhooksNotImplemented).into_report()?,
+            _ => Err(errors::ConnectorError::WebhooksNotImplemented)?,
         };
 
         Ok(object_reference_id)
@@ -999,10 +1002,11 @@ impl services::ConnectorRedirectResponse for Nmi {
                     })?;
 
                 let redirect_res: nmi::NmiRedirectResponse = serde_json::from_value(payload_data)
-                    .into_report()
-                    .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    .change_context(
+                    errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "redirect_res",
-                    })?;
+                    },
+                )?;
 
                 match redirect_res {
                     transformers::NmiRedirectResponse::NmiRedirectResponseData(_) => {
@@ -1017,7 +1021,10 @@ impl services::ConnectorRedirectResponse for Nmi {
                     }
                 }
             }
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
         }
     }
 }

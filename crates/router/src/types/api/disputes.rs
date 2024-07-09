@@ -8,6 +8,10 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
+pub use hyperswitch_domain_models::router_flow_types::dispute::{Accept, Defend, Evidence};
+
+pub use super::disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2};
+
 #[derive(Default, Debug)]
 pub struct DisputePayload {
     pub amount: String,
@@ -58,9 +62,6 @@ pub enum EvidenceType {
     UncategorizedFile,
 }
 
-#[derive(Debug, Clone)]
-pub struct Accept;
-
 pub trait AcceptDispute:
     services::ConnectorIntegration<
     Accept,
@@ -70,9 +71,6 @@ pub trait AcceptDispute:
 {
 }
 
-#[derive(Debug, Clone)]
-pub struct Evidence;
-
 pub trait SubmitEvidence:
     services::ConnectorIntegration<
     Evidence,
@@ -81,9 +79,6 @@ pub trait SubmitEvidence:
 >
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct Defend;
 
 pub trait DefendDispute:
     services::ConnectorIntegration<

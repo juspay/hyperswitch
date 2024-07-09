@@ -3,12 +3,12 @@ pub use api_models::admin::{
     MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
     MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
     MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, PayoutRoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
-    WebhookDetails,
+    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors,
@@ -21,6 +21,11 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
+
+        let pm_collect_link_config: Option<api_models::admin::BusinessCollectLinkConfig> = item
+            .pm_collect_link_config
+            .map(|config| config.parse_value("pm_collect_link_config"))
+            .transpose()?;
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -39,12 +44,13 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             locker_id: item.locker_id,
             primary_business_details,
             frm_routing_algorithm: item.frm_routing_algorithm,
-            intent_fulfillment_time: item.intent_fulfillment_time,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
+            pm_collect_link_config,
         })
     }
 }
@@ -68,10 +74,33 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
             frm_routing_algorithm: item.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(|authentication_connector_details| {
+                    authentication_connector_details.parse_value("AuthenticationDetails")
+                })
+                .transpose()?,
+            payout_link_config: item
+                .payout_link_config
+                .map(|payout_link_config| {
+                    payout_link_config.parse_value("BusinessPayoutLinkConfig")
+                })
+                .transpose()?,
+            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
+            collect_shipping_details_from_wallet_connector: item
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: item
+                .collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
         })
     }
 }
@@ -143,13 +172,17 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             intent_fulfillment_time: request
                 .intent_fulfillment_time
                 .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time),
+                .or(merchant_account.intent_fulfillment_time)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
             frm_routing_algorithm: request
                 .frm_routing_algorithm
                 .or(merchant_account.frm_routing_algorithm),
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: request
                 .payout_routing_algorithm
                 .or(merchant_account.payout_routing_algorithm),
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
@@ -157,6 +190,34 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "authentication_connector_details",
+                })?,
+            payout_link_config: request
+                .payout_link_config
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                })?,
+            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
+            use_billing_as_payment_method_billing: request
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: request
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: request
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
         })
     }
 }

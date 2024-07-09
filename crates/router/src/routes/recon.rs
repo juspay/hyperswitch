@@ -1,11 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::recon as recon_api;
-use common_enums::ReconStatus;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
 
-use super::AppState;
+use super::{AppState, SessionState};
 use crate::{
     core::{
         api_locking,
@@ -35,7 +34,7 @@ pub async fn update_merchant(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _user, req| recon_merchant_account_update(state, req),
+        |state, _user, req, _| recon_merchant_account_update(state, req),
         &auth::ReconAdmin,
         api_locking::LockAction::NotApplicable,
     ))
@@ -49,7 +48,7 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         state,
         &http_req,
         (),
-        |state, user: UserFromToken, _req| send_recon_request(state, user),
+        |state, user: UserFromToken, _req, _| send_recon_request(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -63,7 +62,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: ReconUser, _| generate_recon_token(state, user),
+        |state, user: ReconUser, _, _| generate_recon_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))
@@ -71,11 +70,12 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
 }
 
 pub async fn send_recon_request(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
+    let global_db = &*state.global_store;
     let db = &*state.store;
-    let user_from_db = db
+    let user_from_db = global_db
         .find_user_by_id(&user.user_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -151,7 +151,7 @@ pub async fn send_recon_request(
 }
 
 pub async fn recon_merchant_account_update(
-    state: AppState,
+    state: SessionState,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let merchant_id = &req.merchant_id.clone();
@@ -195,7 +195,7 @@ pub async fn recon_merchant_account_update(
         subject: "Approval of Recon Request - Access Granted to Recon Dashboard",
     };
 
-    if req.recon_status == ReconStatus::Active {
+    if req.recon_status == enums::ReconStatus::Active {
         let _is_email_sent = state
             .email_client
             .compose_and_send_email(
@@ -209,19 +209,19 @@ pub async fn recon_merchant_account_update(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        response
-            .try_into()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        api_types::MerchantAccountResponse::try_from(response).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
-            })?,
+            },
+        )?,
     ))
 }
 
 pub async fn generate_recon_token(
-    state: AppState,
+    state: SessionState,
     req: ReconUser,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
-    let db = &*state.store;
+    let db = &*state.global_store;
     let user = db
         .find_user_by_id(&req.user_id)
         .await
@@ -244,7 +244,7 @@ pub async fn generate_recon_token(
 
 pub async fn get_recon_auth_token(
     user: UserFromStorage,
-    state: AppState,
+    state: SessionState,
 ) -> RouterResult<Secret<String>> {
     ReconToken::new_token(user.0.user_id.clone(), &state.conf).await
 }

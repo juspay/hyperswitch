@@ -113,10 +113,16 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods list flow.
     PaymentMethodsList,
+    /// Payment method save flow
+    PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
     CustomersList,
+    /// Retrieve countries and currencies for connector and payment method
+    ListCountriesCurrencies,
+    /// Payment method create collect link flow.
+    PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -149,6 +155,8 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    /// Payments filters flow
+    PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -158,16 +166,28 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts update flow.
     PayoutsUpdate,
+    /// Payouts confirm flow.
+    PayoutsConfirm,
     #[cfg(feature = "payouts")]
     /// Payouts cancel flow.
     PayoutsCancel,
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
+    #[cfg(feature = "payouts")]
+    /// Payouts filter flow.
+    PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
-    /// Payments Redirect flow.
+    /// Payout link initiate flow
+    PayoutLinkInitiate,
+    /// Payments Redirect flow
     PaymentsRedirect,
+    /// Payemnts Complete Authorize Flow
+    PaymentsCompleteAuthorize,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -178,6 +198,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Refunds filters flow
+    RefundsFilters,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -282,14 +304,14 @@ pub enum Flow {
     GsmRuleRetrieve,
     /// Gsm Rule Update flow
     GsmRuleUpdate,
+    /// Apple pay certificates migration
+    ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
-    /// User Sign In without invite checks
-    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -309,7 +331,7 @@ pub enum Flow {
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
-    GetMutltipleDashboardMetadata,
+    GetMultipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup
@@ -336,8 +358,12 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get users for merchant account
+    /// Get details of a user
     GetUserDetails,
+    /// Get details of a user role in a merchant account
+    GetUserRoleDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -346,8 +372,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
-    /// Invite users
-    InviteUser,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -364,8 +390,6 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Reset tracking id
     ResetTrackingId,
-    /// Verify email token without invite checks
-    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
@@ -374,10 +398,64 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
     /// Create Role
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// User email flow start
+    UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Reset TOTP
+    TotpReset,
+    /// Verify TOTP
+    TotpVerify,
+    /// Update TOTP secret
+    TotpUpdate,
+    /// Verify Access Code
+    RecoveryCodeVerify,
+    /// Generate or Regenerate recovery codes
+    RecoveryCodesGenerate,
+    /// Terminate two factor authentication
+    TerminateTwoFactorAuth,
+    /// Check 2FA status
+    TwoFactorAuthStatus,
+    /// Create user authentication method
+    CreateUserAuthenticationMethod,
+    /// Update user authentication method
+    UpdateUserAuthenticationMethod,
+    /// List user authentication methods
+    ListUserAuthenticationMethods,
+    /// Get sso auth url
+    GetSsoAuthUrl,
+    /// Signin with SSO
+    SignInWithSso,
+    /// Auth Select
+    AuthSelect,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
+    /// Manually retry the delivery for a webhook event
+    WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
+    /// Toggles the extended card info feature in profile level
+    ToggleExtendedCardInfo,
+    /// Toggles the extended card info feature in profile level
+    ToggleConnectorAgnosticMit,
+    /// Get the extended card info associated to a payment_id
+    GetExtendedCardInfo,
+    /// Manually update the refund details like status, error code, error message etc.
+    RefundsManualUpdate,
+    /// Manually update the payment details like status, error code, error message etc.
+    PaymentsManualUpdate,
 }
 
 ///

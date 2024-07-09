@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -36,8 +36,7 @@ impl LockerMockUpInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::LockerMockUp::find_by_card_id(&conn, card_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -46,7 +45,9 @@ impl LockerMockUpInterface for Store {
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into).into_report()
+        new.insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -57,8 +58,7 @@ impl LockerMockUpInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::LockerMockUp::delete_by_card_id(&conn, card_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -88,10 +88,7 @@ impl LockerMockUpInterface for MockDb {
         }
 
         let created_locker = storage::LockerMockUp {
-            id: locked_lockers
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(locked_lockers.len())
                 .change_context(errors::StorageError::MockDbError)?,
             card_id: new.card_id,
             external_id: new.external_id,
@@ -134,6 +131,8 @@ impl LockerMockUpInterface for MockDb {
 mod tests {
     #[allow(clippy::unwrap_used)]
     mod mockdb_locker_mock_up_interface {
+        use common_utils::{generate_customer_id_of_default_length, id_type};
+
         use crate::{
             db::{locker_mock_up::LockerMockUpInterface, MockDb},
             types::storage,
@@ -143,7 +142,7 @@ mod tests {
             card_id: String,
             external_id: String,
             merchant_id: String,
-            customer_id: String,
+            customer_id: id_type::CustomerId,
         }
 
         fn create_locker_mock_up_new(locker_ids: LockerMockUpIds) -> storage::LockerMockUpNew {
@@ -177,7 +176,7 @@ mod tests {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
                     merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();
@@ -187,7 +186,7 @@ mod tests {
                     card_id: "card_2".into(),
                     external_id: "external_1".into(),
                     merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await;
 
@@ -208,7 +207,7 @@ mod tests {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
                     merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();
@@ -238,7 +237,7 @@ mod tests {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
                     merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();

@@ -56,6 +56,8 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::TouchNGo => Self::TouchNGo,
             enums::WalletType::Swish => Self::Swish,
             enums::WalletType::Cashapp => Self::Cashapp,
+            enums::WalletType::Venmo => Self::Venmo,
+            enums::WalletType::Mifinity => Self::Mifinity,
         }
     }
 }
@@ -74,6 +76,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
     fn from(value: enums::UpiType) -> Self {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
+            enums::UpiType::UpiIntent => Self::UpiIntent,
         }
     }
 }
@@ -115,6 +118,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::DanamonVa => Self::DanamonVa,
             enums::BankTransferType::MandiriVa => Self::MandiriVa,
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
+            enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
         }
     }
 }
@@ -150,6 +154,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::BancontactCard => Self::BancontactCard,
             enums::BankRedirectType::Blik => Self::Blik,
             enums::BankRedirectType::Interac => Self::Interac,
+            enums::BankRedirectType::LocalBankRedirect => Self::LocalBankRedirect,
             enums::BankRedirectType::OnlineBankingCzechRepublic => Self::OnlineBankingCzechRepublic,
             enums::BankRedirectType::OnlineBankingFinland => Self::OnlineBankingFinland,
             enums::BankRedirectType::OnlineBankingPoland => Self::OnlineBankingPoland,
@@ -181,6 +186,17 @@ impl From<enums::RewardType> for global_enums::PaymentMethodType {
     }
 }
 
+impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
+    fn from(value: enums::RealTimePaymentType) -> Self {
+        match value {
+            enums::RealTimePaymentType::Fps => Self::Fps,
+            enums::RealTimePaymentType::DuitNow => Self::DuitNow,
+            enums::RealTimePaymentType::PromptPay => Self::PromptPay,
+            enums::RealTimePaymentType::VietQr => Self::VietQr,
+        }
+    }
+}
+
 /// Analyses of the lowering of the DirValues to EuclidValues .
 ///
 /// For example,
@@ -206,6 +222,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::CardRedirectType(crt) => EuclidValue::PaymentMethodType(crt.into()),
         dir::DirValue::BankRedirectType(brt) => EuclidValue::PaymentMethodType(brt.into()),
         dir::DirValue::CryptoType(ct) => EuclidValue::PaymentMethodType(ct.into()),
+        dir::DirValue::RealTimePaymentType(rtpt) => EuclidValue::PaymentMethodType(rtpt.into()),
         dir::DirValue::AuthenticationType(at) => EuclidValue::AuthenticationType(at),
         dir::DirValue::CaptureMethod(cm) => EuclidValue::CaptureMethod(cm),
         dir::DirValue::PaymentAmount(pa) => EuclidValue::PaymentAmount(pa),

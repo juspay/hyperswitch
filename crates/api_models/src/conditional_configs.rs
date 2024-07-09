@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     Serialize,

@@ -2,10 +2,10 @@ use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::StrongSecret;
 
-use super::{errors, transformers::generate_fingerprint, AppState};
+use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
     consts,
     core::{
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub async fn delete_entry_from_blocklist(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
@@ -44,7 +44,7 @@ pub async fn delete_entry_from_blocklist(
 }
 
 pub async fn toggle_blocklist_guard_for_merchant(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
@@ -94,7 +94,7 @@ pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
 }
 
 pub async fn list_blocklist_entries_for_merchant(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
@@ -120,8 +120,8 @@ fn validate_card_bin(bin: &str) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
             expected_format: "a 6 digit number".to_string(),
-        })
-        .into_report()
+        }
+        .into())
     }
 }
 
@@ -132,13 +132,13 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
             expected_format: "an 8 digit number".to_string(),
-        })
-        .into_report()
+        }
+        .into())
     }
 }
 
 pub async fn insert_entry_into_blocklist(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
@@ -176,8 +176,8 @@ pub async fn insert_entry_into_blocklist(
                     return Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "data associated with the given fingerprint is already blocked"
                             .to_string(),
-                    })
-                    .into_report();
+                    }
+                    .into());
                 }
 
                 // if it is a db not found error, we can proceed as normal
@@ -207,7 +207,7 @@ pub async fn insert_entry_into_blocklist(
 }
 
 pub async fn get_merchant_fingerprint_secret(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
 ) -> RouterResult<String> {
     let key = get_merchant_fingerprint_secret_key(merchant_id);
@@ -246,7 +246,7 @@ fn get_merchant_fingerprint_secret_key(merchant_id: &str) -> String {
 
 async fn duplicate_check_insert_bin(
     bin: &str,
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
@@ -259,8 +259,8 @@ async fn duplicate_check_insert_bin(
         Ok(_) => {
             return Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "provided bin is already blocked".to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
 
         Err(e) if e.current_context().is_db_not_found() => {}
@@ -287,7 +287,7 @@ async fn duplicate_check_insert_bin(
 }
 
 async fn delete_card_bin_blocklist_entry(
-    state: &AppState,
+    state: &SessionState,
     bin: &str,
     merchant_id: &str,
 ) -> RouterResult<storage::Blocklist> {
@@ -301,8 +301,9 @@ async fn delete_card_bin_blocklist_entry(
 }
 
 pub async fn validate_data_for_blocklist<F>(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
@@ -319,7 +320,7 @@ where
     {
         generate_fingerprint(
             state,
-            StrongSecret::new(card.card_number.clone().get_card_no()),
+            StrongSecret::new(card.card_number.get_card_no()),
             StrongSecret::new(merchant_fingerprint_secret.clone()),
             api_models::enums::LockerChoice::HyperswitchCardVault,
         )
@@ -343,7 +344,7 @@ where
         .as_ref()
         .and_then(|pm_data| match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                Some(card.card_number.clone().get_card_isin())
+                Some(card.card_number.get_card_isin())
             }
             _ => None,
         });
@@ -355,7 +356,7 @@ where
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 api_models::payments::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.clone().get_extended_card_bin())
+                    Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
             });
@@ -407,6 +408,7 @@ where
                 merchant_decision: Some(MerchantDecision::Rejected.to_string()),
                 updated_by: merchant_account.storage_scheme.to_string(),
             },
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -452,7 +454,7 @@ where
 }
 
 pub async fn generate_payment_fingerprint(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     payment_method_data: Option<crate::types::api::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
@@ -464,7 +466,7 @@ pub async fn generate_payment_fingerprint(
         {
             generate_fingerprint(
                 state,
-                StrongSecret::new(card.card_number.clone().get_card_no()),
+                StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
                 api_models::enums::LockerChoice::HyperswitchCardVault,
             )

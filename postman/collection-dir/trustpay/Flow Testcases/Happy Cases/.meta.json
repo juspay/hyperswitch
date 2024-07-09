@@ -6,7 +6,7 @@
     "Scenario3-Create payment with confirm false card holder name empty",
     "Scenario4-Create payment without PMD",
     "Scenario5-Create 3DS payment",
-    "Scenario6-Create 3DS payment with confrm false",
+    "Scenario6-Create 3DS payment with confirm false",
     "Scenario7-Refund full payment",
     "Scenario8-Bank Redirect-Ideal",
     "Scenario9-Bank Redirect-giropay"

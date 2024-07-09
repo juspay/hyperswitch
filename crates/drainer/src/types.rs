@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::errors;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{de::value::MapDeserializer, Deserialize, Serialize};
 
 use crate::{
@@ -30,7 +30,6 @@ impl StreamData {
         >::new(hashmap.into_iter());
 
         Self::deserialize(iter)
-            .into_report()
             .change_context(errors::ParsingError::StructParseFailure("StreamData"))
     }
 }

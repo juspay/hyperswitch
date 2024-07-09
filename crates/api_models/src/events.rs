@@ -1,3 +1,4 @@
+pub mod apple_pay_certificates_migration;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
@@ -22,8 +23,8 @@ use common_utils::{
 use crate::{
     admin::*,
     analytics::{
-        api_event::*, connector_events::ConnectorEventsRequest,
-        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
+        api_event::*, auth_events::*, connector_events::ConnectorEventsRequest,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, search::*, *,
     },
     api_keys::*,
     cards_info::*,
@@ -37,9 +38,26 @@ use crate::{
 
 impl ApiEventMetric for TimeRange {}
 
+impl ApiEventMetric for GetPaymentIntentFiltersRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Analytics)
+    }
+}
+
+impl ApiEventMetric for GetPaymentIntentMetricRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Analytics)
+    }
+}
+
+impl ApiEventMetric for PaymentIntentFiltersResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Analytics)
+    }
+}
+
 impl_misc_api_event_type!(
     PaymentMethodId,
-    PaymentsSessionResponse,
     PaymentMethodCreate,
     PaymentLinkInitiateRequest,
     RetrievePaymentLinkResponse,
@@ -60,6 +78,8 @@ impl_misc_api_event_type!(
     RevokeApiKeyResponse,
     ToggleKVResponse,
     ToggleKVRequest,
+    ToggleAllKVRequest,
+    ToggleAllKVResponse,
     MerchantAccountDeleteResponse,
     MerchantAccountUpdate,
     CardInfoResponse,
@@ -83,7 +103,9 @@ impl_misc_api_event_type!(
     GetInfoResponse,
     GetPaymentMetricRequest,
     GetRefundMetricRequest,
+    GetActivePaymentsMetricRequest,
     GetSdkEventMetricRequest,
+    GetAuthEventMetricRequest,
     GetPaymentFiltersRequest,
     PaymentFiltersResponse,
     GetRefundFilterRequest,
@@ -96,6 +118,10 @@ impl_misc_api_event_type!(
     ReportRequest,
     ConnectorEventsRequest,
     OutgoingWebhookLogsRequest,
+    GetGlobalSearchRequest,
+    GetSearchRequest,
+    GetSearchResponse,
+    GetSearchRequestWithIndex,
     GetDisputeFilterRequest,
     DisputeFiltersResponse,
     GetDisputeMetricRequest

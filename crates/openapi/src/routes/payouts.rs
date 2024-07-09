@@ -83,3 +83,49 @@ pub async fn payouts_cancel() {}
     security(("api_key" = []))
 )]
 pub async fn payouts_fulfill() {}
+
+/// Payouts - List
+#[utoipa::path(
+    get,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "List payouts",
+    security(("api_key" = []))
+)]
+pub async fn payouts_list() {}
+
+/// Payouts - Filter
+#[utoipa::path(
+    post,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+pub async fn payouts_filter() {}
+
+/// Payouts - Confirm
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/confirm",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout]")
+    ),
+    request_body=PayoutCreateRequest,
+    responses(
+        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Confirm a Payout",
+    security(("api_key" = []))
+)]
+pub async fn payouts_confirm() {}

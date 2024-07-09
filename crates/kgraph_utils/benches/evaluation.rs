@@ -1,20 +1,25 @@
 #![allow(unused, clippy::expect_used)]
 
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
+use common_utils::types::MinorUnit;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,
-    dssa::graph::{self, Memoization},
+    dssa::graph::{self, CgraphExt},
     frontend::dir,
     types::{NumValue, NumValueRefinement},
 };
-use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+use hyperswitch_constraint_graph::{CycleCheck, Memoization};
+use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
-fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::KnowledgeGraph<'a> {
+fn build_test_data(
+    total_enabled: usize,
+    total_pm_types: usize,
+) -> hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue> {
     use api_models::{admin::*, payment_methods::*};
 
     let mut pms_enabled: Vec<PaymentMethodsEnabled> = Vec::new();
@@ -34,8 +39,8 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
                     api_enums::Currency::INR,
                 ])),
                 accepted_countries: None,
-                minimum_amount: Some(10),
-                maximum_amount: Some(1000),
+                minimum_amount: Some(MinorUnit::new(10)),
+                maximum_amount: Some(MinorUnit::new(1000)),
                 recurring_enabled: true,
                 installment_payment_enabled: true,
             });
@@ -66,9 +71,14 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
+        additional_merchant_data: None,
     };
-
-    kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
+    let config = CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: None,
+    };
+    kgraph_utils::mca::make_mca_graph(vec![stripe_account], &config)
+        .expect("Failed graph construction")
 }
 
 fn evaluation(c: &mut Criterion) {
@@ -88,6 +98,8 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
+                None,
             );
         });
     });
@@ -105,6 +117,8 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
+                None,
             );
         });
     });

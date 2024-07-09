@@ -58,6 +58,24 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
     pub fn new_normal(item: T) -> Self {
         Self::Normal(item)
     }
+
+    ///
+    /// Checks whether the data is masked.
+    /// Returns `true` if the data is wrapped in the `Masked` variant,
+    /// returns `false` otherwise.
+    ///
+    pub fn is_masked(&self) -> bool {
+        matches!(self, Self::Masked(_))
+    }
+
+    ///
+    /// Checks whether the data is normal (not masked).
+    /// Returns `true` if the data is wrapped in the `Normal` variant,
+    /// returns `false` otherwise.
+    ///
+    pub fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal(_))
+    }
 }
 
 /// Trait for providing a method on custom types for constructing `Maskable`

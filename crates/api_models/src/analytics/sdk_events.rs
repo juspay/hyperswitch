@@ -71,13 +71,13 @@ pub enum SdkEventDimensions {
 #[serde(rename_all = "snake_case")]
 pub enum SdkEventMetrics {
     PaymentAttempts,
-    PaymentSuccessCount,
     PaymentMethodsCallCount,
     SdkRenderedCount,
     SdkInitiatedCount,
     PaymentMethodSelectedCount,
     PaymentDataFilledCount,
     AveragePaymentTime,
+    LoadTime,
 }
 
 #[derive(
@@ -95,12 +95,11 @@ pub enum SdkEventMetrics {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SdkEventNames {
-    StripeElementsCalled,
+    OrcaElementsCalled,
     AppRendered,
     PaymentMethodChanged,
     PaymentDataFilled,
     PaymentAttempt,
-    PaymentSuccess,
     PaymentMethodsCall,
     ConfirmCall,
     SessionsCall,
@@ -108,17 +107,24 @@ pub enum SdkEventNames {
     RedirectingUser,
     DisplayBankTransferInfoPage,
     DisplayQrCodeInfoPage,
+    AuthenticationCall,
+    AuthenticationCallInit,
+    ThreeDsMethodCall,
+    ThreeDsMethodResult,
+    ThreeDsMethod,
+    LoaderChanged,
+    DisplayThreeDsSdk,
 }
 
 pub mod metric_behaviour {
     pub struct PaymentAttempts;
-    pub struct PaymentSuccessCount;
     pub struct PaymentMethodsCallCount;
     pub struct SdkRenderedCount;
     pub struct SdkInitiatedCount;
     pub struct PaymentMethodSelectedCount;
     pub struct PaymentDataFilledCount;
     pub struct AveragePaymentTime;
+    pub struct LoadTime;
 }
 
 impl From<SdkEventMetrics> for NameDescription {
@@ -197,9 +203,9 @@ impl PartialEq for SdkEventMetricsBucketIdentifier {
 #[derive(Debug, serde::Serialize)]
 pub struct SdkEventMetricsBucketValue {
     pub payment_attempts: Option<u64>,
-    pub payment_success_count: Option<u64>,
     pub payment_methods_call_count: Option<u64>,
-    pub average_payment_time: Option<f64>,
+    pub average_payment_time: Option<u64>,
+    pub load_time: Option<u64>,
     pub sdk_rendered_count: Option<u64>,
     pub sdk_initiated_count: Option<u64>,
     pub payment_method_selected_count: Option<u64>,

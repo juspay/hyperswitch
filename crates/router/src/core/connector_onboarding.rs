@@ -3,23 +3,25 @@ use masking::Secret;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
+    routes::app::ReqState,
     services::{authentication as auth, ApplicationResponse},
-    types::{self as oss_types},
+    types as oss_types,
     utils::connector_onboarding as utils,
-    AppState,
+    SessionState,
 };
 
 pub mod paypal;
 
 #[async_trait::async_trait]
 pub trait AccessToken {
-    async fn access_token(state: &AppState) -> RouterResult<oss_types::AccessToken>;
+    async fn access_token(state: &SessionState) -> RouterResult<oss_types::AccessToken>;
 }
 
 pub async fn get_action_url(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::ActionUrlResponse> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
@@ -51,9 +53,10 @@ pub async fn get_action_url(
 }
 
 pub async fn sync_onboarding_status(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::OnboardingStatus> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
@@ -104,9 +107,10 @@ pub async fn sync_onboarding_status(
 }
 
 pub async fn reset_tracking_id(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::ResetTrackingIdRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<()> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;

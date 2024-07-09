@@ -193,3 +193,50 @@ api_secret = "Secret key"
 [placetopay]
 api_key= "Login"
 key1= "Trankey"
+
+
+[threedsecureio]
+api_key="API Key"
+
+
+[ebanx]
+api_key="API Key"
+
+
+[billwerk]
+api_key="API Key"
+
+
+[netcetera]
+certificate="Certificate"
+private_key="Private Key"
+
+
+[ebanx]
+api_key="API Key"
+
+[zsl]
+api_key= "Key"
+key1= "Merchant id"
+
+
+[payone]
+api_key="API Key"
+
+
+[mifinity]
+api_key="API Key"
+
+
+[gpayments]
+api_key="API Key"
+
+[adyenplatform]
+api_key="API Key"
+
+[datatrans]
+api_key="API Key"
+
+
+[bamboraapac]
+api_key="API Key"

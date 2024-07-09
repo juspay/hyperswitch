@@ -14,6 +14,8 @@ use crate::schema::gateway_status_map;
     Debug,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     router_derive::DebugAsDisplay,
     Identifiable,
     Queryable,

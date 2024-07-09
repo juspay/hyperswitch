@@ -1,10 +1,17 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::PaymentMethodListRequest, payments};
+#[cfg(feature = "payouts")]
+use api_models::payouts;
+use api_models::{
+    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
+    payments,
+};
 use async_trait::async_trait;
+use common_enums::TokenPurpose;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
+use router_env::logger;
 use serde::Serialize;
 
 use self::blacklist::BlackList;
@@ -20,19 +27,19 @@ use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(feature = "recon")]
-use crate::routes::AppState;
+use crate::routes::SessionState;
 use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
-    db::StorageInterface,
-    routes::app::AppStateInfo,
+    routes::app::SessionStateInfo,
     services::api,
     types::domain,
     utils::OptionExt,
 };
 pub mod blacklist;
+pub mod cookies;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -59,6 +66,15 @@ pub enum AuthenticationType {
     UserJwt {
         user_id: String,
     },
+    SinglePurposeJwt {
+        user_id: String,
+        purpose: TokenPurpose,
+    },
+    SinglePurposeOrLoginJwt {
+        user_id: String,
+        purpose: Option<TokenPurpose>,
+        role_id: Option<String>,
+    },
     MerchantId {
         merchant_id: String,
     },
@@ -69,6 +85,17 @@ pub enum AuthenticationType {
         merchant_id: String,
     },
     NoAuth,
+}
+
+impl events::EventInfo for AuthenticationType {
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
 }
 
 impl AuthenticationType {
@@ -85,28 +112,52 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
-            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
+            Self::AdminApiKey
+            | Self::UserJwt { .. }
+            | Self::SinglePurposeJwt { .. }
+            | Self::SinglePurposeOrLoginJwt { .. }
+            | Self::NoAuth => None,
         }
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
-pub struct UserWithoutMerchantFromToken {
+pub struct UserFromSinglePurposeToken {
     pub user_id: String,
+    pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct UserAuthToken {
+pub struct SinglePurposeToken {
     pub user_id: String,
+    pub purpose: TokenPurpose,
+    pub origin: domain::Origin,
+    pub path: Vec<TokenPurpose>,
     pub exp: u64,
 }
 
 #[cfg(feature = "olap")]
-impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+impl SinglePurposeToken {
+    pub async fn new_token(
+        user_id: String,
+        purpose: TokenPurpose,
+        origin: domain::Origin,
+        settings: &Settings,
+        path: Vec<TokenPurpose>,
+    ) -> UserResult<String> {
+        let exp_duration =
+            std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let token_payload = Self { user_id, exp };
+        let token_payload = Self {
+            user_id,
+            purpose,
+            origin,
+            exp,
+            path,
+        };
         jwt::generate_jwt(&token_payload, settings).await
     }
 }
@@ -150,6 +201,19 @@ pub struct UserFromToken {
     pub org_id: String,
 }
 
+pub struct UserIdFromAuth {
+    pub user_id: String,
+}
+
+#[cfg(feature = "olap")]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SinglePurposeOrLoginToken {
+    pub user_id: String,
+    pub role_id: Option<String>,
+    pub purpose: Option<TokenPurpose>,
+    pub exp: u64,
+}
+
 pub trait AuthInfo {
     fn get_merchant_id(&self) -> Option<&str>;
 }
@@ -169,7 +233,7 @@ impl AuthInfo for AuthenticationData {
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
-    A: AppStateInfo,
+    A: SessionStateInfo,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -186,7 +250,7 @@ pub struct NoAuth;
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for NoAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -198,9 +262,23 @@ where
 }
 
 #[async_trait]
+impl<A, T> AuthenticateAndFetch<Option<T>, A> for NoAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        _state: &A,
+    ) -> RouterResult<(Option<T>, AuthenticationType)> {
+        Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -212,7 +290,6 @@ where
             .trim();
         if api_key.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
-                .into_report()
                 .attach_printable("API key is empty");
         }
 
@@ -271,33 +348,121 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Debug)]
-pub struct UserWithoutMerchantJWTAuth;
+pub(crate) struct SinglePurposeJWTAuth(pub TokenPurpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
+impl<A> AuthenticateAndFetch<UserFromSinglePurposeToken, A> for SinglePurposeJWTAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
+    ) -> RouterResult<(UserFromSinglePurposeToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
         Ok((
-            UserWithoutMerchantFromToken {
+            UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
+                path: payload.path,
             },
-            AuthenticationType::UserJwt {
+            AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
+                purpose: payload.purpose,
             },
         ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<UserFromSinglePurposeToken>, A> for SinglePurposeJWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<UserFromSinglePurposeToken>, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        Ok((
+            Some(UserFromSinglePurposeToken {
+                user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
+                path: payload.path,
+            }),
+            AuthenticationType::SinglePurposeJwt {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug)]
+pub struct SinglePurposeOrLoginTokenAuth(pub TokenPurpose);
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserIdFromAuth, A> for SinglePurposeOrLoginTokenAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserIdFromAuth, AuthenticationType)> {
+        let payload =
+            parse_jwt_payload::<A, SinglePurposeOrLoginToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let is_purpose_equal = payload
+            .purpose
+            .as_ref()
+            .is_some_and(|purpose| purpose == &self.0);
+
+        let purpose_exists = payload.purpose.is_some();
+        let role_id_exists = payload.role_id.is_some();
+
+        if is_purpose_equal && !role_id_exists || role_id_exists && !purpose_exists {
+            Ok((
+                UserIdFromAuth {
+                    user_id: payload.user_id.clone(),
+                },
+                AuthenticationType::SinglePurposeOrLoginJwt {
+                    user_id: payload.user_id,
+                    purpose: payload.purpose,
+                    role_id: payload.role_id,
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+        }
     }
 }
 
@@ -307,7 +472,7 @@ pub struct AdminApiAuth;
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for AdminApiAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -330,12 +495,38 @@ where
 }
 
 #[derive(Debug)]
+pub struct EphemeralKeyAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let ephemeral_key = state
+            .store()
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        MerchantIdAuth(ephemeral_key.merchant_id)
+            .authenticate_and_fetch(request_headers, state)
+            .await
+    }
+}
+#[derive(Debug)]
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -389,7 +580,7 @@ pub struct PublishableKeyAuth;
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -433,7 +624,7 @@ struct JwtAuthPayloadFetchUnit {
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for JWTAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -462,7 +653,7 @@ where
 #[async_trait]
 impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -500,7 +691,7 @@ pub struct JWTAuthMerchantFromRoute {
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantFromRoute
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -529,21 +720,90 @@ where
     }
 }
 
+pub struct JWTAuthMerchantOrProfileFromRoute {
+    pub merchant_id_or_profile_id: String,
+    pub required_permission: Permission,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantOrProfileFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
+
+        // Check if token has access to MerchantId that has been requested through path or query param
+        if payload.merchant_id == self.merchant_id_or_profile_id {
+            return Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ));
+        }
+
+        // Route did not contain the merchant ID in present JWT, check if it corresponds to a
+        // business profile
+        let business_profile = state
+            .store()
+            .find_business_profile_by_profile_id(&self.merchant_id_or_profile_id)
+            .await
+            // Return access forbidden if business profile not found
+            .to_not_found_response(errors::ApiErrorResponse::AccessForbidden {
+                resource: self.merchant_id_or_profile_id.clone(),
+            })
+            .attach_printable("Could not find business profile specified in route")?;
+
+        // Check if merchant (from JWT) has access to business profile that has been requested
+        // through path or query param
+        if payload.merchant_id == business_profile.merchant_id {
+            Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ))
+        } else {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+        }
+    }
+}
+
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
-    let token = get_jwt_from_authorization_header(headers)?;
-    let payload = decode_jwt(token, state).await?;
-
-    Ok(payload)
+    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
+        Ok(cookies) => cookies,
+        Err(e) => {
+            let token = get_jwt_from_authorization_header(headers);
+            if token.is_err() {
+                logger::error!(?e);
+            }
+            token?.to_owned()
+        }
+    };
+    decode_jwt(&token, state).await
 }
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -593,7 +853,7 @@ pub type AuthenticationDataWithUserId = (AuthenticationData, String);
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for JWTAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -644,7 +904,7 @@ pub struct DashboardNoPermissionAuth;
 #[async_trait]
 impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -675,7 +935,7 @@ where
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -694,7 +954,7 @@ where
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -736,6 +996,12 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
+#[cfg(feature = "payouts")]
+impl ClientSecretFetch for payouts::PayoutCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
 
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -749,19 +1015,25 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for PaymentMethodCreate {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
 }
 
-impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
 }
 
-impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+impl ClientSecretFetch for payments::RetrievePaymentLinkRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -779,7 +1051,13 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     }
 }
 
-pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
+impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
@@ -801,12 +1079,11 @@ pub fn check_client_secret_and_get_auth<T>(
     api::AuthFlow,
 )>
 where
-    T: AppStateInfo,
+    T: SessionStateInfo,
     ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
@@ -826,34 +1103,54 @@ where
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
+pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
-    db: &dyn StorageInterface,
-    customer_id: &str,
+    is_merchant_flow: bool,
+    payload: Option<&impl ClientSecretFetch>,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+    bool,
+)>
+where
+    T: SessionStateInfo,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    let api_key = get_api_key(headers)?;
+
+    if api_key.starts_with("epk") {
+        Ok((Box::new(EphemeralKeyAuth), api::AuthFlow::Client, true))
+    } else if is_merchant_flow {
+        Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant, false))
+    } else {
+        let payload = payload.get_required_value("ClientSecretFetch")?;
+        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload)?;
+        Ok((auth, auth_flow, false))
+    }
+}
+
+pub fn is_ephemeral_auth<A: SessionStateInfo + Sync>(
+    headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
-        return Ok(Box::new(ApiKeyAuth));
+        Ok(Box::new(ApiKeyAuth))
+    } else {
+        Ok(Box::new(EphemeralKeyAuth))
     }
-
-    let ephemeral_key = db
-        .get_ephemeral_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-    if ephemeral_key.customer_id.ne(customer_id) {
-        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
-    }
-
-    Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
+        || get_cookie_from_header(headers)
+            .and_then(cookies::parse_cookie)
+            .is_ok()
 }
 
-pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
+pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -863,7 +1160,6 @@ where
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
@@ -877,7 +1173,6 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .map(|source_str| {
             source_str
                 .to_str()
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
                     "Failed to convert header value to string for header key: {}",
@@ -892,11 +1187,17 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(cookies::get_cookie_header())
+        .and_then(|header_value| header_value.to_str().ok())
+        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
@@ -925,7 +1226,7 @@ pub struct ReconAdmin;
 #[cfg(feature = "recon")]
 impl<A> AuthenticateAndFetch<(), A> for ReconAdmin
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -961,13 +1262,13 @@ impl AuthInfo for ReconUser {
 }
 #[cfg(all(feature = "olap", feature = "recon"))]
 #[async_trait]
-impl AuthenticateAndFetch<ReconUser, AppState> for ReconJWT {
+impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &SessionState,
     ) -> RouterResult<(ReconUser, AuthenticationType)> {
-        let payload = parse_jwt_payload::<AppState, ReconToken>(request_headers, state).await?;
+        let payload = parse_jwt_payload::<SessionState, ReconToken>(request_headers, state).await?;
 
         Ok((
             ReconUser {

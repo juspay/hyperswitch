@@ -1,9 +1,10 @@
 use std::process::{exit, Command};
 
+use anyhow::Result;
 use test_utils::newman_runner;
 
-fn main() {
-    let mut runner = newman_runner::generate_newman_command();
+fn main() -> Result<()> {
+    let mut runner = newman_runner::generate_runner()?;
 
     // Execute the newman command
     let output = runner.newman_command.spawn();
@@ -18,17 +19,21 @@ fn main() {
 
     // Filter out None values leaving behind Some(Path)
     let paths: Vec<String> = runner.modified_file_paths.into_iter().flatten().collect();
-    let git_status = Command::new("git").arg("restore").args(&paths).output();
 
-    match git_status {
-        Ok(output) => {
-            if !output.status.success() {
+    if !paths.is_empty() {
+        let git_status = Command::new("git").arg("restore").args(&paths).output();
+
+        match git_status {
+            Ok(output) if !output.status.success() => {
                 let stderr_str = String::from_utf8_lossy(&output.stderr);
                 eprintln!("Git command failed with error: {stderr_str}");
             }
-        }
-        Err(e) => {
-            eprintln!("Error running Git: {e}");
+            Ok(_) => {
+                println!("Git restore successful!");
+            }
+            Err(e) => {
+                eprintln!("Error running Git: {e}");
+            }
         }
     }
 

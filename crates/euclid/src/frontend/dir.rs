@@ -5,6 +5,7 @@ pub mod transformers;
 
 use strum::IntoEnumIterator;
 
+// use common_utils::types::MinorUnit;
 use crate::{enums as euclid_enums, frontend::ast, types};
 
 #[macro_export]
@@ -26,7 +27,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -74,7 +75,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -113,7 +114,7 @@ impl DirKey {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -289,7 +290,6 @@ pub enum DirKeyKind {
     #[serde(rename = "billing_country")]
     BillingCountry,
     #[serde(skip_deserializing, rename = "connector")]
-    #[strum(disabled)]
     Connector,
     #[strum(
         serialize = "business_label",
@@ -306,12 +306,19 @@ pub enum DirKeyKind {
     #[serde(rename = "setup_future_usage")]
     SetupFutureUsage,
     #[strum(
-        serialize = "card_redirect_type",
+        serialize = "card_redirect",
         detailed_message = "Supported types of Card Redirect payment method",
         props(Category = "Payment Method Types")
     )]
     #[serde(rename = "card_redirect")]
     CardRedirectType,
+    #[serde(rename = "real_time_payment")]
+    #[strum(
+        serialize = "real_time_payment",
+        detailed_message = "Supported types of real time payment method",
+        props(Category = "Payment Method Types")
+    )]
+    RealTimePaymentType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -359,6 +366,7 @@ impl DirKeyKind {
             Self::BusinessLabel => types::DataType::StrValue,
             Self::SetupFutureUsage => types::DataType::EnumVariant,
             Self::CardRedirectType => types::DataType::EnumVariant,
+            Self::RealTimePaymentType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -485,12 +493,17 @@ impl DirKeyKind {
                     .map(DirValue::CardRedirectType)
                     .collect(),
             ),
+            Self::RealTimePaymentType => Some(
+                enums::RealTimePaymentType::iter()
+                    .map(DirValue::RealTimePaymentType)
+                    .collect(),
+            ),
         }
     }
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -550,6 +563,8 @@ pub enum DirValue {
     SetupFutureUsage(enums::SetupFutureUsage),
     #[serde(rename = "card_redirect")]
     CardRedirectType(enums::CardRedirectType),
+    #[serde(rename = "real_time_payment")]
+    RealTimePaymentType(enums::RealTimePaymentType),
 }
 
 impl DirValue {
@@ -559,7 +574,7 @@ impl DirValue {
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
-            Self::BillingCountry(_) => (DirKeyKind::CardBin, None),
+            Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
             Self::BankTransferType(_) => (DirKeyKind::BankTransferType, None),
             Self::UpiType(_) => (DirKeyKind::UpiType, None),
             Self::CardType(_) => (DirKeyKind::CardType, None),
@@ -583,6 +598,7 @@ impl DirValue {
             Self::CardRedirectType(_) => (DirKeyKind::CardRedirectType, None),
             Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
+            Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
         };
 
         DirKey::new(kind, data)
@@ -617,6 +633,7 @@ impl DirValue {
             Self::BusinessLabel(_) => None,
             Self::SetupFutureUsage(_) => None,
             Self::CardRedirectType(_) => None,
+            Self::RealTimePaymentType(_) => None,
         }
     }
 
@@ -656,6 +673,7 @@ impl DirValue {
             (Self::MandateType(mt1), Self::MandateType(mt2)) => mt1 == mt2,
             (Self::MandateAcceptanceType(mat1), Self::MandateAcceptanceType(mat2)) => mat1 == mat2,
             (Self::RewardType(rt1), Self::RewardType(rt2)) => rt1 == rt2,
+            (Self::RealTimePaymentType(rtp1), Self::RealTimePaymentType(rtp2)) => rtp1 == rtp2,
             (Self::Connector(c1), Self::Connector(c2)) => c1 == c2,
             (Self::BusinessLabel(bl1), Self::BusinessLabel(bl2)) => bl1 == bl2,
             (Self::SetupFutureUsage(sfu1), Self::SetupFutureUsage(sfu2)) => sfu1 == sfu2,
@@ -665,6 +683,101 @@ impl DirValue {
             _ => false,
         }
     }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::VariantNames,
+    strum::EnumString,
+    strum::EnumMessage,
+    strum::EnumProperty,
+)]
+pub enum PayoutDirKeyKind {
+    #[strum(
+        serialize = "country",
+        serialize = "business_country",
+        detailed_message = "Country of the business unit",
+        props(Category = "Merchant")
+    )]
+    #[serde(rename = "business_country", alias = "country")]
+    BusinessCountry,
+
+    #[strum(
+        serialize = "billing_country",
+        detailed_message = "Country of the billing address of the customer",
+        props(Category = "Customer")
+    )]
+    #[serde(rename = "billing_country")]
+    BillingCountry,
+
+    #[strum(
+        serialize = "business_label",
+        detailed_message = "Identifier for business unit",
+        props(Category = "Merchant")
+    )]
+    #[serde(rename = "business_label")]
+    BusinessLabel,
+
+    #[strum(
+        serialize = "amount",
+        detailed_message = "Value of the transaction",
+        props(Category = "Order details")
+    )]
+    #[serde(rename = "amount")]
+    PayoutAmount,
+
+    #[strum(
+        serialize = "payment_method",
+        detailed_message = "Different modes of payout - eg. cards, wallets, banks",
+        props(Category = "Payout Methods")
+    )]
+    #[serde(rename = "payment_method")]
+    PayoutType,
+
+    #[strum(
+        serialize = "wallet",
+        detailed_message = "Supported types of Wallets for payouts",
+        props(Category = "Payout Methods Type")
+    )]
+    #[serde(rename = "wallet")]
+    WalletType,
+
+    #[strum(
+        serialize = "bank_transfer",
+        detailed_message = "Supported types of Bank transfer types for payouts",
+        props(Category = "Payout Methods Type")
+    )]
+    #[serde(rename = "bank_transfer")]
+    BankTransferType,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+)]
+pub enum PayoutDirValue {
+    #[serde(rename = "business_country", alias = "country")]
+    BusinessCountry(enums::Country),
+    #[serde(rename = "billing_country")]
+    BillingCountry(enums::Country),
+    #[serde(rename = "business_label")]
+    BusinessLabel(types::StrValue),
+    #[serde(rename = "amount")]
+    PayoutAmount(types::NumValue),
+    #[serde(rename = "payment_method")]
+    PayoutType(common_enums::PayoutType),
+    #[serde(rename = "wallet")]
+    WalletType(enums::PayoutWalletType),
+    #[serde(rename = "bank_transfer")]
+    BankTransferType(enums::PayoutBankTransferType),
 }
 
 #[derive(Debug, Clone)]
@@ -715,6 +828,10 @@ mod test {
         let mut key_names: FxHashMap<DirKeyKind, String> = FxHashMap::default();
 
         for key in DirKeyKind::iter() {
+            if matches!(key, DirKeyKind::Connector) {
+                continue;
+            }
+
             let json_str = if let DirKeyKind::MetaData = key {
                 r#""metadata""#.to_string()
             } else {

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::enums;
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as square;
 
@@ -13,10 +13,7 @@ use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
@@ -40,6 +37,7 @@ impl api::PaymentSession for Square {}
 impl api::ConnectorAccessToken for Square {}
 impl api::MandateSetup for Square {}
 impl api::PaymentAuthorize for Square {}
+impl api::PaymentAuthorizeSessionToken for Square {}
 impl api::PaymentSync for Square {}
 impl api::PaymentCapture for Square {}
 impl api::PaymentVoid for Square {}
@@ -192,46 +190,6 @@ impl
         types::PaymentsResponseData,
     > for Square
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::TokenizationRouterData,
-        app_state: &crate::routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-
-        let authorize_session_token_data = types::AuthorizeSessionTokenData {
-            connector_transaction_id: router_data.payment_id.clone(),
-            amount_to_capture: None,
-            currency: router_data.request.currency,
-            amount: router_data.request.amount,
-        };
-
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
-            &router_data.to_owned(),
-            authorize_session_token_data,
-        ));
-
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        router_data.session_token = resp.session_token;
-        Ok(())
-    }
-
     fn get_headers(
         &self,
         _req: &types::TokenizationRouterData,
@@ -898,7 +856,6 @@ impl api::IncomingWebhook for Square {
             super_utils::get_header_key_value("x-square-hmacsha256-signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(encoded_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(signature)
     }
@@ -915,7 +872,6 @@ impl api::IncomingWebhook for Square {
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let authority = header_value
             .to_str()
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         Ok(format!(
