@@ -453,10 +453,22 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = match req.request.minor_amount {
+            Some(amount) => amount,
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?,
+        };
+        let currency = match req.request.currency {
+            Some(currency) => currency,
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?,
+        };
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.minor_amount.unwrap_or_default(),
-            req.request.currency.unwrap_or_default(),
+            amount,
+            currency,
         )?;
 
         let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
