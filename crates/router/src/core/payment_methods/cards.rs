@@ -46,6 +46,8 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(not(feature = "connector_choice_mca_id"))]
 use crate::core::utils::get_connector_label;
+#[cfg(feature = "payouts")]
+use crate::types::domain::types::AsyncLift;
 use crate::{
     configs::settings,
     core::{
@@ -67,17 +69,12 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{
-            self,
-            types::decrypt,
-        },
+        domain::{self, types::decrypt},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
-#[cfg(feature = "payouts")]
-use crate::types::domain::types::AsyncLift;
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -4242,10 +4239,12 @@ where
 
     let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
 
-    let encrypted_data = domain::types::encrypt(secret_data, key).await.map_err(|err| {
-        logger::error!(err=?err, "Unable to encrypt data");
-        errors::StorageError::EncryptionError
-    })?;
+    let encrypted_data = domain::types::encrypt(secret_data, key)
+        .await
+        .map_err(|err| {
+            logger::error!(err=?err, "Unable to encrypt data");
+            errors::StorageError::EncryptionError
+        })?;
 
     Ok(encrypted_data)
 }
