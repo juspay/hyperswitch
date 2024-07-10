@@ -569,7 +569,7 @@ impl PaymentsRequest {
                 .then_some("phone_country_code and customer.phone_country_code"),
             ]
             .into_iter()
-            .filter_map(|invalid_fields| invalid_fields)
+            .flatten()
             .collect::<Vec<_>>();
 
             if invalid_fields.is_empty() {
