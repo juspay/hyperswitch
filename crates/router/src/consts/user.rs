@@ -1,5 +1,10 @@
+use common_utils::consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH;
+
 pub const MAX_NAME_LENGTH: usize = 70;
-pub const MAX_COMPANY_NAME_LENGTH: usize = 70;
+
+/// The max length of company name and merchant should be same
+/// because we are deriving the merchant name from company name
+pub const MAX_COMPANY_NAME_LENGTH: usize = MAX_ALLOWED_MERCHANT_NAME_LENGTH;
 pub const BUSINESS_EMAIL: &str = "biz@hyperswitch.io";
 
 pub const RECOVERY_CODES_COUNT: usize = 8;

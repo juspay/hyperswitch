@@ -4,9 +4,11 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
+#[cfg(not(feature = "v2"))]
+use common_utils::id_type;
 #[cfg(feature = "keymanager_create")]
 use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
-use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
+use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -339,6 +341,15 @@ pub struct NewUserMerchant {
     new_organization: NewUserOrganization,
 }
 
+impl TryFrom<UserCompanyName> for MerchantName {
+    // We should ideally not get this error because all the validations are done for company name
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(company_name: UserCompanyName) -> Result<Self, Self::Error> {
+        Self::new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
+    }
+}
+
 impl NewUserMerchant {
     pub fn get_company_name(&self) -> Option<String> {
         self.company_name.clone().map(UserCompanyName::get_secret)
@@ -371,35 +382,68 @@ impl NewUserMerchant {
         Ok(())
     }
 
+    #[cfg(feature = "v2")]
+    fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
+        let merchant_name = if let Some(company_name) = self.company_name.clone() {
+            MerchantName::try_from(company_name)
+        } else {
+            MerchantName::new("merchant".to_string())
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("merchant name validation failed")
+        }
+        .map(Secret::new)?;
+
+        Ok(admin_api::MerchantAccountCreate {
+            merchant_name,
+            organization_id: self.new_organization.get_organization_id(),
+            metadata: None,
+            merchant_details: None,
+        })
+    }
+
+    #[cfg(not(feature = "v2"))]
+    fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
+        Ok(admin_api::MerchantAccountCreate {
+            merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())
+                .change_context(UserErrors::MerchantIdParsingError)
+                .attach_printable(
+                    "Unable to convert to MerchantId type because of constraint violations",
+                )?,
+            metadata: None,
+            locker_id: None,
+            return_url: None,
+            merchant_name: self.get_company_name().map(Secret::new),
+            webhook_details: None,
+            publishable_key: None,
+            organization_id: Some(self.new_organization.get_organization_id()),
+            merchant_details: None,
+            routing_algorithm: None,
+            parent_merchant_id: None,
+            sub_merchants_enabled: None,
+            frm_routing_algorithm: None,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: None,
+            primary_business_details: None,
+            payment_response_hash_key: None,
+            enable_payment_response_hash: None,
+            redirect_to_merchant_with_http_post: None,
+            pm_collect_link_config: None,
+        })
+    }
+
     pub async fn create_new_merchant_and_insert_in_db(
         &self,
         state: SessionState,
     ) -> UserResult<()> {
         self.check_if_already_exists_in_db(state.clone()).await?;
+
+        let merchant_account_create_request = self
+            .create_merchant_account_request()
+            .attach_printable("unable to construct merchant account create request")?;
+
         Box::pin(admin::create_merchant_account(
             state.clone(),
-            admin_api::MerchantAccountCreate {
-                merchant_id: self.get_merchant_id(),
-                metadata: None,
-                locker_id: None,
-                return_url: None,
-                merchant_name: self.get_company_name().map(Secret::new),
-                webhook_details: None,
-                publishable_key: None,
-                organization_id: Some(self.new_organization.get_organization_id()),
-                merchant_details: None,
-                routing_algorithm: None,
-                parent_merchant_id: None,
-                sub_merchants_enabled: None,
-                frm_routing_algorithm: None,
-                #[cfg(feature = "payouts")]
-                payout_routing_algorithm: None,
-                primary_business_details: None,
-                payment_response_hash_key: None,
-                enable_payment_response_hash: None,
-                redirect_to_merchant_with_http_post: None,
-                pm_collect_link_config: None,
-            },
+            merchant_account_create_request,
         ))
         .await
         .change_context(UserErrors::InternalServerError)
