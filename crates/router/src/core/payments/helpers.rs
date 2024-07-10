@@ -120,7 +120,7 @@ pub fn filter_mca_based_on_business_profile(
             .into_iter()
             .filter(|mca| {
                 mca.profile_id.as_ref() == Some(&profile_id)
-                    && mca.connector_type == enums::ConnectorType::PaymentProcessor
+                    && mca.connector_type == ConnectorType::PaymentProcessor
             })
             .collect::<Vec<_>>()
     } else {
