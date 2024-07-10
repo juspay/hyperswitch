@@ -1372,7 +1372,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
-        let captured_amount = payment_data.payment_intent.amount_captured;
+        let captured_amount = Some(payment_data.payment_attempt.net_amount);
         Ok(Self {
             amount,
             integrity_object: None,
