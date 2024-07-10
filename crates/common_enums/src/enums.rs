@@ -161,6 +161,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Riskified,
     Shift4,
     Signifyd,

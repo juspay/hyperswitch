@@ -4,6 +4,62 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.10.1
+
+### Refactors
+
+- **connector:** Wasm changes for razorpay ([#5265](https://github.com/juspay/hyperswitch/pull/5265)) ([`c016407`](https://github.com/juspay/hyperswitch/commit/c0164076881a0ce561ced98e7da61bf6904ba60b))
+
+**Full Changelog:** [`2024.07.10.0...2024.07.10.1`](https://github.com/juspay/hyperswitch/compare/2024.07.10.0...2024.07.10.1)
+
+- - -
+
+## 2024.07.10.0
+
+### Features
+
+- **connector:** [RazorPay] Add new connector and Implement payment flows for UPI payment method ([#5200](https://github.com/juspay/hyperswitch/pull/5200)) ([`fdac313`](https://github.com/juspay/hyperswitch/commit/fdac31324110ebe20ba56dd60cfe8c41dbd309a4))
+- **core:** Constraint Graph for Payment Methods List ([#5081](https://github.com/juspay/hyperswitch/pull/5081)) ([`82c6e0e`](https://github.com/juspay/hyperswitch/commit/82c6e0e649e509dd88fe6b5524b12fee99f813ab))
+- **decision:** Add support to register api keys to proxy ([#5168](https://github.com/juspay/hyperswitch/pull/5168)) ([`071d534`](https://github.com/juspay/hyperswitch/commit/071d5345b5801e124da18d679202b0a60033b2f5))
+
+### Refactors
+
+- **core:** Removal of deserialization logs for routing_metadata ([#5253](https://github.com/juspay/hyperswitch/pull/5253)) ([`d9c7849`](https://github.com/juspay/hyperswitch/commit/d9c7849dfa773f9c4181def50c26e35c45a76d54))
+
+**Full Changelog:** [`2024.07.09.0...2024.07.10.0`](https://github.com/juspay/hyperswitch/compare/2024.07.09.0...2024.07.10.0)
+
+- - -
+
+## 2024.07.09.0
+
+### Features
+
+- **core:** Addition of shipping address details in payment intent ([#5112](https://github.com/juspay/hyperswitch/pull/5112)) ([`2d31d38`](https://github.com/juspay/hyperswitch/commit/2d31d38c1e35be99e9b0297b197bab81fa5f5030))
+- **router:** Add integrity check for refund refund sync and capture flow with stripe as connector ([#5187](https://github.com/juspay/hyperswitch/pull/5187)) ([`adc760f`](https://github.com/juspay/hyperswitch/commit/adc760f0a6c75b5a51d9955f5e507776e7a88d1a))
+- Add `hsdev` binary to run migrations ([#4877](https://github.com/juspay/hyperswitch/pull/4877)) ([`f64b522`](https://github.com/juspay/hyperswitch/commit/f64b522154cf4d3702ad39babc75c7ba940f8217))
+
+### Bug Fixes
+
+- **connector:** Remove mandatory payment_method_type check in MIT ([#5246](https://github.com/juspay/hyperswitch/pull/5246)) ([`19744ce`](https://github.com/juspay/hyperswitch/commit/19744cec1042f8b7c5cc496c3b4d201604aca204))
+
+**Full Changelog:** [`2024.07.08.1...2024.07.09.0`](https://github.com/juspay/hyperswitch/compare/2024.07.08.1...2024.07.09.0)
+
+- - -
+
+## 2024.07.08.1
+
+### Bug Fixes
+
+- **core:** Fetch customer id from customer object during MIT ([#5218](https://github.com/juspay/hyperswitch/pull/5218)) ([`a79437d`](https://github.com/juspay/hyperswitch/commit/a79437d5f078287a3eddb9bfdc7902533efd41b4))
+- **cypress:**
+  - Remove unsupported manual confirm tests ([#5223](https://github.com/juspay/hyperswitch/pull/5223)) ([`549c293`](https://github.com/juspay/hyperswitch/commit/549c293c3f0f5393ee3c29ee74fee1a983c46755))
+  - Fix payouts failing ([#5239](https://github.com/juspay/hyperswitch/pull/5239)) ([`864d53c`](https://github.com/juspay/hyperswitch/commit/864d53c6d20ed993b55d9932e8d62abd4a64fd5a))
+- **router:** [Iatapay] add CLEARED refund status ([#5231](https://github.com/juspay/hyperswitch/pull/5231)) ([`d4813b9`](https://github.com/juspay/hyperswitch/commit/d4813b99500d2607985a8a21c888f040fff843dc))
+
+**Full Changelog:** [`2024.07.08.0...2024.07.08.1`](https://github.com/juspay/hyperswitch/compare/2024.07.08.0...2024.07.08.1)
+
+- - -
+
 ## 2024.07.08.0
 
 ### Bug Fixes

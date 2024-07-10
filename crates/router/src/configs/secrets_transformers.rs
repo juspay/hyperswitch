@@ -394,6 +394,7 @@ pub(crate) async fn fetch_raw_secrets(
         saved_payment_methods: conf.saved_payment_methods,
         multitenancy: conf.multitenancy,
         user_auth_methods,
+        decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
     }
 }

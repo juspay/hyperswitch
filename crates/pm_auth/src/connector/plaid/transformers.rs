@@ -170,10 +170,9 @@ impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
     }
 }
 
-impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RecipientCreateRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    fn from(item: &types::RecipientCreateRouterData) -> Self {
+        Self {
             name: item.request.name.clone(),
             account_data: PlaidRecipientAccountData::from(&item.request.account_data),
             address: item
@@ -181,12 +180,12 @@ impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest 
                 .address
                 .as_ref()
                 .map(PlaidRecipientCreateAddress::from),
-        })
+        }
     }
 }
 
 impl<F, T>
-    TryFrom<
+    From<
         types::ResponseRouterData<
             F,
             PlaidRecipientCreateResponse,
@@ -195,21 +194,20 @@ impl<F, T>
         >,
     > for types::PaymentAuthRouterData<F, T, types::RecipientCreateResponse>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn from(
         item: types::ResponseRouterData<
             F,
             PlaidRecipientCreateResponse,
             T,
             types::RecipientCreateResponse,
         >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             response: Ok(types::RecipientCreateResponse {
                 recipient_id: item.response.recipient_id,
             }),
             ..item.data
-        })
+        }
     }
 }
 #[derive(Debug, Serialize, Eq, PartialEq)]
