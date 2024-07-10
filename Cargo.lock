@@ -2022,6 +2022,7 @@ dependencies = [
  "masking",
  "md5",
  "nanoid",
+ "nutype",
  "once_cell",
  "phonenumber",
  "proptest",
@@ -4250,6 +4251,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinded"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce4bdbb2f423660b19f0e9f7115182214732d8dd5f840cd0a3aee3e22562f34c"
+dependencies = [
+ "kinded_macros",
+]
+
+[[package]]
+name = "kinded_macros"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a13b4ddc5dcb32f45dac3d6f606da2a52fdb9964a18427e63cd5ef6c0d13288d"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.57",
+]
+
+[[package]]
 name = "language-tags"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4796,6 +4818,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nutype"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "801187d4ee2f03db47daf0f5fc335a7b1b94f60f47942293060b762641b83f2e"
+dependencies = [
+ "nutype_macros",
+]
+
+[[package]]
+name = "nutype_macros"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e96467936d36285839340d692fcd974106d9bc203e36f55a477e0243737a8af7"
+dependencies = [
+ "cfg-if 1.0.0",
+ "kinded",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.57",
+ "urlencoding",
+]
+
+[[package]]
 name = "oauth2"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4857,6 +4902,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_utils",
+ "router_env",
  "serde_json",
  "utoipa",
 ]
@@ -6076,7 +6122,6 @@ dependencies = [
  "nanoid",
  "num_cpus",
  "once_cell",
- "openapi",
  "openidconnect",
  "openssl",
  "pm_auth",

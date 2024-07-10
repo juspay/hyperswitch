@@ -150,12 +150,7 @@ pub async fn initiate_payout_link(
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
 
             let js_data = payouts::PayoutLinkDetails {
-                publishable_key: merchant_account
-                    .publishable_key
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "publishable_key",
-                    })?
-                    .into(),
+                publishable_key: masking::Secret::new(merchant_account.publishable_key),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
