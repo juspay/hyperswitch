@@ -68,6 +68,182 @@ vector
       . = events
     |||,
   }),
+
+  cassandra_sessionize: vector.transforms.lua({
+    version: '2',
+    hooks: {
+      init: 'init',
+      process: 'process',
+      shutdown: 'shutdown',
+    },
+    source: |||
+      local socket = require "socket"
+      local cassandra = require "cassandra"
+      local json = require "json"
+
+      function sleep(sec)
+        socket.select(nil, nil, sec)
+      end
+
+      function client_connect()
+        assert(client:connect())
+      end
+
+      function client_close()
+        assert(client:close())
+      end
+
+      function create_cassandra_connection()
+        client = assert(cassandra.new {
+          host = os.getenv("CASSANDRA_HOST") or "cassandra0",
+          port = os.getenv("CASSANDRA_PORT") or 9042,
+          keyspace = os.getenv("CASSANDRA_KEYSPACE") or "sessionizer",
+          auth = cassandra.auth_providers.plain_text(os.getenv("CASSANDRA_USERNAME") or "cassandra", os.getenv("CASSANDRA_PASSWORD") or "cassandra"),
+          ssl = os.getenv("CASSANDRA_SSL") or false,
+          cert = os.getenv("CASSANDRA_CERT") or ""
+        })
+
+        client:settimeout(1000)
+        client:setkeepalive(0)
+        client_connect()
+      end
+
+      function db_get(table, id, version)
+        local version = version or 1
+        local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ?", table), {
+          id
+        }))
+        return rows
+      end
+
+      function db_set(table, state, id, version)
+        version = version or 1
+        local res = assert(client:execute(string.format("INSERT INTO %s (id, state, version) VALUES (?, ?, ?)", table), {
+          id,
+          state,
+          version
+        },{consistency = cassandra.consistencies.local_quorum}))
+        return res
+      end
+
+      function db_get_wait(table, id, version)
+        local is_success, data = pcall(db_get, table, id, version)
+        while not is_success do
+          sleep(1)
+
+          print(string.format("db_get - recreate cassandra connection start - reason - %s", data))
+          local connection_closed, err = pcall(client_close)
+          print(string.format("db_get - close old cassandra connection - result - %s, %s", connection_closed, err))
+          local connection_success, err = pcall(create_cassandra_connection)
+          print(string.format("db_get - recreate cassandra connection end - result - %s, %s", connection_success, err))
+
+          is_success, data = pcall(db_get, table, id, version)
+        end
+
+        return data
+      end
+
+      function db_set_wait(table, state, id, version)
+        local is_success, res = pcall(db_set, table, state, id, version)
+
+        while not is_success do
+          sleep(1)
+
+          print(string.format("db_set - recreate cassandra connection start - reason - %s", res))
+          local connection_closed, err = pcall(client_close)
+          print(string.format("db_set - close old cassandra connection - result - %s, %s", connection_closed, err))
+          local connection_success, err = pcall(create_cassandra_connection)
+          print(string.format("db_set - recreate cassandra connection end - result - %s, %s", connection_success, err))
+
+          is_success, res = pcall(db_set, table, state, id, version)
+        end
+
+        return res
+      end
+
+      function get_value(tb, path)
+        local value = tb
+
+        for i, v in ipairs(path) do
+          value = value[v] or {}
+        end
+
+        return value
+      end
+
+      function set_value(tb, path, value, index)
+        local index = index or 1
+
+        if index > #path then
+          return value
+        else
+          tb[path[index]] = set_value(tb[path[index]] or {}, path, value, index + 1)
+        end
+        
+        return tb
+      end
+
+      function merge_log(db_log, new_log, traverse_map)
+        local log = get_value(db_log, traverse_map)
+        local db_modified_at = log["modified_at"] or 0
+        local new_modified_at = new_log["modified_at"] or 0
+        if(new_modified_at > db_modified_at) then
+          for k, v in pairs(new_log) do
+            log[k] = v
+          end
+        end
+        return set_value(db_log, traverse_map, log)
+      end
+
+      function init(emit) 
+        create_cassandra_connection()  
+      end
+
+      function process(event, emit)
+        local start_time = os.clock()
+        local sessionizer = event.log.sessionizer
+        local new_log_types = event.log.log_type
+        local new_logs = event.log.log
+        local db_log = {}
+
+        local data = db_get_wait(sessionizer.table, sessionizer.id)
+
+        if #data == 1 then
+          event.log.old_log = data[1].state
+          db_log = json.decode(data[1].state)
+        end
+        
+
+        for i, new_log in ipairs(new_logs) do
+          new_log_type = new_log_types[i];
+
+          local traverse_map = nil
+          if new_log_type == "payment_intent" then
+            traverse_map = {}
+          elseif new_log_type == "payment_attempt" then
+            traverse_map = {"attempts", new_log.attempt_id}
+          elseif new_log_type == "refund" then
+            traverse_map = {"attempts", new_log.attempt_id, "refunds", new_log.refund_id}
+          elseif new_log_type == "dispute" then
+            traverse_map = {"attempts", new_log.attempt_id, "disputes", new_log.dispute_id}
+          end
+
+          db_log = merge_log(db_log, new_log, traverse_map);
+        end
+
+        event.log.log = db_log
+
+        local _new_event_insert = db_set_wait(sessionizer.table, json.encode(db_log), sessionizer.id)
+        emit(event)
+
+        print(string.format("lua execution time: %.3f", os.clock() - start_time))
+      end
+
+      function shutdown(emit)
+        client:close()
+      end
+    |||,
+  }),
 })
 .pipelines([
   ['kafka_source', 'regex_parser', 'log_to_metric', 'console_metrics'],
