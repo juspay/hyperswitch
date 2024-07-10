@@ -1385,6 +1385,9 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1404,6 +1407,9 @@ pub(crate) async fn get_payment_method_create_request(
                         card_network: None,
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
 
                     Ok(payment_method_request)
@@ -4074,6 +4080,63 @@ pub async fn get_additional_payment_data(
     }
 }
 
+pub async fn populate_bin_details_for_payment_method_create(
+    card_details: api_models::payment_methods::CardDetail,
+    db: &dyn StorageInterface,
+) -> api_models::payment_methods::CardDetail {
+    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+    if card_details.card_issuer.is_some()
+        && card_details.card_network.is_some()
+        && card_details.card_type.is_some()
+        && card_details.card_issuing_country.is_some()
+    {
+        api::CardDetail {
+            card_issuer: card_details.card_issuer.to_owned(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.to_owned(),
+            card_issuing_country: card_details.card_issuing_country.to_owned(),
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        }
+    } else {
+        let card_info = card_isin
+            .clone()
+            .async_and_then(|card_isin| async move {
+                db.get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten()
+            .map(|card_info| api::CardDetail {
+                card_issuer: card_info.card_issuer,
+                card_network: card_info.card_network.clone(),
+                card_type: card_info.card_type,
+                card_issuing_country: card_info.card_issuing_country,
+                card_exp_month: card_details.card_exp_month.clone(),
+                card_exp_year: card_details.card_exp_year.clone(),
+                card_holder_name: card_details.card_holder_name.clone(),
+                card_number: card_details.card_number.clone(),
+                nick_name: card_details.nick_name.clone(),
+            });
+        card_info.unwrap_or_else(|| api::CardDetail {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        })
+    }
+}
+
 pub fn validate_customer_access(
     payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,
@@ -5055,5 +5118,38 @@ pub async fn override_setup_future_usage_to_on_session<F: Clone>(
             }
         };
     };
+    Ok(())
+}
+
+pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
+    merchant_id: &str,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let merchant_connector_account_list = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_connector_ids: Vec<String> = merchant_connector_account_list
+        .iter()
+        .map(|merchant_connector_account| merchant_connector_account.merchant_connector_id.clone())
+        .collect();
+
+    for merchant_connector_id in connector_mandate_details.0.keys() {
+        if !merchant_connector_ids.contains(merchant_connector_id) {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_connector_id",
+            })
+            .attach_printable_lazy(|| {
+                format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+            })?
+        }
+    }
     Ok(())
 }

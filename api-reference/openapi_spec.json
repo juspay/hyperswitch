@@ -13765,6 +13765,14 @@
               }
             ],
             "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
