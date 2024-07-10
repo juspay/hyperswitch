@@ -204,6 +204,7 @@ diesel::table! {
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
+        custom_outgoing_webhook_http_headers -> Nullable<Jsonb>,
     }
 }
 

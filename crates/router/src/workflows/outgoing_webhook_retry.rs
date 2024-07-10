@@ -164,7 +164,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         let request_content = webhooks_core::get_outgoing_webhook_request(
                             &merchant_account,
                             outgoing_webhook,
-                            business_profile.payment_response_hash_key.as_deref(),
+                            &business_profile,
                         )
                         .map_err(|error| {
                             logger::error!(

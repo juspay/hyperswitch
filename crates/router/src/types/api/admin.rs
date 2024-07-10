@@ -101,6 +101,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             collect_billing_details_from_wallet_connector: item
                 .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
+            custom_outgoing_webhook_http_headers: item.custom_outgoing_webhook_http_headers,
         })
     }
 }
@@ -218,6 +219,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             collect_billing_details_from_wallet_connector: request
                 .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
+            custom_outgoing_webhook_http_headers: request.custom_outgoing_webhook_http_headers,
         })
     }
 }

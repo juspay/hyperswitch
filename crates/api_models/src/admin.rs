@@ -962,6 +962,10 @@ pub struct BusinessProfileCreate {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. It is suggested to use up to 4 keys. These key-value pairs are sent as additional custom headers in the outgoing webhook request.  
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1054,6 +1058,10 @@ pub struct BusinessProfileResponse {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1138,6 +1146,10 @@ pub struct BusinessProfileUpdate {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. It is suggested to use up to 4 keys. These key-value pairs are sent as additional custom headers in the outgoing webhook request.
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BusinessCollectLinkConfig {

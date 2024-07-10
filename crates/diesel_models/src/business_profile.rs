@@ -42,6 +42,7 @@ pub struct BusinessProfile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -75,6 +76,7 @@ pub struct BusinessProfileNew {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -105,6 +107,7 @@ pub struct BusinessProfileUpdateInternal {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -133,6 +136,7 @@ pub enum BusinessProfileUpdate {
         collect_shipping_details_from_wallet_connector: Option<bool>,
         collect_billing_details_from_wallet_connector: Option<bool>,
         is_connector_agnostic_mit_enabled: Option<bool>,
+        custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -169,6 +173,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
+                custom_outgoing_webhook_http_headers,
             } => Self {
                 profile_name,
                 modified_at,
@@ -193,6 +198,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
+                custom_outgoing_webhook_http_headers,
                 ..Default::default()
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
@@ -243,6 +249,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
                 .collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector: new
                 .collect_billing_details_from_wallet_connector,
+            custom_outgoing_webhook_http_headers: new.custom_outgoing_webhook_http_headers,
         }
     }
 }
@@ -274,6 +281,7 @@ impl BusinessProfileUpdate {
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
+            custom_outgoing_webhook_http_headers,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -302,6 +310,7 @@ impl BusinessProfileUpdate {
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
+            custom_outgoing_webhook_http_headers,
             ..source
         }
     }

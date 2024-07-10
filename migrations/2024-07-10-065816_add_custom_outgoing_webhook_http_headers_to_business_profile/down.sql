@@ -1,0 +1,1 @@
+ALTER TABLE business_profile DROP COLUMN IF EXISTS custom_outgoing_webhook_http_headers;
