@@ -131,12 +131,6 @@ pub struct PaymentMethodMigrate {
     #[cfg(feature = "payouts")]
     pub wallet: Option<payouts::Wallet>,
 
-    /// For Client based calls, SDK will use the client_secret
-    /// in order to call /payment_methods
-    /// Client secret will be generated whenever a new
-    /// payment method is created
-    pub client_secret: Option<String>,
-
     /// Payment method data to be passed in case of client
     /// based flow
     pub payment_method_data: Option<PaymentMethodCreateData>,
@@ -192,7 +186,7 @@ impl PaymentMethodCreate {
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
             connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
-            client_secret: payment_method_migrate.client_secret.clone(),
+            client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
