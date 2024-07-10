@@ -976,8 +976,8 @@ brand_id="Brand ID"
 destination_account_number="Destination Account Number"
 
 [razorpay]
-[razorpay.upi]
-  payment_method_type = "upiCollect"
+[[razorpay.upi]]
+  payment_method_type = "upi_collect"
 [razorpay.connector_auth.BodyKey]
 api_key="Razorpay Id"
 key1 = "Razorpay Secret"
