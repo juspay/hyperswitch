@@ -292,6 +292,16 @@ pub async fn migrate_payment_method(
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
+    if let Some(connector_mandate_details) = &req.connector_mandate_details {
+        helpers::validate_merchant_connector_ids_in_connector_mandate_details(
+            &*state.store,
+            &key_store,
+            connector_mandate_details,
+            merchant_id,
+        )
+        .await?;
+    };
+
     match card_number_validation_result {
         Ok(card_number) => {
             let payment_method_create_request =
@@ -331,13 +341,15 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    let connector_mandate_details = req
+    // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
+    let connector_mandate_details_req = req
         .connector_mandate_details
         .clone()
-        .map(serde_json::to_value)
-        .transpose()
+        .get_required_value("connector mandate details")?;
+
+    let connector_mandate_details = serde_json::to_value(&connector_mandate_details_req)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse the connector mandate details")?;
+        .attach_printable("Failed to parse connector mandate details")?;
 
     let payment_method_billing_address = create_encrypted_data(key_store, req.billing.clone())
         .await
@@ -482,11 +494,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
-    let client_secret = generate_id(
-        consts::ID_LENGTH,
-        format!("{payment_method_id}_secret").as_str(),
-    );
-
     let current_time = common_utils::date_time::now();
 
     let response = db
@@ -502,9 +509,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 scheme: req.card_network.clone(),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted,
-                connector_mandate_details,
+                connector_mandate_details: Some(connector_mandate_details),
                 customer_acceptance: None,
-                client_secret: Some(client_secret),
+                client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
                 network_transaction_id: None,
                 payment_method_issuer_code: None,
