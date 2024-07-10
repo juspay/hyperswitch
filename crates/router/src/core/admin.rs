@@ -2113,6 +2113,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             rapyd::transformers::RapydAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Razorpay => {
+            razorpay::transformers::RazorpayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Shift4 => {
             shift4::transformers::Shift4AuthType::try_from(val)?;
             Ok(())
