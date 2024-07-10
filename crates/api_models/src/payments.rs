@@ -626,7 +626,7 @@ mod payments_request_test {
     }
 
     #[test]
-    fn test_ivalid_case_where_customer_id_is_passed_in_both_places() {
+    fn test_invalid_case_where_customer_id_is_passed_in_both_places() {
         let customer_id = generate_customer_id_of_default_length();
         let another_customer_id = generate_customer_id_of_default_length();
 
