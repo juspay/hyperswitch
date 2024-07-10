@@ -12,6 +12,7 @@ dummy_connector = []
 payouts = []
 
 [dependencies]
+actix-web = "4.5.1"
 async-trait = "0.1.79"
 bytes = "1.6.0"
 dyn-clone = "1.0.17"
@@ -26,7 +27,6 @@ thiserror = "1.0.58"
 time = "0.3.35"
 
 # First party crates
-actix-web = "4.5.1"
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
