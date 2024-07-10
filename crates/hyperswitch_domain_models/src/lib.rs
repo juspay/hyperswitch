@@ -1,5 +1,6 @@
 pub mod errors;
 pub mod mandates;
+pub mod merchant_account;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payments;
