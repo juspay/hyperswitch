@@ -73,7 +73,7 @@ pub enum MerchantAccountUpdate {
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
     },
-    FingerprintHashUpdate{
+    FingerprintHashUpdate {
         fingerprint_hash_key: OptionalEncryptableSecretString,
     },
     StorageSchemeUpdate {
@@ -141,7 +141,9 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(now),
                 ..Default::default()
             },
-            MerchantAccountUpdate::FingerprintHashUpdate {fingerprint_hash_key} => Self { 
+            MerchantAccountUpdate::FingerprintHashUpdate {
+                fingerprint_hash_key,
+            } => Self {
                 fingerprint_hash_key: fingerprint_hash_key.map(Encryption::from),
                 modified_at: Some(now),
                 ..Default::default()
