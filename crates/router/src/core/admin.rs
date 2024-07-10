@@ -2849,17 +2849,9 @@ async fn locker_recipient_create_call(
     merchant_id: &str,
     data: &types::MerchantAccountData,
 ) -> RouterResult<String> {
-    let enc_data = serde_json::to_value(data.to_owned())
-        .change_context(errors::VaultError::SavePaymentMethodFailed)
-        .attach_printable("Unable to encode merchant bank account data")
-        .map_err(|err| {
-            crate::logger::error!("Error while encoding merchant bank account data: {}", err);
-            errors::VaultError::SavePaymentMethodFailed
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt merchant bank account data")
+    let enc_data = serde_json::to_string(data)
         .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
-            Ok(hex::encode(e.to_string().as_bytes()))
+            Ok(hex::encode(e.as_bytes()))
         })?;
 
     let cust_id = id_type::CustomerId::from(merchant_id.to_string().into())
