@@ -561,10 +561,10 @@ pub(crate) fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let custom_outgoing_webhook_http_headers = business_profile
-            .custom_outgoing_webhook_http_headers
+        let outgoing_webhook_custom_http_headers = business_profile
+            .outgoing_webhook_custom_http_headers
             .clone();
-        let hashset = utils::convert_serde_json_to_hashset(custom_outgoing_webhook_http_headers)
+        let hashset = utils::convert_serde_json_to_hashset(outgoing_webhook_custom_http_headers)
             .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
             .attach_printable("failed encoding outgoing webhook headers")?;
         for (key, value) in hashset {

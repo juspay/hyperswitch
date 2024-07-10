@@ -1131,7 +1131,7 @@ pub struct BusinessProfileCreate {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.  
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1227,7 +1227,7 @@ pub struct BusinessProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1315,7 +1315,7 @@ pub struct BusinessProfileUpdate {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub custom_outgoing_webhook_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
 }
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BusinessCollectLinkConfig {

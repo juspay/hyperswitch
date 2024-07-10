@@ -702,7 +702,7 @@ pub async fn update_business_profile_cascade(
             collect_shipping_details_from_wallet_connector: None,
             collect_billing_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
-            custom_outgoing_webhook_http_headers: None,
+            outgoing_webhook_custom_http_headers: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -2007,7 +2007,7 @@ pub async fn update_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        custom_outgoing_webhook_http_headers: request.custom_outgoing_webhook_http_headers,
+        outgoing_webhook_custom_http_headers: request.outgoing_webhook_custom_http_headers,
     };
 
     let updated_business_profile = db
