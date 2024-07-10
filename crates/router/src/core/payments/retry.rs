@@ -299,6 +299,7 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
+        key_store,
         merchant_account.storage_scheme,
         router_data,
         is_step_up,
@@ -320,6 +321,7 @@ where
         api::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
+        true,
     )
     .await
 }
@@ -329,6 +331,7 @@ pub async fn modify_trackers<F, FData>(
     state: &routes::SessionState,
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
@@ -421,6 +424,13 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
+            let auth_update = if Some(router_data.auth_type)
+                != payment_data.payment_attempt.authentication_type
+            {
+                Some(router_data.auth_type)
+            } else {
+                None
+            };
 
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
@@ -436,6 +446,7 @@ where
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
                     connector_transaction_id: error_response.connector_transaction_id.clone(),
                     payment_method_data: additional_payment_method_data,
+                    authentication_type: auth_update,
                 },
                 storage_scheme,
             )
@@ -462,6 +473,7 @@ where
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
+            key_store,
             storage_scheme,
         )
         .await

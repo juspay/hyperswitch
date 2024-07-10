@@ -42,7 +42,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -54,10 +54,10 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test",
@@ -84,7 +84,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -96,7 +96,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -105,9 +105,9 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
 });

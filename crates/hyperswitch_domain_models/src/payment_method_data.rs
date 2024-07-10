@@ -1,6 +1,7 @@
 use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::Date;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -16,10 +17,17 @@ pub enum PaymentMethodData {
     Crypto(CryptoData),
     MandatePayment,
     Reward,
+    RealTimePayment(Box<RealTimePaymentData>),
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified(api_models::payments::PaymentProcessingDetails),
+    Manual,
 }
 
 impl PaymentMethodData {
@@ -34,6 +42,7 @@ impl PaymentMethodData {
             Self::BankTransfer(_) => Some(common_enums::PaymentMethod::BankTransfer),
             Self::Crypto(_) => Some(common_enums::PaymentMethod::Crypto),
             Self::Reward => Some(common_enums::PaymentMethod::Reward),
+            Self::RealTimePayment(_) => Some(common_enums::PaymentMethod::RealTimePayment),
             Self::Upi(_) => Some(common_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(common_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
@@ -105,6 +114,12 @@ pub enum WalletData {
     WeChatPayQr(Box<WeChatPayQr>),
     CashappQr(Box<CashappQr>),
     SwishQr(SwishQrData),
+    Mifinity(MifinityData),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MifinityData {
+    pub date_of_birth: Secret<Date>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -191,6 +206,17 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
+    //assurance_details of the card
+    pub assurance_details: Option<GooglePayAssuranceDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GooglePayAssuranceDetails {
+    ///indicates that Cardholder possession validation has been performed
+    pub card_holder_authenticated: bool,
+    /// indicates that identification and verifications (ID&V) was performed
+    pub account_verified: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -228,6 +254,15 @@ pub struct ApplepayPaymentMethod {
     pub display_name: String,
     pub network: String,
     pub pm_type: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub enum RealTimePaymentData {
+    DuitNow {},
+    Fps {},
+    PromptPay {},
+    VietQr {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -279,6 +314,7 @@ pub enum BankRedirectData {
     OnlineBankingThailand {
         issuer: common_enums::BankNames,
     },
+    LocalBankRedirect {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -443,6 +479,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
             api_models::payments::PaymentMethodData::Reward => Self::Reward,
+            api_models::payments::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                Self::RealTimePayment(Box::new(From::from(*real_time_payment_data)))
+            }
             api_models::payments::PaymentMethodData::Upi(upi_data) => {
                 Self::Upi(From::from(upi_data))
             }
@@ -578,6 +617,11 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::CashappQr(Box::new(CashappQr {}))
             }
             api_models::payments::WalletData::SwishQr(_) => Self::SwishQr(SwishQrData {}),
+            api_models::payments::WalletData::Mifinity(mifinity_data) => {
+                Self::Mifinity(MifinityData {
+                    date_of_birth: mifinity_data.date_of_birth,
+                })
+            }
         }
     }
 }
@@ -590,6 +634,12 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
             info: GooglePayPaymentMethodInfo {
                 card_network: value.info.card_network,
                 card_details: value.info.card_details,
+                assurance_details: value.info.assurance_details.map(|info| {
+                    GooglePayAssuranceDetails {
+                        card_holder_authenticated: info.card_holder_authenticated,
+                        account_verified: info.account_verified,
+                    }
+                }),
             },
             tokenization_data: GpayTokenizationData {
                 token_type: value.tokenization_data.token_type,
@@ -687,6 +737,9 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             }
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => {
                 Self::OnlineBankingThailand { issuer }
+            }
+            api_models::payments::BankRedirectData::LocalBankRedirect { .. } => {
+                Self::LocalBankRedirect {}
             }
         }
     }
@@ -853,6 +906,17 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
+        }
+    }
+}
+
+impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
+    fn from(value: api_models::payments::RealTimePaymentData) -> Self {
+        match value {
+            api_models::payments::RealTimePaymentData::Fps {} => Self::Fps {},
+            api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
+            api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
+            api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
         }
     }
 }

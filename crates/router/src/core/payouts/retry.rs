@@ -246,7 +246,14 @@ pub async fn do_retry(
 
     modify_trackers(state, &connector, merchant_account, payout_data).await?;
 
-    call_connector_payout(state, merchant_account, key_store, &connector, payout_data).await
+    Box::pin(call_connector_payout(
+        state,
+        merchant_account,
+        key_store,
+        &connector,
+        payout_data,
+    ))
+    .await
 }
 
 #[instrument(skip_all)]
@@ -344,8 +351,12 @@ impl GsmValidation for PayoutData {
     fn should_call_gsm(&self) -> bool {
         match self.payout_attempt.status {
             common_enums::PayoutStatus::Success
+            | common_enums::PayoutStatus::RequiresConfirmation
             | common_enums::PayoutStatus::Cancelled
             | common_enums::PayoutStatus::Pending
+            | common_enums::PayoutStatus::Initiated
+            | common_enums::PayoutStatus::Reversed
+            | common_enums::PayoutStatus::Expired
             | common_enums::PayoutStatus::Ineligible
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData

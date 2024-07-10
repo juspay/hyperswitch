@@ -44,7 +44,9 @@ pub async fn construct_mandate_revoke_router_data(
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -73,6 +75,7 @@ pub async fn construct_mandate_revoke_router_data(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)

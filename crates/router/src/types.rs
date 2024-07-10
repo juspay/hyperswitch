@@ -15,23 +15,25 @@ pub mod pm_auth;
 
 pub mod storage;
 pub mod transformers;
-
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_request_types::PayoutsData;
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_response_types::PayoutsResponseData;
+#[cfg(feature = "frm")]
+pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
+    router_data_v2::{
+        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
+        WebhookSourceVerifyData,
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
@@ -52,6 +54,12 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::{
+    router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+};
+pub use hyperswitch_interfaces::types::Response;
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
@@ -120,6 +128,8 @@ pub type PaymentsInitResponseRouterData<R> =
     ResponseRouterData<api::InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsPreprocessingResponseRouterData<R> =
+    ResponseRouterData<api::PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type TokenizationResponseRouterData<R> = ResponseRouterData<
     api::PaymentMethodToken,
     R,
@@ -534,6 +544,11 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
@@ -682,13 +697,6 @@ pub struct ConnectorsList {
     pub connectors: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Response {
-    pub headers: Option<http::HeaderMap>,
-    pub response: bytes::Bytes,
-    pub status_code: u16,
-}
-
 impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -717,8 +725,8 @@ impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl ForeignFrom<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
-    fn foreign_from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
@@ -781,6 +789,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
+            merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 }
@@ -805,7 +815,9 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
+            connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
+            minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
@@ -832,6 +844,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }
@@ -839,13 +852,13 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
 #[cfg(feature = "payouts")]
 impl<F1, F2>
     ForeignFrom<(
-        &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+        &RouterData<F1, PayoutsData, PayoutsResponseData>,
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
     fn foreign_from(
         item: (
-            &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+            &RouterData<F1, PayoutsData, PayoutsResponseData>,
             PayoutsData,
         ),
     ) -> Self {
@@ -865,7 +878,9 @@ impl<F1, F2>
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
+            connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
+            minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
@@ -891,6 +906,7 @@ impl<F1, F2>
             refund_id: None,
             dispute_id: None,
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }

@@ -9,6 +9,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
+#[cfg(feature = "payouts")]
+use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
@@ -28,8 +30,6 @@ use crate::{
     },
     utils as crate_utils,
 };
-#[cfg(feature = "payouts")]
-use crate::{types::api::payouts, utils::OptionExt};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -179,6 +179,7 @@ pub struct AdyenPaymentRequest<'a> {
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
+    merchant_order_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -294,7 +295,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
-            AdyenWebhookStatus::UnexpectedEvent => {
+            AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
                 Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
@@ -373,6 +374,7 @@ pub enum AdyenWebhookStatus {
     CancelFailed,
     Captured,
     CaptureFailed,
+    Reversed,
     UnexpectedEvent,
 }
 
@@ -1577,6 +1579,7 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 domain::PaymentMethodData::Crypto(_)
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
@@ -1667,8 +1670,10 @@ fn get_browser_info(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
+        || item.payment_method == storage_enums::PaymentMethod::Card
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
         || item.request.payment_method_type == Some(storage_enums::PaymentMethodType::GoPay)
+        || item.request.payment_method_type == Some(storage_enums::PaymentMethodType::GooglePay)
     {
         let info = item.request.get_browser_info()?;
         Ok(Some(AdyenBrowserInfo {
@@ -1725,7 +1730,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
     }
 }
 
-fn get_address_info(
+pub fn get_address_info(
     address: Option<&payments::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
@@ -2109,7 +2114,8 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::PaypalSdk(_)
             | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2405,6 +2411,7 @@ impl<'a>
             domain::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
             domain::BankRedirectData::Trustly { .. } => Ok(AdyenPaymentMethod::Trustly),
             domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::LocalBankRedirect {}
             | domain::BankRedirectData::Przelewy24 { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2518,19 +2525,17 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
-        let browser_info = get_browser_info(item.router_data)?;
+        let browser_info = None;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method_type = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+        let payment_method_type = item.router_data.request.payment_method_type;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
-                    payment_type: PaymentType::try_from(payment_method_type)?,
+                    payment_type: match payment_method_type {
+                        Some(pm_type) => PaymentType::try_from(&pm_type)?,
+                        None => PaymentType::Scheme,
+                    },
                     stored_payment_method_id: Secret::new(
                         connector_mandate_ids.get_connector_mandate_id()?,
                     ),
@@ -2566,6 +2571,7 @@ impl<'a>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::MandatePayment
                     | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::RealTimePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -2602,7 +2608,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2664,7 +2671,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2717,7 +2725,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2771,7 +2780,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2821,7 +2831,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2871,7 +2882,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2931,7 +2943,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3026,7 +3039,8 @@ impl<'a>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3101,7 +3115,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3159,7 +3174,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -4107,6 +4123,14 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    #[cfg(feature = "payouts")]
+    PayoutThirdparty,
+    #[cfg(feature = "payouts")]
+    PayoutDecline,
+    #[cfg(feature = "payouts")]
+    PayoutExpire,
+    #[cfg(feature = "payouts")]
+    PayoutReversed,
     #[serde(other)]
     Unknown,
 }
@@ -4143,6 +4167,17 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::SecondChargeback
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
+    )
+}
+
+#[cfg(feature = "payouts")]
+pub fn is_payout_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::PayoutThirdparty
+            | WebhookEventCode::PayoutDecline
+            | WebhookEventCode::PayoutExpire
+            | WebhookEventCode::PayoutReversed
     )
 }
 
@@ -4205,6 +4240,14 @@ impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
                 }
             }
             WebhookEventCode::CaptureFailed => Self::PaymentIntentCaptureFailure,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutThirdparty => Self::PayoutCreated,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutDecline => Self::PayoutFailure,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutExpire => Self::PayoutExpired,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutReversed => Self::PayoutReversed,
             WebhookEventCode::Unknown => Self::EventNotSupported,
         }
     }
@@ -4278,6 +4321,20 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CaptureFailed
                     }
                 }
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutThirdparty => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
+                    } else {
+                        AdyenWebhookStatus::AuthorisationFailed
+                    }
+                }
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutDecline => AdyenWebhookStatus::Cancelled,
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutExpire => AdyenWebhookStatus::AuthorisationFailed,
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutReversed => AdyenWebhookStatus::Reversed,
                 WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
@@ -4557,7 +4614,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             },
             merchant_account: auth_type.merchant_account,
             payment_method: payout_method_data,
-            reference: item.router_data.request.payout_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             shopper_reference: item.router_data.merchant_id.clone(),
         })
     }
@@ -4644,7 +4701,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     },
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
-                    reference: item.router_data.request.payout_id.to_owned(),
+                    reference: item.router_data.connector_request_reference_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
@@ -4714,7 +4771,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
     type Error = Error;
     fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let payout_type = item.router_data.request.payout_type.to_owned();
+        let payout_type = item.router_data.request.get_payout_type()?;
         let merchant_account = auth_type.merchant_account;
         match payout_type {
             storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
@@ -4741,7 +4798,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                     billing_address: get_address_info(item.router_data.get_billing().ok())
                         .transpose()?,
                     merchant_account,
-                    reference: item.router_data.request.payout_id.clone(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_name: ShopperName {
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
                         last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
@@ -4788,7 +4845,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status,
-                connector_payout_id: response.psp_reference,
+                connector_payout_id: Some(response.psp_reference),
                 payout_eligible,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -4801,7 +4858,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 impl From<AdyenStatus> for storage_enums::PayoutStatus {
     fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
-            AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
+            AdyenStatus::Authorised => Self::Success,
+            AdyenStatus::PayoutConfirmReceived => Self::Initiated,
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,
             AdyenStatus::Error => Self::Failed,
             AdyenStatus::Pending => Self::Pending,

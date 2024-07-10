@@ -1,5 +1,4 @@
-const successfulTestCard = "4242424242424242";
-const successful3DSCard = "4000002760003184";
+import { getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -10,18 +9,54 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4000002760003184",
+  card_number: "4000002500003155",
   card_exp_month: "10",
   card_exp_year: "25",
   card_holder_name: "morino",
   card_cvc: "737",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -35,7 +70,9 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -49,7 +86,9 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -63,7 +102,9 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -77,7 +118,9 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -91,7 +134,9 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -128,7 +173,9 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -141,7 +188,9 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -154,7 +203,9 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         customer_acceptance: null,
       },
@@ -167,14 +218,11 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -185,14 +233,11 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -203,14 +248,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -221,14 +263,11 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -239,14 +278,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -257,14 +293,11 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -275,14 +308,11 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -293,14 +323,11 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSManualCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -311,14 +338,11 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -329,7 +353,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -350,7 +376,9 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
-        card: successfulNo3DSCardDetails,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: {
@@ -366,6 +394,297 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "Giropay is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/giropay",
+        },
+      },
+    },
+    sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "bank_austria",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    blik: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              blik_code: "777987",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_intent_invalid_parameter",
+        },
+      },
+    },
+    przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },

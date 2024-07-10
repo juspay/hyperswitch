@@ -9,6 +9,8 @@ pub struct ConnectorAuthentication {
     #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
+    pub adyenplatform: Option<HeaderKey>,
+    #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
     #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
@@ -17,6 +19,7 @@ pub struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
+    pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
@@ -27,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub datatrans: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
@@ -58,6 +62,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
+    pub razorpay: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
@@ -74,6 +79,7 @@ pub struct ConnectorAuthentication {
     pub zen: Option<HeaderKey>,
     pub zsl: Option<BodyKey>,
     pub automation_configs: Option<AutomationConfigs>,
+    pub users: Option<UsersConfigs>,
 }
 
 impl Default for ConnectorAuthentication {
@@ -336,4 +342,13 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsersConfigs {
+    pub user_email: String,
+    pub user_password: String,
+    pub wrong_password: String,
+    pub user_base_email_for_signup: String,
+    pub user_domain_for_signup: String,
 }

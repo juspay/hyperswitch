@@ -15,26 +15,43 @@ This solution has such advantages over alternatives:
 
 ## How to use
 
-To convert non-secret variable into secret use `new()`. Sample:
+To convert a non-secret variable into a secret, use `Secret::new()`:
 
 ```rust
-expiry_year: ccard.map(|x| Secret::new(x.card_exp_year.to_string())),
-// output: "expiry_year: *** alloc::string::String ***"
+use masking::Secret;
+
+let card_number: Secret<String> = Secret::new(String::from("1234 5678 9012 3456"));
+assert_eq!(format!("{:?}", card_number), "*** alloc::string::String ***");
 ```
 
-To get value from secret use `expose()`. Sample:
+To get a reference to the inner value from the secret, use `peek()`:
 
 ```rust
-last4_digits: Some(card_number.expose())
+use masking::{PeekInterface, Secret};
+
+let card_number: Secret<String> = Secret::new(String::from("1234 5678 9012 3456"));
+let last4_digits: &str = card_number.peek();
 ```
 
-Most fields are under `Option`. To simplify dealing with `Option`, use `expose_option()`. Sample:
+To get the owned inner value from the secret, use `expose()`:
 
 ```rust
-    card_info.push_str(
-        &card_detail
-            .card_holder_name
-            .expose_option()
-            .unwrap_or_default(),
-    );
+use masking::{ExposeInterface, Secret};
+
+let card_number: Secret<String> = Secret::new(String::from("1234 5678 9012 3456"));
+let last4_digits: String = card_number.expose();
+```
+
+For fields that are `Option<T>`, you can use `expose_option()`:
+
+```rust
+use masking::{ExposeOptionInterface, Secret};
+
+let card_number: Option<Secret<String>> = Some(Secret::new(String::from("1234 5678 9012 3456")));
+let card_number_str: String = card_number.expose_option().unwrap_or_default();
+assert_eq!(format!("{}", card_number_str), "1234 5678 9012 3456");
+
+let card_number: Option<Secret<String>> = None;
+let card_number_str: String = card_number.expose_option().unwrap_or_default();
+assert_eq!(format!("{}", card_number_str), "");
 ```

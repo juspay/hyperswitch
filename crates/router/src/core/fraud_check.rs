@@ -320,7 +320,7 @@ where
         .or_else(||
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.payment_intent.metadata.clone().and_then(|meta| {
-                let order_details = meta.peek().get("order_details").to_owned();
+                let order_details = meta.get("order_details").to_owned();
                 order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
@@ -417,6 +417,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -491,6 +492,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -514,7 +516,7 @@ where
                         merchant_account,
                         frm_configs,
                         &mut frm_suggestion,
-                        key_store,
+                        key_store.clone(),
                         payment_data,
                         customer,
                         should_continue_capture,
@@ -525,6 +527,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         &*state.store,
+                        &key_store,
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -653,6 +656,7 @@ pub async fn frm_fulfillment_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id.clone(),
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -719,8 +723,7 @@ pub async fn make_fulfillment_api_call(
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
     let connector_data = FraudCheckConnectorData::get_connector_by_name(&fraud_check.frm_name)?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,

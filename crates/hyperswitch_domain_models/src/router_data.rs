@@ -1,9 +1,9 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::id_type;
+use common_utils::{errors::IntegrityCheckError, id_type, types::MinorUnit};
 use masking::Secret;
 
-use crate::payment_address::PaymentAddress;
+use crate::{payment_address::PaymentAddress, payment_method_data};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -22,6 +22,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
@@ -56,7 +57,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_http_status_code: Option<u16>,
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<common_enums::enums::ApplePayFlow>,
+    pub apple_pay_flow: Option<payment_method_data::ApplePayFlow>,
 
     pub frm_metadata: Option<common_utils::pii::SecretSerdeValue>,
 
@@ -66,6 +67,11 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+
+    // minor amount for amount framework
+    pub minor_amount_captured: Option<MinorUnit>,
+
+    pub integrity_check: Result<(), IntegrityCheckError>,
 }
 
 // Different patterns of authentication.
@@ -169,6 +175,14 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
     },
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkResponse>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaSdkResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

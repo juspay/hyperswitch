@@ -17,10 +17,13 @@ use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(feature = "payouts")]
+use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(feature = "olap")]
@@ -29,8 +32,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*, webhook_events::*,
+    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -54,7 +57,7 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
@@ -72,6 +75,8 @@ pub struct ReqState {
 #[derive(Clone)]
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -79,10 +84,10 @@ pub struct SessionState {
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
-    pub tenant: String,
+    pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
 }
@@ -129,6 +134,7 @@ impl SessionStateInfo for SessionState {
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -140,8 +146,8 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -218,7 +224,11 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+        let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
+            conf,
+            &*secret_management_client,
+        ))
+        .await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -252,6 +262,16 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                &conf.multitenancy.global_tenant,
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await
+            .get_global_storage_interface();
             for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
                 let store: Box<dyn StorageInterface> = Self::get_store_interface(
                     &storage_impl,
@@ -261,12 +281,11 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await;
+                .await
+                .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
-                        .await;
+                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant_name.clone(), pool);
             }
@@ -279,6 +298,7 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
@@ -300,10 +320,10 @@ impl AppState {
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
-        tenant: &settings::Tenant,
+        tenant: &dyn TenantConfig,
         cache_store: Arc<RedisStore>,
         testable: bool,
-    ) -> Box<dyn StorageInterface> {
+    ) -> Box<dyn CommonStorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
@@ -356,8 +376,10 @@ impl AppState {
     where
         F: FnOnce() -> E + Copy,
     {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler: self.event_handler.clone(),
@@ -365,15 +387,8 @@ impl AppState {
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id,
-            base_url: self
-                .conf
-                .multitenancy
-                .get_tenant(tenant)
-                .ok_or_else(err)?
-                .clone()
-                .base_url
-                .clone(),
-            tenant: tenant.to_string().clone(),
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
@@ -449,6 +464,10 @@ impl Payments {
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(
+                    web::resource("/{payment_id}/manual-update")
+                        .route(web::put().to(payments_manual_update)),
+                )
         }
         #[cfg(feature = "oltp")]
         {
@@ -836,7 +855,11 @@ impl Refunds {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
-                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/{id}/manual-update")
+                        .route(web::put().to(refunds_manual_update)),
+                );
         }
         #[cfg(feature = "oltp")]
         {
@@ -880,6 +903,7 @@ impl Payouts {
                     .route(web::get().to(payouts_retrieve))
                     .route(web::put().to(payouts_update)),
             )
+            .service(web::resource("/{payout_id}/confirm").route(web::post().to(payouts_confirm)))
             .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
             .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
         route
@@ -906,6 +930,13 @@ impl PaymentMethods {
                     web::resource("")
                         .route(web::post().to(create_payment_method_api))
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
+                )
+                .service(
+                    web::resource("/collect/{merchant_id}/{collect_id}")
+                        .route(web::get().to(render_pm_collect_link)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")
@@ -1117,6 +1148,19 @@ impl Configs {
     }
 }
 
+pub struct ApplePayCertificatesMigration;
+
+#[cfg(feature = "olap")]
+impl ApplePayCertificatesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/apple_pay_certificates_migration")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
+    }
+}
+
 pub struct Poll;
 
 #[cfg(feature = "oltp")]
@@ -1226,6 +1270,20 @@ impl PaymentLink {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub struct PayoutLink;
+
+#[cfg(feature = "payouts")]
+impl PayoutLink {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
+        );
+        route
+    }
+}
+
 pub struct BusinessProfile;
 
 #[cfg(feature = "olap")]
@@ -1301,6 +1359,8 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            // signin/signup with sso using openidconnect
+            .service(web::resource("/oidc").route(web::post().to(sso_sign)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1353,6 +1413,20 @@ impl User {
                 .service(
                     web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
                 ),
+        );
+
+        route = route.service(
+            web::scope("/auth")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_user_authentication_method))
+                        .route(web::put().to(update_user_authentication_method)),
+                )
+                .service(
+                    web::resource("/list").route(web::get().to(list_user_authentication_methods)),
+                )
+                .service(web::resource("/url").route(web::get().to(get_sso_auth_url)))
+                .service(web::resource("/select").route(web::post().to(terminate_auth_select))),
         );
 
         #[cfg(feature = "email")]

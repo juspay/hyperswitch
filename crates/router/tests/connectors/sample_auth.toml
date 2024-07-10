@@ -230,3 +230,19 @@ api_key="API Key"
 
 [gpayments]
 api_key="API Key"
+
+[adyenplatform]
+api_key="API Key"
+
+[datatrans]
+api_key="API Key"
+
+
+[bamboraapac]
+api_key="API Key"
+
+[razorpay]
+api_key="API Key"
+key1 = "Merchant id"
+api_secret = "Razorpay Id"
+key2 = "Razorpay Secret"
