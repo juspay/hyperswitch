@@ -244,7 +244,7 @@ impl UserInterface for MockDb {
                         ..user.to_owned()
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: password.clone().unwrap_or(user.password.clone()),
+                        password: Some(password.clone()),
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
@@ -299,7 +299,7 @@ impl UserInterface for MockDb {
                         ..user.to_owned()
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: password.clone().unwrap_or(user.password.clone()),
+                        password: Some(password.clone()),
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },

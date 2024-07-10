@@ -67,6 +67,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             connector_meta_data: None,
             connector_wallets_details: None,
             amount_captured: None,
+            minor_amount_captured: None,
             request: FraudCheckRecordReturnData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded
@@ -101,6 +102,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
@@ -134,8 +136,7 @@ pub async fn decide_frm_flow<'a, 'b>(
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmRecordReturnRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,
         FraudCheckRecordReturnData,
         FraudCheckResponseData,

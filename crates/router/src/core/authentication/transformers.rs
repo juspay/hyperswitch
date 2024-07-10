@@ -155,6 +155,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -180,6 +181,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         refund_id: None,
         payment_method_status: None,
         connector_response: None,
+        integrity_check: Ok(()),
     })
 }
 

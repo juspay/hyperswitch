@@ -166,10 +166,12 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
+        minor_amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
-            amount: payouts.amount,
+            amount: payouts.amount.get_amount_as_i64(),
+            minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
@@ -207,6 +209,7 @@ pub async fn construct_payout_router_data<'a, F>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -322,6 +325,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
+        minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             connector_transaction_id: refund.connector_transaction_id.clone(),
@@ -336,6 +340,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_refund_id: refund.connector_refund_id.clone(),
             browser_info,
             charges,
+            integrity_object: None,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -349,11 +354,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: get_connector_request_reference_id(
-            &state.conf,
-            &merchant_account.merchant_id,
-            payment_attempt,
-        ),
+        connector_request_reference_id: refund.refund_id.clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -368,6 +369,7 @@ pub async fn construct_refund_router_data<'a, F>(
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -571,6 +573,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
@@ -604,6 +607,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -668,6 +672,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         request: submit_evidence_request_data,
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -698,6 +703,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -763,6 +769,7 @@ pub async fn construct_upload_file_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::UploadFileRequestData {
             file_key,
@@ -798,6 +805,7 @@ pub async fn construct_upload_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -862,6 +870,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::DefendDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
@@ -895,6 +904,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -950,6 +960,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
+        minor_amount_captured: None,
         payment_method_status: None,
         request: types::RetrieveFileRequestData {
             provider_file_id: file_metadata
@@ -981,6 +992,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

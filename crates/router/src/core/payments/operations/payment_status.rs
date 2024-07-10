@@ -90,6 +90,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,
@@ -102,6 +103,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
             merchant_key_store,
             customer,
             storage_scheme,
+            business_profile,
         )
         .await
     }
@@ -133,6 +135,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -219,7 +222,7 @@ async fn get_tracker_for_sync<
 >(
     payment_id: &api::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
-    mechant_key_store: &domain::MerchantKeyStore,
+    key_store: &domain::MerchantKeyStore,
     db: &dyn StorageInterface,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
@@ -231,6 +234,7 @@ async fn get_tracker_for_sync<
         db,
         payment_id,
         &merchant_account.merchant_id,
+        key_store,
         storage_scheme,
     )
     .await?;
@@ -245,7 +249,7 @@ async fn get_tracker_for_sync<
     let shipping_address = helpers::get_address_by_id(
         db,
         payment_intent.shipping_address_id.clone(),
-        mechant_key_store,
+        key_store,
         &payment_intent.payment_id.clone(),
         &merchant_account.merchant_id,
         merchant_account.storage_scheme,
@@ -254,7 +258,7 @@ async fn get_tracker_for_sync<
     let billing_address = helpers::get_address_by_id(
         db,
         payment_intent.billing_address_id.clone(),
-        mechant_key_store,
+        key_store,
         &payment_intent.payment_id.clone(),
         &merchant_account.merchant_id,
         merchant_account.storage_scheme,
@@ -264,7 +268,7 @@ async fn get_tracker_for_sync<
     let payment_method_billing = helpers::get_address_by_id(
         db,
         payment_attempt.payment_method_billing_address_id.clone(),
-        mechant_key_store,
+        key_store,
         &payment_intent.payment_id.clone(),
         &merchant_account.merchant_id,
         merchant_account.storage_scheme,
@@ -514,11 +518,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
     }
 }
 
-#[inline]
 pub async fn get_payment_intent_payment_attempt(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     merchant_id: &str,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let get_pi_pa = || async {
@@ -526,7 +530,12 @@ pub async fn get_payment_intent_payment_attempt(
         match payment_id {
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
                 pi = db
-                    .find_payment_intent_by_payment_id_merchant_id(id, merchant_id, storage_scheme)
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        id,
+                        merchant_id,
+                        key_store,
+                        storage_scheme,
+                    )
                     .await?;
                 pa = db
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -549,6 +558,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
                         merchant_id,
+                        key_store,
                         storage_scheme,
                     )
                     .await?;
@@ -561,6 +571,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
                         merchant_id,
+                        key_store,
                         storage_scheme,
                     )
                     .await?;
@@ -578,6 +589,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
                         merchant_id,
+                        key_store,
                         storage_scheme,
                     )
                     .await?;

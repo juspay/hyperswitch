@@ -76,6 +76,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
             amount: payment_attempt.amount.get_amount_as_i64(),
@@ -110,6 +111,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

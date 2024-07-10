@@ -242,8 +242,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [adyen.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -358,8 +359,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [authorizedotnet.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -461,8 +463,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [bankofamerica.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -538,8 +541,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [bluesnap.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -770,8 +774,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [checkout.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -852,8 +857,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [cybersource.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1162,6 +1168,14 @@ klarna_region=["Europe","NorthAmerica","Oceania"]
 api_key="key"
 [mifinity.metadata]
 brand_id="Brand ID"
+destination_account_number="Destination Account Number"
+
+[razorpay]
+[razorpay.upi]
+  payment_method_type = "upiCollect"
+[razorpay.connector_auth.BodyKey]
+api_key="Razorpay Id"
+key1 = "Razorpay Secret"
 
 [mollie]
 [[mollie.credit]]
@@ -1329,8 +1343,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nexinets.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1400,8 +1415,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nmi.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1467,8 +1483,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [noon.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1546,8 +1563,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [nuvei.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1867,8 +1885,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [rapyd.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2021,8 +2040,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [stripe.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2178,8 +2198,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [trustpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2345,8 +2366,9 @@ certificate="Merchant Certificate (Base64 Encoded)"
 certificate_keys="Merchant PrivateKey (Base64 Encoded)"
 merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
-initiative="Domain"
+initiative="web"
 initiative_context="Domain Name"
+payment_processing_details_at="Connector"
 [worldpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]

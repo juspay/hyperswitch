@@ -14,7 +14,7 @@ impl SeleniumTest for StripeSeleniumTest {
 async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000000000003063&expmonth=10&expyear=25&cvv=123&amount=100&country=US&currency=USD"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000000000003063&expmonth=10&expyear=25&cvv=123&amount=100&country=US&currency=USD"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -27,7 +27,7 @@ async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
 async fn should_make_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002500003155&expmonth=10&expyear=25&cvv=123&amount=10&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHEKOUT_BASE_URL}/payments"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002500003155&expmonth=10&expyear=25&cvv=123&amount=10&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHECKOUT_BASE_URL}/payments"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -46,7 +46,7 @@ async fn should_fail_recurring_payment_due_to_authentication(
 ) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002760003184&expmonth=10&expyear=25&cvv=123&amount=10&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHEKOUT_BASE_URL}/payments"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002760003184&expmonth=10&expyear=25&cvv=123&amount=10&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHECKOUT_BASE_URL}/payments"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -64,7 +64,7 @@ async fn should_make_3ds_mandate_with_zero_dollar_payment(
 ) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002500003155&expmonth=10&expyear=25&cvv=123&amount=0&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHEKOUT_BASE_URL}/payments"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000002500003155&expmonth=10&expyear=25&cvv=123&amount=0&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&return_url={CHECKOUT_BASE_URL}/payments"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -88,7 +88,7 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
         .stripe_pub_key
         .unwrap();
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=stripe&gpaycustomfields[stripe:version]=2018-10-31&gpaycustomfields[stripe:publishableKey]={pub_key}&amount=70.00&country=US&currency=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=stripe&gpaycustomfields[stripe:version]=2018-10-31&gpaycustomfields[stripe:publishableKey]={pub_key}&amount=70.00&country=US&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
@@ -104,7 +104,7 @@ async fn should_make_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverE
         .stripe_pub_key
         .unwrap();
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=stripe&gpaycustomfields[stripe:version]=2018-10-31&gpaycustomfields[stripe:publishableKey]={pub_key}&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=stripe&gpaycustomfields[stripe:version]=2018-10-31&gpaycustomfields[stripe:publishableKey]={pub_key}&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
@@ -123,13 +123,13 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/19"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/19"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
             Event::RunIf(
                 Assert::IsPresent("Let’s verify your phone"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("phone"), "8056594427")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("phone"), "9123456789")),
                     Event::Trigger(Trigger::Click(By::Id("onContinue"))),
                     Event::Trigger(Trigger::SendKeys(By::Id("otp_field"), "123456")),
                 ],
@@ -172,7 +172,7 @@ async fn should_make_afterpay_payment(c: WebDriver) -> Result<(), WebDriverError
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/22"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/22"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -193,7 +193,7 @@ async fn should_make_stripe_alipay_payment(c: WebDriver) -> Result<(), WebDriver
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/35"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/35"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "button[class='common-Button common-Button--default']",
@@ -217,7 +217,7 @@ async fn should_make_stripe_ideal_bank_redirect_payment(
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/2"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/2"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -240,7 +240,7 @@ async fn should_make_stripe_giropay_bank_redirect_payment(
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/1"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/1"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -261,7 +261,7 @@ async fn should_make_stripe_eps_bank_redirect_payment(c: WebDriver) -> Result<()
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/26"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/26"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -284,7 +284,7 @@ async fn should_make_stripe_bancontact_card_redirect_payment(
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/28"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/28"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -305,7 +305,7 @@ async fn should_make_stripe_p24_redirect_payment(c: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/31"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/31"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -326,7 +326,7 @@ async fn should_make_stripe_sofort_redirect_payment(c: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/34"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/34"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a[class='common-Button common-Button--default']",
@@ -347,7 +347,7 @@ async fn should_make_stripe_ach_bank_debit_payment(c: WebDriver) -> Result<(), W
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/56"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/56"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(
                 By::Css("input[class='p-CodePuncher-controllingInput']"),
@@ -369,7 +369,7 @@ async fn should_make_stripe_sepa_bank_debit_payment(c: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/67"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/67"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")),
@@ -385,7 +385,7 @@ async fn should_make_stripe_affirm_paylater_payment(
     let conn = StripeSeleniumTest {};
     conn.make_affirm_payment(
         driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/110"),
+        &format!("{CHECKOUT_BASE_URL}/saved/110"),
         vec![Event::Assert(Assert::IsPresent("succeeded"))],
     )
     .await?;

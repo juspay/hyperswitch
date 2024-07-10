@@ -104,6 +104,7 @@ pub struct ConfigMetadata {
     pub klarna_region: Option<Vec<KlarnaEndpoint>>,
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -182,6 +183,7 @@ pub struct ConnectorConfig {
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
     pub prophetpay: Option<ConnectorTomlConfig>,
+    pub razorpay: Option<ConnectorTomlConfig>,
     pub riskified: Option<ConnectorTomlConfig>,
     pub rapyd: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
@@ -311,6 +313,7 @@ impl ConnectorConfig {
             Connector::Placetopay => Ok(connector_data.placetopay),
             Connector::Plaid => Ok(connector_data.plaid),
             Connector::Powertranz => Ok(connector_data.powertranz),
+            Connector::Razorpay => Ok(connector_data.razorpay),
             Connector::Rapyd => Ok(connector_data.rapyd),
             Connector::Riskified => Ok(connector_data.riskified),
             Connector::Shift4 => Ok(connector_data.shift4),

@@ -1,8 +1,12 @@
 pub mod transformers;
-use std::fmt::{Debug, Write};
+use std::fmt::Write;
 
 use base64::Engine;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -40,8 +44,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Paypal;
+#[derive(Clone)]
+pub struct Paypal {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Paypal {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Paypal {}
 impl api::PaymentSession for Paypal {}
@@ -103,7 +117,7 @@ impl Paypal {
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
+                self.clone(),
                 errors_list
                     .into_iter()
                     .map(|errors| errors.into())
@@ -138,7 +152,7 @@ where
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let key = &req.attempt_id;
+        let key = &req.connector_request_reference_id;
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let mut headers = vec![
             (
@@ -274,7 +288,7 @@ impl ConnectorCommon for Paypal {
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
+                self.clone(),
                 errors_list
                     .into_iter()
                     .map(|errors| errors.into())
@@ -458,12 +472,12 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -588,12 +602,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1093,12 +1107,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount_to_capture, req))?;
         let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1260,12 +1274,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = paypal::PaypalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1451,7 +1465,6 @@ impl
                 self, req, connectors,
             )?)
             .build();
-
         Ok(Some(request))
     }
 
@@ -1532,11 +1545,11 @@ impl api::IncomingWebhook for Paypal {
             }
             paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource
-                            .dispute_transactions
+                            .disputed_transactions
                             .first()
-                            .map(|transaction| transaction.reference_id.clone())
+                            .map(|transaction| transaction.seller_transaction_id.clone())
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1553,17 +1566,17 @@ impl api::IncomingWebhook for Paypal {
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let outcome = match payload.event_type {
-            PaypalWebhookEventType::CustomerDisputeCreated
-            | PaypalWebhookEventType::CustomerDisputeResolved
-            | PaypalWebhookEventType::CustomerDisputedUpdated
-            | PaypalWebhookEventType::RiskDisputeCreated => Some(
+            PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
                     .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
                     .outcome_code,
             ),
-            PaypalWebhookEventType::PaymentAuthorizationCreated
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureCompleted
@@ -1608,27 +1621,37 @@ impl api::IncomingWebhook for Paypal {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
-        let payload: paypal::PaypalDisputeWebhooks = request
+        let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
-            .parse_struct("PaypalDisputeWebhooks")
+            .parse_struct("PaypalWebhooksBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api::disputes::DisputePayload {
-            amount: connector_utils::to_currency_lower_unit(
-                payload.dispute_amount.value,
-                payload.dispute_amount.currency_code,
-            )?,
-            currency: payload.dispute_amount.currency_code.to_string(),
-            dispute_stage: api_models::enums::DisputeStage::from(
-                payload.dispute_life_cycle_stage.clone(),
-            ),
-            connector_status: payload.status.to_string(),
-            connector_dispute_id: payload.dispute_id,
-            connector_reason: payload.reason,
-            connector_reason_code: payload.external_reason_code,
-            challenge_required_by: payload.seller_response_due_date,
-            created_at: payload.create_time,
-            updated_at: payload.update_time,
-        })
+        match webhook_payload.resource {
+            transformers::PaypalResource::PaypalCardWebhooks(_)
+            | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
+            | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
+                Err(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
+            transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                Ok(api::disputes::DisputePayload {
+                    amount: connector_utils::to_currency_lower_unit(
+                        payload.dispute_amount.value.get_amount_as_string(),
+                        payload.dispute_amount.currency_code,
+                    )?,
+                    currency: payload.dispute_amount.currency_code.to_string(),
+                    dispute_stage: api_models::enums::DisputeStage::from(
+                        payload.dispute_life_cycle_stage.clone(),
+                    ),
+                    connector_status: payload.status.to_string(),
+                    connector_dispute_id: payload.dispute_id,
+                    connector_reason: payload.reason.clone(),
+                    connector_reason_code: payload.reason,
+                    challenge_required_by: None,
+                    created_at: payload.create_time,
+                    updated_at: payload.update_time,
+                })
+            }
+        }
     }
 }
 

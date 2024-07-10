@@ -3,10 +3,12 @@ use api_models::{
     webhooks,
 };
 use common_utils::{ext_traits::Encode, request::RequestContent};
+use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -19,14 +21,17 @@ use crate::{
         metrics,
     },
     db::StorageInterface,
-    events::outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+    events::outgoing_webhook_logs::{
+        OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
+    },
     logger,
-    routes::{app::SessionStateInfo, metrics::request::add_attributes, SessionState},
+    routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
         api,
         domain::{self, types as domain_types},
         storage::{self, enums},
+        transformers::ForeignFrom,
     },
     utils::{OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
@@ -86,6 +91,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
     .attach_printable("Failed to construct outgoing webhook request content")?;
 
+    let event_metadata = storage::EventMetadata::foreign_from((&content, &primary_object_id));
+
     let new_event = domain::Event {
         event_id: event_id.clone(),
         event_type,
@@ -114,6 +121,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         ),
         response: None,
         delivery_attempt: Some(delivery_attempt),
+        metadata: Some(event_metadata),
     };
 
     let event_insert_result = state
@@ -231,7 +239,7 @@ async fn trigger_webhook_to_merchant(
                 state
                     .store
                     .as_scheduler()
-                    .finish_process_with_business_status(process_tracker, "FAILURE".into())
+                    .finish_process_with_business_status(process_tracker, business_status::FAILURE)
                     .await
                     .change_context(
                         errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
@@ -304,7 +312,7 @@ async fn trigger_webhook_to_merchant(
                         state.clone(),
                         &business_profile.merchant_id,
                         process_tracker,
-                        "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL",
+                        business_status::INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL,
                     )
                     .await?;
                 } else {
@@ -438,7 +446,9 @@ fn raise_webhooks_analytics_event(
 
     let outgoing_webhook_event_content = content
         .as_ref()
-        .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content);
+        .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
+        .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
+
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
         event.event_id,
@@ -500,7 +510,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
             crate::routes::metrics::TASKS_ADDED_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[add_attributes("flow", "OutgoingWebhookRetry")],
+                &add_attributes([("flow", "OutgoingWebhookRetry")]),
             );
             Ok(process_tracker)
         }
@@ -508,7 +518,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
             crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[add_attributes("flow", "OutgoingWebhookRetry")],
+                &add_attributes([("flow", "OutgoingWebhookRetry")]),
             );
             Err(error)
         }
@@ -769,7 +779,7 @@ async fn success_response_handler(
         Some(process_tracker) => state
             .store
             .as_scheduler()
-            .finish_process_with_business_status(process_tracker, business_status.into())
+            .finish_process_with_business_status(process_tracker, business_status)
             .await
             .change_context(
                 errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
@@ -807,4 +817,77 @@ async fn error_response_handler(
     }
 
     Err(error)
+}
+
+impl ForeignFrom<(&api::OutgoingWebhookContent, &str)> for storage::EventMetadata {
+    fn foreign_from((content, primary_object_id): (&api::OutgoingWebhookContent, &str)) -> Self {
+        match content {
+            webhooks::OutgoingWebhookContent::PaymentDetails(payments_response) => Self::Payment {
+                payment_id: payments_response
+                    .payment_id
+                    .clone()
+                    .unwrap_or_else(|| primary_object_id.to_owned()),
+            },
+            webhooks::OutgoingWebhookContent::RefundDetails(refund_response) => Self::Refund {
+                payment_id: refund_response.payment_id.clone(),
+                refund_id: refund_response.refund_id.clone(),
+            },
+            webhooks::OutgoingWebhookContent::DisputeDetails(dispute_response) => Self::Dispute {
+                payment_id: dispute_response.payment_id.clone(),
+                attempt_id: dispute_response.attempt_id.clone(),
+                dispute_id: dispute_response.dispute_id.clone(),
+            },
+            webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
+                payment_method_id: mandate_response.payment_method_id.clone(),
+                mandate_id: mandate_response.mandate_id.clone(),
+            },
+            #[cfg(feature = "payouts")]
+            webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
+                payout_id: payout_response.payout_id.clone(),
+            },
+        }
+    }
+}
+
+fn get_outgoing_webhook_event_content_from_event_metadata(
+    event_metadata: Option<storage::EventMetadata>,
+) -> Option<OutgoingWebhookEventContent> {
+    event_metadata.map(|metadata| match metadata {
+        diesel_models::EventMetadata::Payment { payment_id } => {
+            OutgoingWebhookEventContent::Payment {
+                payment_id: Some(payment_id),
+                content: serde_json::Value::Null,
+            }
+        }
+        diesel_models::EventMetadata::Payout { payout_id } => OutgoingWebhookEventContent::Payout {
+            payout_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Refund {
+            payment_id,
+            refund_id,
+        } => OutgoingWebhookEventContent::Refund {
+            payment_id,
+            refund_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Dispute {
+            payment_id,
+            attempt_id,
+            dispute_id,
+        } => OutgoingWebhookEventContent::Dispute {
+            payment_id,
+            attempt_id,
+            dispute_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Mandate {
+            payment_method_id,
+            mandate_id,
+        } => OutgoingWebhookEventContent::Mandate {
+            payment_method_id,
+            mandate_id,
+            content: serde_json::Value::Null,
+        },
+    })
 }

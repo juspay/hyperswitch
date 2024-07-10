@@ -99,6 +99,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Crypto(_)
             | domain::payments::PaymentMethodData::MandatePayment
             | domain::payments::PaymentMethodData::Reward
+            | domain::payments::PaymentMethodData::RealTimePayment(_)
             | domain::payments::PaymentMethodData::Upi(_)
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
@@ -201,7 +202,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
                 first_name: item.router_data.get_optional_billing_first_name(),
                 last_name: item.router_data.get_optional_billing_last_name(),
             },
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             settle: item.router_data.request.is_auto_capture()?,
         })
     }

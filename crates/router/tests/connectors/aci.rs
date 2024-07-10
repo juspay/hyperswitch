@@ -89,7 +89,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     ..Default::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(Secret::new("8056594427".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+351".to_string()),
                 }),
                 email: None,
@@ -99,6 +99,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_meta_data: None,
         connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -121,6 +122,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 
@@ -162,6 +164,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_meta_data: None,
         connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -184,6 +187,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 
@@ -205,14 +209,13 @@ async fn payments_create_success() {
         .unwrap();
 
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -251,14 +254,13 @@ async fn payments_create_failure() {
         let state = Arc::new(app_state)
             .get_session_state("public", || {})
             .unwrap();
-        let connector = types::api::ConnectorData {
-            connector: Box::new(&CV),
-            connector_name: types::Connector::Aci,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        };
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector = utils::construct_connector_data_old(
+            Box::new(&CV),
+            types::Connector::Aci,
+            types::api::GetToken::Connector,
+            None,
+        );
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -297,12 +299,12 @@ async fn payments_create_failure() {
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -315,8 +317,7 @@ async fn refund_for_successful_payments() {
     let state = Arc::new(app_state)
         .get_session_state("public", || {})
         .unwrap();
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -335,8 +336,7 @@ async fn refund_for_successful_payments() {
         response.status == enums::AttemptStatus::Charged,
         "The payment failed"
     );
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -369,12 +369,12 @@ async fn refund_for_successful_payments() {
 async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    let connector = utils::construct_connector_data_old(
+        Box::new(&CV),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -387,8 +387,7 @@ async fn refunds_create_failure() {
     let state = Arc::new(app_state)
         .get_session_state("public", || {})
         .unwrap();
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
