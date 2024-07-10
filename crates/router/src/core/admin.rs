@@ -157,16 +157,13 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
-    if let Some(fingerprint) = fingerprint {
-        db.insert_config(configs::ConfigNew {
-            key: format!("fingerprint_secret_{}", req.merchant_id),
-            config: fingerprint,
-        })
+    let fingerprint = format!("fs_{}", generate_cryptographically_secure_random_string(consts::FINGERPRINT_SECRET_LENGTH));
+
+    let fingerprint_hash_key = 
+        domain::types::encrypt(Secret::new(fingerprint.clone()), &key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Mot able to generate Merchant fingerprint")?;
-    };
+        .attach_printable("Unable to encrypt fingerprint hash key")?;
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
@@ -229,6 +226,7 @@ pub async fn create_merchant_account(
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
             payment_link_config: None,
             pm_collect_link_config,
+            fingerprint_hash_key: Some(fingerprint_hash_key),
         })
     }
     .await
@@ -647,6 +645,12 @@ pub async fn merchant_account_update(
         default_profile: business_profile_id_update,
         payment_link_config: None,
         pm_collect_link_config,
+        fingerprint_hash_key: req
+            .fingerprint_hash_key
+            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt fingerprint hash key")?,
     };
 
     let response = db

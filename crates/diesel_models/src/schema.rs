@@ -669,6 +669,7 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        fingerprint_hash_key -> Nullable<Bytea>,
     }
 }
 

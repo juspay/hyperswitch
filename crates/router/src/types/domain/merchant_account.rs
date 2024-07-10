@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{OptionalEncryptableName, OptionalEncryptableValue},
+    crypto::{OptionalEncryptableName, OptionalEncryptableValue, OptionalEncryptableSecretString},
     date_time,
     ext_traits::ValueExt,
     pii,
@@ -47,6 +47,7 @@ pub struct MerchantAccount {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub fingerprint_hash_key: OptionalEncryptableSecretString,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -73,6 +74,7 @@ pub enum MerchantAccountUpdate {
         default_profile: Option<Option<String>>,
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
+        fingerprint_hash_key: OptionalEncryptableSecretString,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -108,6 +110,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile,
                 payment_link_config,
                 pm_collect_link_config,
+                fingerprint_hash_key,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -130,6 +133,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile,
                 payment_link_config,
                 pm_collect_link_config,
+                fingerprint_hash_key: fingerprint_hash_key.map(Encryption::from),
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -189,6 +193,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            fingerprint_hash_key: self.fingerprint_hash_key.map(|key| key.into()),
         })
     }
 
@@ -235,6 +240,10 @@ impl super::behaviour::Conversion for MerchantAccount {
                 recon_status: item.recon_status,
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
+                fingerprint_hash_key: item
+                    .fingerprint_hash_key
+                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .await?,
             })
         }
         .await
@@ -272,6 +281,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            fingerprint_hash_key: self.fingerprint_hash_key.map(Encryption::from),
         })
     }
 }
