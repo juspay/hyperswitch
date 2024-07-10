@@ -305,7 +305,7 @@ pub async fn filter_payout_methods(
                         &payout.destination_currency,
                         &address.country,
                     )?;
-                    if currency_country_filter != Some(false) {
+                    if currency_country_filter.unwrap_or(true) {
                         match payment_method {
                             common_enums::PaymentMethod::Card => {
                                 card_hash_set
