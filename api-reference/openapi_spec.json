@@ -11250,12 +11250,12 @@
               "Iban": {
                 "type": "object",
                 "required": [
+                  "iban",
                   "name"
                 ],
                 "properties": {
                   "iban": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "string"
                   },
                   "name": {
                     "type": "string"
@@ -11281,16 +11281,16 @@
               "Bacs": {
                 "type": "object",
                 "required": [
+                  "account_number",
+                  "sort_code",
                   "name"
                 ],
                 "properties": {
                   "account_number": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "string"
                   },
                   "sort_code": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "string"
                   },
                   "name": {
                     "type": "string"
@@ -18880,8 +18880,7 @@
             ],
             "properties": {
               "ConnectorId": {
-                "type": "string",
-                "nullable": true
+                "type": "string"
               }
             }
           },
@@ -18892,8 +18891,7 @@
             ],
             "properties": {
               "LockerId": {
-                "type": "string",
-                "nullable": true
+                "type": "string"
               }
             }
           }
