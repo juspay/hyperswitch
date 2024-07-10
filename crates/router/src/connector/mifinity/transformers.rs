@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::Date;
 
 use crate::{
-    connector::utils::{self, PhoneDetailsData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
     core::errors,
     services,
     types::{self, api, domain, storage::enums},
@@ -146,11 +146,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         description: trace_id.clone(), //Connector recommend to use the traceId for a better experience in the BackOffice application later.
                         destination_account_number,
                         brand_id,
-                        return_url: item.router_data.request.router_return_url.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "router_return_url",
-                            },
-                        )?,
+                        return_url: item.router_data.request.get_router_return_url()?,
                     })
                 }
                 domain::WalletData::AliPayQr(_)
