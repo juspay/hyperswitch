@@ -7,6 +7,7 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as razorpay;
+use types::domain;
 
 use super::utils::{self as connector_utils};
 use crate::{
@@ -638,6 +639,16 @@ impl api::IncomingWebhook for Razorpay {
                 ),
             )),
         }
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_account: &domain::MerchantAccount,
+        _merchant_connector_account: domain::MerchantConnectorAccount,
+        _connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(false)
     }
 
     fn get_webhook_event_type(

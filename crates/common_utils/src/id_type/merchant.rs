@@ -1,3 +1,8 @@
+//! Contains the id type for merchant account
+//!
+//! Ids for merchant account are derived from the merchant name
+//! If there are any special characters, they are removed
+
 use std::{borrow::Cow, fmt::Debug};
 
 use diesel::{
@@ -12,31 +17,26 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     consts::{MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH},
-    errors, generate_customer_id_of_default_length,
-    id_type::LengthId,
+    errors, generate_id_with_default_len, generate_ref_id_with_default_length,
+    id_type::{AlphaNumericId, LengthId},
+    new_type::MerchantName,
 };
 
-/// A type for customer_id that can be used for customer ids
+/// A type for merchant_id that can be used for merchant ids
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub struct CustomerId(
+pub struct MerchantId(
     LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>,
 );
 
-impl Default for CustomerId {
-    fn default() -> Self {
-        generate_customer_id_of_default_length()
-    }
-}
-
-/// This is to display the `CustomerId` as CustomerId(abcd)
-impl Debug for CustomerId {
+/// This is to display the `MerchantId` as MerchantId(abcd)
+impl Debug for MerchantId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("CustomerId").field(&self.0 .0 .0).finish()
+        f.debug_tuple("MerchantId").field(&self.0 .0 .0).finish()
     }
 }
 
-impl<DB> Queryable<sql_types::Text, DB> for CustomerId
+impl<DB> Queryable<sql_types::Text, DB> for MerchantId
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -48,36 +48,46 @@ where
     }
 }
 
-impl CustomerId {
-    pub(crate) fn new(
-        merchant_ref_id: LengthId<
-            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
-            MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
-        >,
-    ) -> Self {
-        Self(merchant_ref_id)
+impl Default for MerchantId {
+    fn default() -> Self {
+        Self(generate_ref_id_with_default_length("mer"))
     }
+}
 
-    /// Get the string representation of customer id
+impl MerchantId {
+    /// Get the string representation of merchant id
     pub fn get_string_repr(&self) -> &str {
         &self.0 .0 .0
     }
 
-    /// Create a Customer id from string
+    /// Create a Merchant id from string
     pub fn from(input_string: Cow<'static, str>) -> Result<Self, errors::ValidationError> {
-        let merchant_ref_id = LengthId::from(input_string).change_context(
+        let length_id = LengthId::from(input_string).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "customer_id",
+                field_name: "merchant_id",
             },
         )?;
 
-        Ok(Self(merchant_ref_id))
+        Ok(Self(length_id))
+    }
+
+    /// Create a Merchant id from MerchantName
+    pub fn from_merchant_name(merchant_name: MerchantName) -> Self {
+        let merchant_name_string = merchant_name.into_inner();
+
+        let merchant_id_prefix = merchant_name_string.trim().to_lowercase().replace(' ', "");
+
+        let alphanumeric_id =
+            AlphaNumericId::new_unchecked(generate_id_with_default_len(&merchant_id_prefix));
+        let length_id = LengthId::new_unchecked(alphanumeric_id);
+
+        Self(length_id)
     }
 }
 
-impl masking::SerializableSecret for CustomerId {}
+impl masking::SerializableSecret for MerchantId {}
 
-impl<DB> ToSql<sql_types::Text, DB> for CustomerId
+impl<DB> ToSql<sql_types::Text, DB> for MerchantId
 where
     DB: Backend,
     LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>:
@@ -88,7 +98,7 @@ where
     }
 }
 
-impl<DB> FromSql<sql_types::Text, DB> for CustomerId
+impl<DB> FromSql<sql_types::Text, DB> for MerchantId
 where
     DB: Backend,
     LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>:
