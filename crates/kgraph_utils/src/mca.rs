@@ -147,7 +147,7 @@ fn get_dir_value_payment_method(
 }
 
 fn compile_request_pm_types(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     pm_types: RequestPaymentMethodTypes,
     pm: api_enums::PaymentMethod,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -332,7 +332,7 @@ fn compile_request_pm_types(
 }
 
 fn compile_payment_method_enabled(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     enabled: admin_api::PaymentMethodsEnabled,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let agg_id = if !enabled
@@ -400,7 +400,7 @@ macro_rules! collect_global_variants {
 }
 fn global_vec_pmt(
     enabled_pmt: Vec<dir::DirValue>,
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
 ) -> Vec<cgraph::NodeId> {
     let mut global_vector: Vec<dir::DirValue> = Vec::new();
 
@@ -437,7 +437,7 @@ fn global_vec_pmt(
 }
 
 fn compile_graph_for_countries_and_currencies(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CurrencyCountryFlowFilter,
     payment_method_type_node: cgraph::NodeId,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -503,7 +503,7 @@ fn compile_graph_for_countries_and_currencies(
 }
 
 fn compile_config_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CountryCurrencyFilter,
     connector: &api_enums::RoutableConnectors,
 ) -> Result<cgraph::NodeId, KgraphError> {
@@ -596,7 +596,7 @@ fn compile_config_graph(
 }
 
 fn compile_merchant_connector_graph(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
@@ -669,13 +669,13 @@ fn compile_merchant_connector_graph(
     Ok(())
 }
 
-pub fn make_mca_graph<'a>(
+pub fn make_mca_graph(
     accts: Vec<admin_api::MerchantConnectorResponse>,
     config: &kgraph_types::CountryCurrencyFilter,
-) -> Result<cgraph::ConstraintGraph<'a, dir::DirValue>, KgraphError> {
+) -> Result<cgraph::ConstraintGraph<dir::DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
     let _domain = builder.make_domain(
-        DOMAIN_IDENTIFIER,
+        DOMAIN_IDENTIFIER.to_string(),
         "Payment methods enabled for MerchantConnectorAccount",
     );
     for acct in accts {
@@ -701,7 +701,7 @@ mod tests {
     use super::*;
     use crate::types as kgraph_types;
 
-    fn build_test_data<'a>() -> ConstraintGraph<'a, dir::DirValue> {
+    fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
 
         let stripe_account = MerchantConnectorResponse {

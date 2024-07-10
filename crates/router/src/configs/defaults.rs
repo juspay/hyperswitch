@@ -12,6 +12,8 @@ impl Default for super::settings::Server {
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
+            #[cfg(feature = "tls")]
+            tls: None,
         }
     }
 }
@@ -69,6 +71,7 @@ impl Default for super::settings::Locker {
             locker_enabled: true,
             //Time to live for storage entries in locker
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
+            decryption_scheme: Default::default(),
         }
     }
 }
@@ -8633,6 +8636,36 @@ impl Default for super::settings::RequiredFields {
                                         common: HashMap::new(),
                                     }
                                 )
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
+                enums::PaymentMethod::Upi,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::UpiCollect,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Razorpay,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate :  HashMap::new(),
+                                        common : HashMap::from([
+                                            (
+                                                "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                    display_name: "vpa_id".to_string(),
+                                                    field_type: enums::FieldType::UserVpaId,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                    }
+                                ),
                             ]),
                         },
                     ),

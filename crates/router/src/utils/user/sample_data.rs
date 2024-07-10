@@ -225,6 +225,10 @@ pub async fn generate_sample_data(
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: Default::default(),
+            customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: Default::default(),
+            shipping_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

@@ -12,6 +12,7 @@ mod adyenplatform;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bamboraapac;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
 #[cfg(feature = "dummy_connector")]
@@ -59,6 +60,7 @@ mod powertranz;
 #[cfg(feature = "dummy_connector")]
 mod prophetpay;
 mod rapyd;
+mod razorpay;
 mod shift4;
 mod square;
 mod stax;

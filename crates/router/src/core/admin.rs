@@ -28,7 +28,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api},
+    services::{self, api as service_api, authentication},
     types::{
         self, api,
         domain::{
@@ -281,6 +281,25 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    if let Some(api_key) = merchant_account.publishable_key.as_ref() {
+        let state = state.clone();
+        let api_key = api_key.clone();
+        let merchant_id = merchant_account.merchant_id.clone();
+
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::add_publishable_key(
+                    &state,
+                    api_key.into(),
+                    merchant_id,
+                    None,
+                )
+                .await
+            },
+            authentication::decision::ADD,
+        );
+    }
+
     db.insert_config(configs::ConfigNew {
         key: format!("{}_requires_cvv", merchant_account.merchant_id),
         config: "true".to_string(),
@@ -456,6 +475,7 @@ pub async fn update_business_profile_cascade(
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
+            collect_billing_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
         };
 
@@ -649,6 +669,20 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
+
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -659,6 +693,14 @@ pub async fn merchant_account_delete(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
+
+    if let Some(api_key) = merchant_account.publishable_key {
+        let state = state.clone();
+        authentication::decision::spawn_tracked_job(
+            async move { authentication::decision::revoke_api_key(&state, api_key.into()).await },
+            authentication::decision::REVOKE,
+        )
     }
 
     match db
@@ -1519,6 +1561,11 @@ pub async fn create_business_profile(
     if let Some(session_expiry) = &request.session_expiry {
         helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
+
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1636,6 +1683,10 @@ pub async fn update_business_profile(
         helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
 
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
     let webhook_details = request
         .webhook_details
         .as_ref()
@@ -1723,6 +1774,8 @@ pub async fn update_business_profile(
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
         collect_shipping_details_from_wallet_connector: request
             .collect_shipping_details_from_wallet_connector,
+        collect_billing_details_from_wallet_connector: request
+            .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
     };
 
@@ -1898,6 +1951,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             bambora::transformers::BamboraAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Bamboraapac => {
+        //     bamboraapac::transformers::BamboraapacAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Boku => {
             boku::transformers::BokuAuthType::try_from(val)?;
             Ok(())
@@ -2054,6 +2111,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
         }
         api_enums::Connector::Rapyd => {
             rapyd::transformers::RapydAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Razorpay => {
+            razorpay::transformers::RazorpayAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Shift4 => {
