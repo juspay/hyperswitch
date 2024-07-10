@@ -1,39 +1,46 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use common_utils::new_type;
 use common_utils::{
     consts,
-    crypto::{Encryptable, OptionalEncryptableName},
-    link_utils, pii,
+    crypto::Encryptable,
+    errors::{self, CustomResult},
+    ext_traits::Encode,
+    id_type, link_utils, pii,
 };
+#[cfg(not(feature = "v2"))]
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::{
-    enums,
-    enums::{self as api_enums},
-    payment_methods,
-};
+#[cfg(not(feature = "v2"))]
+use crate::routing;
+use crate::{enums as api_enums, payment_methods};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
     pub merchant_name: Option<Secret<String>>,
 
-    /// Details about the merchant
+    /// Details about the merchant, can contain phone and emails of primary and secondary contact person
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -72,7 +79,7 @@ pub struct MerchantAccountCreate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
@@ -93,7 +100,7 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The id of the organization to which the merchant belongs to
+    /// The id of the organization to which the merchant belongs to, if not passed an organization is created
     pub organization_id: Option<String>,
 
     /// Default payment method collect link config
@@ -101,11 +108,135 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
+#[cfg(not(feature = "v2"))]
+impl MerchantAccountCreate {
+    pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
+        self.merchant_id.clone()
+    }
+
+    pub fn get_payment_response_hash_key(&self) -> Option<String> {
+        self.payment_response_hash_key.clone().or(Some(
+            common_utils::crypto::generate_cryptographically_secure_random_string(64),
+        ))
+    }
+
+    pub fn get_primary_details_as_value(
+        &self,
+    ) -> CustomResult<serde_json::Value, errors::ParsingError> {
+        self.primary_business_details
+            .clone()
+            .unwrap_or_default()
+            .encode_to_value()
+    }
+
+    pub fn get_pm_link_config_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.pm_collect_link_config
+            .as_ref()
+            .map(|pm_collect_link_config| pm_collect_link_config.encode_to_value())
+            .transpose()
+    }
+
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_webhook_details_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.webhook_details
+            .as_ref()
+            .map(|webhook_details| webhook_details.encode_to_value())
+            .transpose()
+    }
+
+    pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
+        match self.routing_algorithm {
+            Some(ref routing_algorithm) => {
+                let _: routing::RoutingAlgorithm =
+                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    // Get the enable payment response hash as a boolean, where the default value is true
+    pub fn get_enable_payment_response_hash(&self) -> bool {
+        self.enable_payment_response_hash.unwrap_or(true)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantAccountCreate {
+    /// Name of the Merchant Account, This will be used as a prefix to generate the id
+    #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]
+    pub merchant_name: Secret<new_type::MerchantName>,
+
+    /// Details about the merchant, contains phone and emails of primary and secondary contact person.
+    pub merchant_details: Option<MerchantDetails>,
+
+    /// Metadata is useful for storing additional, unstructured information about the merchant account.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<MerchantAccountMetadata>,
+
+    /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
+    pub organization_id: String,
+}
+
+#[cfg(feature = "v2")]
+impl MerchantAccountCreate {
+    pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
+        id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
+    }
+
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_primary_details_as_value(
+        &self,
+    ) -> CustomResult<serde_json::Value, errors::ParsingError> {
+        Vec::<PrimaryBusinessDetails>::new().encode_to_value()
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
-    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    pub authentication_connectors: Vec<api_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
@@ -199,10 +330,11 @@ pub struct MerchantAccountUpdate {
     pub fingerprint_hash_key: Option<Secret<String>>,
 }
 
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
 
     /// Name of the Merchant Account
@@ -255,7 +387,7 @@ pub struct MerchantAccountResponse {
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -283,11 +415,45 @@ pub struct MerchantAccountResponse {
 
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
-    pub recon_status: enums::ReconStatus,
+    pub recon_status: api_enums::ReconStatus,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct MerchantAccountResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: String,
+
+    /// Name of the Merchant Account
+    #[schema(value_type = String,example = "NewAge Retailer")]
+    pub merchant_name: Secret<String>,
+
+    /// Details about the merchant
+    #[schema(value_type = Option<MerchantDetails>)]
+    pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
+
+    /// API key that will be used for server side API access
+    #[schema(example = "AH3423bkjbkjdsfbkj")]
+    pub publishable_key: String,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The id of the organization which the merchant is associated with
+    pub organization_id: String,
+
+    ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
+    pub is_recon_enabled: bool,
+
+    /// Used to indicate the status of the recon module for a merchant account
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: api_enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

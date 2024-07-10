@@ -1,4 +1,4 @@
-import { connectorDetails as commonConnectorDetails } from "./Common.js";
+import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 
 const connectorDetails = {
   common: commonConnectorDetails,

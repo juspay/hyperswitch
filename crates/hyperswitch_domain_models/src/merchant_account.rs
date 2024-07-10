@@ -1,6 +1,7 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue, OptionalEncryptableSecretString},
     date_time,
+    errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
     pii,
 };
@@ -8,14 +9,12 @@ use diesel_models::{
     encryption::Encryption, enums::MerchantStorageScheme,
     merchant_account::MerchantAccountUpdateInternal,
 };
+
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
-use crate::{
-    errors::{CustomResult, ValidationError},
-    types::domain::types::{self, AsyncLift},
-};
+use crate::type_encryption::{decrypt, AsyncLift};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
@@ -30,7 +29,7 @@ pub struct MerchantAccount {
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
-    pub publishable_key: Option<String>,
+    pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -46,7 +45,7 @@ pub struct MerchantAccount {
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub pm_collect_link_config: Option<serde_json::Value>,
+    pub pm_collect_link_config: Option<serde_json::Value>,        
     pub fingerprint_hash_key: OptionalEncryptableSecretString,
 }
 
@@ -88,6 +87,8 @@ pub enum MerchantAccountUpdate {
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
+        let now = date_time::now();
+
         match merchant_account_update {
             MerchantAccountUpdate::Update {
                 merchant_name,
@@ -127,7 +128,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
-                modified_at: Some(date_time::now()),
+                modified_at: Some(now),
                 intent_fulfillment_time,
                 payout_routing_algorithm,
                 default_profile,
@@ -138,15 +139,17 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
-                modified_at: Some(date_time::now()),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
+                modified_at: Some(now),
                 ..Default::default()
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
@@ -176,7 +179,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             webhook_details: self.webhook_details,
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
-            publishable_key: self.publishable_key,
+            publishable_key: Some(self.publishable_key),
             storage_scheme: self.storage_scheme,
             locker_id: self.locker_id,
             metadata: self.metadata,
@@ -204,6 +207,12 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
+        let publishable_key =
+            item.publishable_key
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "publishable_key".to_string(),
+                })?;
+
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -214,16 +223,16 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| decrypt(inner, key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| decrypt(inner, key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
-                publishable_key: item.publishable_key,
+                publishable_key,
                 storage_scheme: item.storage_scheme,
                 locker_id: item.locker_id,
                 metadata: item.metadata,
@@ -242,7 +251,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 pm_collect_link_config: item.pm_collect_link_config,
                 fingerprint_hash_key: item
                     .fingerprint_hash_key
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| decrypt(inner, key.peek()))
                     .await?,
             })
         }
@@ -265,7 +274,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             enable_payment_response_hash: Some(self.enable_payment_response_hash),
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: Some(self.redirect_to_merchant_with_http_post),
-            publishable_key: self.publishable_key,
+            publishable_key: Some(self.publishable_key),
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
