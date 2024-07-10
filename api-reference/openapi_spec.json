@@ -7734,6 +7734,7 @@
           "airwallex",
           "authorizedotnet",
           "bambora",
+          "bamboraapac",
           "bankofamerica",
           "billwerk",
           "bitpay",
@@ -7773,6 +7774,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "shift4",
           "square",
           "stax",
@@ -9767,6 +9769,12 @@
             "enum": [
               "user_date_of_birth"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_vpa_id"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11108,7 +11116,8 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "merchant_name": {
             "type": "string",
@@ -11182,7 +11191,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object",
             "nullable": true
           },
           "publishable_key": {
@@ -11212,7 +11221,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The id of the organization to which the merchant belongs to",
+            "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
             "nullable": true
           },
           "pm_collect_link_config": {
@@ -11262,7 +11271,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -11342,7 +11351,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "locker_id": {
@@ -19444,6 +19453,7 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "bamboraapac",
           "bluesnap",
           "boku",
           "braintree",
@@ -19478,6 +19488,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "riskified",
           "shift4",
           "signifyd",
