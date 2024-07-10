@@ -453,23 +453,22 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = match req.request.minor_amount {
-            Some(amount) => amount,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?,
-        };
-        let currency = match req.request.currency {
-            Some(currency) => currency,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?,
-        };
-        let amount = connector_utils::convert_amount(self.amount_converter, amount, currency)?;
+        match req.request.minor_amount {
+            Some(amount) => {
+                let currency = req.request.currency.unwrap_or_default();
+                let amount =
+                    connector_utils::convert_amount(self.amount_converter, amount, currency)?;
 
-        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
-        let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+                let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+                let connector_req =
+                    requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
+            None => {
+                let connector_req = requests::GlobalpayCancelRequest::try_from(req)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
+        }
     }
 
     fn handle_response(
