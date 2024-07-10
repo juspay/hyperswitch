@@ -91,7 +91,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         runner:
           - ubuntu-latest
@@ -216,7 +216,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         runner:
           - ubuntu-latest

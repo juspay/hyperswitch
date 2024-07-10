@@ -11,6 +11,8 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::ErrorResponse;
+use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use masking::PeekInterface;
 use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
@@ -234,6 +236,7 @@ pub async fn trigger_refund_to_gateway(
                             ),
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
+                            connector_refund_id: None,
                         })
                     }
                     errors::ConnectorError::NotSupported { message, connector } => {
@@ -244,6 +247,7 @@ pub async fn trigger_refund_to_gateway(
                             )),
                             refund_error_code: Some("NOT_SUPPORTED".to_string()),
                             updated_by: storage_scheme.to_string(),
+                            connector_refund_id: None,
                         })
                     }
                     _ => None,
@@ -266,7 +270,14 @@ pub async fn trigger_refund_to_gateway(
                     )
                 })?;
         }
-        router_data_res.to_refund_failed_response()?
+        let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
+        // Initiating Integrity check
+        let integrity_result = check_refund_integrity(
+            &refund_router_data_res.request,
+            &refund_router_data_res.response,
+        );
+        refund_router_data_res.integrity_check = integrity_result;
+        refund_router_data_res
     } else {
         router_data
     };
@@ -277,22 +288,49 @@ pub async fn trigger_refund_to_gateway(
             refund_error_message: err.reason.or(Some(err.message)),
             refund_error_code: Some(err.code),
             updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
         },
         Ok(response) => {
-            if response.refund_status == diesel_models::enums::RefundStatus::Success {
-                metrics::SUCCESSFUL_REFUND.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &add_attributes([("connector", connector.connector_name.to_string())]),
-                )
-            }
-            storage::RefundUpdate::Update {
-                connector_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: None,
-                refund_arn: "".to_string(),
-                updated_by: storage_scheme.to_string(),
+            // match on connector integrity checks
+            match router_data_res.integrity_check.clone() {
+                Err(err) => {
+                    let refund_connector_transaction_id = err.connector_transaction_id;
+                    metrics::INTEGRITY_CHECK_FAILED.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &add_attributes([
+                            ("connector", connector.connector_name.to_string()),
+                            ("merchant_id", merchant_account.merchant_id.clone()),
+                        ]),
+                    );
+                    storage::RefundUpdate::ErrorUpdate {
+                        refund_status: Some(enums::RefundStatus::ManualReview),
+                        refund_error_message: Some(format!(
+                            "Integrity Check Failed! as data mismatched for fields {}",
+                            err.field_names
+                        )),
+                        refund_error_code: Some("IE".to_string()),
+                        updated_by: storage_scheme.to_string(),
+                        connector_refund_id: refund_connector_transaction_id,
+                    }
+                }
+                Ok(()) => {
+                    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+                        metrics::SUCCESSFUL_REFUND.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &add_attributes([("connector", connector.connector_name.to_string())]),
+                        )
+                    }
+                    storage::RefundUpdate::Update {
+                        connector_refund_id: response.connector_refund_id,
+                        refund_status: response.refund_status,
+                        sent_to_gateway: true,
+                        refund_error_message: None,
+                        refund_arn: "".to_string(),
+                        updated_by: storage_scheme.to_string(),
+                    }
+                }
             }
         }
     };
@@ -313,6 +351,22 @@ pub async fn trigger_refund_to_gateway(
             )
         })?;
     Ok(response)
+}
+
+pub fn check_refund_integrity<T, Request>(
+    request: &Request,
+    refund_response_data: &Result<types::RefundsResponseData, ErrorResponse>,
+) -> Result<(), common_utils::errors::IntegrityCheckError>
+where
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T> + CheckIntegrity<Request, T>,
+{
+    let connector_refund_id = refund_response_data
+        .as_ref()
+        .map(|resp_data| resp_data.connector_refund_id.clone())
+        .ok();
+
+    request.check_integrity(request, connector_refund_id.to_owned())
 }
 
 // ********************************************** REFUND SYNC **********************************************
@@ -495,7 +549,7 @@ pub async fn sync_refund_with_gateway(
             types::RefundsData,
             types::RefundsResponseData,
         > = connector.connector.get_connector_integration();
-        services::execute_connector_processing_step(
+        let mut refund_sync_router_data = services::execute_connector_processing_step(
             state,
             connector_integration,
             &router_data,
@@ -503,7 +557,17 @@ pub async fn sync_refund_with_gateway(
             None,
         )
         .await
-        .to_refund_failed_response()?
+        .to_refund_failed_response()?;
+
+        // Initiating connector integrity checks
+        let integrity_result = check_refund_integrity(
+            &refund_sync_router_data.request,
+            &refund_sync_router_data.response,
+        );
+
+        refund_sync_router_data.integrity_check = integrity_result;
+
+        refund_sync_router_data
     } else {
         router_data
     };
@@ -520,15 +584,39 @@ pub async fn sync_refund_with_gateway(
                 refund_error_message: error_message.reason.or(Some(error_message.message)),
                 refund_error_code: Some(error_message.code),
                 updated_by: storage_scheme.to_string(),
+                connector_refund_id: None,
             }
         }
-        Ok(response) => storage::RefundUpdate::Update {
-            connector_refund_id: response.connector_refund_id,
-            refund_status: response.refund_status,
-            sent_to_gateway: true,
-            refund_error_message: None,
-            refund_arn: "".to_string(),
-            updated_by: storage_scheme.to_string(),
+        Ok(response) => match router_data_res.integrity_check.clone() {
+            Err(err) => {
+                metrics::INTEGRITY_CHECK_FAILED.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([
+                        ("connector", connector.connector_name.to_string()),
+                        ("merchant_id", merchant_account.merchant_id.clone()),
+                    ]),
+                );
+                let refund_connector_transaction_id = err.connector_transaction_id;
+                storage::RefundUpdate::ErrorUpdate {
+                    refund_status: Some(enums::RefundStatus::ManualReview),
+                    refund_error_message: Some(format!(
+                        "Integrity Check Failed! as data mismatched for fields {}",
+                        err.field_names
+                    )),
+                    refund_error_code: Some("IE".to_string()),
+                    updated_by: storage_scheme.to_string(),
+                    connector_refund_id: refund_connector_transaction_id,
+                }
+            }
+            Ok(()) => storage::RefundUpdate::Update {
+                connector_refund_id: response.connector_refund_id,
+                refund_status: response.refund_status,
+                sent_to_gateway: true,
+                refund_error_message: None,
+                refund_arn: "".to_string(),
+                updated_by: storage_scheme.to_string(),
+            },
         },
     };
 
