@@ -1467,6 +1467,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
                         payment_method_data_request.serialize(serializer)
                     }
@@ -1524,6 +1525,8 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
     #[schema(title = "CardToken")]
     CardToken(CardToken),
+    #[schema(title = "OpenBanking")]
+    OpenBanking(OpenBankingData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -1547,6 +1550,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
+            | Self::OpenBanking(_)
             | Self::MandatePayment => None,
         }
     }
@@ -1584,6 +1588,7 @@ impl PaymentMethodData {
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(api_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
+            Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -1652,6 +1657,14 @@ impl GetPaymentMethodType for PayLaterData {
     }
 }
 
+impl GetPaymentMethodType for OpenBankingData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
+        }
+    }
+}
+
 impl GetPaymentMethodType for BankRedirectData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
@@ -1679,7 +1692,6 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
-            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -1851,6 +1863,7 @@ pub enum AdditionalPaymentData {
     Voucher {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1998,7 +2011,6 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {},
-    OpenBanking {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2114,7 +2126,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingPoland { .. }
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
-            | Self::OpenBanking { .. }
             | Self::Blik { .. } => None,
         }
     }
@@ -2545,6 +2556,11 @@ pub struct SamsungPayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum OpenBankingData {
+    OpenBankingPIS {},
+}
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -2815,6 +2831,7 @@ where
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
+                | PaymentMethodDataResponse::OpenBanking {}
                 | PaymentMethodDataResponse::Voucher {} => {
                     payment_method_data_response.serialize(serializer)
                 }
@@ -2848,6 +2865,7 @@ pub enum PaymentMethodDataResponse {
     GiftCard {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4015,6 +4033,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
             AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
             AdditionalPaymentData::CardToken {} => Self::CardToken {},
+            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
         }
     }
 }

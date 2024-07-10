@@ -139,6 +139,7 @@ impl DashboardRequestPayload {
                     | PaymentMethod::Upi
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard
+                    | PaymentMethod::OpenBanking
                     | PaymentMethod::CardRedirect => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(

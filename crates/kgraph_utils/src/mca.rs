@@ -143,7 +143,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
         api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
         api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
-        api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
+        api_enums::PaymentMethodType::OpenBankingPIS => {
+            Ok(dirval!(OpenBankingType = OpenBankingPIS))
+        }
     }
 }
 

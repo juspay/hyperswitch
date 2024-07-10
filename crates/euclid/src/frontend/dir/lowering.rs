@@ -164,7 +164,14 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
-            enums::BankRedirectType::OpenBanking => Self::OpenBanking,
+        }
+    }
+}
+
+impl From<enums::OpenBankingType> for global_enums::PaymentMethodType {
+    fn from(value: enums::OpenBankingType) -> Self {
+        match value {
+            enums::OpenBankingType::OpenBankingPIS => Self::OpenBankingPIS,
         }
     }
 }
@@ -239,6 +246,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::RewardType(rt) => EuclidValue::PaymentMethodType(rt.into()),
         dir::DirValue::BusinessLabel(bl) => EuclidValue::BusinessLabel(bl),
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
+        dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
     })
 }
 

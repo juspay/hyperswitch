@@ -2665,6 +2665,7 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    OpenBanking,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2845,6 +2846,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
             }
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+            domain::payments::PaymentMethodData::OpenBanking(data) => match data {
+                hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+            },
         }
     }
 }

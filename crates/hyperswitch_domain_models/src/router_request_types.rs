@@ -327,6 +327,47 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         })
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostProcessingData {
+    pub payment_method_data: PaymentMethodData,
+    pub amount: i64,
+    pub email: Option<pii::Email>,
+    pub customer_id: Option<String>,
+    pub currency: storage_enums::Currency,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPostProcessingData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: data.amount,
+            email: data.email,
+            currency: data.currency,
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: data.related_transaction_id,
+            customer_id: data.customer_id,
+        })
+    }
+}
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<PaymentMethodData>,

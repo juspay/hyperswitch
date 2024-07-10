@@ -11,21 +11,21 @@ pub use api_models::payments::{
     PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
     PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, SessionTokenType,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
-    PreProcessing, Reject, Session, SetupMandate, Void,
+    PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
     PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
     PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
-    PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
+    PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
 };
 use crate::{
     core::errors,

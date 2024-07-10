@@ -27,7 +27,7 @@ use api_models::{
 };
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    pii,
+    id_type, pii,
     types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -74,6 +74,7 @@ use crate::{
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
+        payment_methods::cards,
         utils,
     },
     db::StorageInterface,
@@ -335,7 +336,7 @@ where
                         .update_tracker(
                             state,
                             &validate_result.payment_id,
-                            payment_data,
+                            payment_data.clone(),
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
@@ -457,7 +458,7 @@ where
                         .update_tracker(
                             state,
                             &validate_result.payment_id,
-                            payment_data,
+                            payment_data.clone(),
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
@@ -1436,7 +1437,10 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
     is_retry_payment: bool,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<(
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    helpers::MerchantConnectorAccountType,
+)>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -1690,26 +1694,37 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     key_store: &domain::MerchantKeyStore,
     connector: &api::ConnectorData,
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<router_types::MerchantRecipientData>> {
-    let auth_type: router_types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+    let merchant_data = merchant_connector_account
+        .get_additional_merchant_data()
+        .get_required_value("additional_merchant_data")?
+        .into_inner()
+        .peek()
+        .clone();
+
+    let merchant_recipient_data =
+        serde_json::from_value::<router_types::AdditionalMerchantData>(merchant_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to decode MerchantRecipientData")?;
+
     let connector_name = enums::Connector::to_string(&connector.connector_name);
-    let locker_based_connector_list = state.conf.locker_open_banking_connectors.clone();
+    let locker_based_connector_list = state.conf.locker_based_open_banking_connectors.clone();
     let contains = locker_based_connector_list
         .connector_list
-        .get(connector_name.as_str());
-    let recipient_id = helpers::get_recipient_id_from_open_banking_auth(&auth_type)?;
+        .contains(connector_name.as_str());
+
+    let recipient_id = helpers::get_recipient_id_for_open_banking(&merchant_recipient_data)?;
     let final_recipient_data = if let Some(id) = recipient_id {
-        if let Some(_con) = contains {
-            let resp = payment_methods::cards::get_payment_method_from_hs_locker(
+        if contains {
+            let cust_id = id_type::CustomerId::from(merchant_account.merchant_id.clone().into())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert to CustomerId")?;
+            let locker_resp = cards::get_payment_method_from_hs_locker(
                 state,
                 key_store,
-                merchant_account.merchant_id.as_str(),
+                &cust_id,
                 merchant_account.merchant_id.as_str(),
                 id.as_str(),
                 Some(enums::LockerChoice::HyperswitchCardVault),
@@ -1718,7 +1733,7 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant bank account data could not be fetched from locker")?;
 
-            let parsed: router_types::MerchantAccountData = resp
+            let parsed: router_types::MerchantAccountData = locker_resp
                 .peek()
                 .to_string()
                 .parse_struct("MerchantAccountData")
@@ -1726,7 +1741,7 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
 
             Some(router_types::MerchantRecipientData::AccountData(parsed))
         } else {
-            Some(router_types::MerchantRecipientData::RecipientId(
+            Some(router_types::MerchantRecipientData::ConnectorRecipientId(
                 Secret::new(id),
             ))
         }
@@ -2147,22 +2162,21 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn complete_postprocessing_steps_if_required<F, Q, Ctx, RouterDReq>(
-    state: &AppState,
+async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     merchant_conn_account: &helpers::MerchantConnectorAccountType,
     connector: &api::ConnectorData,
     payment_data: &mut PaymentData<F>,
-    _operation: &BoxedOperation<'_, F, Q, Ctx>,
-) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+    _operation: &BoxedOperation<'_, F, Q>,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -2180,8 +2194,8 @@ where
         .await?;
 
     match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::BankRedirect(data)) => match data {
-            api_models::payments::BankRedirectData::OpenBanking { .. } => {
+        Some(api_models::payments::PaymentMethodData::OpenBanking(data)) => match data {
+            api_models::payments::OpenBankingData::OpenBankingPIS { .. } => {
                 if connector.connector_name == router_types::Connector::Plaid {
                     router_data = router_data.postprocessing_steps(state, connector).await?;
                     let token = if let Ok(ref res) = router_data.response {

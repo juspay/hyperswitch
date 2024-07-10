@@ -174,7 +174,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn postprocessing_steps<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         authorize_postprocessing_steps(state, &self, true, connector).await
@@ -417,8 +417,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
     connector: &api::ConnectorData,
 ) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
     if confirm {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PostProcessing,
             types::PaymentsPostProcessingData,
             types::PaymentsResponseData,
@@ -433,7 +432,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
         > = Err(types::ErrorResponse::default());
 
         let postprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PostProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PostProcessing, _, _, _, _>(
                 router_data.clone(),
                 postprocessing_request_data,
                 postprocessing_response_data,
@@ -449,12 +448,11 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
         .await
         .to_payment_failed_response()?;
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data.request.to_owned(),
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {

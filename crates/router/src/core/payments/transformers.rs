@@ -161,10 +161,9 @@ where
             .unwrap_or_default(),
         connector_meta_data: if let Some(data) = merchant_recipient_data {
             let val = serde_json::to_value(data)
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encoding MerchantRecipientDatas")?;
-            Some(masking::Secret::new(val))
+            Some(Secret::new(val))
         } else {
             merchant_connector_account.get_metadata()
         },
@@ -944,14 +943,14 @@ where
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
                         .payment_method
-                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::BankRedirect))
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::OpenBanking))
                         .and_then(|first_match| {
                             payment_attempt
                                 .payment_method_type
                                 .map(|pmt| {
                                     matches!(
                                         pmt,
-                                        diesel_models::enums::PaymentMethodType::OpenBanking
+                                        diesel_models::enums::PaymentMethodType::OpenBankingPIS
                                     )
                                 })
                                 .map(|second_match| first_match && second_match)
@@ -1383,7 +1382,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
-            customer_id,
+            customer_id: customer_id.map(|cust_id| cust_id.get_string_repr().to_string()),
             surcharge_details: payment_data.surcharge_details,
             request_incremental_authorization: matches!(
                 payment_data

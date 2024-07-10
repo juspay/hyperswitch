@@ -704,7 +704,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::OnlineBankingPoland
             | enums::PaymentMethodType::OnlineBankingSlovakia
             | enums::PaymentMethodType::OpenBankingUk
-            | enums::PaymentMethodType::OpenBanking
+            | enums::PaymentMethodType::OpenBankingPIS
             | enums::PaymentMethodType::PagoEfectivo
             | enums::PaymentMethodType::PayBright
             | enums::PaymentMethodType::Pse
@@ -1014,7 +1014,6 @@ impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodType {
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::OpenBanking { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1332,6 +1331,7 @@ fn create_stripe_payment_method(
         domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::OpenBanking(_)
         | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
@@ -1546,7 +1546,6 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::OpenBanking { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1709,6 +1708,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::Upi(_)
                         | domain::payments::PaymentMethodData::Voucher(_)
                         | domain::payments::PaymentMethodData::GiftCard(_)
+                        | domain::payments::PaymentMethodData::OpenBanking(_)
                         | domain::payments::PaymentMethodData::CardToken(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
@@ -3283,6 +3283,7 @@ impl
             | Some(domain::PaymentMethodData::GiftCard(..))
             | Some(domain::PaymentMethodData::CardRedirect(..))
             | Some(domain::PaymentMethodData::Voucher(..))
+            | Some(domain::PaymentMethodData::OpenBanking(..))
             | Some(domain::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -3736,6 +3737,7 @@ impl
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),

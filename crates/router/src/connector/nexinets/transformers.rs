@@ -604,7 +604,6 @@ fn get_payment_details_and_product(
             | domain::BankRedirectData::OnlineBankingPoland { .. }
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::OpenBanking { .. }
             | domain::BankRedirectData::Przelewy24 { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
@@ -626,6 +625,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,

@@ -232,7 +232,6 @@ impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
             | domain::BankRedirectData::OnlineBankingPoland { .. }
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::OpenBanking { .. }
             | domain::BankRedirectData::Przelewy24 { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
@@ -435,6 +434,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),

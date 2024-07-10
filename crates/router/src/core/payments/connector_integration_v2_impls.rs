@@ -40,6 +40,8 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentsPreProcessingV2 for connector::DummyConnector<T> {}
 
+    impl<const T: u8> api::PaymentsPostProcessingV2 for connector::DummyConnector<T> {}
+
     impl<const T: u8>
         services::ConnectorIntegrationV2<
             api::Authorize,
@@ -165,6 +167,16 @@ mod dummy_connector_default_impl {
             api::PreProcessing,
             types::PaymentFlowData,
             types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::PostProcessing,
+            types::PaymentFlowData,
+            types::PaymentsPostProcessingData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -531,6 +543,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::PaymentTokenV2 for $path::$connector{}
             impl api::ConnectorCustomerV2 for $path::$connector{}
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
+            impl api::PaymentsPostProcessingV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
@@ -588,6 +601,12 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             api::PreProcessing,
             types::PaymentFlowData,
                 types::PaymentsPreProcessingData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
+            impl services::ConnectorIntegrationV2<
+            api::PostProcessing,
+            types::PaymentFlowData,
+                types::PaymentsPostProcessingData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
             impl
