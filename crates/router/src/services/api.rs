@@ -820,7 +820,7 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(request, payload, state, func, api_auth, request_state),
+    skip(request, payload, state, func, api_auth, request_state, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
