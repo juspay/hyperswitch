@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::consts;
 use masking::{PeekInterface, Secret};
@@ -12,20 +13,13 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub struct BamboraapacRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for BamboraapacRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for BamboraapacRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,

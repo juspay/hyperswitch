@@ -1,6 +1,10 @@
 pub mod transformers;
 
-use common_utils::{self, ext_traits::XmlExt};
+use common_utils::{
+    self,
+    ext_traits::XmlExt,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_interfaces::consts;
@@ -22,8 +26,18 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Bamboraapac;
+pub struct Bamboraapac {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
+impl Bamboraapac {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
+ 
 impl api::Payment for Bamboraapac {}
 impl api::PaymentSession for Bamboraapac {}
 impl api::ConnectorAccessToken for Bamboraapac {}
@@ -183,12 +197,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((amount, req))?;
 
         let connector_req = bamboraapac::get_payment_body(&connector_router_data)?;
 
@@ -362,12 +376,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((amount, req))?;
 
         let connector_req = bamboraapac::get_capture_body(&connector_router_data)?;
 
@@ -461,12 +475,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bamboraapac::BamboraapacRouterData::try_from((amount, req))?;
 
         let connector_req = bamboraapac::get_refund_body(&connector_router_data)?;
 

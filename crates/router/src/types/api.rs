@@ -357,7 +357,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(&connector::Bambora))),
                 enums::Connector::Bamboraapac => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Bamboraapac)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
