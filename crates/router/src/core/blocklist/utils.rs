@@ -3,7 +3,7 @@ use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::ResultExt;
-use masking::{StrongSecret, PeekInterface, Secret};
+use masking::{PeekInterface, Secret, StrongSecret};
 use utils::crypto::generate_cryptographically_secure_random_string;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
@@ -14,7 +14,11 @@ use crate::{
         payments::PaymentData,
     },
     logger,
-    types::{domain::{self, types::AsyncLift}, storage, transformers::ForeignInto},
+    types::{
+        domain::{self, types::AsyncLift},
+        storage,
+        transformers::ForeignInto,
+    },
     utils,
 };
 
@@ -213,10 +217,7 @@ pub async fn get_merchant_fingerprint_secret(
 ) -> RouterResult<String> {
     let db = &state.store;
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
@@ -232,7 +233,10 @@ pub async fn get_merchant_fingerprint_secret(
     match merchant_account_fingerprint_hash_key {
         Some(hash_key) => Ok(hash_key.into_inner().peek().to_string()),
         None => {
-            let new_fingerprint = format!("fs_{}", generate_cryptographically_secure_random_string(consts::FINGERPRINT_SECRET_LENGTH));
+            let new_fingerprint = format!(
+                "fs_{}",
+                generate_cryptographically_secure_random_string(consts::FINGERPRINT_SECRET_LENGTH)
+            );
             let fingerprint_hash_key = Some(Secret::new(new_fingerprint.clone()))
                 .async_lift(|inner| domain::types::encrypt_optional(inner, key))
                 .await
@@ -243,14 +247,10 @@ pub async fn get_merchant_fingerprint_secret(
                 fingerprint_hash_key,
             };
 
-            db.update_specific_fields_in_merchant(
-                merchant_id,
-                merchant_account_update,
-                &key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to create new fingerprint secret for merchant")?;
+            db.update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to create new fingerprint secret for merchant")?;
 
             Ok(new_fingerprint)
         }

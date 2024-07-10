@@ -5,6 +5,7 @@ use api_models::{
     enums as api_enums, routing as routing_types,
 };
 use common_utils::{
+    crypto::generate_cryptographically_secure_random_string,
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
@@ -41,7 +42,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-use common_utils::crypto::generate_cryptographically_secure_random_string;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -103,7 +103,6 @@ pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-
     let db = state.store.as_ref();
 
     let key = services::generate_aes256_key()
@@ -171,10 +170,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             generate_cryptographically_secure_random_string(consts::FINGERPRINT_SECRET_LENGTH)
         );
 
-        let fingerprint_hash_key = domain::types::encrypt(Secret::new(fingerprint.clone()), &key.peek())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt fingerprint hash key")?;
+        let fingerprint_hash_key =
+            domain::types::encrypt(Secret::new(fingerprint.clone()), &key.peek())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt fingerprint hash key")?;
 
         let publishable_key = create_merchant_publishable_key();
 
@@ -230,7 +230,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let organization_id = CreateOrValidateOrganization::new(self.organization_id)
             .create_or_validate(db)
             .await?;
-
 
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(

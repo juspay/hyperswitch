@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{OptionalEncryptableName, OptionalEncryptableValue, OptionalEncryptableSecretString},
+    crypto::{OptionalEncryptableName, OptionalEncryptableSecretString, OptionalEncryptableValue},
     date_time,
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
@@ -9,7 +9,6 @@ use diesel_models::{
     encryption::Encryption, enums::MerchantStorageScheme,
     merchant_account::MerchantAccountUpdateInternal,
 };
-
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -45,7 +44,7 @@ pub struct MerchantAccount {
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub pm_collect_link_config: Option<serde_json::Value>,        
+    pub pm_collect_link_config: Option<serde_json::Value>,
     pub fingerprint_hash_key: OptionalEncryptableSecretString,
 }
 
