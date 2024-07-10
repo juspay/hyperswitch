@@ -3114,7 +3114,7 @@ pub enum NextActionData {
     },
     /// Contains third party sdk session token response
     ThirdPartySdkSessionToken {
-        session_token: Option<SessionTokenType>,
+        session_token: Option<SessionToken>,
     },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
@@ -4408,13 +4408,6 @@ pub struct SessionTokenForSimplifiedApplePay {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(untagged)]
-pub enum SessionTokenType {
-    Wallet(SessionToken),
-    OpenBanking(OpenBankingSessionToken),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
@@ -4426,6 +4419,8 @@ pub enum SessionToken {
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
+    /// Session token for OpenBanking PIS flow
+    OpenBanking(OpenBankingSessionToken),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -4666,7 +4661,7 @@ pub struct PaymentsSessionResponse {
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
-    pub session_token: Vec<SessionTokenType>,
+    pub session_token: Vec<SessionToken>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

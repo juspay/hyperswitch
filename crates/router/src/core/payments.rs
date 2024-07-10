@@ -1615,9 +1615,7 @@ where
         ..
     }) = router_data.response.to_owned()
     {
-        payment_data
-            .sessions_token
-            .push(api::SessionTokenType::Wallet(session_token));
+        payment_data.sessions_token.push(session_token);
     };
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
@@ -1889,9 +1887,7 @@ where
                         session_token,
                         api_models::payments::SessionToken::NoSessionTokenReceived,
                     ) {
-                        payment_data
-                            .sessions_token
-                            .push(api::SessionTokenType::Wallet(session_token));
+                        payment_data.sessions_token.push(session_token);
                     }
                 }
                 if let Err(connector_error_response) = connector_response.response {
@@ -2204,7 +2200,7 @@ where
                                 session_token,
                             } => session_token
                                 .as_ref()
-                                .map(|token| api::SessionTokenType::OpenBanking(token.clone())),
+                                .map(|token| api::SessionToken::OpenBanking(token.clone())),
                             _ => None,
                         }
                     } else {
@@ -2695,7 +2691,7 @@ where
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
-    pub sessions_token: Vec<api::SessionTokenType>,
+    pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
