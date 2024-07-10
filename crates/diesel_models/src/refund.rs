@@ -114,6 +114,13 @@ pub enum RefundUpdate {
         refund_error_message: Option<String>,
         refund_error_code: Option<String>,
         updated_by: String,
+        connector_refund_id: Option<String>,
+    },
+    ManualUpdate {
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -190,6 +197,20 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 ..Default::default()
             },
             RefundUpdate::ErrorUpdate {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+                connector_refund_id,
+            } => Self {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+                connector_refund_id,
+                ..Default::default()
+            },
+            RefundUpdate::ManualUpdate {
                 refund_status,
                 refund_error_message,
                 refund_error_code,

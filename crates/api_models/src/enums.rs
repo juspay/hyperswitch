@@ -78,6 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    // Bamboraapac, commented for template
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -120,6 +121,7 @@ pub enum Connector {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Shift4,
     Square,
     Stax,
@@ -198,6 +200,7 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -250,6 +253,7 @@ impl Connector {
             | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
+            | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
             // | Self::Datatrans
@@ -464,6 +468,7 @@ pub enum FieldType {
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
+    UserVpaId,
 }
 
 impl FieldType {
@@ -549,6 +554,7 @@ impl PartialEq for FieldType {
                 },
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
+            (Self::UserVpaId, Self::UserVpaId) => true,
             _unused => false,
         }
     }

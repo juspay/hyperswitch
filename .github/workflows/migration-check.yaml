@@ -57,10 +57,10 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration run --locked-schema
+        run: make migrate locked-schema=yes
 
       - name: Verify `diesel migration redo`
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration redo -a --locked-schema
+        run: make redo_migrate locked-schema=yes

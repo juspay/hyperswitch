@@ -20,8 +20,53 @@ pub async fn msearch_results(
         OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
 
     query_builder
-        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .add_filter_clause(
+            "merchant_id.keyword".to_string(),
+            vec![merchant_id.to_string()],
+        )
         .switch()?;
+
+    if let Some(filters) = req.filters {
+        if let Some(currency) = filters.currency {
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(status) = filters.status {
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method) = filters.payment_method {
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(customer_email) = filters.customer_email {
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        customer_email
+                            .iter()
+                            .filter_map(|email| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+    };
 
     let response_text: OpenMsearchOutput = client
         .execute(query_builder)
@@ -82,9 +127,53 @@ pub async fn search_results(
         OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
 
     query_builder
-        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .add_filter_clause(
+            "merchant_id.keyword".to_string(),
+            vec![merchant_id.to_string()],
+        )
         .switch()?;
 
+    if let Some(filters) = search_req.filters {
+        if let Some(currency) = filters.currency {
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(status) = filters.status {
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method) = filters.payment_method {
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(customer_email) = filters.customer_email {
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        customer_email
+                            .iter()
+                            .filter_map(|email| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+    };
     query_builder
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;

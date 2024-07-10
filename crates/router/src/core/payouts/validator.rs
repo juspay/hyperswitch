@@ -251,7 +251,10 @@ pub async fn create_payout_link(
         .session_expiry
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
-    let link = Secret::new(format!("{base_url}/payout_link/{merchant_id}/{payout_id}"));
+    let url = format!("{base_url}/payout_link/{merchant_id}/{payout_id}");
+    let link = url::Url::parse(&url)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());
@@ -301,7 +304,7 @@ pub async fn create_payout_link_db_entry(
         link_type: common_enums::GenericLinkType::PayoutLink,
         link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
         link_data,
-        url: payout_link_data.link.clone(),
+        url: payout_link_data.link.to_string().into(),
         return_url,
         expiry: common_utils::date_time::now()
             + Duration::seconds(payout_link_data.session_expiry.into()),

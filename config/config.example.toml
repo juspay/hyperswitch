@@ -11,6 +11,15 @@ host = "127.0.0.1"
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+
+# HTTPS Server Configuration
+# Self-signed Private Key and Certificate can be generated with mkcert for local development
+[server.tls]
+port = 8081
+host = "127.0.0.1"
+private_key = "/path/to/private_key.pem"
+certificate = "/path/to/certificate.pem"
+
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
@@ -172,6 +181,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bamboraapac.base_url = "https://demo.bambora.co.nz/interface/api/dts.asmx"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
@@ -220,6 +230,7 @@ placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
+razorpay.base_url = "https://sandbox.juspay.in/"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -467,6 +478,9 @@ boleto = { country = "BR", currency = "BRL" }
 [pm_filters.volt]
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
 
+[pm_filters.razorpay]
+upi_collect = {country = "IN", currency = "INR"}
+
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -551,9 +565,9 @@ theme = "#1A1A1A"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payment_method_collect.enabled_payment_methods]
-card = ["credit", "debit"]
-bank_transfer = ["ach", "bacs", "sepa"]
-wallet = ["paypal", "pix", "venmo"]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -563,9 +577,9 @@ theme = "#1A1A1A"
 logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
-card = ["credit", "debit"]
-bank_transfer = ["ach", "bacs", "sepa"]
-wallet = ["paypal", "pix", "venmo"]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -613,6 +627,7 @@ source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
 brokers = []                               # Kafka broker urls for bootstrapping the client
+fraud_check_analytics_topic = "topic"      # Kafka topic to be used for FraudCheck events
 intent_analytics_topic = "topic"           # Kafka topic to be used for PaymentIntent events
 attempt_analytics_topic = "topic"          # Kafka topic to be used for PaymentAttempt events
 refund_analytics_topic = "topic"           # Kafka topic to be used for Refund events

@@ -20,6 +20,7 @@ use error_stack::{report, ResultExt};
 use futures::future::join_all;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::errors::StorageError;
+use masking::PeekInterface;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 #[cfg(feature = "olap")]
@@ -378,7 +379,6 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Pending,
             storage_enums::PayoutStatus::Ineligible,
             storage_enums::PayoutStatus::RequiresFulfillment,
-            storage_enums::PayoutStatus::RequiresVendorAccountCreation,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
         "confirm",
@@ -1946,10 +1946,16 @@ pub async fn response_handler(
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
         attempts: None,
-        payout_link: payout_link.map(|payout_link| PayoutLinkResponse {
-            payout_link_id: payout_link.link_id.clone(),
-            link: payout_link.url,
-        }),
+        payout_link: payout_link
+            .map(|payout_link| {
+                url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
+                    payout_link_id: payout_link.link_id,
+                    link: link.into(),
+                })
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payout link's URL")?,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
