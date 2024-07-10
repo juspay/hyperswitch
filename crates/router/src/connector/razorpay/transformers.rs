@@ -1291,7 +1291,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.refund.unique_request_id.to_string(),
+                connector_refund_id: item
+                    .data
+                    .request
+                    .connector_refund_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                 refund_status: enums::RefundStatus::from(item.response.refund.status),
             }),
             ..item.data
