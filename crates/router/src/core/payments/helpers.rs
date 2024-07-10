@@ -1471,6 +1471,23 @@ pub fn validate_max_amount(
     }
 }
 
+/// Check whether the customer information that is sent in the root of payments request
+/// and in the customer object are same, if the values mismatch return an error
+pub fn validate_customer_information(
+    request: &api_models::payments::PaymentsRequest,
+) -> RouterResult<()> {
+    if let Some(mismatched_fields) = request.validate_customer_details_in_request() {
+        let mismatched_fields = mismatched_fields.join(", ");
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "The field names `{mismatched_fields}` sent in both places is ambiguous"
+            ),
+        })?
+    } else {
+        Ok(())
+    }
+}
+
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]

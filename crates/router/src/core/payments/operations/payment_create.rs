@@ -684,14 +684,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        if let Some(mismatched_fields) = request.validate_customer_details_in_request() {
-            let mismatched_fields = mismatched_fields.join(", ");
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "The field name `{mismatched_fields}` sent in both places is ambiguous"
-                ),
-            })?
-        }
+        helpers::validate_customer_information(request)?;
 
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
