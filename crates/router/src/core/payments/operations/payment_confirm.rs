@@ -1353,10 +1353,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        if let Some(mismatched_field) = request.validate_customer_details_in_request() {
+        if let Some(mismatched_fields) = request.validate_customer_details_in_request() {
+            let mismatched_fields = mismatched_fields.join(", ");
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
-                    "The field name `{mismatched_field}` sent in both places is ambiguous"
+                    "The field name `{mismatched_fields}` sent in both places is ambiguous"
                 ),
             })?
         }

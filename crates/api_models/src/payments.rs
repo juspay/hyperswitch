@@ -519,15 +519,15 @@ pub struct PaymentsRequest {
 }
 
 /// Checks if the inner values of two options are equal
-/// Returns true if values are not equal, if values match returns false
+/// Returns true if values are not equal, returns false in other cases
 fn are_optional_values_invalid<T: PartialEq>(
     first_option: Option<&T>,
     second_option: Option<&T>,
 ) -> bool {
-    first_option
-        .zip(second_option)
-        .map(|(value1, value2)| value1 != value2)
-        .unwrap_or(true)
+    match (first_option, second_option) {
+        (Some(first_option), Some(second_option)) => first_option != second_option,
+        _ => false,
+    }
 }
 
 impl PaymentsRequest {
@@ -544,33 +544,110 @@ impl PaymentsRequest {
     /// Checks if the customer details are passed in both places
     /// If they are passed in both places, check for both the values to be equal
     /// Or else, return the field which has inconsistent data
-    pub fn validate_customer_details_in_request(&self) -> Option<&str> {
-        if let Some(customer_details) = self.customer.as_ref() {
-            if are_optional_values_invalid(self.customer_id.as_ref(), Some(&customer_details.id)) {
-                return Some("customer_id");
-            }
+    pub fn validate_customer_details_in_request(&self) -> Option<Vec<&str>> {
+        if let Some(CustomerDetails {
+            id,
+            name,
+            email,
+            phone,
+            phone_country_code,
+        }) = self.customer.as_ref()
+        {
+            let invalid_fields = [
+                are_optional_values_invalid(self.customer_id.as_ref(), Some(id))
+                    .then_some("customer_id and customer.id"),
+                are_optional_values_invalid(self.email.as_ref(), email.as_ref())
+                    .then_some("email and customer.email"),
+                are_optional_values_invalid(self.name.as_ref(), name.as_ref())
+                    .then_some("name and customer.name"),
+                are_optional_values_invalid(self.phone.as_ref(), phone.as_ref())
+                    .then_some("phone and customer.phone"),
+                are_optional_values_invalid(
+                    self.phone_country_code.as_ref(),
+                    phone_country_code.as_ref(),
+                )
+                .then_some("phone_country_code and customer.phone_country_code"),
+            ]
+            .into_iter()
+            .filter_map(|invalid_fields| invalid_fields)
+            .collect::<Vec<_>>();
 
-            if are_optional_values_invalid(self.email.as_ref(), customer_details.email.as_ref()) {
-                return Some("email");
+            if invalid_fields.is_empty() {
+                None
+            } else {
+                Some(invalid_fields)
             }
-
-            if are_optional_values_invalid(self.name.as_ref(), customer_details.name.as_ref()) {
-                return Some("name");
-            }
-
-            if are_optional_values_invalid(self.phone.as_ref(), customer_details.phone.as_ref()) {
-                return Some("phone");
-            }
-
-            if are_optional_values_invalid(
-                self.phone_country_code.as_ref(),
-                customer_details.phone_country_code.as_ref(),
-            ) {
-                return Some("phone_country_code");
-            }
+        } else {
+            None
         }
+    }
+}
 
-        None
+#[cfg(test)]
+mod payments_request_test {
+    use common_utils::generate_customer_id_of_default_length;
+
+    use super::*;
+
+    #[test]
+    fn test_valid_case_where_customer_details_are_passed_only_once() {
+        let customer_id = generate_customer_id_of_default_length();
+        let payments_request = PaymentsRequest {
+            customer_id: Some(customer_id),
+            ..Default::default()
+        };
+
+        assert!(payments_request
+            .validate_customer_details_in_request()
+            .is_none());
+    }
+
+    #[test]
+    fn test_valid_case_where_customer_id_is_passed_in_both_places() {
+        let customer_id = generate_customer_id_of_default_length();
+
+        let customer_object = CustomerDetails {
+            id: customer_id.clone(),
+            name: None,
+            email: None,
+            phone: None,
+            phone_country_code: None,
+        };
+
+        let payments_request = PaymentsRequest {
+            customer_id: Some(customer_id),
+            customer: Some(customer_object),
+            ..Default::default()
+        };
+
+        assert!(payments_request
+            .validate_customer_details_in_request()
+            .is_none());
+    }
+
+    #[test]
+    fn test_ivalid_case_where_customer_id_is_passed_in_both_places() {
+        let customer_id = generate_customer_id_of_default_length();
+        let another_customer_id = generate_customer_id_of_default_length();
+
+        let customer_object = CustomerDetails {
+            id: customer_id.clone(),
+            name: None,
+            email: None,
+            phone: None,
+            phone_country_code: None,
+        };
+
+        let payments_request = PaymentsRequest {
+            customer_id: Some(another_customer_id),
+            customer: Some(customer_object),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            payments_request.validate_customer_details_in_request(),
+            Some(vec!["customer_id and customer.id"])
+        );
     }
 }
 
