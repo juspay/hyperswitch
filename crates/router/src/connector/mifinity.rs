@@ -113,7 +113,7 @@ impl ConnectorCommon for Mifinity {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        if res.response.is_empty() && res.status_code == 401 {
+        if res.response.is_empty() {
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
