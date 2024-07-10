@@ -2849,9 +2849,8 @@ async fn locker_recipient_create_call(
     data: &types::MerchantAccountData,
 ) -> RouterResult<String> {
     let enc_data = serde_json::to_string(data)
-        .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
-            Ok(hex::encode(e.as_bytes()))
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert to MerchantAccountData json to String")?;
 
     let cust_id = id_type::CustomerId::from(merchant_id.to_string().into())
         .change_context(errors::ApiErrorResponse::InternalServerError)
