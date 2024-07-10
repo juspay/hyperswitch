@@ -8,6 +8,7 @@ use test_utils::connector_auth;
 
 mod aci;
 mod adyen;
+mod adyenplatform;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
@@ -23,6 +24,7 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod datatrans;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
@@ -32,6 +34,7 @@ mod forte;
 mod globalpay;
 mod globepay;
 mod gocardless;
+mod gpayments;
 mod helcim;
 mod iatapay;
 mod mifinity;
@@ -48,6 +51,7 @@ mod opennode;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
+mod payone;
 mod paypal;
 mod payu;
 mod placetopay;

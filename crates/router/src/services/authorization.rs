@@ -9,7 +9,7 @@ use super::authentication::AuthToken;
 use crate::{
     consts,
     core::errors::{ApiErrorResponse, RouterResult, StorageErrorExt},
-    routes::app::AppStateInfo,
+    routes::app::SessionStateInfo,
 };
 
 #[cfg(feature = "olap")]
@@ -23,7 +23,7 @@ pub async fn get_permissions<A>(
     token: &AuthToken,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     if let Some(permissions) = get_permissions_from_predefined_roles(&token.role_id) {
         return Ok(permissions);
@@ -55,7 +55,7 @@ async fn get_permissions_from_cache<A>(
     role_id: &str,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     let redis_conn = get_redis_connection(state)?;
 
@@ -82,7 +82,7 @@ async fn get_permissions_from_db<A>(
     org_id: &str,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     state
         .store()
@@ -99,7 +99,7 @@ pub async fn set_permissions_in_cache<A>(
     expiry: i64,
 ) -> RouterResult<()>
 where
-    A: AppStateInfo + Sync,
+    A: SessionStateInfo + Sync,
 {
     let redis_conn = get_redis_connection(state)?;
 
@@ -139,7 +139,7 @@ pub fn check_authorization(
         )
 }
 
-fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
     state
         .store()
         .get_redis_conn()

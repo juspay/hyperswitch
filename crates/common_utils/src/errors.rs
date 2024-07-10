@@ -1,5 +1,7 @@
 //! Errors and error specific types for universal use
 
+use crate::types::MinorUnit;
+
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
 /// error_stack::Report<E> specific extendability
@@ -9,6 +11,7 @@
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
 #[derive(Debug, thiserror::Error)]
 pub enum ParsingError {
     ///Failed to parse enum
@@ -32,6 +35,21 @@ pub enum ParsingError {
     /// Failed to parse phone number
     #[error("Failed to parse phone number")]
     PhoneNumberParsingError,
+    /// Failed to parse Float value for converting to decimal points
+    #[error("Failed to parse Float value for converting to decimal points")]
+    FloatToDecimalConversionFailure,
+    /// Failed to parse Decimal value for i64 value conversion
+    #[error("Failed to parse Decimal value for i64 value conversion")]
+    DecimalToI64ConversionFailure,
+    /// Failed to parse string value for f64 value conversion
+    #[error("Failed to parse string value for f64 value conversion")]
+    StringToFloatConversionFailure,
+    /// Failed to parse i64 value for f64 value conversion
+    #[error("Failed to parse i64 value for f64 value conversion")]
+    I64ToDecimalConversionFailure,
+    /// Failed to parse String value to Decimal value conversion because `error`
+    #[error("Failed to parse String value to Decimal value conversion because {error}")]
+    StringToDecimalConversionFailure { error: String },
 }
 
 /// Validation errors.
@@ -89,7 +107,7 @@ pub enum PercentageError {
         /// percentage value
         percentage: f32,
         /// amount value
-        amount: i64,
+        amount: MinorUnit,
     },
 }
 

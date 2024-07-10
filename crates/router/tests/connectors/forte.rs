@@ -15,12 +15,12 @@ impl ConnectorActions for ForteTest {}
 impl utils::Connector for ForteTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Forte;
-        api::ConnectorData {
-            connector: Box::new(&Forte),
-            connector_name: types::Connector::Forte,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Forte),
+            types::Connector::Forte,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -65,7 +65,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
@@ -159,6 +159,7 @@ async fn should_sync_authorized_payment() {
                 mandate_id: None,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                payment_experience: None,
             }),
             get_default_payment_info(),
         )

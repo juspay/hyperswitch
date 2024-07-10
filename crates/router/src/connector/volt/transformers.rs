@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::{id_type, pii::Email};
 use diesel_models::enums;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct ShopperDetails {
-    reference: String,
+    reference: id_type::CustomerId,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -129,7 +129,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 | domain::BankRedirectData::Sofort { .. }
                 | domain::BankRedirectData::Trustly { .. }
                 | domain::BankRedirectData::OnlineBankingFpx { .. }
-                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )
@@ -145,6 +146,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -283,6 +285,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -364,6 +367,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -404,6 +408,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data

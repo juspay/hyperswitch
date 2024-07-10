@@ -1,20 +1,21 @@
 pub mod paypal;
 pub mod stripe;
-
 use error_stack::ResultExt;
 
 use crate::{
     consts,
     core::errors,
-    services,
-    services::ConnectorIntegration,
-    types::{self, api, domain, storage::enums as storage_enums},
-    AppState,
+    services::{
+        self,
+        connector_integration_interface::{BoxedConnectorIntegrationInterface, ConnectorEnum},
+    },
+    types::{self, api, api::ConnectorCommon, domain, storage::enums as storage_enums},
+    SessionState,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerifyConnectorData {
-    pub connector: &'static (dyn api::Connector + Sync),
+    pub connector: ConnectorEnum,
     pub connector_auth: types::ConnectorAuthType,
     pub card_details: domain::Card,
 }
@@ -26,6 +27,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,
@@ -52,6 +54,7 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         }
     }
 
@@ -80,10 +83,12 @@ impl VerifyConnectorData {
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
+            minor_amount_captured: None,
             preprocessing_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
+            connector_wallets_details: None,
             payment_method_token: None,
             connector_api_version: None,
             recurring_mandate_payment_data: None,
@@ -112,7 +117,7 @@ impl VerifyConnectorData {
 #[async_trait::async_trait]
 pub trait VerifyConnector {
     async fn verify(
-        state: &AppState,
+        state: &SessionState,
         connector_data: VerifyConnectorData,
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
@@ -121,6 +126,7 @@ pub trait VerifyConnector {
 
         let request = connector_data
             .connector
+            .get_connector_integration()
             .build_request(&router_data, &state.conf.connectors)
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payment request cannot be built".to_string(),
@@ -137,16 +143,20 @@ pub trait VerifyConnector {
             Err(error_response) => {
                 Self::handle_payment_error_response::<
                     api::Authorize,
+                    types::PaymentFlowData,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
-                >(connector_data.connector, error_response)
+                >(
+                    connector_data.connector.get_connector_integration(),
+                    error_response,
+                )
                 .await
             }
         }
     }
 
     async fn get_access_token(
-        _state: &AppState,
+        _state: &SessionState,
         _connector_data: VerifyConnectorData,
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         // AccessToken is None for the connectors without the AccessToken Flow.
@@ -154,13 +164,11 @@ pub trait VerifyConnector {
         Ok(None)
     }
 
-    async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn api::Connector + Sync),
+    async fn handle_payment_error_response<F, ResourceCommonData, Req, Resp>(
+        // connector: &(dyn api::Connector + Sync),
+        connector: BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
         error_response: types::Response,
-    ) -> errors::RouterResponse<()>
-    where
-        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
-    {
+    ) -> errors::RouterResponse<()> {
         let error = connector
             .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -170,13 +178,10 @@ pub trait VerifyConnector {
         .into())
     }
 
-    async fn handle_access_token_error_response<F, R1, R2>(
-        connector: &(dyn api::Connector + Sync),
+    async fn handle_access_token_error_response<F, ResourceCommonData, Req, Resp>(
+        connector: BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
         error_response: types::Response,
-    ) -> errors::RouterResult<Option<types::AccessToken>>
-    where
-        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
-    {
+    ) -> errors::RouterResult<Option<types::AccessToken>> {
         let error = connector
             .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

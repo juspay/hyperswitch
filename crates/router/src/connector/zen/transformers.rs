@@ -492,7 +492,8 @@ impl
             | domain::WalletData::TouchNGoRedirect(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             ))?,
         };
@@ -691,6 +692,7 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -721,7 +723,8 @@ impl TryFrom<&domain::BankRedirectData> for ZenPaymentsRequest {
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
@@ -946,6 +949,7 @@ fn get_zen_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -989,6 +993,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::Paym
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..value.data
         })

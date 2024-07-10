@@ -7,7 +7,9 @@ pub mod payments;
 mod query;
 pub mod refunds;
 
+pub mod active_payments;
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod health_check;
 pub mod opensearch;
@@ -31,9 +33,11 @@ pub mod utils;
 use std::sync::Arc;
 
 use api_models::analytics::{
+    active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
+    auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
@@ -54,6 +58,8 @@ use storage_impl::config::Database;
 use strum::Display;
 
 use self::{
+    active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
+    auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
         metrics::{PaymentMetric, PaymentMetricRow},
@@ -511,7 +517,7 @@ impl AnalyticsProvider {
         &self,
         metric: &SdkEventMetrics,
         dimensions: &[SdkEventDimensions],
-        pub_key: &str,
+        publishable_key: &str,
         filters: &SdkEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -520,17 +526,80 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        publishable_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
                         dimensions,
-                        pub_key,
+                        publishable_key,
                         filters,
                         granularity,
                         // Since SDK events are ckh only use ckh here
+                        time_range,
+                        ckh_pool,
+                    )
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_active_payments_metrics(
+        &self,
+        metric: &ActivePaymentsMetrics,
+        merchant_id: &str,
+        publishable_key: &str,
+    ) -> types::MetricsResult<
+        Vec<(
+            ActivePaymentsMetricsBucketIdentifier,
+            ActivePaymentsMetricRow,
+        )>,
+    > {
+        match self {
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
+            Self::Clickhouse(pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, pool)
+                    .await
+            }
+            Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, ckh_pool)
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_auth_event_metrics(
+        &self,
+        metric: &AuthEventMetrics,
+        merchant_id: &str,
+        publishable_key: &str,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+        match self {
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
+            Self::Clickhouse(pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .await
+            }
+            Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
+                metric
+                    .load_metrics(
+                        merchant_id,
+                        publishable_key,
+                        granularity,
+                        // Since API events are ckh only use ckh here
                         time_range,
                         ckh_pool,
                     )
@@ -568,22 +637,30 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(config: &AnalyticsConfig) -> Self {
+    pub async fn from_conf(
+        config: &AnalyticsConfig,
+        tenant: &dyn storage_impl::config::ClickHouseConfig,
+    ) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx).await),
+            AnalyticsConfig::Sqlx { sqlx } => {
+                Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)
+            }
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
+                database: tenant.get_clickhouse_database().to_string(),
             }),
             AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant.get_schema()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
+                    database: tenant.get_clickhouse_database().to_string(),
                 },
             ),
             AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant.get_schema()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
+                    database: tenant.get_clickhouse_database().to_string(),
                 },
             ),
         }
@@ -681,6 +758,8 @@ pub enum AnalyticsFlow {
     GetPaymentMetrics,
     GetRefundsMetrics,
     GetSdkMetrics,
+    GetAuthMetrics,
+    GetActivePaymentsMetrics,
     GetPaymentFilters,
     GetRefundFilters,
     GetSdkEventFilters,

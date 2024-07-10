@@ -72,6 +72,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -218,6 +219,7 @@ fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsRes
         network_txn_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
+        charge_id: None,
     }
 }
 
@@ -242,6 +244,7 @@ fn get_payments_sync_response(
                 .clone(),
         ),
         incremental_authorization_allowed: None,
+        charge_id: None,
     }
 }
 

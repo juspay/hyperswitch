@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
@@ -9,7 +9,7 @@ use crate::{encryption::Encryption, schema::customers};
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
@@ -21,6 +21,13 @@ pub struct CustomerNew {
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
+    pub updated_by: Option<String>,
+}
+
+impl CustomerNew {
+    pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
+        self.updated_by = Some(storage_scheme.to_string());
+    }
 }
 
 impl From<CustomerNew> for Customer {
@@ -40,6 +47,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             address_id: customer_new.address_id,
             default_payment_method_id: None,
+            updated_by: customer_new.updated_by,
         }
     }
 }
@@ -48,7 +56,7 @@ impl From<CustomerNew> for Customer {
 #[diesel(table_name = customers)]
 pub struct Customer {
     pub id: i32,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
@@ -61,6 +69,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(
@@ -84,6 +93,7 @@ pub struct CustomerUpdateInternal {
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
+    pub updated_by: Option<String>,
 }
 
 impl CustomerUpdateInternal {

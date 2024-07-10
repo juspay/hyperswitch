@@ -18,7 +18,8 @@ traces_enabled = false                                      # Whether traces are
 metrics_enabled = true                                      # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
-use_xray_generator = false
+use_xray_generator = false                                  # Set this to true for AWS X-ray compatible traces
+bg_metrics_collection_interval_in_secs = 15                 # Interval for collecting the metrics in background thread
 
 [master_database]
 username = "db_user"
@@ -53,6 +54,9 @@ recon_admin_api_key = "recon_test_admin"
 
 [user]
 password_validity_in_days = 90
+two_factor_auth_expiry_in_secs = 300
+totp_issuer_name = "Hyperswitch"
+base_url = "http://localhost:8080"
 
 [locker]
 host = ""
@@ -60,6 +64,7 @@ host_rs = ""
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
+ttl_for_storage_in_secs = 220752000
 
 [jwekey]
 vault_encryption_key = ""
@@ -101,6 +106,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
@@ -120,6 +126,7 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
+datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -128,9 +135,10 @@ forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
+gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
@@ -145,6 +153,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
@@ -176,12 +185,12 @@ zsl.base_url = "https://api.sitoffalb.net/"
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
-wallets = ["klarna",
-    "mifinity", "braintree", "applepay"]
+wallets = ["klarna", "mifinity", "braintree", "applepay"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
+    "adyenplatform",
     "airwallex",
     "authorizedotnet",
     "bambora",
@@ -195,6 +204,7 @@ cards = [
     "coinbase",
     "cryptopay",
     "cybersource",
+    "datatrans",
     "dlocal",
     "dummyconnector",
     "ebanx",
@@ -203,6 +213,7 @@ cards = [
     "globalpay",
     "globepay",
     "gocardless",
+    "gpayments",
     "helcim",
     "iatapay",
     "mollie",
@@ -216,6 +227,7 @@ cards = [
     "opennode",
     "payeezy",
     "payme",
+    "payone",
     "paypal",
     "payu",
     "placetopay",
@@ -233,7 +245,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
-    "zsl"
+    "zsl",
 ]
 
 [delayed_session_response]
@@ -263,7 +275,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
-billwerk = {long_lived_token = false, payment_method = "card"}
+billwerk = { long_lived_token = false, payment_method = "card" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -363,6 +375,12 @@ google_pay = { currency = "USD" }
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 
+[pm_filters.klarna]
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
+
+[pm_filters.mifinity]
+mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -424,6 +442,8 @@ outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
+consolidated_events_topic = "hyperswitch-consolidated-events"
+authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
@@ -445,7 +465,8 @@ connection_timeout = 10
 queue_strategy = "Fifo"
 
 [kv_config]
-ttl = 900 # 15 * 60 seconds
+ttl = 900         # 15 * 60 seconds
+soft_kill = false
 
 [frm]
 enabled = true
@@ -482,3 +503,38 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[user_auth_methods]
+encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC698F"
+
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = ["credit", "debit"]
+bank_transfer = ["ach", "bacs", "sepa"]
+wallet = ["paypal", "pix", "venmo"]

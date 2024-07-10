@@ -1,8 +1,11 @@
 pub mod transformers;
 
-use std::{collections::HashMap, fmt::Debug, ops::Deref};
+use std::{collections::HashMap, ops::Deref};
 
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -10,11 +13,12 @@ use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
 use self::transformers as stripe;
-use super::utils::{self as connector_utils, RefundsRequestData};
+use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
 #[cfg(feature = "payouts")]
 use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
+    connector::utils::PaymentsPreProcessingData,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -35,8 +39,18 @@ use crate::{
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Stripe;
+#[derive(Clone)]
+pub struct Stripe {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Stripe {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripe
 where
@@ -132,6 +146,24 @@ impl ConnectorValidation for Stripe {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::SepaBankDebit,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::BancontactCard,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl api::Payment for Stripe {}
@@ -205,7 +237,12 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
+        let req_currency = req.request.get_currency()?;
+        let req_amount = req.request.get_minor_amount()?;
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+        let connector_req =
+            stripe::StripeCreditTransferSourceRequest::try_from((req, amount, req_currency))?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -600,7 +637,12 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::CaptureRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_req = stripe::CaptureRequest::try_from(amount)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -859,6 +901,21 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+
+        req.request
+            .charges
+            .as_ref()
+            .map(|charge| match &charge.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            charge.transfer_account_id.clone().into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
+                    }
+                }
+            });
         Ok(header)
     }
 
@@ -898,12 +955,17 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
         match &req.request.payment_method_data {
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
+                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref(), amount)
             }
             _ => {
-                let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+                let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
 
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
@@ -1337,6 +1399,21 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+
+        req.request
+            .charges
+            .as_ref()
+            .map(|charge| match &charge.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            charge.transfer_account_id.clone().into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
+                    }
+                }
+            });
         Ok(header)
     }
 
@@ -1357,8 +1434,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::RefundRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let request_body = match req.request.charges.as_ref() {
+            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from(req)?)),
+            Some(_) => RequestContent::FormUrlEncoded(Box::new(
+                stripe::ChargeRefundRequest::try_from(req)?,
+            )),
+        };
+        Ok(request_body)
     }
 
     fn build_request(

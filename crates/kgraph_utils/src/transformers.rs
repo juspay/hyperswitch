@@ -98,6 +98,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
             Self::BankDebit => Ok(dirval!(PaymentMethod = BankDebit)),
             Self::BankTransfer => Ok(dirval!(PaymentMethod = BankTransfer)),
             Self::Reward => Ok(dirval!(PaymentMethod = Reward)),
+            Self::RealTimePayment => Ok(dirval!(PaymentMethod = RealTimePayment)),
             Self::Upi => Ok(dirval!(PaymentMethod = Upi)),
             Self::Voucher => Ok(dirval!(PaymentMethod = Voucher)),
             Self::GiftCard => Ok(dirval!(PaymentMethod = GiftCard)),
@@ -154,6 +155,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Wallet
                 | api_enums::PaymentMethod::Crypto
                 | api_enums::PaymentMethod::Reward
+                | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -170,6 +172,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Wallet
                 | api_enums::PaymentMethod::Crypto
                 | api_enums::PaymentMethod::Reward
+                | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -187,6 +190,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Wallet
                 | api_enums::PaymentMethod::Crypto
                 | api_enums::PaymentMethod::Reward
+                | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -230,6 +234,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
             api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
             api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+            api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
             api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
             api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
             api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
@@ -241,6 +246,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Dana => Ok(dirval!(WalletType = Dana)),
             api_enums::PaymentMethodType::OnlineBankingFpx => {
                 Ok(dirval!(BankRedirectType = OnlineBankingFpx))
+            }
+            api_enums::PaymentMethodType::LocalBankRedirect => {
+                Ok(dirval!(BankRedirectType = LocalBankRedirect))
             }
             api_enums::PaymentMethodType::OnlineBankingThailand => {
                 Ok(dirval!(BankRedirectType = OnlineBankingThailand))
@@ -287,6 +295,11 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
             api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+            api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
+            api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
+            api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
+            api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
+            api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
         }
     }
 }

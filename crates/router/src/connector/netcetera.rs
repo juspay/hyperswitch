@@ -107,7 +107,7 @@ impl ConnectorCommon for Netcetera {
             status_code: res.status_code,
             code: response.error_details.error_code,
             message: response.error_details.error_description,
-            reason: Some(response.error_details.error_detail),
+            reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -228,6 +228,7 @@ fn build_endpoint(
 }
 
 impl api::ConnectorPreAuthentication for Netcetera {}
+impl api::ConnectorPreAuthenticationVersionCall for Netcetera {}
 impl api::ExternalAuthentication for Netcetera {}
 impl api::ConnectorAuthentication for Netcetera {}
 impl api::ConnectorPostAuthentication for Netcetera {}
@@ -447,6 +448,15 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Netcetera
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
         types::authentication::AuthenticationResponseData,
     > for Netcetera
 {

@@ -4,7 +4,9 @@ use common_utils::pii::EmailStrategy;
 use masking::Secret;
 
 use self::{
+    active_payments::ActivePaymentsMetrics,
     api_event::{ApiEventDimensions, ApiEventMetrics},
+    auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
@@ -12,7 +14,9 @@ use self::{
 };
 pub use crate::payments::TimeRange;
 
+pub mod active_payments;
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
 pub mod outgoing_webhook_event;
@@ -136,6 +140,25 @@ pub struct GetSdkEventMetricRequest {
     pub metrics: HashSet<SdkEventMetrics>,
     #[serde(default)]
     pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAuthEventMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub metrics: HashSet<AuthEventMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetActivePaymentsMetricRequest {
+    #[serde(default)]
+    pub metrics: HashSet<ActivePaymentsMetrics>,
+    pub time_range: TimeRange,
 }
 
 #[derive(Debug, serde::Serialize)]

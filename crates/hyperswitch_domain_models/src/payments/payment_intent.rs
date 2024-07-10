@@ -1,25 +1,31 @@
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    pii,
+    crypto::Encryptable,
+    id_type,
+    pii::{self, Email},
+    types::MinorUnit,
 };
-use serde::{Deserialize, Serialize};
+use masking::{Deserialize, Secret};
+use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
-use crate::{errors, RemoteStorageObject};
+use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        new: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
@@ -27,6 +33,7 @@ pub trait PaymentIntentInterface {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
@@ -41,6 +48,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
@@ -49,6 +57,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
@@ -57,6 +66,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
@@ -69,18 +79,27 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
+pub struct CustomerData {
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
-    pub customer_id: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
@@ -113,13 +132,15 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
-        amount_captured: Option<i64>,
+        amount_captured: Option<MinorUnit>,
         return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
@@ -129,12 +150,13 @@ pub enum PaymentIntentUpdate {
         metadata: pii::SecretSerdeValue,
         updated_by: String,
     },
-    ReturnUrlUpdate {
+    PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
         updated_by: String,
     },
     MerchantStatusUpdate {
@@ -149,11 +171,11 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     Update {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
@@ -164,11 +186,13 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        frm_metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
         fingerprint_id: Option<String>,
         session_expiry: Option<PrimitiveDateTime>,
         request_external_three_ds_authentication: Option<bool>,
+        customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -196,20 +220,27 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: i64,
+        amount: MinorUnit,
     },
     AuthorizationCountUpdate {
         authorization_count: i32,
+    },
+    CompleteAuthorizeUpdate {
+        shipping_address_id: Option<String>,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::IntentStatus>,
+        updated_by: String,
     },
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<i64>,
-    pub customer_id: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -237,6 +268,8 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -263,6 +296,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -285,6 +320,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -296,12 +333,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ReturnUrlUpdate {
+            PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                customer_details,
                 updated_by,
             } => Self {
                 return_url,
@@ -309,6 +347,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                customer_details,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 ..Default::default()
@@ -420,6 +459,268 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count: Some(authorization_count),
                 ..Default::default()
             },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self {
+                shipping_address_id,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+                status,
+                modified_at: Some(common_utils::date_time::now()),
+                updated_by,
+                ..Default::default()
+            },
+        }
+    }
+}
+
+use diesel_models::{encryption::Encryption, PaymentIntentUpdate as DieselPaymentIntentUpdate};
+
+impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
+    fn from(value: PaymentIntentUpdate) -> Self {
+        match value {
+            PaymentIntentUpdate::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                return_url,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                return_url,
+                updated_by,
+                incremental_authorization_allowed,
+            },
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => Self::MetadataUpdate {
+                metadata,
+                updated_by,
+            },
+            PaymentIntentUpdate::PaymentCreateUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                customer_details,
+                updated_by,
+            } => Self::PaymentCreateUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                customer_details: customer_details.map(Encryption::from),
+                updated_by,
+            },
+            PaymentIntentUpdate::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            } => Self::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            },
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            },
+            PaymentIntentUpdate::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source,
+                updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details,
+            } => Self::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source,
+                updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details: customer_details.map(Encryption::from),
+            },
+            PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => Self::SurchargeApplicableUpdate {
+                surcharge_applicable: Some(surcharge_applicable),
+                updated_by,
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
+                Self::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self::AuthorizationCountUpdate {
+                authorization_count,
+            },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
+                Self::ManualUpdate { status, updated_by }
+            }
+        }
+    }
+}
+
+impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
+    fn from(value: PaymentIntentUpdateInternal) -> Self {
+        let modified_at = Some(common_utils::date_time::now());
+
+        let PaymentIntentUpdateInternal {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at: _,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
+            customer_details,
+        } = value;
+
+        Self {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
+            customer_details: customer_details.map(Encryption::from),
         }
     }
 }
@@ -442,7 +743,7 @@ pub struct PaymentIntentListParams {
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
     pub merchant_connector_id: Option<Vec<String>>,
     pub profile_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
     pub limit: Option<u32>,

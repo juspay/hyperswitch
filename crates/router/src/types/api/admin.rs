@@ -3,11 +3,12 @@ pub use api_models::admin::{
     MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
     MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
     MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors,
@@ -20,6 +21,11 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
+
+        let pm_collect_link_config: Option<api_models::admin::BusinessCollectLinkConfig> = item
+            .pm_collect_link_config
+            .map(|config| config.parse_value("pm_collect_link_config"))
+            .transpose()?;
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -45,6 +51,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
+            pm_collect_link_config,
         })
     }
 }
@@ -79,7 +86,20 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                     authentication_connector_details.parse_value("AuthenticationDetails")
                 })
                 .transpose()?,
+            payout_link_config: item
+                .payout_link_config
+                .map(|payout_link_config| {
+                    payout_link_config.parse_value("BusinessPayoutLinkConfig")
+                })
+                .transpose()?,
             use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
+            collect_shipping_details_from_wallet_connector: item
+                .collect_shipping_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
         })
     }
 }
@@ -176,12 +196,22 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "authentication_connector_details",
                 })?,
-            is_connector_agnostic_mit_enabled: None,
+            payout_link_config: request
+                .payout_link_config
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                })?,
+            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
             is_extended_card_info_enabled: None,
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: request
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: request
+                .collect_shipping_details_from_wallet_connector,
         })
     }
 }

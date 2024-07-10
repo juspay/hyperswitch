@@ -124,7 +124,8 @@ impl TryFrom<(&types::TokenizationRouterData, domain::WalletData)> for SquareTok
             | domain::WalletData::WeChatPayRedirect(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Square"),
             ))?,
         }
@@ -170,6 +171,7 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardToken(_) => {
@@ -258,12 +260,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                 let pm_token = item.get_payment_method_token()?;
                 Ok(Self {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
-                    source_id: Secret::new(match pm_token {
+                    source_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
-                    }),
+                    },
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,
                         currency: item.request.currency,
@@ -285,6 +287,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardToken(_) => {
@@ -381,6 +384,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured,
             ..item.data

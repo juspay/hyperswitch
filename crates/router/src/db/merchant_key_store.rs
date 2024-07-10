@@ -2,7 +2,7 @@ use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use crate::{
     connection,
@@ -92,7 +92,7 @@ impl MerchantKeyStoreInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &key_store_cache_key,
                 fetch_func,
@@ -128,7 +128,7 @@ impl MerchantKeyStoreInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            super::cache::publish_and_redact(
+            cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(key_store_cache_key.into()),
                 delete_func,

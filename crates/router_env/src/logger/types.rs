@@ -121,6 +121,8 @@ pub enum Flow {
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
+    /// Payment method create collect link flow.
+    PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -153,7 +155,7 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
-    // Payments filters flow
+    /// Payments filters flow
     PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
@@ -164,6 +166,8 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts update flow.
     PayoutsUpdate,
+    /// Payouts confirm flow.
+    PayoutsConfirm,
     #[cfg(feature = "payouts")]
     /// Payouts cancel flow.
     PayoutsCancel,
@@ -178,8 +182,12 @@ pub enum Flow {
     PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
-    /// Payments Redirect flow.
+    /// Payout link initiate flow
+    PayoutLinkInitiate,
+    /// Payments Redirect flow
     PaymentsRedirect,
+    /// Payemnts Complete Authorize Flow
+    PaymentsCompleteAuthorize,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -190,6 +198,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Refunds filters flow
+    RefundsFilters,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -294,6 +304,8 @@ pub enum Flow {
     GsmRuleRetrieve,
     /// Gsm Rule Update flow
     GsmRuleUpdate,
+    /// Apple pay certificates migration
+    ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up
@@ -386,6 +398,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -396,6 +410,34 @@ pub enum Flow {
     UpdateRole,
     /// User email flow start
     UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Reset TOTP
+    TotpReset,
+    /// Verify TOTP
+    TotpVerify,
+    /// Update TOTP secret
+    TotpUpdate,
+    /// Verify Access Code
+    RecoveryCodeVerify,
+    /// Generate or Regenerate recovery codes
+    RecoveryCodesGenerate,
+    /// Terminate two factor authentication
+    TerminateTwoFactorAuth,
+    /// Check 2FA status
+    TwoFactorAuthStatus,
+    /// Create user authentication method
+    CreateUserAuthenticationMethod,
+    /// Update user authentication method
+    UpdateUserAuthenticationMethod,
+    /// List user authentication methods
+    ListUserAuthenticationMethods,
+    /// Get sso auth url
+    GetSsoAuthUrl,
+    /// Signin with SSO
+    SignInWithSso,
+    /// Auth Select
+    AuthSelect,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -410,6 +452,8 @@ pub enum Flow {
     ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
+    /// Manually update the payment details like status, error code, error message etc.
+    PaymentsManualUpdate,
 }
 
 ///
