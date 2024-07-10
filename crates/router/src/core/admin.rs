@@ -2719,15 +2719,14 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
 
             let mut result = String::new();
 
-            for c in rearranged_iban.chars() {
-                match c {
-                    'A'..='Z' => {
-                        let digit = (c as u8 - b'A') + 10;
-                        result.push_str(&format!("{:02}", digit));
-                    }
-                    _ => result.push(c),
+            rearranged_iban.chars().for_each(|c| {
+                if c.is_ascii_uppercase() {
+                    let digit = (u32::from(c) - u32::from('A')) + 10;
+                    result.push_str(&format!("{:02}", digit));
+                } else {
+                    result.push(c);
                 }
-            }
+            });
 
             let num = result
                 .parse::<u128>()
