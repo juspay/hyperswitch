@@ -37,7 +37,7 @@ impl Bamboraapac {
         }
     }
 }
- 
+
 impl api::Payment for Bamboraapac {}
 impl api::PaymentSession for Bamboraapac {}
 impl api::ConnectorAccessToken for Bamboraapac {}
