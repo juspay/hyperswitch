@@ -27,6 +27,11 @@ impl<T> TryFrom<(MinorUnit, T)> for BamboraapacRouterData<T> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BamboraapacMeta {
+    pub authorize_id: String,
+}
+
 // request body in soap format
 pub fn get_payment_body(
     req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -387,6 +392,11 @@ impl<F>
             .submit_single_capture_result
             .response
             .receipt;
+
+        // storing receipt_id of authorize to metadata for future usage
+        let connector_metadata = Some(serde_json::json!(BamboraapacMeta {
+            authorize_id: item.data.request.connector_transaction_id.to_owned()
+        }));
         // transaction approved
         if response_code == 0 {
             Ok(Self {
@@ -397,7 +407,7 @@ impl<F>
                     ),
                     redirection_data: None,
                     mandate_reference: None,
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
