@@ -1220,7 +1220,25 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 pub struct RefundResponse {
     txn_id: Option<String>,
-    refund: Refund,
+    refund: RefundRes,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundRes {
+    id: u64,
+    status: RefundStatus,
+    amount: FloatMajorUnit,
+    merchant_id: Option<Secret<String>>,
+    gateway: Gateway,
+    txn_detail_id: u64,
+    unique_request_id: String,
+    epg_txn_id: Option<String>,
+    response_code: Option<String>,
+    error_message: Option<String>,
+    processed: bool,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    date_created: Option<PrimitiveDateTime>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -1230,11 +1248,35 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.refund.unique_request_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.refund.status),
+        let epg_txn_id = item.response.refund.epg_txn_id.clone();
+        let refund_status = enums::RefundStatus::from(item.response.refund.status);
+
+        let response = match epg_txn_id {
+            Some(epg_txn_id) => Ok(types::RefundsResponseData {
+                connector_refund_id: epg_txn_id,
+                refund_status,
             }),
+            None => Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .refund
+                    .error_message
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .refund
+                    .response_code
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.refund.response_code.clone(),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.refund.unique_request_id.clone()),
+            }),
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -1334,6 +1376,7 @@ pub enum RazorpayPaymentStatus {
     Authorized,
     Captured,
     Failed,
+    Refunded,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
@@ -1357,6 +1400,7 @@ impl TryFrom<RazorpayWebhookPayload> for api_models::webhooks::IncomingWebhookEv
                     }
                     RazorpayPaymentStatus::Captured => Some(Self::PaymentIntentSuccess),
                     RazorpayPaymentStatus::Failed => Some(Self::PaymentIntentFailure),
+                    RazorpayPaymentStatus::Refunded => None,
                 },
                 |refund_data| match refund_data.entity.status {
                     RazorpayRefundStatus::Pending => None,
