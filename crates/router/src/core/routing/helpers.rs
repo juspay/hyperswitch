@@ -217,7 +217,6 @@ pub async fn update_merchant_active_algorithm_ref(
         default_profile: None,
         payment_link_config: None,
         pm_collect_link_config: None,
-        fingerprint_hash_key: None,
     };
 
     db.update_specific_fields_in_merchant(

@@ -237,29 +237,9 @@ pub async fn get_merchant_fingerprint_secret(
                 .async_lift(|inner| domain::types::encrypt_optional(inner, key))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt merchant name")?;
+                .attach_printable("Unable to encrypt fingerprint hash key")?;
 
-            let merchant_account_update = storage::MerchantAccountUpdate::Update {
-                merchant_name: None,
-                merchant_details: None,
-                return_url: None,
-                webhook_details: None,
-                sub_merchants_enabled: None,
-                parent_merchant_id: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                publishable_key: None,
-                locker_id: None,
-                metadata: None,
-                routing_algorithm: None,
-                primary_business_details: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                default_profile: None,
-                payment_link_config: None,
-                pm_collect_link_config: None,
+            let merchant_account_update = storage::MerchantAccountUpdate::FingerprintHashUpdate {
                 fingerprint_hash_key,
             };
 

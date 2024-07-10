@@ -885,12 +885,6 @@ pub async fn merchant_account_update(
         default_profile: business_profile_id_update,
         payment_link_config: None,
         pm_collect_link_config,
-        fingerprint_hash_key: req
-            .fingerprint_hash_key
-            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt fingerprint hash key")?,
     };
 
     let response = db
