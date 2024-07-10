@@ -11,7 +11,6 @@ use common_utils::{
 };
 #[cfg(all(feature = "keymanager_create", feature = "olap"))]
 use common_utils::{keymanager, types::keymanager as km_types};
-
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
