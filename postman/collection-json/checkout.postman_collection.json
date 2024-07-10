@@ -3,9 +3,7 @@
     {
       "listen": "prerequest",
       "script": {
-        "exec": [
-          ""
-        ],
+        "exec": [""],
         "type": "text/javascript"
       }
     },
@@ -58,12 +56,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
             }
           },
           "response": []
@@ -147,9 +141,7 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [
-                      ""
-                    ],
+                    "exec": [""],
                     "type": "text/javascript"
                   }
                 }
@@ -197,12 +189,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/accounts",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "accounts"
-                  ]
+                  "host": ["{{baseUrl}}"],
+                  "path": ["accounts"]
                 },
                 "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
               },
@@ -300,13 +288,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api_keys/:merchant_id",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api_keys",
-                    ":merchant_id"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api_keys", ":merchant_id"],
                   "variable": [
                     {
                       "key": "merchant_id",
@@ -371,9 +354,7 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [
-                      ""
-                    ],
+                    "exec": [""],
                     "type": "text/javascript"
                   }
                 }
@@ -417,18 +398,12 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "account",
-                    ":account_id",
-                    "connectors"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["account", ":account_id", "connectors"],
                   "variable": [
                     {
                       "key": "account_id",
@@ -538,12 +513,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "payments"
-                  ]
+                  "host": ["{{baseUrl}}"],
+                  "path": ["payments"]
                 },
                 "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
               },
@@ -644,13 +615,8 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "payments",
-                    ":id"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["payments", ":id"],
                   "query": [
                     {
                       "key": "force_sync",
@@ -771,12 +737,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/refunds",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "refunds"
-                  ]
+                  "host": ["{{baseUrl}}"],
+                  "path": ["refunds"]
                 },
                 "description": "To create a refund against an already processed payment"
               },
@@ -852,9 +814,7 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [
-                      ""
-                    ],
+                    "exec": [""],
                     "type": "text/javascript"
                   }
                 }
@@ -869,13 +829,8 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/refunds/:id",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "refunds",
-                    ":id"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["refunds", ":id"],
                   "variable": [
                     {
                       "key": "id",
@@ -1001,12 +956,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -1152,13 +1103,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -1219,14 +1165,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "customers",
-                        ":customer_id",
-                        "payment_methods"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["customers", ":customer_id", "payment_methods"],
                       "query": [
                         {
                           "key": "accepted_country",
@@ -1366,12 +1306,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -1518,14 +1454,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -1678,13 +1608,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -1805,12 +1730,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },
@@ -1889,13 +1810,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/refunds/:id",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds", ":id"],
                       "variable": [
                         {
                           "key": "id",
@@ -2008,12 +1924,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -2061,14 +1973,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "customers",
-                        ":customer_id",
-                        "payment_methods"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["customers", ":customer_id", "payment_methods"],
                       "query": [
                         {
                           "key": "accepted_country",
@@ -2208,12 +2114,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -2359,14 +2261,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -2519,13 +2415,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -2644,12 +2535,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -2697,14 +2584,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "customers",
-                        ":customer_id",
-                        "payment_methods"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["customers", ":customer_id", "payment_methods"],
                       "query": [
                         {
                           "key": "accepted_country",
@@ -2844,12 +2725,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -3013,14 +2890,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -3173,13 +3044,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -3308,12 +3174,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -3459,13 +3321,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -3526,14 +3383,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "customers",
-                        ":customer_id",
-                        "payment_methods"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["customers", ":customer_id", "payment_methods"],
                       "query": [
                         {
                           "key": "accepted_country",
@@ -3673,12 +3524,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -3825,14 +3672,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -3990,14 +3831,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -4150,13 +3985,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -4318,12 +4148,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -4454,13 +4280,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -4621,12 +4442,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -4797,14 +4614,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -4957,13 +4768,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -5124,12 +4930,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -5300,14 +5102,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -5460,13 +5256,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -5627,12 +5418,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -5803,14 +5590,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -5967,14 +5748,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -6127,13 +5902,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -6299,12 +6069,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -6455,14 +6221,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -6615,13 +6375,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -6787,12 +6542,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -6943,14 +6694,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -7103,13 +6848,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -7275,12 +7015,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -7383,14 +7119,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "cancel"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "cancel"],
                       "variable": [
                         {
                           "key": "id",
@@ -7508,13 +7238,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -7680,12 +7405,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -7831,13 +7552,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -7958,12 +7674,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },
@@ -8047,13 +7759,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/refunds/:id",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds", ":id"],
                       "variable": [
                         {
                           "key": "id",
@@ -8213,12 +7920,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -8364,13 +8067,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -8491,12 +8189,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },
@@ -8575,13 +8269,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/refunds/:id",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds", ":id"],
                       "variable": [
                         {
                           "key": "id",
@@ -8691,12 +8380,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },
@@ -8775,13 +8460,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/refunds/:id",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds", ":id"],
                       "variable": [
                         {
                           "key": "id",
@@ -8904,13 +8584,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -9013,9 +8688,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9043,12 +8716,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments"]
                         },
                         "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                       },
@@ -9148,9 +8817,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9178,14 +8845,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -9292,9 +8953,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9322,14 +8981,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -9436,9 +9089,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9466,14 +9117,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -9581,13 +9226,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id?force_sync=true&expand_captures=true",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id"],
                           "query": [
                             {
                               "key": "force_sync",
@@ -9712,12 +9352,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/refunds",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "refunds"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["refunds"]
                         },
                         "description": "To create a refund against an already processed payment"
                       },
@@ -9793,9 +9429,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9810,13 +9444,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/refunds/:id",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "refunds",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["refunds", ":id"],
                           "variable": [
                             {
                               "key": "id",
@@ -9910,9 +9539,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -9940,12 +9567,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments"]
                         },
                         "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                       },
@@ -10056,13 +9679,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id"],
                           "query": [
                             {
                               "key": "force_sync",
@@ -10174,9 +9792,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -10204,14 +9820,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -10303,13 +9913,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id?force_sync=true&expand_captures=true",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id"],
                           "query": [
                             {
                               "key": "force_sync",
@@ -10413,9 +10018,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -10443,12 +10046,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments"]
                         },
                         "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                       },
@@ -10549,13 +10148,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id"],
                           "query": [
                             {
                               "key": "force_sync",
@@ -10668,9 +10262,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -10698,14 +10290,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -10801,9 +10387,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -10831,14 +10415,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/cancel",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "cancel"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "cancel"],
                           "variable": [
                             {
                               "key": "id",
@@ -10932,9 +10510,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -10962,12 +10538,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments"]
                         },
                         "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                       },
@@ -11057,9 +10629,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -11087,14 +10657,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id/capture",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id",
-                            "capture"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id", "capture"],
                           "variable": [
                             {
                               "key": "id",
@@ -11181,12 +10745,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/refunds",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "refunds"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["refunds"]
                         },
                         "description": "To create a refund against an already processed payment"
                       },
@@ -11283,9 +10843,7 @@
                         {
                           "listen": "prerequest",
                           "script": {
-                            "exec": [
-                              ""
-                            ],
+                            "exec": [""],
                             "type": "text/javascript"
                           }
                         }
@@ -11313,12 +10871,8 @@
                         },
                         "url": {
                           "raw": "{{baseUrl}}/payments",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments"
-                          ]
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments"]
                         },
                         "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                       },
@@ -11419,13 +10973,8 @@
                         ],
                         "url": {
                           "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                          "host": [
-                            "{{baseUrl}}"
-                          ],
-                          "path": [
-                            "payments",
-                            ":id"
-                          ],
+                          "host": ["{{baseUrl}}"],
+                          "path": ["payments", ":id"],
                           "query": [
                             {
                               "key": "force_sync",
@@ -11563,12 +11112,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -11696,12 +11241,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -11829,12 +11370,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -11962,12 +11499,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -12085,12 +11618,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -12246,14 +11775,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "confirm"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "confirm"],
                       "variable": [
                         {
                           "key": "id",
@@ -12423,12 +11946,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -12564,14 +12083,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -12689,13 +12202,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -12826,12 +12334,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -12934,9 +12438,7 @@
                     {
                       "listen": "prerequest",
                       "script": {
-                        "exec": [
-                          ""
-                        ],
+                        "exec": [""],
                         "type": "text/javascript"
                       }
                     }
@@ -12964,14 +12466,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "capture"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "capture"],
                       "variable": [
                         {
                           "key": "id",
@@ -13096,12 +12592,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -13212,14 +12704,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id",
-                        "cancel"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id", "cancel"],
                       "variable": [
                         {
                           "key": "id",
@@ -13379,12 +12865,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -13530,13 +13012,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -13662,12 +13139,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },
@@ -13785,12 +13258,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
@@ -13901,13 +13370,8 @@
                     ],
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id?force_sync=true",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments",
-                        ":id"
-                      ],
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments", ":id"],
                       "query": [
                         {
                           "key": "force_sync",
@@ -14021,12 +13485,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["refunds"]
                     },
                     "description": "To create a refund against an already processed payment"
                   },

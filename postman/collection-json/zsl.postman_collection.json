@@ -3,9 +3,7 @@
     {
       "listen": "prerequest",
       "script": {
-        "exec": [
-          ""
-        ],
+        "exec": [""],
         "type": "text/javascript"
       }
     },
@@ -58,12 +56,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
             }
           },
           "response": []
@@ -146,9 +140,7 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [
-                      ""
-                    ],
+                    "exec": [""],
                     "type": "text/javascript"
                   }
                 }
@@ -196,12 +188,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/accounts",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "accounts"
-                  ]
+                  "host": ["{{baseUrl}}"],
+                  "path": ["accounts"]
                 },
                 "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
               },
@@ -299,13 +287,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api_keys/:merchant_id",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api_keys",
-                    ":merchant_id"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api_keys", ":merchant_id"],
                   "variable": [
                     {
                       "key": "merchant_id",
@@ -407,18 +390,12 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"zsl\",\"connector_account_details\":{\"auth_type\":\"BodyKey\",\"api_key\":\"{{connector_api_key}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"bank_transfer\",\"payment_method_types\":[{\"payment_method_type\":\"local_bank_transfer\",\"payment_experience\":\"redirect_to_url\",\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":-1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"zsl\",\"connector_account_details\":{\"auth_type\":\"BodyKey\",\"api_key\":\"{{connector_api_key}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"bank_transfer\",\"payment_method_types\":[{\"payment_method_type\":\"local_bank_transfer\",\"payment_experience\":\"redirect_to_url\",\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":-1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "account",
-                    ":account_id",
-                    "connectors"
-                  ],
+                  "host": ["{{baseUrl}}"],
+                  "path": ["account", ":account_id", "connectors"],
                   "variable": [
                     {
                       "key": "account_id",
@@ -504,9 +481,7 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [
-                      ""
-                    ],
+                    "exec": [""],
                     "type": "text/javascript"
                   }
                 }
@@ -534,12 +509,8 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "payments"
-                  ]
+                  "host": ["{{baseUrl}}"],
+                  "path": ["payments"]
                 },
                 "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
               },
@@ -626,9 +597,7 @@
                     {
                       "listen": "prerequest",
                       "script": {
-                        "exec": [
-                          ""
-                        ],
+                        "exec": [""],
                         "type": "text/javascript"
                       }
                     }
@@ -656,12 +625,8 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "payments"
-                      ]
+                      "host": ["{{baseUrl}}"],
+                      "path": ["payments"]
                     },
                     "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
                   },
