@@ -18,8 +18,6 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
