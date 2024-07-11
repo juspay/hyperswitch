@@ -9,7 +9,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use diesel_models::configs;
+use diesel_models::{configs, encryption::Encryption};
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -23,6 +23,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payment_methods::cards::create_encrypted_data,
         payments::helpers,
         routing::helpers as routing_helpers,
         utils as core_utils,
@@ -31,7 +32,8 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, api as service_api, authentication},
     types::{
-        self, api,
+        self,
+        api::{self, admin},
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
@@ -1766,10 +1768,17 @@ pub async fn create_and_insert_business_profile(
     request: api::BusinessProfileCreate,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResult<storage::business_profile::BusinessProfile> {
-    let business_profile_new = storage::business_profile::BusinessProfileNew::foreign_try_from((
-        merchant_account,
-        request,
-    ))?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_account.merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let business_profile_new =
+        admin::create_business_profile(merchant_account, request, &key_store).await?;
 
     let profile_name = business_profile_new.profile_name.clone();
 
@@ -1902,6 +1911,14 @@ pub async fn update_business_profile(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
 
     if business_profile.merchant_id != merchant_id {
         Err(errors::ApiErrorResponse::AccessForbidden {
@@ -2007,7 +2024,12 @@ pub async fn update_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers: request.outgoing_webhook_custom_http_headers,
+        outgoing_webhook_custom_http_headers: create_encrypted_data(
+            &key_store,
+            request.outgoing_webhook_custom_http_headers,
+        )
+        .await
+        .map(Encryption::from),
     };
 
     let updated_business_profile = db

@@ -1,13 +1,7 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::marker::PhantomData;
 
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::{Encode, ValueExt},
-    pii::SecretSerdeValue,
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use masking::Maskable;
-use serde_json::Value;
 
 use crate::{
     core::{
@@ -152,25 +146,4 @@ pub(crate) fn get_idempotent_event_id(
 #[inline]
 pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
-}
-
-pub fn convert_serde_json_to_hashset(
-    serde_json: Option<SecretSerdeValue>,
-) -> CustomResult<HashSet<(String, Maskable<String>)>, errors::ParsingError> {
-    let mut result_set = HashSet::new();
-
-    if let Some(secret) = serde_json {
-        let json_value = secret.encode_to_value()?;
-
-        if let Value::Object(map) = json_value {
-            for (key, value) in map {
-                if let Some(val_str) = value.as_str() {
-                    result_set.insert((key.clone(), Maskable::new_normal(val_str.to_string())));
-                }
-            }
-        } else {
-            logger::warn!("Expected JSON object but found {:?}", json_value);
-        }
-    }
-    Ok(result_set)
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
     webhooks,
@@ -11,7 +13,6 @@ use router_env::{
     metrics::add_attributes,
     tracing::{self, Instrument},
 };
-use serde_json::Value;
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "stripe")]
@@ -561,15 +562,22 @@ pub(crate) fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let outgoing_webhook_custom_http_headers = business_profile
+        let hashmap = business_profile
             .outgoing_webhook_custom_http_headers
-            .clone();
-        let hashset = utils::convert_serde_json_to_hashset(outgoing_webhook_custom_http_headers)
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-            .attach_printable("failed encoding outgoing webhook headers")?;
-        for (key, value) in hashset {
-            headers.push((key, value));
-        }
+            .as_ref()
+            .map(|headers| {
+                headers.encode_to_value().and_then(|value| {
+                    value.parse_value::<HashMap<String, String>>("HashMap<String,String>")
+                })
+            })
+            .transpose()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)?;
+        if let Some(ref map) = hashmap {
+            headers.extend(
+                map.iter()
+                    .map(|(key, value)| (key.clone(), value.clone().into_masked())),
+            );
+        };
         let outgoing_webhooks_signature = transformed_outgoing_webhook
             .get_outgoing_webhooks_signature(payment_response_hash_key)?;
 
@@ -861,12 +869,12 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         diesel_models::EventMetadata::Payment { payment_id } => {
             OutgoingWebhookEventContent::Payment {
                 payment_id: Some(payment_id),
-                content: Value::Null,
+                content: serde_json::Value::Null,
             }
         }
         diesel_models::EventMetadata::Payout { payout_id } => OutgoingWebhookEventContent::Payout {
             payout_id,
-            content: Value::Null,
+            content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Refund {
             payment_id,
@@ -874,7 +882,7 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         } => OutgoingWebhookEventContent::Refund {
             payment_id,
             refund_id,
-            content: Value::Null,
+            content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Dispute {
             payment_id,
@@ -884,7 +892,7 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
             payment_id,
             attempt_id,
             dispute_id,
-            content: Value::Null,
+            content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Mandate {
             payment_method_id,
@@ -892,7 +900,7 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         } => OutgoingWebhookEventContent::Mandate {
             payment_method_id,
             mandate_id,
-            content: Value::Null,
+            content: serde_json::Value::Null,
         },
     })
 }

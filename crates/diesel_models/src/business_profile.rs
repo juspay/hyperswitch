@@ -1,7 +1,7 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::schema::business_profile;
+use crate::{encryption::Encryption, schema::business_profile};
 
 #[derive(
     Clone,
@@ -42,7 +42,7 @@ pub struct BusinessProfile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
-    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -76,7 +76,7 @@ pub struct BusinessProfileNew {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
-    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -107,7 +107,7 @@ pub struct BusinessProfileUpdateInternal {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
-    pub outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -136,7 +136,7 @@ pub enum BusinessProfileUpdate {
         collect_shipping_details_from_wallet_connector: Option<bool>,
         collect_billing_details_from_wallet_connector: Option<bool>,
         is_connector_agnostic_mit_enabled: Option<bool>,
-        outgoing_webhook_custom_http_headers: Option<pii::SecretSerdeValue>,
+        outgoing_webhook_custom_http_headers: Option<Encryption>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
