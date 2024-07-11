@@ -73,11 +73,11 @@ impl Display for GenericLinks {
             f,
             "{}",
             match self {
-                GenericLinks::ExpiredLink(_) => "ExpiredLink",
-                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
-                GenericLinks::PayoutLink(_) => "PayoutLink",
-                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
-                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::ExpiredLink(_) => "ExpiredLink",
+                Self::PaymentMethodCollect(_) => "PaymentMethodCollect",
+                Self::PayoutLink(_) => "PayoutLink",
+                Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
+                Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
             }
         )
     }
