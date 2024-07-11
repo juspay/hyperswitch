@@ -126,7 +126,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> = request
@@ -188,12 +188,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
+        let customer_id = payment_intent
+            .customer_id
+            .as_ref()
+            .or(request.get_customer_id())
+            .cloned();
+
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            payment_intent
-                .customer_id
-                .as_ref()
-                .or(request.customer_id.as_ref()),
+            customer_id.as_ref(),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(
@@ -337,7 +340,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         };
 
         let customer_details = Some(CustomerDetails {
-            customer_id: request.customer_id.clone(),
+            customer_id,
             name: request.name.clone(),
             email: request.email.clone(),
             phone: request.phone.clone(),

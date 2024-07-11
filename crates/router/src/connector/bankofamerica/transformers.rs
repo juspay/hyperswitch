@@ -1309,7 +1309,11 @@ impl
         let payment_instrument = BankOfAmericaPaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let order_information = OrderInformationWithBill::from((item, None));
+        let bill_to =
+            item.router_data.request.get_email().ok().and_then(|email| {
+                build_bill_to(item.router_data.get_optional_billing(), email).ok()
+            });
+        let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,

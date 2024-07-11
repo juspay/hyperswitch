@@ -1797,10 +1797,11 @@ pub fn build_redirection_form(
         RedirectForm::Mifinity {
             initialization_token,
         } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
             maud::html! {
                         (maud::DOCTYPE)
                         head {
-                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
                         (PreEscaped(format!("<div id='widget-container'></div>
@@ -1808,9 +1809,11 @@ pub fn build_redirection_form(
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
-				  setTimeout(function() {{
-					widget.close();
-				  }}, 5000);
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
 			  }}
 		   }});
 	   </script>")))

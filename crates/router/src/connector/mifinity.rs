@@ -2,16 +2,17 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::{report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as mifinity;
 
 use self::transformers::auth_headers;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -112,39 +113,59 @@ impl ConnectorCommon for Mifinity {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: mifinity::MifinityErrorResponse = res
-            .response
-            .parse_struct("MifinityErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            let response: Result<
+                mifinity::MifinityErrorResponse,
+                Report<common_utils::errors::ParsingError>,
+            > = res.response.parse_struct("MifinityErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+            match response {
+                Ok(response) => {
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: response
+                            .errors
+                            .iter()
+                            .map(|error| error.error_code.clone())
+                            .collect::<Vec<String>>()
+                            .join(" & "),
+                        message: response
+                            .errors
+                            .iter()
+                            .map(|error| error.message.clone())
+                            .collect::<Vec<String>>()
+                            .join(" & "),
+                        reason: Some(
+                            response
+                                .errors
+                                .iter()
+                                .map(|error| error.message.clone())
+                                .collect::<Vec<String>>()
+                                .join(" & "),
+                        ),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    })
+                }
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .errors
-                .iter()
-                .map(|error| error.error_code.clone())
-                .collect::<Vec<String>>()
-                .join(" & "),
-            message: response
-                .errors
-                .iter()
-                .map(|error| error.message.clone())
-                .collect::<Vec<String>>()
-                .join(" & "),
-            reason: Some(
-                response
-                    .errors
-                    .iter()
-                    .map(|error| error.message.clone())
-                    .collect::<Vec<String>>()
-                    .join(" & "),
-            ),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+                Err(error_msg) => {
+                    event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                    logger::error!(deserialization_error =? error_msg);
+                    crate::utils::handle_json_response_deserialization_failure(res, "mifinity")
+                }
+            }
+        }
     }
 }
 
