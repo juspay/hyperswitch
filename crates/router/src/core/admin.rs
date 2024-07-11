@@ -9,6 +9,8 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     id_type, pii,
 };
+#[cfg(all(feature = "keymanager_create", feature = "olap"))]
+use common_utils::{keymanager, types::keymanager as km_types};
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
@@ -21,6 +23,7 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::{
+        encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
         payments::helpers,
@@ -129,6 +132,19 @@ pub async fn create_merchant_account(
     let domain_merchant_account = req
         .create_domain_model_from_request(db, key_store.clone())
         .await?;
+
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            &(&state).into(),
+            km_types::EncryptionCreateRequest {
+                identifier: km_types::Identifier::Merchant(merchant_id.clone()),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
 
     db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
         .await
@@ -2532,6 +2548,18 @@ pub(crate) fn validate_connector_auth_type(
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey => Ok(()),
     }
+}
+
+pub async fn transfer_key_store_to_key_manager(
+    state: SessionState,
+) -> RouterResponse<admin_types::TransferKeyResponse> {
+    let resp = transfer_encryption_key(&state).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        admin_types::TransferKeyResponse {
+            total_transferred: resp,
+        },
+    ))
 }
 
 #[cfg(feature = "dummy_connector")]

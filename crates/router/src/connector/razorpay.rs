@@ -630,7 +630,7 @@ impl api::IncomingWebhook for Razorpay {
         let webhook_resource_object = get_webhook_object_from_body(request.body)?;
         match webhook_resource_object.refund {
             Some(refund_data) => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::RefundId(refund_data.entity.id),
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.entity.id),
             )),
             None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
