@@ -217,7 +217,8 @@ where
                         .async_map(|pm_card| create_encrypted_data(key_store, pm_card))
                         .await
                         .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt payment method data")?;
 
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,
@@ -225,7 +226,8 @@ where
                     .async_map(|address| create_encrypted_data(key_store, address.clone()))
                     .await
                     .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method billing address")?;
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
@@ -322,7 +324,8 @@ where
                                             None,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
-                                            encrypted_payment_method_billing_address,
+                                            encrypted_payment_method_billing_address
+                                                .map(Into::into),
                                             resp.card.and_then(|card| {
                                                 card.card_network
                                                     .map(|card_network| card_network.to_string())
@@ -518,9 +521,8 @@ where
                                     .async_map(|pmd| create_encrypted_data(key_store, pmd))
                                     .await
                                     .transpose()
-                                    .change_context(
-                                        errors::ApiErrorResponse::InternalServerError,
-                                    )?;
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Unable to encrypt payment method data")?;
 
                                 payment_methods::cards::update_payment_method_and_last_used(
                                     db,
@@ -613,7 +615,7 @@ where
                                 None,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
-                                encrypted_payment_method_billing_address,
+                                encrypted_payment_method_billing_address.map(Into::into),
                                 resp.card.and_then(|card| {
                                     card.card_network
                                         .map(|card_network| card_network.to_string())
