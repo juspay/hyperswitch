@@ -14,18 +14,6 @@ use crate::{
 };
 
 /// Payouts - Create
-#[utoipa::path(
-    post,
-    path = "/payouts/create",
-    request_body=PayoutCreateRequest,
-    responses(
-        (status = 200, description = "Payout created", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payouts",
-    operation_id = "Create a Payout",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 pub async fn payouts_create(
     state: web::Data<AppState>,
@@ -47,20 +35,6 @@ pub async fn payouts_create(
     .await
 }
 /// Payouts - Retrieve
-#[utoipa::path(
-    get,
-    path = "/payouts/{payout_id}",
-    params(
-        ("payout_id" = String, Path, description = "The identifier for payout]")
-    ),
-    responses(
-        (status = 200, description = "Payout retrieved", body = PayoutCreateResponse),
-        (status = 404, description = "Payout does not exist in our records")
-    ),
-    tag = "Payouts",
-    operation_id = "Retrieve a Payout",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
 pub async fn payouts_retrieve(
     state: web::Data<AppState>,
@@ -92,21 +66,6 @@ pub async fn payouts_retrieve(
     .await
 }
 /// Payouts - Update
-#[utoipa::path(
-    post,
-    path = "/payouts/{payout_id}",
-    params(
-        ("payout_id" = String, Path, description = "The identifier for payout]")
-    ),
-    request_body=PayoutCreateRequest,
-    responses(
-        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payouts",
-    operation_id = "Update a Payout",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
 pub async fn payouts_update(
     state: web::Data<AppState>,
@@ -164,22 +123,8 @@ pub async fn payouts_confirm(
     ))
     .await
 }
+
 /// Payouts - Cancel
-#[utoipa::path(
-    post,
-    path = "/payouts/{payout_id}/cancel",
-    params(
-        ("payout_id" = String, Path, description = "The identifier for payout")
-    ),
-    request_body=PayoutActionRequest,
-    responses(
-        (status = 200, description = "Payout cancelled", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payouts",
-    operation_id = "Cancel a Payout",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
 pub async fn payouts_cancel(
     state: web::Data<AppState>,
@@ -205,21 +150,6 @@ pub async fn payouts_cancel(
     .await
 }
 /// Payouts - Fulfill
-#[utoipa::path(
-    post,
-    path = "/payouts/{payout_id}/fulfill",
-    params(
-        ("payout_id" = String, Path, description = "The identifier for payout")
-    ),
-    request_body=PayoutActionRequest,
-    responses(
-        (status = 200, description = "Payout fulfilled", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payouts",
-    operation_id = "Fulfill a Payout",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
 pub async fn payouts_fulfill(
     state: web::Data<AppState>,
@@ -247,17 +177,6 @@ pub async fn payouts_fulfill(
 
 /// Payouts - List
 #[cfg(feature = "olap")]
-#[utoipa::path(
-    get,
-    path = "/payouts/list",
-    responses(
-        (status = 200, description = "Payouts listed", body = PayoutListResponse),
-        (status = 404, description = "Payout not found")
-    ),
-    tag = "Payouts",
-    operation_id = "List payouts",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list(
     state: web::Data<AppState>,
@@ -285,17 +204,6 @@ pub async fn payouts_list(
 
 /// Payouts - Filtered list
 #[cfg(feature = "olap")]
-#[utoipa::path(
-    post,
-    path = "/payouts/list",
-    responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
-        (status = 404, description = "Payout not found")
-    ),
-    tag = "Payouts",
-    operation_id = "Filter payouts",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list_by_filter(
     state: web::Data<AppState>,
@@ -325,17 +233,6 @@ pub async fn payouts_list_by_filter(
 
 /// Payouts - Available filters
 #[cfg(feature = "olap")]
-#[utoipa::path(
-    post,
-    path = "/payouts/filter",
-    responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListFilters),
-        (status = 404, description = "Payout not found")
-    ),
-    tag = "Payouts",
-    operation_id = "Filter payouts",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn payouts_list_available_filters(
     state: web::Data<AppState>,
