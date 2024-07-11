@@ -81,6 +81,8 @@ pub enum Flow {
     MerchantConnectorsDelete,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
+    /// Merchant Transfer Keys
+    MerchantTransferKey,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.

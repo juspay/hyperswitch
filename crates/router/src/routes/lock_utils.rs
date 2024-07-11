@@ -45,6 +45,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
+            | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
 
             Flow::RoutingCreateConfig

@@ -446,16 +446,16 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
-/// Merchant Account - Toggle KV
+/// Merchant Account - Transfer Keys
 ///
-/// Toggle KV mode for all Merchant Accounts
+/// Transfer Merchant Encryption key to keymanager
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_all_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::ToggleAllKVRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ConfigKeyUpdate;
+    let flow = Flow::MerchantTransferKey;
     let payload = json_payload.into_inner();
 
     api::server_wrap(

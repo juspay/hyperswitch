@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use error_stack::ResultExt;
+use http::Method;
 use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
@@ -63,6 +64,7 @@ pub async fn send_encryption_request<T>(
     state: &KeyManagerState,
     headers: HeaderMap,
     url: String,
+    method: Method,
     request_body: T,
 ) -> errors::CustomResult<reqwest::Response, errors::KeyManagerClientError>
 where
@@ -73,7 +75,7 @@ where
         .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
     client
-        .post(url)
+        .request(method, url)
         .json(&request_body)
         .headers(headers)
         .send()
@@ -87,6 +89,7 @@ where
 #[instrument(skip_all)]
 pub async fn call_encryption_service<T, R>(
     state: &KeyManagerState,
+    method: Method,
     endpoint: &str,
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
@@ -108,6 +111,7 @@ where
             .into_iter(),
         ),
         url,
+        method,
         request_body,
     )
     .await
@@ -150,7 +154,7 @@ pub async fn create_key_in_key_manager(
     state: &KeyManagerState,
     request_body: EncryptionCreateRequest,
 ) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
-    call_encryption_service(state, "key/create", request_body)
+    call_encryption_service(state, Method::POST, "key/create", request_body)
         .await
         .change_context(errors::KeyManagerError::KeyAddFailed)
 }
@@ -161,7 +165,7 @@ pub async fn transfer_key_to_key_manager(
     state: &KeyManagerState,
     request_body: EncryptionTransferRequest,
 ) -> errors::CustomResult<DataKeyCreateResponse, errors::KeyManagerError> {
-    call_encryption_service(state, "key/transfer", request_body)
+    call_encryption_service(state, Method::POST, "key/transfer", request_body)
         .await
         .change_context(errors::KeyManagerError::KeyTransferFailed)
 }
