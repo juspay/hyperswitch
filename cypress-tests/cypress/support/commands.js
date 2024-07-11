@@ -25,7 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/utils";
+import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/Utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
