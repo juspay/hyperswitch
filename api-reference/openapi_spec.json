@@ -11244,10 +11244,10 @@
           {
             "type": "object",
             "required": [
-              "Iban"
+              "iban"
             ],
             "properties": {
-              "Iban": {
+              "iban": {
                 "type": "object",
                 "required": [
                   "iban",
@@ -11261,11 +11261,7 @@
                     "type": "string"
                   },
                   "connector_recipient_id": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/RecipientIdType"
-                      }
-                    ],
+                    "type": "string",
                     "nullable": true
                   }
                 }
@@ -11275,10 +11271,10 @@
           {
             "type": "object",
             "required": [
-              "Bacs"
+              "bacs"
             ],
             "properties": {
-              "Bacs": {
+              "bacs": {
                 "type": "object",
                 "required": [
                   "account_number",
@@ -11296,11 +11292,7 @@
                     "type": "string"
                   },
                   "connector_recipient_id": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/RecipientIdType"
-                      }
-                    ],
+                    "type": "string",
                     "nullable": true
                   }
                 }
@@ -12215,10 +12207,10 @@
           {
             "type": "object",
             "required": [
-              "ConnectorRecipientId"
+              "connector_recipient_id"
             ],
             "properties": {
-              "ConnectorRecipientId": {
+              "connector_recipient_id": {
                 "type": "string",
                 "nullable": true
               }
@@ -12227,10 +12219,10 @@
           {
             "type": "object",
             "required": [
-              "WalletId"
+              "wallet_id"
             ],
             "properties": {
-              "WalletId": {
+              "wallet_id": {
                 "type": "string",
                 "nullable": true
               }
@@ -12239,10 +12231,10 @@
           {
             "type": "object",
             "required": [
-              "AccountData"
+              "account_data"
             ],
             "properties": {
-              "AccountData": {
+              "account_data": {
                 "$ref": "#/components/schemas/MerchantAccountData"
               }
             }
@@ -18870,32 +18862,6 @@
             "nullable": true
           }
         }
-      },
-      "RecipientIdType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "ConnectorId"
-            ],
-            "properties": {
-              "ConnectorId": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "LockerId"
-            ],
-            "properties": {
-              "LockerId": {
-                "type": "string"
-              }
-            }
-          }
-        ]
       },
       "ReconStatus": {
         "type": "string",

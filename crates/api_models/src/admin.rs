@@ -671,6 +671,7 @@ pub enum MerchantAccountData {
         #[schema(value_type= String)]
         iban: Secret<String>,
         name: String,
+        #[schema(value_type= Option<String>)]
         connector_recipient_id: Option<Secret<String>>,
     },
     Bacs {
@@ -679,6 +680,7 @@ pub enum MerchantAccountData {
         #[schema(value_type= String)]
         sort_code: Secret<String>,
         name: String,
+        #[schema(value_type= Option<String>)]
         connector_recipient_id: Option<Secret<String>>,
     },
 }

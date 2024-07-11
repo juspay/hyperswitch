@@ -40,7 +40,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
