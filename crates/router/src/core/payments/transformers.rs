@@ -1665,6 +1665,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
+            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
+            minor_amount: Some(amount),
             payment_method_data: From::from(
                 payment_data
                     .payment_method_data
@@ -1690,8 +1692,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
-            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
-            minor_amount: Some(amount),
         })
     }
 }
