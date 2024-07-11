@@ -672,6 +672,7 @@ pub enum MerchantAccountData {
         iban: Secret<String>,
         name: String,
         #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
     Bacs {
@@ -681,6 +682,7 @@ pub enum MerchantAccountData {
         sort_code: Secret<String>,
         name: String,
         #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
 }
