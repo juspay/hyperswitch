@@ -10,7 +10,7 @@ use url::Url;
 
 use super::{
     requests::{
-        self, ApmProvider, GlobalPayOptionalAmountCancelRouterData, GlobalPayRouterData,
+        self, ApmProvider, GlobalpayCancelRouterData, GlobalPayRouterData,
         GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData,
         Sequence, StoredCredential,
     },
@@ -33,7 +33,7 @@ impl<T> From<(StringMinorUnit, T)> for GlobalPayRouterData<T> {
     }
 }
 
-impl<T> From<(Option<StringMinorUnit>, T)> for GlobalPayOptionalAmountCancelRouterData<T> {
+impl<T> From<(Option<StringMinorUnit>, T)> for GlobalpayCancelRouterData<T> {
     fn from((amount, item): (Option<StringMinorUnit>, T)) -> Self {
         Self {
             amount,
@@ -147,12 +147,12 @@ impl TryFrom<&GlobalPayRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-impl TryFrom<&GlobalPayOptionalAmountCancelRouterData<&types::PaymentsCancelRouterData>>
+impl TryFrom<&GlobalpayCancelRouterData<&types::PaymentsCancelRouterData>>
     for requests::GlobalpayCancelRequest
 {
     type Error = Error;
     fn try_from(
-        value: &GlobalPayOptionalAmountCancelRouterData<&types::PaymentsCancelRouterData>,
+        value: &GlobalpayCancelRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: value.amount.clone(),

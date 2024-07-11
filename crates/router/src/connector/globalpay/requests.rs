@@ -9,7 +9,7 @@ pub struct GlobalPayRouterData<T> {
 }
 
 #[derive(Debug, Serialize)]
-pub struct GlobalPayOptionalAmountCancelRouterData<T> {
+pub struct GlobalpayCancelRouterData<T> {
     pub amount: Option<StringMinorUnit>,
     pub router_data: T,
 }

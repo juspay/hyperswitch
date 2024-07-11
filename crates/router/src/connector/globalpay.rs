@@ -463,7 +463,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             })
             .transpose()?;
         let connector_router_data =
-            requests::GlobalPayOptionalAmountCancelRouterData::from((amount, req));
+            requests::GlobalpayCancelRouterData::from((amount, req));
         let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
