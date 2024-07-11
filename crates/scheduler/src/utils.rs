@@ -54,23 +54,25 @@ where
         .map(|process| process.id.to_owned())
         .collect();
     match flow {
-        SchedulerFlow::Producer => {
-                state
-                .process_tracker_update_process_status_by_ids(
-                    process_ids,
-                    storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: ProcessTrackerStatus::Processing,
-                        business_status: None,
-                    },
-                )
-                .await.map_or_else(|error| {
+        SchedulerFlow::Producer => state
+            .process_tracker_update_process_status_by_ids(
+                process_ids,
+                storage::ProcessTrackerUpdate::StatusUpdate {
+                    status: ProcessTrackerStatus::Processing,
+                    business_status: None,
+                },
+            )
+            .await
+            .map_or_else(
+                |error| {
                     logger::error!(?error, "Error while updating process status");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
-                }, |count| {
+                },
+                |count| {
                     logger::debug!("Updated status of {count} processes");
                     Ok(())
-                })
-        }
+                },
+            ),
         SchedulerFlow::Cleaner => {
             let res = state
                 .reinitialize_limbo_processes(process_ids, common_utils::date_time::now())
@@ -108,19 +110,27 @@ where
         Err(mut err) => {
             let update_res = state
                 .process_tracker_update_process_status_by_ids(
-                    pt_batch.trackers.iter().map(|process| process.id.clone()).collect(),
+                    pt_batch
+                        .trackers
+                        .iter()
+                        .map(|process| process.id.clone())
+                        .collect(),
                     storage::ProcessTrackerUpdate::StatusUpdate {
                         status: ProcessTrackerStatus::Processing,
                         business_status: None,
                     },
                 )
-                .await.map_or_else(|error| {
-                    logger::error!(?error, "Error while updating process status");
-                    Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
-                }, |count| {
-                    logger::debug!("Updated status of {count} processes");
-                    Ok(())
-                });
+                .await
+                .map_or_else(
+                    |error| {
+                        logger::error!(?error, "Error while updating process status");
+                        Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
+                    },
+                    |count| {
+                        logger::debug!("Updated status of {count} processes");
+                        Ok(())
+                    },
+                );
 
             match update_res {
                 Ok(_) => (),
