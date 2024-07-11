@@ -7,7 +7,7 @@ use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
@@ -15,6 +15,8 @@ use crate::{
         DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
     },
 };
+
+use core::fmt::Debug;
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -93,10 +95,12 @@ pub async fn call_encryption_service<T, R>(
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
-    T: serde::Serialize + Send + Sync + 'static,
+    T: serde::Serialize + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
     let url = format!("{}/{endpoint}", &state.url);
+
+    logger::info!(key_manager_request=?request_body);
 
     let response = send_encryption_request(
         state,
@@ -115,6 +119,8 @@ where
     )
     .await
     .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
+
+    logger::info!(key_manager_response=?response);
 
     match response.status() {
         StatusCode::OK => response
