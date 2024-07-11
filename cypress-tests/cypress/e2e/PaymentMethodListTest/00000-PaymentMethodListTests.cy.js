@@ -1,18 +1,17 @@
 import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
 import createConnectorBody from "../../fixtures/create-connector-body.json";
-import getConnectorDetails from "../PaymentMethodListUtils/utils";
 import merchantCreateBody from "../../fixtures/merchant-create-body.json";
-import * as utils from "../PaymentMethodListUtils/Utils";
+import State from "../../utils/State";
 import {
+  bank_redirect_ideal_and_credit_enabled,
+  bank_redirect_ideal_enabled,
   card_credit_enabled,
   card_credit_enabled_in_US,
   card_credit_enabled_in_USD,
-  bank_redirect_ideal_enabled,
-  bank_redirect_ideal_and_credit_enabled,
   create_payment_body_with_currency,
   create_payment_body_with_currency_country,
 } from "../PaymentMethodListUtils/Commons";
-import State from "../../utils/State";
+import getConnectorDetails from "../PaymentMethodListUtils/Utils";
 
 // Testing for scenario:
 // MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
