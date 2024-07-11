@@ -99,7 +99,8 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           connectorName
         );
-        createConnectorBody.connector_account_details = authDetails.connector_account_details;
+        createConnectorBody.connector_account_details =
+          authDetails.connector_account_details;
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,

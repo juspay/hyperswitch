@@ -12,6 +12,9 @@ metrics_enabled = false
 use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15
 
+[key_manager]
+url = "http://localhost:5000"
+
 # TODO: Update database credentials before running application
 [master_database]
 username = "db_user"
