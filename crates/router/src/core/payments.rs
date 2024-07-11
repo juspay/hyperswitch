@@ -2172,9 +2172,9 @@ fn check_apple_pay_metadata(
                             )
                         })
                 })
-                .map_err(
-                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
-                );
+                .map_err(|error| {
+                    logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
+                });
 
             parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(

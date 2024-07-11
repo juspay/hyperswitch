@@ -34,7 +34,7 @@ where
         let result = update_status_and_append(state, flow, batch).await;
         match result {
             Ok(_) => (),
-            Err(error) => logger::error!(error=%error.current_context()),
+            Err(error) => logger::error!(?error),
         }
     }
     Ok(())
@@ -64,7 +64,7 @@ where
                     },
                 )
                 .await.map_or_else(|error| {
-                    logger::error!(error=%error.current_context(),"Error while updating process status");
+                    logger::error!(?error, "Error while updating process status");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }, |count| {
                     logger::debug!("Updated status of {count} processes");
@@ -81,15 +81,15 @@ where
                     Ok(())
                 }
                 Err(error) => {
-                    logger::error!(error=%error.current_context(),"Error while reinitializing processes");
+                    logger::error!(?error, "Error while reinitializing processes");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }
             }
         }
         _ => {
-            let error_msg = format!("Unexpected scheduler flow {flow:?}");
-            logger::error!(error = %error_msg);
-            Err(report!(errors::ProcessTrackerError::UnexpectedFlow).attach_printable(error_msg))
+            let error = format!("Unexpected scheduler flow {flow:?}");
+            logger::error!(%error);
+            Err(report!(errors::ProcessTrackerError::UnexpectedFlow).attach_printable(error))
         }
     }?;
 
@@ -115,7 +115,7 @@ where
                     },
                 )
                 .await.map_or_else(|error| {
-                    logger::error!(error=%error.current_context(),"Error while updating process status");
+                    logger::error!(?error, "Error while updating process status");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }, |count| {
                     logger::debug!("Updated status of {count} processes");
@@ -275,7 +275,7 @@ pub fn add_histogram_metrics(
     #[warn(clippy::option_map_unit_fn)]
     if let Some((schedule_time, runner)) = task.schedule_time.as_ref().zip(task.runner.as_ref()) {
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
-        logger::error!(%pickup_schedule_delta, "<- Time delta for scheduled tasks");
+        logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
             &metrics::CONTEXT,

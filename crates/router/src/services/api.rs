@@ -1192,8 +1192,8 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         }
         let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
             Ok(header_value) => header_value,
-            Err(e) => {
-                logger::error!(?e);
+            Err(error) => {
+                logger::error!(?error);
                 return http_server_error_json_response("Something Went Wrong");
             }
         };

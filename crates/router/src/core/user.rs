@@ -386,7 +386,7 @@ pub async fn change_password(
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     #[cfg(not(feature = "email"))]
     {
@@ -398,7 +398,7 @@ pub async fn change_password(
                 diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
             )
             .await
-            .map_err(|e| logger::error!("Error while deleting dashboard metadata {}", e))
+            .map_err(|e| logger::error!("Error while deleting dashboard metadata {e:?}"))
             .ok();
     }
 
@@ -479,7 +479,7 @@ pub async fn rotate_password(
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -534,15 +534,15 @@ pub async fn reset_password_token_only_flow(
                 storage_user::UserUpdate::VerifyUser,
             )
             .await
-            .map_err(|e| logger::error!(?e));
+            .map_err(|error| logger::error!(?error));
     }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -592,10 +592,10 @@ pub async fn reset_password(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -997,7 +997,7 @@ pub async fn accept_invite_from_email(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
@@ -1075,12 +1075,12 @@ pub async fn accept_invite_from_email_token_only_flow(
                 storage_user::UserUpdate::VerifyUser,
             )
             .await
-            .map_err(|e| logger::error!(?e));
+            .map_err(|error| logger::error!(?error));
     }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let current_flow = domain::CurrentFlow::new(
         user_token,
@@ -1489,7 +1489,7 @@ pub async fn verify_email(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
@@ -1535,7 +1535,7 @@ pub async fn verify_email_token_only_flow(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
@@ -1867,14 +1867,14 @@ pub async fn update_totp(
 
     let _ = tfa_utils::delete_totp_secret_from_redis(&state, &user_token.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     // This is not the main task of this API, so we don't throw error if this fails.
     // Any following API which requires TOTP will throw error if TOTP is not set in redis
     // and FE will ask user to enter TOTP again
     let _ = tfa_utils::insert_totp_in_redis(&state, &user_token.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     Ok(ApplicationResponse::StatusOk)
 }
