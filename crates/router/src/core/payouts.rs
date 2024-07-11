@@ -1565,7 +1565,8 @@ pub async fn complete_payout_retrieve(
             .attach_printable("Payout retrieval failed for given Payout request")?;
         }
         api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)?
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payout retrieval not supported for given ConnectorCallType")?
         }
     }
 
@@ -1618,20 +1619,43 @@ pub async fn create_payout_retrieve(
     .to_payout_failed_response()?;
 
     // 5. Process data returned by the connector
+    update_retrieve_payout_tracker(state, merchant_account, payout_data, &router_data_resp).await?;
+
+    Ok(())
+}
+
+pub async fn update_retrieve_payout_tracker<F, T>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payout_data: &mut PayoutData,
+    payout_router_data: &types::RouterData<F, T, types::PayoutsResponseData>,
+) -> RouterResult<()> {
     let db = &*state.store;
-    match router_data_resp.response {
+    match payout_router_data.response.as_ref() {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id,
-                status,
-                error_code: None,
-                error_message: None,
-                is_eligible: payout_response_data.payout_eligible,
+
+            let updated_payout_attempt = if helpers::is_payout_err_state(status) {
+                storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_payout_id: payout_response_data.connector_payout_id.clone(),
+                    status,
+                    error_code: payout_response_data.error_code.clone(),
+                    error_message: payout_response_data.error_message.clone(),
+                    is_eligible: payout_response_data.payout_eligible,
+                }
+            } else {
+                storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_payout_id: payout_response_data.connector_payout_id.clone(),
+                    status,
+                    error_code: None,
+                    error_message: None,
+                    is_eligible: payout_response_data.payout_eligible,
+                }
             };
+
             payout_data.payout_attempt = db
                 .update_payout_attempt(
                     payout_attempt,
@@ -1652,23 +1676,15 @@ pub async fn create_payout_retrieve(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payouts in db")?;
-            if helpers::is_payout_err_state(status) {
-                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-                    data: Some(
-                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
-                    ),
-                }));
-            }
         }
         Err(err) => {
             // log in case of error in retrieval
             logger::error!("Error in payout retrieval");
             // show error in the response of sync
-            payout_data.payout_attempt.error_code = Some(err.code);
-            payout_data.payout_attempt.error_message = Some(err.message);
+            payout_data.payout_attempt.error_code = Some(err.code.to_owned());
+            payout_data.payout_attempt.error_message = Some(err.message.to_owned());
         }
     };
-
     Ok(())
 }
 

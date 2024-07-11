@@ -1276,6 +1276,7 @@ default_imp_for_payouts_retrieve!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
