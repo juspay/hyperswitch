@@ -5,7 +5,7 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
+use api_models::{self, enums as api_enums};
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -46,10 +46,10 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, payouts},
+        api::{self, payouts, payments as payment_api_types},
         domain,
         storage::{self, PaymentRoutingInfo},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom},
     },
     utils::{self, OptionExt},
 };
@@ -87,7 +87,7 @@ pub async fn get_connector_choice(
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
-    eligible_connectors: Option<Vec<api_models::enums::PayoutConnectors>>,
+    eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
 ) -> RouterResult<api::ConnectorCallType> {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
@@ -269,7 +269,7 @@ pub async fn payouts_core(
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
-    eligible_connectors: Option<Vec<api_models::enums::PayoutConnectors>>,
+    eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
 
@@ -1888,17 +1888,12 @@ pub async fn response_handler(
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
 
-    let (email, name, phone, phone_country_code) = customer_details
-        .map_or((None, None, None, None), |c| {
-            (c.email, c.name, c.phone, c.phone_country_code)
-        });
-
     let address = billing_address.as_ref().map(|a| {
-        let phone_details = api_models::payments::PhoneDetails {
+        let phone_details = payment_api_types::PhoneDetails {
             number: a.phone_number.to_owned().map(Encryptable::into_inner),
             country_code: a.country_code.to_owned(),
         };
-        let address_details = api_models::payments::AddressDetails {
+        let address_details = payment_api_types::AddressDetails {
             city: a.city.to_owned(),
             country: a.country.to_owned(),
             line1: a.line1.to_owned().map(Encryptable::into_inner),
@@ -1924,12 +1919,9 @@ pub async fn response_handler(
         connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
         billing: address,
-        customer_id,
         auto_fulfill: payouts.auto_fulfill,
-        email,
-        name,
-        phone,
-        phone_country_code,
+        customer_id: Some(customer_id),
+        customer: CustomerDetailsResponse::foreign_from(customer_details),
         client_secret: payouts.client_secret.to_owned(),
         return_url: payouts.return_url.to_owned(),
         business_country: payout_attempt.business_country,
@@ -1948,7 +1940,7 @@ pub async fn response_handler(
         attempts: None,
         payout_link: payout_link
             .map(|payout_link| {
-                url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
+                url::Url::parse(payout_link.url.peek()).map(|link| payouts::PayoutLinkResponse {
                     payout_link_id: payout_link.link_id,
                     link: link.into(),
                 })
@@ -1975,7 +1967,7 @@ pub async fn payout_create_db_entries(
     let merchant_id = &merchant_account.merchant_id;
 
     // Get or create customer
-    let customer_details = payments::CustomerDetails {
+    let customer_details = payment_api_types::CustomerDetails {
         customer_id: req.customer_id.to_owned(),
         name: req.name.to_owned(),
         email: req.email.to_owned(),
