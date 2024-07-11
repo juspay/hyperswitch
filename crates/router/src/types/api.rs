@@ -358,6 +358,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
                 enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(&connector::Bambora))),
+                enums::Connector::Bamboraapac => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
+                }
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
@@ -454,6 +457,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Prophetpay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
+                }
+                enums::Connector::Razorpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
                 enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
                 enums::Connector::Shift4 => Ok(ConnectorEnum::Old(Box::new(&connector::Shift4))),

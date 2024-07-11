@@ -158,14 +158,6 @@ impl From<String> for DomainIdentifier {
     }
 }
 
-// impl Deref for DomainIdentifier {
-//     type Target = &String;
-//
-//     fn deref(&self) -> Self::Target {
-//         self.0
-//     }
-// }
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DomainInfo {
     pub domain_identifier: DomainIdentifier,
