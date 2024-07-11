@@ -995,6 +995,12 @@ pub struct ToggleKVResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TransferKeyResponse {
+    /// The identifier for the Merchant Account
+    #[schema(example = 32)]
+    pub total_transferred: usize,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
     #[serde(skip_deserializing)]
     pub merchant_id: String,

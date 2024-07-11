@@ -90,6 +90,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
 
+[key_manager]
+url = "http://localhost:5000"
+
 [cors]
 max_age = 30
 # origins = "http://localhost:8080,http://localhost:9000"

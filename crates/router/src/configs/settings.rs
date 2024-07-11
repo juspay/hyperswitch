@@ -69,6 +69,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
+    pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
@@ -212,6 +213,15 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeyManagerConfig {
+    pub url: String,
+    #[cfg(feature = "keymanager_mtls")]
+    pub cert: Secret<String>,
+    #[cfg(feature = "keymanager_mtls")]
+    pub ca: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
