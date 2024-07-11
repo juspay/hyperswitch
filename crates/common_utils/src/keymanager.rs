@@ -1,5 +1,6 @@
 //! Consists of all the common functions to use the Keymanager.
 
+use core::fmt::Debug;
 use std::str::FromStr;
 
 use error_stack::ResultExt;
@@ -15,8 +16,6 @@ use crate::{
         DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
     },
 };
-
-use core::fmt::Debug;
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
