@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 use actix_web::http::header;
 use api_models::payouts;
@@ -152,9 +155,16 @@ pub async fn initiate_payout_link(
             };
             // Fetch enabled payout methods from the request. If not found, fetch the enabled payout methods from MCA,
             // If none are configured for merchant connector accounts, fetch them from the default enabled payout methods.
-            let enabled_payment_methods = link_data
+            let mut enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
+
+            // Sort payment methods (cards first)
+            enabled_payment_methods.sort_by(|a, b| match (a.payment_method, b.payment_method) {
+                (_, common_enums::PaymentMethod::Card) => Ordering::Greater,
+                (common_enums::PaymentMethod::Card, _) => Ordering::Less,
+                _ => Ordering::Equal,
+            });
 
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: merchant_account
