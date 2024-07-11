@@ -318,6 +318,10 @@ where
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address,
+                                            resp.card.and_then(|card| {
+                                                card.card_network
+                                                    .map(|card_network| card_network.to_string())
+                                            }),
                                         )
                                         .await
                                     } else {
@@ -397,7 +401,7 @@ where
                                             payment_methods::cards::insert_payment_method(
                                                 db,
                                                 &resp,
-                                                payment_method_create_request.clone(),
+                                                &payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
                                                 &customer_id,
@@ -602,6 +606,10 @@ where
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address,
+                                resp.card.and_then(|card| {
+                                    card.card_network
+                                        .map(|card_network| card_network.to_string())
+                                }),
                             )
                             .await?;
                         };

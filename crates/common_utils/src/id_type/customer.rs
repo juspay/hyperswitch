@@ -13,17 +13,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts::{MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH},
     errors, generate_customer_id_of_default_length,
-    id_type::MerchantReferenceId,
+    id_type::LengthId,
 };
 
 /// A type for customer_id that can be used for customer ids
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub struct CustomerId(
-    MerchantReferenceId<
-        MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
-        MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
-    >,
+    LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>,
 );
 
 impl Default for CustomerId {
@@ -53,7 +50,7 @@ where
 
 impl CustomerId {
     pub(crate) fn new(
-        merchant_ref_id: MerchantReferenceId<
+        merchant_ref_id: LengthId<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >,
@@ -68,7 +65,7 @@ impl CustomerId {
 
     /// Create a Customer id from string
     pub fn from(input_string: Cow<'static, str>) -> Result<Self, errors::ValidationError> {
-        let merchant_ref_id = MerchantReferenceId::from(input_string).change_context(
+        let merchant_ref_id = LengthId::from(input_string).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "customer_id",
             },
@@ -83,10 +80,8 @@ impl masking::SerializableSecret for CustomerId {}
 impl<DB> ToSql<sql_types::Text, DB> for CustomerId
 where
     DB: Backend,
-    MerchantReferenceId<
-        MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
-        MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
-    >: ToSql<sql_types::Text, DB>,
+    LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>:
+        ToSql<sql_types::Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
@@ -96,13 +91,11 @@ where
 impl<DB> FromSql<sql_types::Text, DB> for CustomerId
 where
     DB: Backend,
-    MerchantReferenceId<
-        MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
-        MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
-    >: FromSql<sql_types::Text, DB>,
+    LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>:
+        FromSql<sql_types::Text, DB>,
 {
     fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        MerchantReferenceId::<
+        LengthId::<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >::from_sql(value)
