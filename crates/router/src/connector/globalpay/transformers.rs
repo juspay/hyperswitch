@@ -10,7 +10,7 @@ use url::Url;
 
 use super::{
     requests::{
-        self, ApmProvider, GlobalpayCancelRouterData, GlobalPayRouterData,
+        self, ApmProvider, GlobalPayRouterData, GlobalpayCancelRouterData,
         GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData,
         Sequence, StoredCredential,
     },
