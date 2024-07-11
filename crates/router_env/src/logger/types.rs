@@ -113,6 +113,8 @@ pub enum Flow {
     MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
+    /// Payment methods migrate flow.
+    PaymentMethodsMigrate,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow

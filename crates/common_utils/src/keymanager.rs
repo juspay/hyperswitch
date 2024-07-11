@@ -3,8 +3,7 @@
 use std::str::FromStr;
 
 use error_stack::ResultExt;
-use http::Method;
-use http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 #[cfg(feature = "keymanager_mtls")]
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
