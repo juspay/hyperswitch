@@ -31,12 +31,12 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenplatformAuthType {
 }
 
 #[derive(Debug, Serialize)]
-pub struct AdyenRouterData<T> {
+pub struct AdyenPlatformRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for AdyenPlatformRouterData<T> {
     type Error = Report<errors::ConnectorError>;
     fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {

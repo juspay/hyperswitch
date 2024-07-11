@@ -453,22 +453,19 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        match req.request.minor_amount {
-            Some(amount) => {
-                let currency = req.request.currency.unwrap_or_default();
-                let amount =
-                    connector_utils::convert_amount(self.amount_converter, amount, currency)?;
-
-                let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
-                let connector_req =
-                    requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
-            }
-            None => {
-                let connector_req = requests::GlobalpayCancelRequest::try_from(req)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
-            }
-        }
+        let amount = req
+            .request
+            .minor_amount
+            .and_then(|amount| {
+                req.request.currency.map(|currency| {
+                    connector_utils::convert_amount(self.amount_converter, amount, currency)
+                })
+            })
+            .transpose()?;
+        let connector_router_data =
+            requests::GlobalPayOptionalAmountCancelRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(

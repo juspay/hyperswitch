@@ -7,6 +7,13 @@ pub struct GlobalPayRouterData<T> {
     pub amount: StringMinorUnit,
     pub router_data: T,
 }
+
+#[derive(Debug, Serialize)]
+pub struct GlobalPayOptionalAmountCancelRouterData<T> {
+    pub amount: Option<StringMinorUnit>,
+    pub router_data: T,
+}
+
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.

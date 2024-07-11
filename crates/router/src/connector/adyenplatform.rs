@@ -221,7 +221,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             req.request.minor_amount,
             req.request.destination_currency,
         )?;
-        let connector_router_data = adyenplatform::AdyenRouterData::try_from((amount, req))?;
+        let connector_router_data = adyenplatform::AdyenPlatformRouterData::try_from((amount, req))?;
         let connector_req = adyenplatform::AdyenTransferRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

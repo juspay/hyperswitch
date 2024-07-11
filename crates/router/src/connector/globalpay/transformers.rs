@@ -10,8 +10,9 @@ use url::Url;
 
 use super::{
     requests::{
-        self, ApmProvider, GlobalPayRouterData, GlobalpayPaymentsRequest,
-        GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData, Sequence, StoredCredential,
+        self, ApmProvider, GlobalPayOptionalAmountCancelRouterData, GlobalPayRouterData,
+        GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData,
+        Sequence, StoredCredential,
     },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
@@ -25,6 +26,15 @@ use crate::{
 
 impl<T> From<(StringMinorUnit, T)> for GlobalPayRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data: item,
+        }
+    }
+}
+
+impl<T> From<(Option<StringMinorUnit>, T)> for GlobalPayOptionalAmountCancelRouterData<T> {
+    fn from((amount, item): (Option<StringMinorUnit>, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -137,15 +147,15 @@ impl TryFrom<&GlobalPayRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-impl TryFrom<&GlobalPayRouterData<&types::PaymentsCancelRouterData>>
+impl TryFrom<&GlobalPayOptionalAmountCancelRouterData<&types::PaymentsCancelRouterData>>
     for requests::GlobalpayCancelRequest
 {
     type Error = Error;
     fn try_from(
-        value: &GlobalPayRouterData<&types::PaymentsCancelRouterData>,
+        value: &GlobalPayOptionalAmountCancelRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(value.amount.clone()),
+            amount: value.amount.clone(),
         })
     }
 }

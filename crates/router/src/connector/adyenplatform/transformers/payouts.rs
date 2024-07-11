@@ -3,7 +3,7 @@ use error_stack::{report, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use super::{AdyenRouterData, Error};
+use super::{AdyenPlatformRouterData, Error};
 use crate::{
     connector::{
         adyen::transformers as adyen,
@@ -172,9 +172,9 @@ pub enum AdyenTransactionType {
     Refund,
 }
 
-impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenTransferRequest {
+impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for AdyenTransferRequest {
     type Error = Error;
-    fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &AdyenPlatformRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         match item.router_data.get_payout_method_data()? {
             payouts::PayoutMethodData::Card(_) | payouts::PayoutMethodData::Wallet(_) => {
