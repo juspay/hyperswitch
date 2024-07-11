@@ -25,7 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/utils";
+import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/Utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
@@ -99,7 +99,8 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           connectorName
         );
-        createConnectorBody.connector_account_details = authDetails;
+        createConnectorBody.connector_account_details =
+          authDetails.connector_account_details;
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
