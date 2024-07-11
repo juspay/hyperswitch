@@ -7739,6 +7739,7 @@
           "airwallex",
           "authorizedotnet",
           "bambora",
+          "bamboraapac",
           "bankofamerica",
           "billwerk",
           "bitpay",
@@ -13896,6 +13897,14 @@
               }
             ],
             "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19574,6 +19583,7 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "bamboraapac",
           "bluesnap",
           "boku",
           "braintree",

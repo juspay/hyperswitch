@@ -179,8 +179,6 @@ logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
 card = "credit,debit"
-bank_transfer = "ach,bacs,sepa"
-wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
