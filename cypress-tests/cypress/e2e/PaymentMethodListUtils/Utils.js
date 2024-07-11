@@ -1,13 +1,21 @@
-import { connectorDetails as commonConnectorDetails } from "./Common.js";
+import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 
 const connectorDetails = {
-  common: commonConnectorDetails,
+  commons: CommonConnectorDetails,
+  stripe: stripeConnectorDetails,
 };
 
-export const getConnectorDetails = (connectorId) => {
-  let x = getValueByKey(connectorDetails, connectorId);
+export default function getConnectorDetails(connectorId) {
+  let x = mergeDetails(connectorId);
   return x;
-};
+}
+
+function mergeDetails(connectorId) {
+  const connectorData = getValueByKey(connectorDetails, connectorId);
+
+  return connectorData;
+}
 
 function getValueByKey(jsonObject, key) {
   const data =

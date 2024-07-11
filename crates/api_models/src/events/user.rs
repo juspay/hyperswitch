@@ -20,7 +20,7 @@ use crate::user::{
     SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
     TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    UserTransferKeyResponse, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -85,6 +85,7 @@ common_utils::impl_misc_api_event_type!(
     UpdateUserAuthenticationMethodRequest,
     GetSsoAuthUrlRequest,
     SsoSignInRequest,
+    UserTransferKeyResponse,
     AuthSelectRequest
 );
 
