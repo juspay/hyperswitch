@@ -46,10 +46,10 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, payouts, payments as payment_api_types},
+        api::{self, payments as payment_api_types, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
-        transformers::{ForeignFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
