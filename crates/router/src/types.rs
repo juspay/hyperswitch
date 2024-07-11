@@ -688,24 +688,6 @@ pub enum MerchantAccountData {
     },
 }
 
-impl ForeignFrom<RecipientIdType> for api_models::admin::RecipientIdType {
-    fn foreign_from(from: RecipientIdType) -> Self {
-        match from {
-            RecipientIdType::ConnectorId(id) => Self::ConnectorId(id),
-            RecipientIdType::LockerId(id) => Self::LockerId(id),
-        }
-    }
-}
-
-impl From<api_models::admin::RecipientIdType> for RecipientIdType {
-    fn from(from: api_models::admin::RecipientIdType) -> Self {
-        match from {
-            api_models::admin::RecipientIdType::ConnectorId(id) => Self::ConnectorId(id),
-            api_models::admin::RecipientIdType::LockerId(id) => Self::LockerId(id),
-        }
-    }
-}
-
 impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
     fn foreign_from(from: MerchantAccountData) -> Self {
         match from {
@@ -716,8 +698,10 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
             } => Self::Iban {
                 iban,
                 name,
-                connector_recipient_id: connector_recipient_id
-                    .map(api_models::admin::RecipientIdType::foreign_from),
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
             },
             MerchantAccountData::Bacs {
                 account_number,
@@ -728,8 +712,10 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
                 account_number,
                 sort_code,
                 name,
-                connector_recipient_id: connector_recipient_id
-                    .map(api_models::admin::RecipientIdType::foreign_from),
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
             },
         }
     }
@@ -745,7 +731,7 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
             } => Self::Iban {
                 iban,
                 name,
-                connector_recipient_id: connector_recipient_id.map(RecipientIdType::from),
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
             },
             api_models::admin::MerchantAccountData::Bacs {
                 account_number,
@@ -756,7 +742,7 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
                 account_number,
                 sort_code,
                 name,
-                connector_recipient_id: connector_recipient_id.map(RecipientIdType::from),
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
             },
         }
     }
@@ -800,6 +786,16 @@ impl From<api_models::admin::MerchantRecipientData> for MerchantRecipientData {
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalMerchantData {
     OpenBankingRecipientData(MerchantRecipientData),
+}
+
+impl ForeignFrom<api_models::admin::AdditionalMerchantData> for AdditionalMerchantData {
+    fn foreign_from(value: api_models::admin::AdditionalMerchantData) -> Self {
+        match value {
+            api_models::admin::AdditionalMerchantData::OpenBankingRecipientData(data) => {
+                Self::OpenBankingRecipientData(MerchantRecipientData::from(data))
+            }
+        }
+    }
 }
 
 impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {

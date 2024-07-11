@@ -655,15 +655,7 @@ pub struct MerchantConnectorCreate {
 
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub enum RecipientIdType {
-    #[schema(value_type= String)]
-    ConnectorId(Secret<String>),
-    #[schema(value_type= String)]
-    LockerId(Secret<String>),
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -673,12 +665,13 @@ pub enum AdditionalMerchantData {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
     Iban {
         #[schema(value_type= String)]
         iban: Secret<String>,
         name: String,
-        connector_recipient_id: Option<RecipientIdType>,
+        connector_recipient_id: Option<Secret<String>>,
     },
     Bacs {
         #[schema(value_type= String)]
@@ -686,11 +679,12 @@ pub enum MerchantAccountData {
         #[schema(value_type= String)]
         sort_code: Secret<String>,
         name: String,
-        connector_recipient_id: Option<RecipientIdType>,
+        connector_recipient_id: Option<Secret<String>>,
     },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
     #[schema(value_type= Option<String>)]
     ConnectorRecipientId(Secret<String>),
@@ -852,7 +846,7 @@ pub struct MerchantConnectorResponse {
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."

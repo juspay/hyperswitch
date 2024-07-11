@@ -12,7 +12,7 @@ use common_utils::{
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
 use router_env::metrics::add_attributes;
@@ -1173,14 +1173,18 @@ pub async fn create_payment_connector(
                 &auth,
                 &req.connector_type,
                 &req.connector_name,
-                data.clone(),
+                types::AdditionalMerchantData::foreign_from(data.clone()),
             )
             .await?,
         )
     } else {
         None
     }
-    .map(serde_json::to_value)
+    .map(|data| {
+        serde_json::to_value(types::AdditionalMerchantData::OpenBankingRecipientData(
+            data,
+        ))
+    })
     .transpose()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get MerchantRecipientData")?;
@@ -2597,24 +2601,18 @@ async fn process_open_banking_connectors(
     auth: &types::ConnectorAuthType,
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
-    merchant_data: Secret<serde_json::Value>,
+    additional_merchant_data: types::AdditionalMerchantData,
 ) -> RouterResult<types::MerchantRecipientData> {
-    // incorporate a connector check as well
-    if connector_type != &api_enums::ConnectorType::PaymentProcessor {
-        return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
-            config: "OpenBanking connector for Payment Initiation should be a payment processor"
-                .to_string(),
-        }
-        .into());
-    }
-
-    let additional_merchant_data =
-        serde_json::from_value::<types::AdditionalMerchantData>(merchant_data.expose())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decode MerchantRecipientData")?;
-
     let new_merchant_data = match additional_merchant_data {
         types::AdditionalMerchantData::OpenBankingRecipientData(merchant_data) => {
+            if connector_type != &api_enums::ConnectorType::PaymentProcessor {
+                return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                    config:
+                        "OpenBanking connector for Payment Initiation should be a payment processor"
+                            .to_string(),
+                }
+                .into());
+            }
             match &merchant_data {
                 types::MerchantRecipientData::AccountData(acc_data) => {
                     validate_bank_account_data(acc_data)?;
@@ -2811,8 +2809,11 @@ async fn connector_recipient_create_call(
         merchant_id: Some(merchant_id.to_owned()),
         connector: Some(connector_name),
         request: req,
-        response: Ok(pm_auth_types::RecipientCreateResponse {
-            recipient_id: "".to_string(),
+        response: Err(pm_auth_types::ErrorResponse {
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+            reason: None,
         }),
         connector_http_status_code: None,
         connector_auth_type: auth,

@@ -967,7 +967,15 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            additional_merchant_data: item.additional_merchant_data.map(|data| data.into_inner()),
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value(data.expose(), "AdditionalMerchantData")
+                        .attach_printable("Unable to deserialize additional_merchant_data")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         })
     }
 }
