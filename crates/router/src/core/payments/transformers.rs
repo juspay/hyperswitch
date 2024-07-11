@@ -880,6 +880,7 @@ where
                 .set_updated(Some(payment_intent.modified_at))
                 .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
+                .set_merchant_order_reference_id(payment_intent.merchant_order_reference_id)
                 .to_owned(),
             headers,
         ))
@@ -1305,6 +1306,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             None => None,
         };
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1350,6 +1356,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
+            merchant_order_reference_id,
             integrity_object: None,
         })
     }
@@ -1365,6 +1372,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
+        let captured_amount = payment_data.payment_intent.amount_captured;
         Ok(Self {
             amount,
             integrity_object: None,
@@ -1387,6 +1395,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
             payment_experience: payment_data.payment_attempt.payment_experience,
+            captured_amount,
         })
     }
 }
@@ -1508,6 +1517,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             },
             browser_info,
             metadata: payment_data.payment_intent.metadata,
+            integrity_object: None,
         })
     }
 }
@@ -1683,7 +1693,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
-            metadata: payment_data.payment_intent.metadata.clone(),
+            metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
         })
     }
 }
@@ -1783,6 +1793,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
             metadata: payment_data.payment_intent.metadata,
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }

@@ -27,6 +27,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
+    db::domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -2306,11 +2307,15 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_authentication_method = state
-        .store
-        .get_user_authentication_method_by_id(&req.id)
-        .await
-        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+    let user_authentication_method = if let Some(id) = &req.id {
+        state
+            .store
+            .get_user_authentication_method_by_id(id)
+            .await
+            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
+    } else {
+        DEFAULT_USER_AUTH_METHOD.clone()
+    };
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;

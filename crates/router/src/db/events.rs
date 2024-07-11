@@ -754,7 +754,7 @@ mod tests {
             .unwrap();
 
         assert!(updated_event.is_webhook_notified);
-        assert_eq!(updated_event.primary_object_id, "primary_object_tet");
+        assert_eq!(updated_event.primary_object_id, payment_id);
         assert_eq!(updated_event.event_id, event_id);
     }
 }

@@ -451,7 +451,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
-    customer_id: &Option<id_type::CustomerId>,
+    payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -505,17 +505,15 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
-
                         let customer_id = request
-                            .customer_id
-                            .clone()
+                            .get_customer_id()
                             .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
                             &merchant_account.merchant_id,
                             &payment_method_info.customer_id,
-                            &customer_id,
+                            customer_id,
                         )?;
 
                         (
@@ -555,8 +553,9 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
+                        let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
-                            &request.customer_id.clone().or(customer_id.clone())
+                            payment_request_customer_id.or(payment_intent_customer_id)
                         {
                             let customer_saved_pm_option = match state
                                 .store
@@ -610,6 +609,21 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -617,7 +631,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                            None,
+                            payment_method_info,
                         )
                     }
                 }
@@ -697,11 +711,10 @@ pub async fn get_token_for_recurring_mandate(
         .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
-
-    let customer = req.customer_id.clone().get_required_value("customer_id")?;
+    let customer = req.get_customer_id().get_required_value("customer_id")?;
 
     let payment_method_id = {
-        if mandate.customer_id != customer {
+        if &mandate.customer_id != customer {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id must match mandate customer_id".into()
             }))?
@@ -1372,6 +1385,9 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1391,6 +1407,9 @@ pub(crate) async fn get_payment_method_create_request(
                         card_network: None,
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
 
                     Ok(payment_method_request)
@@ -1440,25 +1459,6 @@ pub async fn get_customer_from_details<F: Clone>(
     }
 }
 
-// Checks if the inner values of two options are not equal and throws appropriate error
-fn validate_options_for_inequality<T: PartialEq>(
-    first_option: Option<&T>,
-    second_option: Option<&T>,
-    field_name: &str,
-) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(
-        first_option
-            .zip(second_option)
-            .map(|(value1, value2)| value1 != value2)
-            .unwrap_or(false),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!("The field name `{field_name}` sent in both places is ambiguous"),
-            })
-        },
-    )
-}
-
 pub fn validate_max_amount(
     amount: api_models::payments::Amount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1477,44 +1477,21 @@ pub fn validate_max_amount(
     }
 }
 
-// Checks if the customer details are passed in both places
-// If so, raise an error
-pub fn validate_customer_details_in_request(
+/// Check whether the customer information that is sent in the root of payments request
+/// and in the customer object are same, if the values mismatch return an error
+pub fn validate_customer_information(
     request: &api_models::payments::PaymentsRequest,
-) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(customer_details) = request.customer.as_ref() {
-        validate_options_for_inequality(
-            request.customer_id.as_ref(),
-            Some(&customer_details.id),
-            "customer_id",
-        )?;
-
-        validate_options_for_inequality(
-            request.email.as_ref(),
-            customer_details.email.as_ref(),
-            "email",
-        )?;
-
-        validate_options_for_inequality(
-            request.name.as_ref(),
-            customer_details.name.as_ref(),
-            "name",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone.as_ref(),
-            customer_details.phone.as_ref(),
-            "phone",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone_country_code.as_ref(),
-            customer_details.phone_country_code.as_ref(),
-            "phone_country_code",
-        )?;
+) -> RouterResult<()> {
+    if let Some(mismatched_fields) = request.validate_customer_details_in_request() {
+        let mismatched_fields = mismatched_fields.join(", ");
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "The field names `{mismatched_fields}` sent in both places is ambiguous"
+            ),
+        })?
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// Get the customer details from customer field if present
@@ -1523,12 +1500,7 @@ pub fn validate_customer_details_in_request(
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
-    let customer_id = request
-        .customer
-        .as_ref()
-        .map(|customer_details| &customer_details.id)
-        .or(request.customer_id.as_ref())
-        .map(ToOwned::to_owned);
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -3083,7 +3055,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3136,6 +3108,9 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3143,7 +3118,9 @@ mod tests {
     }
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_expired() {
+    fn test_authenticate_client_secret_session_expired() {
+        let created_at =
+            common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3160,7 +3137,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
+            created_at,
             modified_at: common_utils::date_time::now(),
             fingerprint_id: None,
             last_synced: None,
@@ -3189,13 +3166,15 @@ mod tests {
             incremental_authorization_allowed: None,
             authorization_count: None,
             session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3255,6 +3234,9 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4041,13 +4023,70 @@ pub async fn get_additional_payment_data(
     }
 }
 
+pub async fn populate_bin_details_for_payment_method_create(
+    card_details: api_models::payment_methods::CardDetail,
+    db: &dyn StorageInterface,
+) -> api_models::payment_methods::CardDetail {
+    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+    if card_details.card_issuer.is_some()
+        && card_details.card_network.is_some()
+        && card_details.card_type.is_some()
+        && card_details.card_issuing_country.is_some()
+    {
+        api::CardDetail {
+            card_issuer: card_details.card_issuer.to_owned(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.to_owned(),
+            card_issuing_country: card_details.card_issuing_country.to_owned(),
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        }
+    } else {
+        let card_info = card_isin
+            .clone()
+            .async_and_then(|card_isin| async move {
+                db.get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten()
+            .map(|card_info| api::CardDetail {
+                card_issuer: card_info.card_issuer,
+                card_network: card_info.card_network.clone(),
+                card_type: card_info.card_type,
+                card_issuing_country: card_info.card_issuing_country,
+                card_exp_month: card_details.card_exp_month.clone(),
+                card_exp_year: card_details.card_exp_year.clone(),
+                card_holder_name: card_details.card_holder_name.clone(),
+                card_number: card_details.card_number.clone(),
+                nick_name: card_details.nick_name.clone(),
+            });
+        card_info.unwrap_or_else(|| api::CardDetail {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        })
+    }
+}
+
 pub fn validate_customer_access(
     payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_same_customer = request.customer_id == payment_intent.customer_id;
+    if auth_flow == services::AuthFlow::Client && request.get_customer_id().is_some() {
+        let is_same_customer = request.get_customer_id() == payment_intent.customer_id.as_ref();
         if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
@@ -5022,5 +5061,38 @@ pub async fn override_setup_future_usage_to_on_session<F: Clone>(
             }
         };
     };
+    Ok(())
+}
+
+pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
+    merchant_id: &str,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let merchant_connector_account_list = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_connector_ids: Vec<String> = merchant_connector_account_list
+        .iter()
+        .map(|merchant_connector_account| merchant_connector_account.merchant_connector_id.clone())
+        .collect();
+
+    for merchant_connector_id in connector_mandate_details.0.keys() {
+        if !merchant_connector_ids.contains(merchant_connector_id) {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_connector_id",
+            })
+            .attach_printable_lazy(|| {
+                format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+            })?
+        }
+    }
     Ok(())
 }

@@ -100,6 +100,7 @@ impl From<std::io::Error> for ApplicationError {
     Copy,
     Debug,
     Default,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -196,7 +197,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bluesnap,
     Boku,
     Braintree,
@@ -234,6 +235,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Riskified,
     Shift4,
     Signifyd,
@@ -1302,7 +1304,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
-/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1605,7 +1607,7 @@ pub enum PaymentMethod {
     GiftCard,
 }
 
-/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1646,12 +1648,18 @@ pub enum PaymentType {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
+    #[serde(alias = "Failure")]
     Failure,
+    #[serde(alias = "ManualReview")]
     ManualReview,
     #[default]
+    #[serde(alias = "Pending")]
     Pending,
+    #[serde(alias = "Success")]
     Success,
+    #[serde(alias = "TransactionFailure")]
     TransactionFailure,
 }
 

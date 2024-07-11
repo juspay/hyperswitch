@@ -991,10 +991,12 @@ impl
 
         let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         let consumer_authentication_information = item
             .router_data
@@ -1097,10 +1099,12 @@ impl
             veres_enrolled: None,
         });
 
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         Ok(Self {
             processing_information,
@@ -1149,10 +1153,12 @@ impl
                     expiration_month,
                 },
             }));
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         let ucaf_collection_indicator = match apple_pay_wallet_data
             .payment_method
             .network
@@ -1211,10 +1217,12 @@ impl
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
 
         Ok(Self {
             processing_information,
@@ -1284,7 +1292,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                     let merchant_defined_information =
                                         item.router_data.request.metadata.clone().map(|metadata| {
                                             Vec::<MerchantDefinedInformation>::foreign_from(
-                                                metadata.peek().to_owned(),
+                                                metadata,
                                             )
                                         });
                                     let ucaf_collection_indicator = match apple_pay_data
@@ -1405,16 +1413,22 @@ impl
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let order_information = OrderInformationWithBill::from((item, None));
+        let bill_to =
+            item.router_data.request.get_email().ok().and_then(|email| {
+                build_bill_to(item.router_data.get_optional_billing(), email).ok()
+            });
+        let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             processing_information,
             payment_information,
@@ -1510,10 +1524,12 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let merchant_defined_information =
-            item.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             processing_information: ProcessingInformation {
                 capture_options: Some(CaptureOptions {
@@ -1602,10 +1618,12 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>> for Cyber
     fn try_from(
         value: &CybersourceRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
-        let merchant_defined_information =
-            value.router_data.request.metadata.clone().map(|metadata| {
-                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
-            });
+        let merchant_defined_information = value
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),

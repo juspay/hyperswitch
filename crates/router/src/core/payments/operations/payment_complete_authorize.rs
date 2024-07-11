@@ -11,7 +11,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -86,7 +89,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             })?;
 
         let recurring_details = request.recurring_details.clone();
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -124,9 +126,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
+        let customer_acceptance: Option<CustomerAcceptance> = request
+            .customer_acceptance
+            .clone()
+            .map(From::from)
+            .or(payment_method_info
+                .clone()
+                .map(|pm| {
+                    pm.customer_acceptance
+                        .parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to CustomerAcceptance")?);
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
@@ -173,12 +188,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
+        let customer_id = payment_intent
+            .customer_id
+            .as_ref()
+            .or(request.get_customer_id())
+            .cloned();
+
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            payment_intent
-                .customer_id
-                .as_ref()
-                .or(request.customer_id.as_ref()),
+            customer_id.as_ref(),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(
@@ -322,7 +340,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         };
 
         let customer_details = Some(CustomerDetails {
-            customer_id: request.customer_id.clone(),
+            customer_id,
             name: request.name.clone(),
             email: request.email.clone(),
             phone: request.phone.clone(),

@@ -1,6 +1,6 @@
 use common_utils::{ext_traits::Encode, pii, types::StringMajorUnit};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -107,8 +107,8 @@ fn get_value_as_string(value: &serde_json::Value) -> String {
 }
 
 impl NoonOrderNvp {
-    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
-        let metadata_as_string = metadata.peek().to_string();
+    pub fn new(metadata: &serde_json::Value) -> Self {
+        let metadata_as_string = metadata.to_string();
         let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
             serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
         let inner = hash_map

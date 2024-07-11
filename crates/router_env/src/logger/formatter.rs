@@ -153,7 +153,7 @@ where
     ///
     /// ## Example
     /// ```rust
-    /// let formatting_layer = router_env::FormattingLayer::new(router_env::service_name!(),std::io::stdout, CompactFormatter);
+    /// let formatting_layer = router_env::FormattingLayer::new("my_service", std::io::stdout, serde_json::ser::CompactFormatter);
     /// ```
     ///
     pub fn new(

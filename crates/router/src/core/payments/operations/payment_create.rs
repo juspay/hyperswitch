@@ -136,7 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
-            &request.customer_id,
+            None,
         )
         .await?;
 
@@ -684,7 +684,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        helpers::validate_customer_details_in_request(request)?;
+        helpers::validate_customer_information(request)?;
+
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
         }
@@ -749,11 +750,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request
-                    .customer
-                    .as_ref()
-                    .map(|customer| &customer.id)
-                    .or(request.customer_id.as_ref()),
+                request.get_customer_id(),
             )?;
         }
 
@@ -1045,8 +1042,28 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
+        // Derivation of directly supplied Billing Address data in our Payment Create Request
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let billing_details = request
+            .billing
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.billing.clone()).await
+            })
+            .await;
+
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_details = request
+            .shipping
+            .clone()
+            .async_and_then(|_| async {
+                create_encrypted_data(key_store, request.shipping.clone()).await
+            })
+            .await;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
+        let raw_customer_details = if request.get_customer_id().is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()
@@ -1095,7 +1112,7 @@ impl PaymentCreate {
             ),
             order_details,
             amount_captured: None,
-            customer_id: None,
+            customer_id: request.get_customer_id().cloned(),
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
@@ -1116,7 +1133,10 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
+            billing_details,
             customer_details,
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            shipping_details,
         })
     }
 
@@ -1126,10 +1146,10 @@ impl PaymentCreate {
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
     ) -> Option<ephemeral_key::EphemeralKey> {
-        match request.customer_id.clone() {
+        match request.get_customer_id() {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
-                customer_id,
+                customer_id.clone(),
                 merchant_account.merchant_id.clone(),
             )
             .await
