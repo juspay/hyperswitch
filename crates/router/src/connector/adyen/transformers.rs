@@ -1973,9 +1973,6 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             storage_enums::PaymentMethodType::Credit
             | storage_enums::PaymentMethodType::Debit
             | storage_enums::PaymentMethodType::Klarna
-            | storage_enums::PaymentMethodType::Ach
-            | storage_enums::PaymentMethodType::Sepa
-            | storage_enums::PaymentMethodType::Bacs
             | storage_enums::PaymentMethodType::BancontactCard
             | storage_enums::PaymentMethodType::Blik
             | storage_enums::PaymentMethodType::Eps
@@ -1999,6 +1996,9 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             | storage_enums::PaymentMethodType::AfterpayClearpay
             | storage_enums::PaymentMethodType::PayBright
             | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
+            storage_enums::PaymentMethodType::Sepa => Ok(Self::SepaDirectDebit),
+            storage_enums::PaymentMethodType::Bacs => Ok(Self::BacsDirectDebit),
+            storage_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
             storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
