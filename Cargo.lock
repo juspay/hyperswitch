@@ -1946,8 +1946,6 @@ dependencies = [
  "diesel",
  "frunk",
  "frunk_core",
- "http 0.2.12",
- "mime",
  "router_derive",
  "serde",
  "serde_json",

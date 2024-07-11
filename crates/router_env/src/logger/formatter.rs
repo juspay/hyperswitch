@@ -182,8 +182,7 @@ where
         for key in default_fields.keys() {
             if IMPLICIT_KEYS.contains(key.as_str()) {
                 return Err(ConfigError::Message(format!(
-                    "Invalid configuration value for key: {}",
-                    key
+                    "A reserved key `{key}` was included in `default_fields` in the log formatting layer"
                 ))
                 .into());
             }

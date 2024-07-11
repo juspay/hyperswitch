@@ -70,14 +70,8 @@ pub fn setup(
             &crates_to_filter,
         );
         println!("Using file logging filter: {file_filter}");
-
-        match FormattingLayer::new(service_name, file_writer, CompactFormatter) {
-            Ok(layer) => Some(layer.with_filter(file_filter)),
-            Err(e) => {
-                eprintln!("Error creating formatting layer: {:?}", e);
-                None
-            }
-        }
+        let layer = FormattingLayer::new(service_name, file_writer, CompactFormatter)?.with_filter(file_filter);
+        Some(layer)
     } else {
         None
     };

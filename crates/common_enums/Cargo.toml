@@ -14,8 +14,6 @@ payouts = []
 
 [dependencies]
 thiserror = "1.0.58"
-mime = "0.3.17"
-http = "0.2.12"
 diesel = { version = "2.1.5", features = ["postgres"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
