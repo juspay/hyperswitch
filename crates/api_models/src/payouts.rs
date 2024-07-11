@@ -107,21 +107,21 @@ pub struct PayoutCreateRequest {
     // #[schema(value_type = Option<CustomerDetails>)]
     // pub customer: Option<payments::CustomerDetails>,
 
-        /// description: The customer's email address
-        #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-        pub email: Option<Email>,
-    
-        /// description: The customer's name
-        #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
-        pub name: Option<Secret<String>>,
-    
-        /// The customer's phone number
-        #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
-        pub phone: Option<Secret<String>>,
-    
-        /// The country code for the customer phone number
-        #[schema(max_length = 255, example = "+1")]
-        pub phone_country_code: Option<String>,
+    /// description: The customer's email address
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<Email>,
+
+    /// description: The customer's name
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    pub name: Option<Secret<String>>,
+
+    /// The customer's phone number
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+
+    /// The country code for the customer phone number
+    #[schema(max_length = 255, example = "+1")]
+    pub phone_country_code: Option<String>,
 
     /// It's a token used for client side verification.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
