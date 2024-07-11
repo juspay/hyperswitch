@@ -174,7 +174,9 @@ pub enum AdyenTransactionType {
 
 impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for AdyenTransferRequest {
     type Error = Error;
-    fn try_from(item: &AdyenPlatformRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AdyenPlatformRouterData<&types::PayoutsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         match item.router_data.get_payout_method_data()? {
             payouts::PayoutMethodData::Card(_) | payouts::PayoutMethodData::Wallet(_) => {

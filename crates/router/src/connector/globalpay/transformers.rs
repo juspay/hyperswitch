@@ -160,13 +160,6 @@ impl TryFrom<&GlobalPayOptionalAmountCancelRouterData<&types::PaymentsCancelRout
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequest {
-    type Error = Error;
-    fn try_from(_value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self { amount: None })
-    }
-}
-
 pub struct GlobalpayAuthType {
     pub app_id: Secret<String>,
     pub key: Secret<String>,
