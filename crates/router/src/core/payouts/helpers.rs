@@ -391,6 +391,9 @@ pub async fn save_payout_data_to_locker(
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
+                billing: None,
+                connector_mandate_details: None,
+                network_transaction_id: None,
             };
 
             let pm_data = card_isin
@@ -475,6 +478,9 @@ pub async fn save_payout_data_to_locker(
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
+                    billing: None,
+                    connector_mandate_details: None,
+                    network_transaction_id: None,
                 },
             )
         };
@@ -497,6 +503,7 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             merchant_account.storage_scheme,
+            None,
             None,
         )
         .await?;

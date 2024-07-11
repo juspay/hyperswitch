@@ -423,6 +423,48 @@ merchant_config_currency="Currency"
 api_key="Passcode"
 key1="Merchant Id"
 
+[bamboraapac]
+[[bamboraapac.credit]]
+  payment_method_type = "Mastercard"
+[[bamboraapac.credit]]
+  payment_method_type = "Visa"
+[[bamboraapac.credit]]
+  payment_method_type = "Interac"
+[[bamboraapac.credit]]
+  payment_method_type = "AmericanExpress"
+[[bamboraapac.credit]]
+  payment_method_type = "JCB"
+[[bamboraapac.credit]]
+  payment_method_type = "DinersClub"
+[[bamboraapac.credit]]
+  payment_method_type = "Discover"
+[[bamboraapac.credit]]
+  payment_method_type = "CartesBancaires"
+[[bamboraapac.credit]]
+  payment_method_type = "UnionPay"
+[[bamboraapac.debit]]
+  payment_method_type = "Mastercard"
+[[bamboraapac.debit]]
+  payment_method_type = "Visa"
+[[bamboraapac.debit]]
+  payment_method_type = "Interac"
+[[bamboraapac.debit]]
+  payment_method_type = "AmericanExpress"
+[[bamboraapac.debit]]
+  payment_method_type = "JCB"
+[[bamboraapac.debit]]
+  payment_method_type = "DinersClub"
+[[bamboraapac.debit]]
+  payment_method_type = "Discover"
+[[bamboraapac.debit]]
+  payment_method_type = "CartesBancaires"
+[[bamboraapac.debit]]
+  payment_method_type = "UnionPay"
+[bamboraapac.connector_auth.SignatureKey]
+api_key="Username"
+key1="Account Number"
+api_secret="Password"
+
 [bankofamerica]
 [[bankofamerica.credit]]
   payment_method_type = "Mastercard"
@@ -976,8 +1018,8 @@ brand_id="Brand ID"
 destination_account_number="Destination Account Number"
 
 [razorpay]
-[razorpay.upi]
-  payment_method_type = "upiCollect"
+[[razorpay.upi]]
+  payment_method_type = "upi_collect"
 [razorpay.connector_auth.BodyKey]
 api_key="Razorpay Id"
 key1 = "Razorpay Secret"
