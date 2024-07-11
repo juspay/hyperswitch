@@ -562,7 +562,7 @@ pub(crate) fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let hashmap = business_profile
+        let custom_headers = business_profile
             .outgoing_webhook_custom_http_headers
             .as_ref()
             .map(|headers| {
@@ -572,7 +572,7 @@ pub(crate) fn get_outgoing_webhook_request(
             })
             .transpose()
             .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)?;
-        if let Some(ref map) = hashmap {
+        if let Some(ref map) = custom_headers {
             headers.extend(
                 map.iter()
                     .map(|(key, value)| (key.clone(), value.clone().into_masked())),

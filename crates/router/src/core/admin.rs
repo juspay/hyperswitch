@@ -1929,7 +1929,7 @@ pub async fn update_business_profile(
         })?;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
+            merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
