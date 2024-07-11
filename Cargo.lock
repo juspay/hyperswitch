@@ -3797,6 +3797,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch_connectors"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_utils",
+ "diesel_models",
+ "error-stack",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking",
+ "router_env",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hyperswitch_constraint_graph"
 version = "0.1.0"
 dependencies = [
