@@ -28,14 +28,6 @@ vector
     |||,
   }),
 
-  buffer_each_log_type: vector.transforms.reduce({
-    group_by: ['log.log_type', 'log.merchant_id', 'log.payment_id', 'log.attempt_id', 'log.refund_id', 'log.dispute_id'],
-    merge_strategies: {
-      log: 'retain',
-    },
-    expire_after_ms: 3000,
-  }),
-
   concat_all_log_types: vector.transforms.reduce({
     group_by: ['log.merchant_id', 'log.payment_id'],
     merge_strategies: {

@@ -1,4 +1,5 @@
 local log_config = import 'log-config.json';
+local vector_config = import 'vector-config.json';
 
 local pass_down_init(obj, level, level_log) =
   '{' +
@@ -98,4 +99,92 @@ local create_vrl(obj) =
   |||, [level_log])
 ;
 
-create_vrl(log_config)
+local prefix_log(arr) =
+  std.map(function(v) 'log.' + v, arr)
+;
+
+local top_level_keys(config, obj) =
+  config.top_level_additional_ids + [obj.id]
+;
+
+local init_sessionizer_vars(config, obj) =
+  local sessionizer_id = std.join(' + "_" + ', std.map(function(x) 'string!(.%s)' % x, prefix_log(top_level_keys(config, obj))));
+  std.format(|||
+    .sessionizer = {
+      "table": "${CASSANDRA_TABLE:-payments}",
+      "id": %s,
+      "db_log_type": "payment_intent"
+    };
+    log({"log": ., "type": "individual"}, rate_limit_secs:0);
+  |||, [sessionizer_id])
+;
+
+// local consolidate_events(config, obj, level, prev_level_ids = []) =
+//   local ids = top_level_keys(config, obj) + prev_level_ids;
+//   local sessionizer_id = std.join(' + "_" + ', std.map(function(x) 'string!(%s)' % x, prefix_log(top_level_keys(config, obj))));
+//   local sessionizer_id_exists = std.join(' && ', std.map(function(x) 'exists(%s)' % x, prefix_log(top_level_keys(config, obj))));
+//   local delete_children =  std.join('', std.map(function(x) 'del(%s);\n' % x, prefix_log(std.map(function(child) child.level, obj.children))));
+//   if obj.level == level then
+//     std.format(|||
+//       if %s {
+//         %s
+//         .sessionizer_key = %s;
+//         log
+//       } else {
+//         []
+//       }
+//     |||, [sessionizer_id_exists, delete_children, sessionizer_id])
+//   else
+//     local depth_search_res = std.filter(
+//       function(val) val != null,
+//       std.map(
+//         function(child)
+//           local val = consolidate_events(config, child, level, prev_level_ids = prev_level_ids + [obj.id]);
+//           local obj_level_log = '%s_log' % obj.level;
+//           local child_level_log = '%s_log' % child.level;
+//           local child_contents = "%s.%s" % [obj_level_log, child.log_label];
+//           if val != null then
+//             std.format(|||
+//               map_values(values(object(%s) ?? {})) -> |%s| {
+//                 %s = object(%s) ?? {};
+//                 %s
+//               }
+//             |||, [child_contents, child.level, child_level_log, child_level, val])
+
+//           ,
+//         obj.children
+//       )
+//     );
+//     if std.length(depth_search_res) == 0 then
+//       null
+//     else
+//       depth_search_res[0]
+//     std.format(|||
+//       . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
+//           attempt = object(a) ?? {};
+//           map_values(values(object(attempt.refunds) ?? {})) -> |r| {
+//             refund = object(r) ?? {};
+//             if exists(refund.merchant_id) && exists(refund.payment_id) && exists(refund.attempt_id) && exists(refund.refund_id) {
+//               refund.sign_flag = .sign_flag;
+//               # refund.log_type = "refund";
+//               refund.sessionizer_key = string!(refund.merchant_id) + "_" + string!(refund.payment_id) + "_" + string!(refund.attempt_id) + "_" + string!(refund.refund_id);
+//               refund
+//             } else {
+//               []
+//             }
+//           }
+//         })
+//     |||, [sessionizer_id])
+// ;
+
+
+//  { [obj.level]: key } +
+//   if std.length(obj.children) == 0 then
+//     {}
+//   else
+//     std.foldl(function(acc, child) acc + traverse(child, key=key + [child.log_label]), obj.children, {})
+
+
+init_sessionizer_vars(vector_config, log_config)
+
+// create_vrl(log_config)
