@@ -6809,6 +6809,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "allowed_domains"
+            ],
             "properties": {
               "domain_name": {
                 "type": "string",
@@ -6821,8 +6824,7 @@
                   "type": "string"
                 },
                 "description": "A list of allowed domains regexes where this link can be embedded / opened from",
-                "uniqueItems": true,
-                "nullable": true
+                "uniqueItems": true
               }
             }
           }
@@ -17689,15 +17691,6 @@
                 },
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
-                "nullable": true
-              },
-              "allowed_domains": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "A list of allowed domains regexes where the payout link can be embedded / opened from",
-                "uniqueItems": true,
                 "nullable": true
               }
             }
