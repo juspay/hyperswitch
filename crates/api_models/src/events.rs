@@ -80,6 +80,7 @@ impl_misc_api_event_type!(
     ToggleKVRequest,
     ToggleAllKVRequest,
     ToggleAllKVResponse,
+    TransferKeyResponse,
     MerchantAccountDeleteResponse,
     MerchantAccountUpdate,
     CardInfoResponse,

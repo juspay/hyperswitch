@@ -10,6 +10,7 @@ use crate::enums::{Currency, IntentStatus};
 pub struct PaymentIntentFilters {
     #[serde(default)]
     pub status: Vec<IntentStatus>,
+    #[serde(default)]
     pub currency: Vec<Currency>,
 }
 
