@@ -476,9 +476,9 @@ impl MerchantConnectorAccountInterface for Store {
                         // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
                         //    because of Rust's orphan rules
                         router_env::logger::error!(
-                        ?error,
-                        "DB transaction for updating multiple merchant connector account failed"
-                    );
+                            ?error,
+                            "DB transaction for updating multiple merchant connector account failed"
+                        );
                         errors::StorageError::DatabaseConnectionError
                     })?;
                 }
