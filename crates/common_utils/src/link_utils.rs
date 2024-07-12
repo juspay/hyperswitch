@@ -1,4 +1,4 @@
-//! Common
+//! This module has common utilities for links in HyperSwitch
 
 use std::{collections::HashSet, primitive::i64};
 
@@ -13,10 +13,13 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+use regex::Regex;
 use serde::Serialize;
+#[cfg(feature = "logs")]
+use router_env::logger;
 use utoipa::ToSchema;
 
-use crate::{errors::ParsingError, id_type, types::MinorUnit};
+use crate::{consts, errors::ParsingError, id_type, types::MinorUnit};
 
 #[derive(
     Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
@@ -163,7 +166,7 @@ pub struct PayoutLinkData {
     /// Payout currency
     pub currency: enums::Currency,
     /// A list of allowed domains regexes where the payout link can be embedded / opened from
-    pub allowed_domains: Option<HashSet<String>>,
+    pub allowed_domains: HashSet<String>,
 }
 
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
@@ -210,4 +213,30 @@ pub struct EnabledPaymentMethod {
     /// An array of associated payment method types
     #[schema(value_type = HashSet<PaymentMethodType>)]
     pub payment_method_types: HashSet<enums::PaymentMethodType>,
+}
+
+/// Util function for validating a domain without any wildcard characters.
+pub fn validate_strict_domain(domain: &str) -> bool {
+    Regex::new(consts::STRICT_DOMAIN_REGEX)
+        .map(|regex| regex.is_match(domain))
+        .map_err(|err| {
+            let err_msg = format!("Invalid regex found while checking host domain \"{}\" - {:?}", domain, err);
+            #[cfg(feature = "logs")]
+            logger::error!(err_msg);
+            err_msg
+        })
+        .unwrap_or(false)
+}
+
+/// Util function for validating a domain with "*" wildcard characters.
+pub fn validate_wildcard_domain(domain: &str) -> bool {
+    Regex::new(consts::WILDCARD_DOMAIN_REGEX)
+        .map(|regex| regex.is_match(domain))
+        .map_err(|err| {
+            let err_msg = format!("Invalid regex found while checking allowed domain \"{}\" - {:?}", domain, err);
+            #[cfg(feature = "logs")]
+            logger::error!(err_msg);
+            err_msg
+        })
+        .unwrap_or(false)
 }

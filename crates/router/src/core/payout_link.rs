@@ -63,7 +63,7 @@ pub async fn initiate_payout_link(
             message: "payout link not found".to_string(),
         })?;
 
-    validator::validate_payout_link_render_request(&state, request_headers, &payout_link)?;
+    validator::validate_payout_link_render_request(request_headers, &payout_link)?;
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
@@ -104,7 +104,7 @@ pub async fn initiate_payout_link(
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: link_data.allowed_domains,
+                    allowed_domains: Some(link_data.allowed_domains),
                     data: GenericLinksData::ExpiredLink(expired_link_data),
                 },
             )))
@@ -209,7 +209,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: link_data.allowed_domains,
+                    allowed_domains: Some(link_data.allowed_domains),
                     data: GenericLinksData::PayoutLink(generic_form_data),
                 },
             )))
@@ -251,7 +251,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: link_data.allowed_domains,
+                    allowed_domains: Some(link_data.allowed_domains),
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
                 },
             )))

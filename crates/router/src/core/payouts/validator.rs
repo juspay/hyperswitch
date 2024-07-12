@@ -18,14 +18,13 @@ use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
 use masking::Secret;
 use regex::Regex;
-use router_env::{instrument, logger, tracing, Env};
+use router_env::{instrument, logger, tracing};
 use time::Duration;
 
 use super::helpers;
 use crate::{
     consts,
     core::{
-        admin::validate_allowed_domains_regex,
         errors::{self, RouterResult, StorageErrorExt},
         utils as core_utils,
     },
@@ -208,12 +207,6 @@ pub async fn create_payout_link(
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
 
-    // Validate allowed domains in request
-    payout_link_config_req
-        .as_ref()
-        .and_then(|config| config.allowed_domains.clone())
-        .map_or(Ok(()), validate_allowed_domains_regex)?;
-
     // Fetch all configs
     let default_config = &state.conf.generic_link.payout_link;
     let profile_config = business_profile
@@ -235,18 +228,14 @@ pub async fn create_payout_link(
         .or(profile_ui_config);
 
     // Validate allowed_domains presence
-    let req_allowed_domains = payout_link_config_req
+    let allowed_domains = profile_config
         .as_ref()
-        .and_then(|req| req.allowed_domains.to_owned())
-        .or(profile_config
-            .as_ref()
-            .and_then(|config| config.config.allowed_domains.to_owned()));
-
-    if matches!(state.conf.env, Env::Production) && req_allowed_domains.is_none() {
-        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "allowed_domains"
-        }));
-    }
+        .map(|config| config.config.allowed_domains.to_owned())
+        .get_required_value("allowed_domains")
+        .change_context(errors::ApiErrorResponse::GenericConfigurationError {
+            message: "Payout links cannot be used without setting allowed_domains in profile"
+                .to_string(),
+        })?;
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {
@@ -304,7 +293,7 @@ pub async fn create_payout_link(
         enabled_payment_methods: req_enabled_payment_methods,
         amount: MinorUnit::from(*amount),
         currency: *currency,
-        allowed_domains: req_allowed_domains,
+        allowed_domains,
     };
 
     create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
@@ -344,33 +333,11 @@ pub async fn create_payout_link_db_entry(
 }
 
 pub fn validate_payout_link_render_request(
-    state: &SessionState,
     request_headers: &header::HeaderMap,
     payout_link: &PayoutLink,
 ) -> RouterResult<()> {
     let link_id = payout_link.link_id.to_owned();
     let link_data = payout_link.link_data.to_owned();
-
-    // Fetch allowed domains
-    let (allowed_domains, should_validate_request_headers) = match state.conf.env {
-        Env::Production => {
-            (link_data.allowed_domains
-            .ok_or_else(|| report!(errors::ApiErrorResponse::AccessForbidden {
-                resource: "payout_link".to_string(),
-            }))
-            .attach_printable_lazy(|| {
-                format!("Access to payout_link [{}] is forbidden without setting up allowed_domains for the link", link_id)
-            })?, true)
-        },
-        _ => {
-           link_data.allowed_domains
-            .map_or((HashSet::from(["*".to_string()]), false), |allowed_domains| (allowed_domains, true))
-        }
-    };
-
-    if !should_validate_request_headers {
-        return Ok(());
-    }
 
     // Fetch destination is "iframe"
     match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
@@ -409,7 +376,7 @@ pub fn validate_payout_link_render_request(
         )
     })?;
 
-    if is_domain_allowed(domain_in_req, allowed_domains) {
+    if is_domain_allowed(domain_in_req, link_data.allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {

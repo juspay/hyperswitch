@@ -99,6 +99,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "not_configured", message = "{message}")]
+    GenericConfigurationError { message: String },
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
 
@@ -461,6 +464,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_names.clone().join(", "),
                 }
             }
+
+            errors::ApiErrorResponse::GenericConfigurationError { message } => {
+                Self::GenericConfigurationError { message }
+            }
             errors::ApiErrorResponse::GenericNotFoundError { message } => {
                 Self::GenericNotFoundError { message }
             }
@@ -742,7 +749,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
-            | Self::ExtendedCardInfoNotFound => StatusCode::BAD_REQUEST,
+            | Self::ExtendedCardInfoNotFound
+            | Self::GenericConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

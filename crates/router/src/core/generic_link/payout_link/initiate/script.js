@@ -14,7 +14,13 @@ try {
 // Remove the script from DOM incase it's not iframed
 if (!isFramed) {
   function initializePayoutSDK() {
-    alert("This page can only be viewed within trusted domains.");
+    var errMsg = "You are not allowed to view this content.";
+    var contentElement = document.getElementById("payout-link");
+    if (contentElement instanceof HTMLDivElement) {
+      contentElement.innerHTML = errMsg;
+    } else {
+      document.body.innerHTML = errMsg;
+    }
   }
 
   // webpage is iframed, good to load

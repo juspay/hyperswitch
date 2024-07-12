@@ -98,3 +98,19 @@ pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
+
+/// Regex for matching a domain
+/// Eg -
+/// http://www.example.com
+/// https://www.example.com
+/// www.example.com
+/// example.io
+pub const STRICT_DOMAIN_REGEX: &str = r"^((http)s?:\/\/)?([A-Za-z0-9]{1,63}\.?)+([A-Za-z0-9-]{1,63}\.?)+([A-Za-z0-9]{1,63}\.?)+(\.[A-Za-z]{2,6}|:[0-9]{1,4})?$";
+
+/// Regex for matching a wildcard domain
+/// Eg -
+/// *.example.com
+/// *.subdomain.domain.com
+/// *://example.com
+/// *example.com
+pub const WILDCARD_DOMAIN_REGEX: &str = r"^((((http)s|\*)?:\/\/)?([A-Za-z0-9]{1,63}\.?)+[A-Za-z0-9-*]{1,63}\.?)+([A-Za-z0-9]{1,63}\.?)+(\.[A-Za-z]{2,6}|:[0-9*]{1,4})?$";

@@ -1161,11 +1161,36 @@ pub struct BusinessGenericLinkConfig {
     pub domain_name: Option<String>,
 
     /// A list of allowed domains regexes where this link can be embedded / opened from
-    pub allowed_domains: Option<HashSet<String>>,
+    pub allowed_domains: HashSet<String>,
 
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
+}
+
+impl BusinessGenericLinkConfig {
+    pub fn validate(&self) -> Result<(), &str> {
+        // Validate host domain name
+        let host_domain_valid = self
+            .domain_name
+            .clone()
+            .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
+            .unwrap_or(true);
+        if !host_domain_valid {
+            return Err("Invalid host domain name received");
+        }
+
+        let are_allowed_domains_valid = self
+            .allowed_domains
+            .clone()
+            .iter()
+            .any(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
+        if !are_allowed_domains_valid {
+            return Err("Invalid allowed domain names received");
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

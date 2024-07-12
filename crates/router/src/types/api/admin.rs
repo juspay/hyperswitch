@@ -7,7 +7,7 @@ pub use api_models::admin::{
     ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 
 use crate::{
@@ -146,6 +146,21 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             })
             .transpose()?;
 
+        let payout_link_config = request
+            .payout_link_config
+            .as_ref()
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Encode::encode_to_value(payout_conf).change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payout_link_config",
+                    },
+                ),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
         Ok(Self {
             profile_id,
             merchant_id: merchant_account.merchant_id,
@@ -198,14 +213,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "authentication_connector_details",
                 })?,
-            payout_link_config: request
-                .payout_link_config
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payout_link_config",
-                })?,
+            payout_link_config,
             is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
             is_extended_card_info_enabled: None,
             extended_card_info_config: None,
