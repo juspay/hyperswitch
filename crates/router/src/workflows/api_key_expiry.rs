@@ -69,15 +69,17 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
         let email_contents = ApiKeyExpiryReminder {
-            recipient_email: UserEmail::from_pii_email(email_id).map_err(|err| {
-                logger::error!(%err,"Failed to convert recipient's email to UserEmail from pii::Email");
+            recipient_email: UserEmail::from_pii_email(email_id).map_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to convert recipient's email to UserEmail from pii::Email"
+                );
                 errors::ProcessTrackerError::EApiErrorResponse
             })?,
             subject: "API Key Expiry Notice",
             expires_in: *expires_in,
             api_key_name,
             prefix,
-
         };
 
         state

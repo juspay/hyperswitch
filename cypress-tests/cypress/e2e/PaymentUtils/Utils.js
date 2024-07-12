@@ -101,6 +101,10 @@ export function defaultErrorHandler(response, response_data) {
     response_data = updateDefaultStatusCode();
   }
 
+  if (response_data.status === 200) {
+    throw new Error("Expecting valid response but got an error response");
+  }
+
   expect(response.body).to.have.property("error");
   for (const key in response_data.body.error) {
     expect(response_data.body.error[key]).to.equal(response.body.error[key]);

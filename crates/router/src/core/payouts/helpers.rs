@@ -391,6 +391,9 @@ pub async fn save_payout_data_to_locker(
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
+                billing: None,
+                connector_mandate_details: None,
+                network_transaction_id: None,
             };
 
             let pm_data = card_isin
@@ -472,6 +475,9 @@ pub async fn save_payout_data_to_locker(
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
+                    billing: None,
+                    connector_mandate_details: None,
+                    network_transaction_id: None,
                 },
             )
         };
@@ -494,6 +500,7 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             merchant_account.storage_scheme,
+            None,
             None,
         )
         .await?;
@@ -880,9 +887,12 @@ pub async fn get_gsm_record(
 }
 
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
-    matches!(
+    !matches!(
         status,
-        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
     )
 }
 
@@ -903,10 +913,13 @@ pub(crate) fn validate_payout_status_against_not_allowed_statuses(
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
-        api_enums::PayoutStatus::Pending
-            | api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            // Initiated by the underlying connector
+            | api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::RequiresFulfillment
     )
 }
 
@@ -923,7 +936,9 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
     matches!(
         status,
         api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresPayoutMethodData,
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
     )
 }
 

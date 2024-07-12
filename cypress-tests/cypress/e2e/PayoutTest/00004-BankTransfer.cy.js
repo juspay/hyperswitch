@@ -1,6 +1,6 @@
-import createPayoutBody from "../../fixtures/create-payout-confirm-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../PayoutUtils/utils";
+import * as utils from "../PayoutUtils/Utils";
 
 let globalState;
 
@@ -97,7 +97,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
-        createPayoutBody,
+        fixtures.createPayoutBody,
         req_data,
         res_data,
         true,
@@ -129,7 +129,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
-        createPayoutBody,
+        fixtures.createPayoutBody,
         req_data,
         res_data,
         true,
