@@ -7,6 +7,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
+use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -16,7 +17,6 @@ use crate::{
     admin, customers, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
-use masking::PeekInterface;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]

@@ -1,7 +1,5 @@
 use actix_multipart::form::{bytes::Bytes, MultipartForm};
-use api_models::payment_methods::{
-    PaymentMethodMigrationResponse, PaymentMethodRecord
-};
+use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
 use csv::Reader;
 use rdkafka::message::ToBytes;
 
