@@ -1145,7 +1145,8 @@ default_imp_for_post_processing_steps!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Razorpay
 );
 
 macro_rules! default_imp_for_payouts {

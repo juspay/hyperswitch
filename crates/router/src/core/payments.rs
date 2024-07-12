@@ -2189,33 +2189,32 @@ where
         .await?;
 
     match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::OpenBanking(data)) => match data {
-            api_models::payments::OpenBankingData::OpenBankingPIS { .. } => {
-                if connector.connector_name == router_types::Connector::Plaid {
-                    router_data = router_data.postprocessing_steps(state, connector).await?;
-                    let token = if let Ok(ref res) = router_data.response {
-                        match res {
-                            router_types::PaymentsResponseData::PostProcessingResponse {
-                                session_token,
-                            } => session_token
-                                .as_ref()
-                                .map(|token| api::SessionToken::OpenBanking(token.clone())),
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    };
-                    if let Some(t) = token {
-                        payment_data.sessions_token.push(t);
+        Some(api_models::payments::PaymentMethodData::OpenBanking(
+            api_models::payments::OpenBankingData::OpenBankingPIS { .. },
+        )) => {
+            if connector.connector_name == router_types::Connector::Plaid {
+                router_data = router_data.postprocessing_steps(state, connector).await?;
+                let token = if let Ok(ref res) = router_data.response {
+                    match res {
+                        router_types::PaymentsResponseData::PostProcessingResponse {
+                            session_token,
+                        } => session_token
+                            .as_ref()
+                            .map(|token| api::SessionToken::OpenBanking(token.clone())),
+                        _ => None,
                     }
-
-                    Ok(router_data)
                 } else {
-                    Ok(router_data)
+                    None
+                };
+                if let Some(t) = token {
+                    payment_data.sessions_token.push(t);
                 }
+
+                Ok(router_data)
+            } else {
+                Ok(router_data)
             }
-            _ => Ok(router_data),
-        },
+        }
         _ => Ok(router_data),
     }
 }

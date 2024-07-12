@@ -17,7 +17,6 @@ use crate::{
     },
     consts,
     core::errors,
-    headers::NONCE,
     services,
     types::{self, domain, storage::enums, BrowserInformation},
 };

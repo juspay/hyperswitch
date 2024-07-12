@@ -1495,6 +1495,7 @@ pub enum PaymentMethodType {
     PayEasy,
     LocalBankTransfer,
     Mifinity,
+    #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
 }
 
