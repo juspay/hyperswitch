@@ -76,7 +76,7 @@ where
                             // Intentionally not propagating error to caller.
                             // Any errors that occur in the producer flow must be handled here only, as
                             // this is the topmost level function which is concerned with the producer flow.
-                            error!(%error);
+                            error!(?error);
                         }
                     }
                 }
