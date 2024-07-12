@@ -1612,8 +1612,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
-        .async_and_then(|_| async { create_encrypted_data(key_store, raw_customer_details).await })
-        .await;
+        .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+        .await
+        .transpose()
+        .change_context(errors::StorageError::EncryptionError)
+        .attach_printable("Unable to encrypt customer details")?;
 
     let customer_id = request_customer_details
         .customer_id
