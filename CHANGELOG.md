@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.12.0
+
+### Features
+
+- **config:** [ZSL] Update ZSL base url for production ([#5290](https://github.com/juspay/hyperswitch/pull/5290)) ([`4e41827`](https://github.com/juspay/hyperswitch/commit/4e41827ade5a4c844cbc8822618ac2e35c6029e2))
+- **payouts:** Add country, currency filters for payout methods ([#5130](https://github.com/juspay/hyperswitch/pull/5130)) ([`d6f7f3c`](https://github.com/juspay/hyperswitch/commit/d6f7f3c799558a624d065b0eff31748c97e24baa))
+- Create key in encryption service for merchant and user ([#4910](https://github.com/juspay/hyperswitch/pull/4910)) ([`43741df`](https://github.com/juspay/hyperswitch/commit/43741df4a76a66faa472dacd66b396232a2fbdbf))
+
+### Bug Fixes
+
+- **analytics:** Resolve issues for payment-intent v2 analytics ([#5283](https://github.com/juspay/hyperswitch/pull/5283)) ([`bcb3450`](https://github.com/juspay/hyperswitch/commit/bcb3450445807a12cde70333bf24593ed57091b5))
+- **connector:** [BANKOFAMERICA] Remove cards 3ds flow ([#5294](https://github.com/juspay/hyperswitch/pull/5294)) ([`7c408af`](https://github.com/juspay/hyperswitch/commit/7c408aff1e7a664d38216fadb49730f378622ed2))
+- **cypress:** Validate false positives and fix PML tests ([#5293](https://github.com/juspay/hyperswitch/pull/5293)) ([`68adda0`](https://github.com/juspay/hyperswitch/commit/68adda036d4830a8803768efdeb7f43e09365339))
+- **router:**
+  - Send assurance_details required as false in googlepay metadata during merchant_connector_account creation from dashboard ([#5278](https://github.com/juspay/hyperswitch/pull/5278)) ([`6f754ea`](https://github.com/juspay/hyperswitch/commit/6f754eaa1dee947bc0f4917bc8cb2ce49d59de67))
+  - [razorpay] update refund webhook reference id ([#5297](https://github.com/juspay/hyperswitch/pull/5297)) ([`48e3b41`](https://github.com/juspay/hyperswitch/commit/48e3b41e32ba54a8d8642ba65b1cda251a6da315))
+  - Fail refund with bad request error for duplicate refund_id in refunds create flow ([#5282](https://github.com/juspay/hyperswitch/pull/5282)) ([`f63a678`](https://github.com/juspay/hyperswitch/commit/f63a678d71ee1cc55aa3569a52d6e6541ba65c44))
+  - Fixed integrity check failures in case of 3ds flow in sync flow ([#5279](https://github.com/juspay/hyperswitch/pull/5279)) ([`6d372ef`](https://github.com/juspay/hyperswitch/commit/6d372efbed08bc4ef7d946fb36acb67458896433))
+
+### Refactors
+
+- **analytics:** Create new permissions for Generate Report APIs ([#5178](https://github.com/juspay/hyperswitch/pull/5178)) ([`998ce02`](https://github.com/juspay/hyperswitch/commit/998ce02ebc1eed10e426987d1af9c02d1f1735fe))
+- **connectors:** [boa/cybs] add billing address to MIT request ([#5068](https://github.com/juspay/hyperswitch/pull/5068)) ([`66ac158`](https://github.com/juspay/hyperswitch/commit/66ac1584dfd6e8574732cb753bdce0136d36c205))
+- Move trait IncomingWebhook to hyperswitch_interfaces ([#5191](https://github.com/juspay/hyperswitch/pull/5191)) ([`35d502e`](https://github.com/juspay/hyperswitch/commit/35d502e3da6b271452011dfae178108e3ba8c3c7))
+
+### Miscellaneous Tasks
+
+- Fix file name ignored by git in cypress ([#5281](https://github.com/juspay/hyperswitch/pull/5281)) ([`3312e78`](https://github.com/juspay/hyperswitch/commit/3312e787f9873d10114e6a4ca78a0c3714ab2b1c))
+
+**Full Changelog:** [`2024.07.11.0...2024.07.12.0`](https://github.com/juspay/hyperswitch/compare/2024.07.11.0...2024.07.12.0)
+
+- - -
+
 ## 2024.07.11.0
 
 ### Features

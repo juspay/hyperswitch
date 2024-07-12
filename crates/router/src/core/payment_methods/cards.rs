@@ -164,7 +164,7 @@ pub async fn create_payment_method(
             storage_scheme,
         )
         .await
-        .map_err(|err| logger::error!(error=?err,"Failed to set the payment method as default"));
+        .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }
     Ok(response)
 }
@@ -548,7 +548,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|err| logger::error!(error=?err,"Failed to set the payment method as default"));
+        .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }
     Ok(services::api::ApplicationResponse::Json(
         api::PaymentMethodResponse::foreign_from((card, response)),
@@ -822,11 +822,16 @@ pub async fn add_payment_method_data(
                                 merchant_account.merchant_id.clone(),
                                 key_store.clone(),
                                 &customer_id,
-                               pm_id,
-                               merchant_account.storage_scheme,
+                                pm_id,
+                                merchant_account.storage_scheme,
                             )
                             .await
-                            .map_err(|err| logger::error!(error=?err,"Failed to set the payment method as default"));
+                            .map_err(|error| {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to set the payment method as default"
+                                )
+                            });
                         }
 
                         return Ok(services::ApplicationResponse::Json(pm_resp));
@@ -1421,7 +1426,7 @@ pub async fn add_bank_to_locker(
     let enc_data = async {
         serde_json::to_value(payout_method_data.to_owned())
             .map_err(|err| {
-                logger::error!("Error while encoding payout method data: {}", err);
+                logger::error!("Error while encoding payout method data: {err:?}");
                 errors::VaultError::SavePaymentMethodFailed
             })
             .change_context(errors::VaultError::SavePaymentMethodFailed)
@@ -2621,8 +2626,8 @@ pub async fn list_payment_methods(
                             .attach_printable("Failed to deserialize Payment Method Auth config")
                     })
                     .transpose()
-                    .unwrap_or_else(|err| {
-                        logger::error!(error=?err);
+                    .unwrap_or_else(|error| {
+                        logger::error!(?error);
                         None
                     });
 
@@ -2665,8 +2670,8 @@ pub async fn list_payment_methods(
             rc.serialize_and_set_key_with_expiry(pm_auth_key.as_str(), val, redis_expiry)
                 .await
                 .attach_printable("Failed to store pm auth data in redis")
-                .unwrap_or_else(|err| {
-                    logger::error!(error=?err);
+                .unwrap_or_else(|error| {
+                    logger::error!(?error);
                 })
         };
 
@@ -3344,17 +3349,20 @@ pub async fn filter_payment_methods(
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 
-            let allowed_payment_method_types = payment_intent
-                .and_then(|payment_intent| {
-                    payment_intent
-                        .allowed_payment_method_types
-                        .clone()
-                        .map(|val| val.parse_value("Vec<PaymentMethodType>"))
-                        .transpose()
-                        .unwrap_or_else(|error| {
-                            logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"); None
-                        })
-                });
+            let allowed_payment_method_types = payment_intent.and_then(|payment_intent| {
+                payment_intent
+                    .allowed_payment_method_types
+                    .clone()
+                    .map(|val| val.parse_value("Vec<PaymentMethodType>"))
+                    .transpose()
+                    .unwrap_or_else(|error| {
+                        logger::error!(
+                            ?error,
+                            "Failed to deserialize PaymentIntent allowed_payment_method_types"
+                        );
+                        None
+                    })
+            });
 
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
@@ -3741,8 +3749,8 @@ pub async fn list_customer_payment_method(
                 // Retrieve the pm_auth connector details so that it can be tokenized
                 let bank_account_token_data = get_bank_account_connector_details(&pm, key)
                     .await
-                    .unwrap_or_else(|err| {
-                        logger::error!(error=?err);
+                    .unwrap_or_else(|error| {
+                        logger::error!(?error);
                         None
                     });
                 if let Some(data) = bank_account_token_data {
@@ -3802,8 +3810,8 @@ pub async fn list_customer_payment_method(
         let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
             get_masked_bank_details(&pm, key)
                 .await
-                .unwrap_or_else(|err| {
-                    logger::error!(error=?err);
+                .unwrap_or_else(|error| {
+                    logger::error!(?error);
                     None
                 })
         } else {
@@ -4567,8 +4575,8 @@ where
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to convert data to a value")
-        .unwrap_or_else(|err| {
-            logger::error!(err=?err);
+        .unwrap_or_else(|error| {
+            logger::error!(?error);
             None
         })
         .map(Secret::<_, masking::WithType>::new)
@@ -4576,8 +4584,8 @@ where
         .await
         .change_context(errors::StorageError::EncryptionError)
         .attach_printable("Unable to encrypt data")
-        .unwrap_or_else(|err| {
-            logger::error!(err=?err);
+        .unwrap_or_else(|error| {
+            logger::error!(?error);
             None
         })
 }

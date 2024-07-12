@@ -7,7 +7,7 @@ use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::hmac;
 use sha1::{Digest, Sha1};
 
@@ -31,7 +31,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
         transformers::ForeignFrom,
         ErrorResponse,
     },
@@ -180,7 +179,7 @@ impl ConnectorValidation for Braintree {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: domain::payments::PaymentMethodData,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
@@ -1377,15 +1376,16 @@ impl api::IncomingWebhook for Braintree {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1397,7 +1397,7 @@ impl api::IncomingWebhook for Braintree {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
