@@ -3876,6 +3876,8 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "async-trait",
+ "cards",
+ "common_enums",
  "common_utils",
  "diesel_models",
  "error-stack",

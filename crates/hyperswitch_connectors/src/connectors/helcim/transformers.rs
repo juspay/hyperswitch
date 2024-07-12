@@ -1,18 +1,23 @@
+use common_enums::enums;
 use common_utils::pii::{Email, IpAddress};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{Card, PaymentMethodData},
+    router_data::{ConnectorAuthType, RouterData},
+    router_request_types::ResponseId,
+};
+// use crate::{
+//     connector::utils::{
+//         self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+//         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
+//         RefundsRequestData, RouterData,
+//     },
+//     core::errors,
+//     types::{self, api, domain, storage::enums},
+// };
+use hyperswitch_interfaces::{api, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
-        RefundsRequestData, RouterData,
-    },
-    core::errors,
-    types::{self, api, domain, storage::enums},
-};
-
 #[derive(Debug, Serialize)]
 pub struct HelcimRouterData<T> {
     pub amount: f64,
@@ -109,11 +114,9 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
-impl TryFrom<(&types::SetupMandateRouterData, &domain::Card)> for HelcimVerifyRequest {
+impl TryFrom<(&types::SetupMandateRouterData, &Card)> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        value: (&types::SetupMandateRouterData, &domain::Card),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&types::SetupMandateRouterData, &Card)) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
             card_expiry: req_card
@@ -147,27 +150,25 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            domain::PaymentMethodData::BankTransfer(_) => {
+            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+            PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Helcim"),
-                ))?
-            }
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Helcim"),
+            ))?,
         }
     }
 }
@@ -175,14 +176,14 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
 impl
     TryFrom<(
         &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::Card,
+        &Card,
     )> for HelcimPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
             &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::Card,
+            &Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
@@ -249,27 +250,25 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
         item: &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            domain::PaymentMethodData::BankTransfer(_) => {
+            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+            PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Helcim"),
-                ))?
-            }
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Helcim"),
+            ))?,
         }
     }
 }
@@ -279,11 +278,11 @@ pub struct HelcimAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
+impl TryFrom<&ConnectorAuthType> for HelcimAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -349,7 +348,7 @@ impl<F>
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
+    > for RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -362,7 +361,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
                 redirection_data: None,
@@ -392,7 +391,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -407,9 +406,9 @@ impl<F>
         //Initially resource_id is stored as NoResponseID for manual capture
         //After Capture Transaction is completed it is updated to store the Capture ID
         let resource_id = if item.data.request.is_auto_capture()? {
-            types::ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string())
+            ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string())
         } else {
-            types::ResponseId::NoResponseId
+            ResponseId::NoResponseId
         };
         let connector_metadata = if !item.data.request.is_auto_capture()? {
             Some(serde_json::json!(HelcimMetaData {
@@ -464,7 +463,7 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    > for RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -478,7 +477,7 @@ impl<F>
         match item.data.request.sync_type {
             types::SyncRequestType::SinglePaymentSync => Ok(Self {
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                    resource_id: ResponseId::ConnectorTransactionId(
                         item.response.transaction_id.to_string(),
                     ),
                     redirection_data: None,
@@ -552,7 +551,7 @@ impl<F>
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    > for RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -565,7 +564,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
                 redirection_data: None,
@@ -615,7 +614,7 @@ impl<F>
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+    > for RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -628,7 +627,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
                 redirection_data: None,
