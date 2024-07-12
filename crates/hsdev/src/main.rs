@@ -68,7 +68,7 @@ fn main() {
     let mut harness = HarnessWithOutput::write_to_stdout(&mut conn);
 
     match harness.run_pending_migrations(migrations) {
-        Ok(_) => println!("Successfully ran migrations"),
+        Ok(data) => println!("Successfully ran migrations {data:?}"),
         Err(_) => eprintln!("Couldn't run migrations"),
     };
 }

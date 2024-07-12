@@ -4,7 +4,7 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-#[cfg(not(feature = "v2"))]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::id_type;
 use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
 use diesel_models::{
@@ -399,7 +399,7 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(not(feature = "v2"))]
+    #[cfg(any(feature = "v1", feature = "v2"))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())

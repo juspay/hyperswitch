@@ -399,13 +399,10 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,
-        mut merchant_account: domain::MerchantAccount,
+        merchant_account: domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
-        merchant_account.id.get_or_insert(
-            i32::try_from(accounts.len()).change_context(errors::StorageError::MockDbError)?,
-        );
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::EncryptionError)?;

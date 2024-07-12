@@ -4,9 +4,17 @@ use super::generics;
 use crate::{
     errors,
     merchant_account::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal},
-    schema::merchant_account::dsl,
     PgPooledConn, StorageResult,
 };
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+use crate::schema::merchant_account::dsl;
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+use crate::schema_v2::merchant_account::dsl;
 
 impl MerchantAccountNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantAccount> {
@@ -22,7 +30,7 @@ impl MerchantAccount {
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            self.merchant_id.clone(),
             merchant_account,
         )
         .await

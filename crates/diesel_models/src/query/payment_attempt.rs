@@ -15,9 +15,14 @@ use crate::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
     query::generics::db_metrics,
-    schema::payment_attempt::dsl,
     PaymentIntent, PgPooledConn, StorageResult,
 };
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt::dsl;
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt::dsl;
 
 impl PaymentAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {

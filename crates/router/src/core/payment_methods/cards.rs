@@ -2809,7 +2809,9 @@ pub async fn list_payment_methods(
         .and_then(|bp| bp.collect_billing_details_from_wallet_connector);
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
-            redirect_url: merchant_account.return_url,
+            redirect_url: business_profile
+                .as_ref()
+                .and_then(|business_profile| business_profile.return_url.clone()),
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,

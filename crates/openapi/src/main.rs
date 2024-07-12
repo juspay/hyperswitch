@@ -2,7 +2,7 @@ mod openapi;
 mod routes;
 
 fn main() {
-    #[cfg(not(feature = "v2"))]
+    #[cfg(feature = "v1")]
     let relative_file_path = "api-reference/openapi_spec.json";
 
     #[cfg(feature = "v2")]
