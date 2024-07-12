@@ -1341,7 +1341,7 @@ pub struct TokenizedBankRedirectValue2 {
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
     pub name: Option<masking::Secret<String>>,
-    pub email: Option<common_utils::pii::Email>,
+    pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
     pub merchant_id: String,
