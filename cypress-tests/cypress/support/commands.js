@@ -336,9 +336,11 @@ Cypress.Commands.add(
               .slice()
               .sort();
           }
-          for (let i = 0; i < getPaymentMethodType(response.body).length; i++) {
-            expect(getPaymentMethodType(res_data)[i]).to.equal(
-              getPaymentMethodType(response.body)[i]
+          let config_payment_method_type = getPaymentMethodType(res_data);
+          let response_payment_method_type = getPaymentMethodType(response.body);
+          for (let i = 0; i < response_payment_method_type.length; i++) {
+            expect(config_payment_method_type[i]).to.equal(
+              response_payment_method_type[i]
             );
           }
         } else {
