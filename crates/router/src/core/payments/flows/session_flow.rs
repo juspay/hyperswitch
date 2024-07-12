@@ -16,11 +16,11 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, app::settings, metrics},
+    routes::{self, metrics},
     services,
     types::{
         self,
-        api::{self, enums},
+        api::{self},
         domain, storage,
     },
     utils::OptionExt,
@@ -93,39 +93,6 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await
     }
-}
-
-/// This function checks if for a given connector, payment_method and payment_method_type,
-/// the list of required_field_type is present in dynamic fields
-fn is_dynamic_fields_required(
-    required_fields: &settings::RequiredFields,
-    payment_method: enums::PaymentMethod,
-    payment_method_type: enums::PaymentMethodType,
-    connector: &types::Connector,
-    required_field_type: Vec<enums::FieldType>,
-) -> bool {
-    required_fields
-        .0
-        .get(&payment_method)
-        .and_then(|pm_type| pm_type.0.get(&payment_method_type))
-        .and_then(|required_fields_for_connector| {
-            required_fields_for_connector.fields.get(connector)
-        })
-        .map(|required_fields_final| {
-            required_fields_final
-                .non_mandate
-                .iter()
-                .any(|(_, val)| required_field_type.contains(&val.field_type))
-                || required_fields_final
-                    .mandate
-                    .iter()
-                    .any(|(_, val)| required_field_type.contains(&val.field_type))
-                || required_fields_final
-                    .common
-                    .iter()
-                    .any(|(_, val)| required_field_type.contains(&val.field_type))
-        })
-        .unwrap_or(false)
 }
 
 fn build_apple_pay_session_request(
@@ -300,39 +267,21 @@ async fn create_applepay_session_token(
             .collect_billing_details_from_wallet_connector
             .unwrap_or(false)
             .then_some({
-                let billing_variants = enums::FieldType::get_billing_variants();
-                is_dynamic_fields_required(
-                    &state.conf.required_fields,
-                    enums::PaymentMethod::Wallet,
-                    enums::PaymentMethodType::ApplePay,
-                    &connector.connector_name,
-                    billing_variants,
-                )
-                .then_some(payment_types::ApplePayBillingContactFields(vec![
+                payment_types::ApplePayBillingContactFields(vec![
                     payment_types::ApplePayAddressParameters::PostalAddress,
-                ]))
-            })
-            .flatten();
+                ])
+            });
 
         let required_shipping_contact_fields = business_profile
             .collect_shipping_details_from_wallet_connector
             .unwrap_or(false)
             .then_some({
-                let shipping_variants = enums::FieldType::get_shipping_variants();
-                is_dynamic_fields_required(
-                    &state.conf.required_fields,
-                    enums::PaymentMethod::Wallet,
-                    enums::PaymentMethodType::ApplePay,
-                    &connector.connector_name,
-                    shipping_variants,
-                )
-                .then_some(payment_types::ApplePayShippingContactFields(vec![
+                payment_types::ApplePayShippingContactFields(vec![
                     payment_types::ApplePayAddressParameters::PostalAddress,
                     payment_types::ApplePayAddressParameters::Phone,
                     payment_types::ApplePayAddressParameters::Email,
-                ]))
-            })
-            .flatten();
+                ])
+            });
 
         // If collect_shipping_details_from_wallet_connector is false, we check if
         // collect_billing_details_from_wallet_connector is true. If it is, then we pass the Email and Phone in
@@ -602,20 +551,9 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
-        let is_billing_details_required =
-            if business_profile.collect_billing_details_from_wallet_connector == Some(true) {
-                let billing_variants = enums::FieldType::get_billing_variants();
-
-                is_dynamic_fields_required(
-                    &state.conf.required_fields,
-                    enums::PaymentMethod::Wallet,
-                    enums::PaymentMethodType::GooglePay,
-                    &connector.connector_name,
-                    billing_variants,
-                )
-            } else {
-                false
-            };
+        let is_billing_details_required = business_profile
+            .collect_billing_details_from_wallet_connector
+            .unwrap_or(false);
 
         let billing_address_parameters =
             is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
@@ -655,20 +593,9 @@ fn create_gpay_session_token(
             total_price: google_pay_amount,
         };
 
-        let required_shipping_contact_fields =
-            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
-                let shipping_variants = enums::FieldType::get_shipping_variants();
-
-                is_dynamic_fields_required(
-                    &state.conf.required_fields,
-                    enums::PaymentMethod::Wallet,
-                    enums::PaymentMethodType::GooglePay,
-                    &connector.connector_name,
-                    shipping_variants,
-                )
-            } else {
-                false
-            };
+        let required_shipping_contact_fields = business_profile
+            .collect_shipping_details_from_wallet_connector
+            .unwrap_or(false);
 
         Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {

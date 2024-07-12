@@ -2781,29 +2781,12 @@ pub async fn list_payment_methods(
                                     }
                                 }
 
-                                let should_send_shipping_details =
-                                    business_profile.clone().and_then(|business_profile| {
-                                        business_profile
-                                            .collect_shipping_details_from_wallet_connector
-                                    });
-
-                                // Remove shipping fields from required fields based on business profile configuration
-                                if should_send_shipping_details != Some(true) {
-                                    let shipping_variants =
-                                        api_enums::FieldType::get_shipping_variants();
-
-                                    let keys_to_be_removed = required_fields_hs
-                                        .iter()
-                                        .filter(|(_key, value)| {
-                                            shipping_variants.contains(&value.field_type)
-                                        })
-                                        .map(|(key, _value)| key.to_string())
-                                        .collect::<Vec<_>>();
-
-                                    keys_to_be_removed.iter().for_each(|key_to_be_removed| {
-                                        required_fields_hs.remove(key_to_be_removed);
-                                    });
-                                }
+                                required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
+                                    business_profile.as_ref(),
+                                    connector_variant,
+                                    payment_method_type,
+                                    required_fields_hs.clone(),
+                                );
 
                                 // get the config, check the enums while adding
                                 {
@@ -3199,6 +3182,57 @@ pub async fn list_payment_methods(
             collect_billing_details_from_wallets,
         },
     ))
+}
+
+fn should_collect_shipping_or_billing_details_from_wallet_connector(
+    business_profile: Option<&BusinessProfile>,
+    connector_variant: api_enums::Connector,
+    payment_method_type: enums::PaymentMethodType,
+    mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
+) -> HashMap<String, RequiredFieldInfo> {
+    if validate_payment_method_type_and_connector(payment_method_type, connector_variant) {
+        let should_send_shipping_details = business_profile.and_then(|business_profile| {
+            business_profile.collect_shipping_details_from_wallet_connector
+        });
+
+        let should_send_billing_details = business_profile.and_then(|business_profile| {
+            business_profile.collect_billing_details_from_wallet_connector
+        });
+
+        if should_send_shipping_details.unwrap_or(false) {
+            let shipping_details = crate::configs::defaults::get_shipping_required_fields();
+            required_fields_hs.extend(shipping_details)
+        }
+
+        if should_send_billing_details.unwrap_or(false) {
+            let billing_details = crate::configs::defaults::get_billing_required_fields();
+            required_fields_hs.extend(billing_details)
+        }
+    };
+    required_fields_hs
+}
+
+fn validate_payment_method_type_and_connector(
+    payment_method_type: enums::PaymentMethodType,
+    connector_variant: api_enums::Connector,
+) -> bool {
+    matches!(
+        (payment_method_type, connector_variant),
+        (enums::PaymentMethodType::ApplePay, _)
+            | (enums::PaymentMethodType::GooglePay, _)
+            | (
+                enums::PaymentMethodType::Klarna,
+                api_enums::Connector::Klarna
+            )
+            | (
+                enums::PaymentMethodType::Paypal,
+                api_enums::Connector::Paypal
+            )
+            | (
+                enums::PaymentMethodType::Paypal,
+                api_enums::Connector::Braintree
+            )
+    )
 }
 
 async fn validate_payment_method_and_client_secret(
