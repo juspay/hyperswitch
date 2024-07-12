@@ -264,7 +264,8 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
-    WebhookAuthenticationFailed,#[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
+    WebhookAuthenticationFailed,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
     WebhookResourceNotFound,
