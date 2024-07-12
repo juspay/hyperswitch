@@ -393,7 +393,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -431,7 +430,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 surcharge_applicable: None,
                 incremental_authorization_allowed: None,
                 authorization_count: None,
-                
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -476,7 +474,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -517,7 +514,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -559,7 +555,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -609,7 +604,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -650,7 +644,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -692,7 +685,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -733,7 +725,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -774,7 +765,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -814,7 +804,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -851,7 +840,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -890,7 +878,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -929,7 +916,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -966,7 +952,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
-                
             },
         }
     }
