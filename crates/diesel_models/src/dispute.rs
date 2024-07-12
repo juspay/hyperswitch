@@ -83,7 +83,7 @@ pub enum DisputeUpdate {
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 pub struct DisputeUpdateInternal {
     dispute_stage: Option<storage_enums::DisputeStage>,
@@ -93,7 +93,7 @@ pub struct DisputeUpdateInternal {
     connector_reason_code: Option<String>,
     challenge_required_by: Option<PrimitiveDateTime>,
     connector_updated_at: Option<PrimitiveDateTime>,
-    modified_at: Option<PrimitiveDateTime>,
+    modified_at: PrimitiveDateTime,
     evidence: Option<Secret<serde_json::Value>>,
 }
 
@@ -116,8 +116,8 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
-                modified_at: Some(common_utils::date_time::now()),
-                ..Default::default()
+                modified_at: common_utils::date_time::now(),
+                evidence: None,
             },
             DisputeUpdate::StatusUpdate {
                 dispute_status,
@@ -125,12 +125,24 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
             } => Self {
                 dispute_status: Some(dispute_status),
                 connector_status,
-                modified_at: Some(common_utils::date_time::now()),
-                ..Default::default()
+                modified_at: common_utils::date_time::now(),
+                dispute_stage: None,
+                connector_reason: None,
+                connector_reason_code: None,
+                challenge_required_by: None,
+                connector_updated_at: None,
+                evidence: None,
             },
             DisputeUpdate::EvidenceUpdate { evidence } => Self {
                 evidence: Some(evidence),
-                ..Default::default()
+                dispute_stage: None,
+                dispute_status: None,
+                connector_status: None,
+                connector_reason: None,
+                connector_reason_code: None,
+                challenge_required_by: None,
+                connector_updated_at: None,
+                modified_at: common_utils::date_time::now(),
             },
         }
     }
