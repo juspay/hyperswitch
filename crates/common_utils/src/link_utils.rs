@@ -14,9 +14,9 @@ use diesel::{
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use regex::Regex;
-use serde::Serialize;
 #[cfg(feature = "logs")]
 use router_env::logger;
+use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::{consts, errors::ParsingError, id_type, types::MinorUnit};
@@ -220,7 +220,10 @@ pub fn validate_strict_domain(domain: &str) -> bool {
     Regex::new(consts::STRICT_DOMAIN_REGEX)
         .map(|regex| regex.is_match(domain))
         .map_err(|err| {
-            let err_msg = format!("Invalid regex found while checking host domain \"{}\" - {:?}", domain, err);
+            let err_msg = format!(
+                "Invalid regex found while checking host domain \"{}\" - {:?}",
+                domain, err
+            );
             #[cfg(feature = "logs")]
             logger::error!(err_msg);
             err_msg
@@ -233,7 +236,10 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
     Regex::new(consts::WILDCARD_DOMAIN_REGEX)
         .map(|regex| regex.is_match(domain))
         .map_err(|err| {
-            let err_msg = format!("Invalid regex found while checking allowed domain \"{}\" - {:?}", domain, err);
+            let err_msg = format!(
+                "Invalid regex found while checking allowed domain \"{}\" - {:?}",
+                domain, err
+            );
             #[cfg(feature = "logs")]
             logger::error!(err_msg);
             err_msg

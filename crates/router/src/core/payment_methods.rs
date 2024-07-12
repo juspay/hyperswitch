@@ -1,6 +1,7 @@
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
@@ -11,7 +12,10 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    api::{GenericLinks, GenericLinksData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -25,7 +29,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks, GenericLinksData},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
@@ -277,12 +281,7 @@ pub async fn render_pm_collect_link(
                     ))?;
 
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    publishable_key: merchant_account
-                        .publishable_key
-                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "publishable_key",
-                        })?
-                        .into(),
+                    publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
                     customer_id: customer.customer_id,

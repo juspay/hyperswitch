@@ -15,9 +15,10 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
+#[cfg(not(feature = "v2"))]
+impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -39,7 +40,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
-            publishable_key: item.publishable_key,
+            publishable_key: Some(item.publishable_key),
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
@@ -51,6 +52,30 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             default_profile: item.default_profile,
             recon_status: item.recon_status,
             pm_collect_link_config,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
+        let merchant_name = item
+            .merchant_name
+            .get_required_value("merchant_name")?
+            .into_inner();
+
+        Ok(Self {
+            id: item.merchant_id,
+            merchant_name,
+            merchant_details: item.merchant_details,
+            publishable_key: item.publishable_key,
+            metadata: item.metadata,
+            organization_id: item.organization_id,
+            is_recon_enabled: item.is_recon_enabled,
+            recon_status: item.recon_status,
         })
     }
 }

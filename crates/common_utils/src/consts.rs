@@ -114,3 +114,6 @@ pub const STRICT_DOMAIN_REGEX: &str = r"^((http)s?:\/\/)?([A-Za-z0-9]{1,63}\.?)+
 /// *://example.com
 /// *example.com
 pub const WILDCARD_DOMAIN_REGEX: &str = r"^((((http)s|\*)?:\/\/)?([A-Za-z0-9]{1,63}\.?)+[A-Za-z0-9-*]{1,63}\.?)+([A-Za-z0-9]{1,63}\.?)+(\.[A-Za-z]{2,6}|:[0-9*]{1,4})?$";
+
+/// Maximum allowed length for MerchantName
+pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;

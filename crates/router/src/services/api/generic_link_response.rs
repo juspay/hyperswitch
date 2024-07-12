@@ -1,8 +1,10 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::api::{
+    GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinksData,
+};
 use tera::{Context, Tera};
 
-use super::{GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinksData};
 use crate::core::errors;
 
 pub fn build_generic_link_html(
