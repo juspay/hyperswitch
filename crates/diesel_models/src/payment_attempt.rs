@@ -545,7 +545,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_type,
                 payment_method,
                 payment_token,
-
                 payment_method_data,
                 payment_method_type,
                 payment_experience,
@@ -607,7 +606,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
-
                 updated_by,
             } => Self {
                 authentication_type: Some(authentication_type),
@@ -663,7 +661,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 status,
                 payment_method,
-
                 browser_info,
                 connector,
                 payment_token,
@@ -737,7 +734,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::VoidUpdate {
                 status,
                 cancellation_reason,
-
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -788,7 +784,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
-
                 error_code,
                 error_message,
                 updated_by,
@@ -841,7 +836,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
-
                 error_code,
                 error_message,
                 updated_by,
@@ -894,7 +888,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
-
                 updated_by,
             } => Self {
                 payment_method_id,
@@ -1015,7 +1008,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 status,
                 error_code,
-
                 error_message,
                 error_reason,
                 amount_capturable,
@@ -1121,7 +1113,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
-
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
@@ -1181,7 +1172,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 connector_transaction_id,
                 payment_method_id,
-
                 error_code,
                 error_message,
                 error_reason,
@@ -1237,7 +1227,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::PreprocessingUpdate {
                 status,
                 payment_method_id,
-
                 connector_metadata,
                 preprocessing_step_id,
                 connector_transaction_id,
@@ -1292,7 +1281,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
-
                 updated_by,
                 amount_to_capture,
             } => Self {
