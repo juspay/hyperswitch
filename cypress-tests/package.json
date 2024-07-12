@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "cypress": "^13.10.0",
+    "cypress": "^13.13.0",
     "jsqr": "^1.4.0"
   },
   "dependencies": {

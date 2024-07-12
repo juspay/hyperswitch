@@ -836,13 +836,7 @@ pub async fn validate_and_create_refund(
         }
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
-                db.find_refund_by_merchant_id_refund_id(
-                    merchant_account.merchant_id.as_str(),
-                    refund_id.as_str(),
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?
+                Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
                     .change_context(errors::ApiErrorResponse::RefundNotFound)
