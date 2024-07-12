@@ -3747,3 +3747,44 @@ type="Text"
 [billwerk.connector_auth.BodyKey]
 api_key="Private Api Key"
 key1="Public Api Key"
+
+[datatrans]
+[[datatrans.credit]]
+  payment_method_type = "Mastercard"
+[[datatrans.credit]]
+  payment_method_type = "Visa"
+[[datatrans.credit]]
+  payment_method_type = "Interac"
+[[datatrans.credit]]
+  payment_method_type = "AmericanExpress"
+[[datatrans.credit]]
+  payment_method_type = "JCB"
+[[datatrans.credit]]
+  payment_method_type = "DinersClub"
+[[datatrans.credit]]
+  payment_method_type = "Discover"
+[[datatrans.credit]]
+  payment_method_type = "CartesBancaires"
+[[datatrans.credit]]
+  payment_method_type = "UnionPay"
+[[datatrans.debit]]
+  payment_method_type = "Mastercard"
+[[datatrans.debit]]
+  payment_method_type = "Visa"
+[[datatrans.debit]]
+  payment_method_type = "Interac"
+[[datatrans.debit]]
+  payment_method_type = "AmericanExpress"
+[[datatrans.debit]]
+  payment_method_type = "JCB"
+[[datatrans.debit]]
+  payment_method_type = "DinersClub"
+[[datatrans.debit]]
+  payment_method_type = "Discover"
+[[datatrans.debit]]
+  payment_method_type = "CartesBancaires"
+[[datatrans.debit]]
+  payment_method_type = "UnionPay"
+[datatrans.connector_auth.BodyKey]
+api_key = "Passcode"
+key1 = "datatrans MerchantId"
