@@ -15,7 +15,10 @@ use crate::{
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
-        api::{customers::CustomerRequest,payment_methods::{self, PaymentMethodId}},
+        api::{
+            customers::CustomerRequest,
+            payment_methods::{self, PaymentMethodId},
+        },
         domain,
         storage::payment_method::PaymentTokenData,
     },
@@ -124,7 +127,9 @@ pub async fn migrate_payment_methods(
             // Create customers if they are not already present
             customers::migrate_customers(
                 state.clone(),
-                req.iter().map(|e| CustomerRequest::from(e.clone())).collect(),
+                req.iter()
+                    .map(|e| CustomerRequest::from(e.clone()))
+                    .collect(),
                 merchant_account.clone(),
                 key_store.clone(),
             )
