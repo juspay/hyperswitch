@@ -94,7 +94,7 @@ pub enum ApiErrorResponse {
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     FileProviderNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_29", message = "{message}")]
     UnprocessableEntity { message: String },
     #[error(
         error_type = ErrorType::ProcessingError, code = "IR_24",
@@ -129,111 +129,111 @@ pub enum ApiErrorResponse {
     DisputeFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
-    #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
+    #[error(error_type = ErrorType::LockTimeout, code = "HE_01", message = "Resource is busy. Please try again later.")]
     ResourceBusy,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate refund request. Refund already attempted with the refund ID")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_02", message = "Duplicate refund request. Refund already attempted with the refund ID")]
     DuplicateRefundRequest,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_03", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID")]
     DuplicateMandate,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant account with the specified details already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_04", message = "The merchant account with the specified details already exists in our records")]
     DuplicateMerchantAccount,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_05", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
     DuplicateMerchantConnectorAccount {
         profile_id: String,
         connector_label: String,
     },
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_06", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_07", message = "The payment with the specified payment_id already exists in our records")]
     DuplicatePayment { payment_id: String },
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_08", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
     DuplicatePayout { payout_id: String },
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_09", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_10", message = "Refund does not exist in our records")]
     RefundNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Customer does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_11", message = "Customer does not exist in our records")]
     CustomerNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Config key does not exist in our records.")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_12", message = "Config key does not exist in our records.")]
     ConfigNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_13", message = "Payment does not exist in our records")]
     PaymentNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_14", message = "Payment method does not exist in our records")]
     PaymentMethodNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_15", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_16", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_17", message = "Business profile with the given id  '{id}' does not exist in our records")]
     BusinessProfileNotFound { id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_18", message = "Poll with the given id  '{id}' does not exist in our records")]
     PollNotFound { id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_19", message = "Resource ID does not exist in our records")]
     ResourceIdNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_20", message = "Mandate does not exist in our records")]
     MandateNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Authentication does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_21", message = "Authentication does not exist in our records")]
     AuthenticationNotFound { id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Failed to update mandate")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_22", message = "Failed to update mandate")]
     MandateUpdateFailed,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_23", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payout does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_24", message = "Payout does not exist in our records")]
     PayoutNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Event does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_25", message = "Event does not exist in our records")]
     EventNotFound,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Invalid mandate id passed from connector")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_26", message = "Invalid mandate id passed from connector")]
     MandateSerializationFailed,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to parse the mandate identifier passed from connector")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_27", message = "Unable to parse the mandate identifier passed from connector")]
     MandateDeserializationFailed,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_28", message = "Return URL is not configured and not passed in payments request")]
     ReturnUrlUnavailable,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_29", message = "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard")]
     RefundNotPossible { connector: String },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Mandate Validation Failed" )]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_30", message = "Mandate Validation Failed" )]
     MandateValidationFailed { reason: String },
-    #[error(error_type= ErrorType::ValidationError, code = "HE_03", message = "The payment has not succeeded yet. Please pass a successful payment to initiate refund")]
+    #[error(error_type= ErrorType::ValidationError, code = "HE_31", message = "The payment has not succeeded yet. Please pass a successful payment to initiate refund")]
     PaymentNotSucceeded,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "The specified merchant connector account is disabled")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_32", message = "The specified merchant connector account is disabled")]
     MerchantConnectorAccountDisabled,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "{code}: {message}")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_33", message = "{code}: {message}")]
     PaymentBlockedError {
         code: u16,
         message: String,
         status: String,
         reason: String,
     },
-    #[error(error_type= ErrorType::ObjectNotFound, code = "HE_04", message = "Successful payment not found for the given payment id")]
+    #[error(error_type= ErrorType::ObjectNotFound, code = "HE_34", message = "Successful payment not found for the given payment id")]
     SuccessfulPaymentNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "The connector provided in the request is incorrect or not available")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_35", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_36", message = "Address does not exist in our records")]
     AddressNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_37", message = "Dispute does not exist in our records")]
     DisputeNotFound { dispute_id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_38", message = "File does not exist in our records")]
     FileNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File not available")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_39", message = "File not available")]
     FileNotAvailable,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute status validation failed")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_40", message = "Dispute status validation failed")]
     DisputeStatusValidationFailed { reason: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_41", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_42", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
     InvalidCardIinLength,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "File validation failed")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_43", message = "File validation failed")]
     FileValidationFailed { reason: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File not found / valid in the request")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_44", message = "File not found / valid in the request")]
     MissingFile,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute id not found in the request")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_45", message = "Dispute id not found in the request")]
     MissingDisputeId,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File purpose not found in the request or is invalid")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_46", message = "File purpose not found in the request or is invalid")]
     MissingFilePurpose,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_47", message = "File content type not found / valid")]
     MissingFileContentType,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_48", message = "{message}")]
     GenericNotFoundError { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_01", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_49", message = "{message}")]
     GenericDuplicateError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
@@ -243,24 +243,24 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_50", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment Link does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_51", message = "Payment Link does not exist in our records")]
     PaymentLinkNotFound,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "{message}")]
     CurrencyNotSupported { message: String },
-    #[error(error_type = ErrorType::ServerNotAvailable, code= "HE_00", message = "{component} health check is failing with error: {message}")]
+    #[error(error_type = ErrorType::ServerNotAvailable, code= "HE_52", message = "{component} health check is failing with error: {message}")]
     HealthCheckError {
         component: &'static str,
         message: String,
     },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_24", message = "Merchant connector account is configured with invalid {config}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_30", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_53", message = "Failed to convert currency to minor unit")]
     CurrencyConversionFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
@@ -277,11 +277,11 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
-    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_54", message = "Missing tenant id")]
     MissingTenantId,
-    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_55", message = "Invalid tenant id: {tenant_id}")]
     InvalidTenant { tenant_id: String },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_56", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
 }
 
