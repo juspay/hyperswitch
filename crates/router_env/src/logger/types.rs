@@ -81,6 +81,8 @@ pub enum Flow {
     MerchantConnectorsDelete,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
+    /// Merchant Transfer Keys
+    MerchantTransferKey,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -316,6 +318,8 @@ pub enum Flow {
     UserSignUpWithMerchantId,
     /// User Sign In
     UserSignIn,
+    /// User transfer key
+    UserTransferKey,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config

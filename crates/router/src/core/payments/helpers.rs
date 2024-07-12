@@ -1922,7 +1922,7 @@ pub async fn retrieve_card_with_permanent_token(
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
             .transpose()
             .map_err(|e| {
-                logger::error!("Failed to parse card network {}", e);
+                logger::error!("Failed to parse card network {e:?}");
             })
             .ok()
             .flatten(),
@@ -5036,8 +5036,8 @@ pub async fn config_skip_saving_wallet_at_connector(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
         ),
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             None
         }
     })

@@ -27,6 +27,11 @@ pub trait UserKeyStoreInterface {
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError>;
+
+    async fn get_all_user_key_store(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -65,6 +70,27 @@ impl UserKeyStoreInterface for Store {
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
+
+    async fn get_all_user_key_store(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let fetch_func = || async {
+            diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(&conn)
+                .await
+                .map_err(|err| report!(errors::StorageError::from(err)))
+        };
+
+        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            key_store
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -96,6 +122,22 @@ impl UserKeyStoreInterface for MockDb {
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn get_all_user_key_store(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
+        let user_key_store = self.user_key_store.lock().await;
+
+        futures::future::try_join_all(user_key_store.iter().map(|user_key| async {
+            user_key
+                .to_owned()
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
+        .await
     }
 
     #[instrument(skip_all)]
