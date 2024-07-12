@@ -142,7 +142,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
-    // Itaubank, template code for future usage
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
