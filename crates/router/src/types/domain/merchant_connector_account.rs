@@ -155,8 +155,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                     Encryptable::decrypt(data, key.peek(), GcmAes256)
                         .await
                         .change_context(ValidationError::InvalidValue {
-                            message: "Failed while decrypting connector account details"
-                                .to_string(),
+                            message: "Failed while decrypting additional_merchant_data".to_string(),
                         })?,
                 )
             } else {

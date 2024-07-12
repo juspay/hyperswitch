@@ -4,7 +4,7 @@ pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::{Debug, Display},
+    fmt::Debug,
     future::Future,
     str,
     sync::Arc,
@@ -26,7 +26,14 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
-pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+pub use hyperswitch_domain_models::{
+    api::{
+        ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
+        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
+        RedirectionFormData,
+    },
+    router_response_types::RedirectForm,
+};
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
@@ -711,93 +718,6 @@ async fn handle_response(
             }
         })?
         .await
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum ApplicationResponse<R> {
-    Json(R),
-    StatusOk,
-    TextPlain(String),
-    JsonForRedirection(api::RedirectionResponse),
-    Form(Box<RedirectionFormData>),
-    PaymentLinkForm(Box<PaymentLinkAction>),
-    FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
-    GenericLinkForm(Box<GenericLinks>),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum GenericLinks {
-    ExpiredLink(GenericExpiredLinkData),
-    PaymentMethodCollect(GenericLinkFormData),
-    PayoutLink(GenericLinkFormData),
-    PayoutLinkStatus(GenericLinkStatusData),
-    PaymentMethodCollectStatus(GenericLinkStatusData),
-}
-
-impl Display for Box<GenericLinks> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match **self {
-                GenericLinks::ExpiredLink(_) => "ExpiredLink",
-                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
-                GenericLinks::PayoutLink(_) => "PayoutLink",
-                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
-                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
-            }
-        )
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkFormData {
-    pub js_data: String,
-    pub css_data: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericExpiredLinkData {
-    pub title: String,
-    pub message: String,
-    pub theme: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkStatusData {
-    pub js_data: String,
-    pub css_data: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkStatusData {
-    pub js_script: String,
-    pub css_script: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct RedirectionFormData {
-    pub redirect_form: RedirectForm,
-    pub payment_method_data: Option<api::PaymentMethodData>,
-    pub amount: String,
-    pub currency: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1877,10 +1797,11 @@ pub fn build_redirection_form(
         RedirectForm::Mifinity {
             initialization_token,
         } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
             maud::html! {
                         (maud::DOCTYPE)
                         head {
-                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
                         (PreEscaped(format!("<div id='widget-container'></div>
@@ -1888,9 +1809,11 @@ pub fn build_redirection_form(
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
-				  setTimeout(function() {{
-					widget.close();
-				  }}, 5000);
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
 			  }}
 		   }});
 	   </script>")))

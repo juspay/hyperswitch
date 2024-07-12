@@ -98,3 +98,6 @@ pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
+
+/// Maximum allowed length for MerchantName
+pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;

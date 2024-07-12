@@ -84,6 +84,8 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
+    /// Sync capture amount in case of automatic capture
+    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -108,6 +110,15 @@ pub struct PaymentsCaptureData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptureIntegrityObject {
+    /// capture amount
+    pub capture_amount: Option<MinorUnit>,
+    /// capture currency
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -414,6 +425,7 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -575,6 +587,15 @@ pub struct RefundsData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
+    pub integrity_object: Option<RefundIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefundIntegrityObject {
+    /// refund currency
+    pub currency: storage_enums::Currency,
+    /// refund amount
+    pub refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

@@ -69,6 +69,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
+    pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
@@ -101,6 +102,7 @@ pub struct Settings<S: SecretState> {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
@@ -125,6 +127,7 @@ pub struct Settings<S: SecretState> {
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
+    pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
@@ -145,6 +148,11 @@ impl Multitenancy {
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DecisionConfig {
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -206,6 +214,15 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeyManagerConfig {
+    pub url: String,
+    #[cfg(feature = "keymanager_mtls")]
+    pub cert: Secret<String>,
+    #[cfg(feature = "keymanager_mtls")]
+    pub ca: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -123,7 +123,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bluesnap,
     Boku,
     Braintree,
@@ -161,6 +161,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Riskified,
     Shift4,
     Signifyd,

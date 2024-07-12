@@ -1,6 +1,6 @@
-import createPayoutBody from "../../fixtures/create-payout-confirm-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../PayoutUtils/utils";
+import * as utils from "../PayoutUtils/Utils";
 
 let globalState;
 
@@ -22,6 +22,12 @@ describe("[Payout] Cards", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+
   context("Payout Card with Auto Fulfill", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -38,7 +44,7 @@ describe("[Payout] Cards", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
-        createPayoutBody,
+        fixtures.createPayoutBody,
         req_data,
         res_data,
         true,
@@ -71,7 +77,7 @@ describe("[Payout] Cards", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
-        createPayoutBody,
+        fixtures.createPayoutBody,
         req_data,
         res_data,
         true,

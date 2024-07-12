@@ -7,7 +7,7 @@ use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -1755,15 +1755,16 @@ impl api::IncomingWebhook for Adyen {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1775,7 +1776,7 @@ impl api::IncomingWebhook for Adyen {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

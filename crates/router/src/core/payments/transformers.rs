@@ -1415,6 +1415,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
+        let captured_amount = payment_data.payment_intent.amount_captured;
         Ok(Self {
             amount,
             integrity_object: None,
@@ -1437,6 +1438,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
             payment_experience: payment_data.payment_attempt.payment_experience,
+            captured_amount,
         })
     }
 }
@@ -1558,6 +1560,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             },
             browser_info,
             metadata: payment_data.payment_intent.metadata,
+            integrity_object: None,
         })
     }
 }
