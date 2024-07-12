@@ -386,7 +386,7 @@ impl NewUserMerchant {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
         } else {
-            MerchantName::new("merchant".to_string())
+            MerchantName::try_new("merchant".to_string())
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("merchant name validation failed")
         }
