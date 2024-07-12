@@ -11,6 +11,7 @@ use error_stack::ResultExt;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
+    configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
     core::payments::helpers,
     errors,
     routes::{app::StorageInterface, SessionState},
@@ -62,7 +63,7 @@ pub async fn initiate_payout_link(
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
     let status = payout_link.link_status.clone();
     let link_data = payout_link.link_data.clone();
-    let default_config = &state.conf.generic_link.payout_link;
+    let default_config = &state.conf.generic_link.payout_link.clone();
     let default_ui_config = default_config.ui_config.clone();
     let ui_config_data = link_utils::GenericLinkUiConfigFormData {
         merchant_name: link_data
@@ -126,7 +127,7 @@ pub async fn initiate_payout_link(
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
             let enabled_payout_methods =
-                filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
+                filter_payout_methods(&state, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
             let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
             for (payment_method, payment_method_types) in
@@ -148,14 +149,8 @@ pub async fn initiate_payout_link(
             let enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
-
             let js_data = payouts::PayoutLinkDetails {
-                publishable_key: merchant_account
-                    .publishable_key
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "publishable_key",
-                    })?
-                    .into(),
+                publishable_key: masking::Secret::new(merchant_account.publishable_key),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
@@ -238,11 +233,12 @@ pub async fn initiate_payout_link(
 
 #[cfg(feature = "payouts")]
 pub async fn filter_payout_methods(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
+    let db: &dyn StorageInterface = &*state.store;
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -260,40 +256,81 @@ pub async fn filter_payout_methods(
         filtered_mca_on_profile.clone(),
         common_enums::ConnectorType::PayoutProcessor,
     );
+    let address = db
+        .find_address_by_address_id(&payout.address_id.clone(), key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while fetching address with address id {}",
+                payout.address_id.clone()
+            )
+        })?;
 
     let mut response: Vec<link_utils::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<
         common_enums::PaymentMethod,
         HashSet<common_enums::PaymentMethodType>,
     > = HashMap::new();
-    let mut bank_transfer_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let mut card_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let mut wallet_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let payout_filter_config = &state.conf.payout_method_filters.clone();
     for mca in &filtered_mca {
-        let payment_methods = match &mca.payment_methods_enabled {
+        let payout_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
         };
-        for payment_method in payment_methods.iter() {
+        for payout_method in payout_methods.iter() {
             let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(
-                payment_method.clone(),
+                payout_method.clone(),
             );
             if let Ok(payment_methods_enabled) = parse_result {
                 let payment_method = payment_methods_enabled.payment_method;
                 let payment_method_types = match payment_methods_enabled.payment_method_types {
-                    Some(pmt) => pmt,
+                    Some(payment_method_types) => payment_method_types,
                     None => continue,
                 };
-                for pmts in &payment_method_types {
-                    if payment_method == common_enums::PaymentMethod::Card {
-                        card_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, card_hs.clone());
-                    } else if payment_method == common_enums::PaymentMethod::Wallet {
-                        wallet_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, wallet_hs.clone());
-                    } else if payment_method == common_enums::PaymentMethod::BankTransfer {
-                        bank_transfer_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method, bank_transfer_hs.clone());
+                let connector = mca.connector_name.clone();
+                let payout_filter = payout_filter_config.0.get(&connector);
+                for request_payout_method_type in &payment_method_types {
+                    let currency_country_filter = check_currency_country_filters(
+                        payout_filter,
+                        request_payout_method_type,
+                        &payout.destination_currency,
+                        &address.country,
+                    )?;
+                    if currency_country_filter.unwrap_or(true) {
+                        match payment_method {
+                            common_enums::PaymentMethod::Card => {
+                                card_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, card_hash_set.clone());
+                            }
+                            common_enums::PaymentMethod::Wallet => {
+                                wallet_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, wallet_hash_set.clone());
+                            }
+                            common_enums::PaymentMethod::BankTransfer => {
+                                bank_transfer_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_transfer_hash_set.clone());
+                            }
+                            common_enums::PaymentMethod::CardRedirect
+                            | common_enums::PaymentMethod::PayLater
+                            | common_enums::PaymentMethod::BankRedirect
+                            | common_enums::PaymentMethod::Crypto
+                            | common_enums::PaymentMethod::BankDebit
+                            | common_enums::PaymentMethod::Reward
+                            | common_enums::PaymentMethod::RealTimePayment
+                            | common_enums::PaymentMethod::Upi
+                            | common_enums::PaymentMethod::Voucher
+                            | common_enums::PaymentMethod::GiftCard => continue,
+                        }
                     }
                 }
             }
@@ -309,4 +346,42 @@ pub async fn filter_payout_methods(
         }
     }
     Ok(response)
+}
+
+pub fn check_currency_country_filters(
+    payout_method_filter: Option<&PaymentMethodFilters>,
+    request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
+    currency: &common_enums::Currency,
+    country: &Option<common_enums::CountryAlpha2>,
+) -> errors::RouterResult<Option<bool>> {
+    if matches!(
+        request_payout_method_type.payment_method_type,
+        common_enums::PaymentMethodType::Credit | common_enums::PaymentMethodType::Debit
+    ) {
+        Ok(Some(true))
+    } else {
+        let payout_method_type_filter =
+            payout_method_filter.and_then(|payout_method_filter: &PaymentMethodFilters| {
+                payout_method_filter
+                    .0
+                    .get(&PaymentMethodFilterKey::PaymentMethodType(
+                        request_payout_method_type.payment_method_type,
+                    ))
+            });
+        let country_filter = country.as_ref().and_then(|country| {
+            payout_method_type_filter.and_then(|currency_country_filter| {
+                currency_country_filter
+                    .country
+                    .as_ref()
+                    .map(|country_hash_set| country_hash_set.contains(country))
+            })
+        });
+        let currency_filter = payout_method_type_filter.and_then(|currency_country_filter| {
+            currency_country_filter
+                .currency
+                .as_ref()
+                .map(|currency_hash_set| currency_hash_set.contains(currency))
+        });
+        Ok(currency_filter.or(country_filter))
+    }
 }

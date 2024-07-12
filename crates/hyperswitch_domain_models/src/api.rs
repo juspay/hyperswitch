@@ -67,17 +67,17 @@ pub enum GenericLinks {
     PaymentMethodCollectStatus(GenericLinkStatusData),
 }
 
-impl Display for Box<GenericLinks> {
+impl Display for GenericLinks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
-            match **self {
-                GenericLinks::ExpiredLink(_) => "ExpiredLink",
-                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
-                GenericLinks::PayoutLink(_) => "PayoutLink",
-                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
-                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+            match self {
+                Self::ExpiredLink(_) => "ExpiredLink",
+                Self::PaymentMethodCollect(_) => "PaymentMethodCollect",
+                Self::PayoutLink(_) => "PayoutLink",
+                Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
+                Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
             }
         )
     }
