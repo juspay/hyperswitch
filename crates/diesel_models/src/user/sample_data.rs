@@ -36,9 +36,9 @@ pub struct PaymentAttemptBatchNew {
     pub confirm: bool,
     pub authentication_type: Option<AuthenticationType>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
+    pub created_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub modified_at: Option<PrimitiveDateTime>,
+    pub modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
