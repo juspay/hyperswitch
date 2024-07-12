@@ -264,7 +264,8 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
-    WebhookAuthenticationFailed,#[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
+    WebhookAuthenticationFailed,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
     WebhookResourceNotFound,
@@ -274,7 +275,7 @@ pub enum ApiErrorResponse {
     WebhookProcessingFailure,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
     IntegrityCheckFailed {
