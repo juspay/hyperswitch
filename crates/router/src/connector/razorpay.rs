@@ -7,7 +7,6 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as razorpay;
-use types::domain;
 
 use super::utils::{self as connector_utils};
 use crate::{
@@ -631,7 +630,7 @@ impl api::IncomingWebhook for Razorpay {
         let webhook_resource_object = get_webhook_object_from_body(request.body)?;
         match webhook_resource_object.refund {
             Some(refund_data) => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::RefundId(refund_data.entity.id),
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.entity.id),
             )),
             None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -644,8 +643,11 @@ impl api::IncomingWebhook for Razorpay {
     async fn verify_webhook_source(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _merchant_connector_account: domain::MerchantConnectorAccount,
+        _merchant_id: &str,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            masking::Secret<serde_json::Value>,
+        >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)

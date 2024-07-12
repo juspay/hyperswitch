@@ -270,7 +270,7 @@ pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop
             server.stop_server().await;
         }
         Err(err) => {
-            logger::error!("Channel receiver error{err}");
+            logger::error!("Channel receiver error: {err}");
         }
     }
 }

@@ -338,8 +338,8 @@ async fn store_bank_details_in_payment_methods(
                     .attach_printable("Failed to deserialize Payment Method Auth config")
             })
             .transpose()
-            .unwrap_or_else(|err| {
-                logger::error!(error=?err);
+            .unwrap_or_else(|error| {
+                logger::error!(?error);
                 None
             })
             .and_then(|pmd| match pmd {
@@ -478,7 +478,6 @@ async fn store_bank_details_in_payment_methods(
                 last_used_at: now,
                 connector_mandate_details: None,
                 customer_acceptance: None,
-
                 network_transaction_id: None,
                 client_secret: None,
                 payment_method_billing_address: None,

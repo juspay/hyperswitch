@@ -328,7 +328,7 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
             {
                 Ok(_) => (),
                 Err(error) => {
-                    logger::error!(%error, "Failed while handling error");
+                    logger::error!(?error, "Failed while handling error");
                     let status = state
                         .get_db()
                         .as_scheduler()
@@ -337,8 +337,12 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             business_status::GLOBAL_FAILURE,
                         )
                         .await;
-                    if let Err(err) = status {
-                        logger::error!(%err, "Failed while performing database operation: {}", business_status::GLOBAL_FAILURE);
+                    if let Err(error) = status {
+                        logger::error!(
+                            ?error,
+                            "Failed while performing database operation: {}",
+                            business_status::GLOBAL_FAILURE
+                        );
                     }
                 }
             },
