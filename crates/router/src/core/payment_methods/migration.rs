@@ -1,9 +1,6 @@
-use crate::core::payment_methods::cards::migrate_payment_method;
-use crate::types::api::routing::api_enums;
-use crate::types::{api, domain};
-use crate::{core::errors, routes, services};
-use actix_multipart::form::MultipartForm;
-use actix_multipart::form::bytes::Bytes;
+use std::collections::HashMap;
+
+use actix_multipart::form::{bytes::Bytes, MultipartForm};
 use api_models::payment_methods::{
     MigrateCardDetail, PaymentsMandateReference, PaymentsMandateReferenceRecord,
 };
@@ -11,12 +8,16 @@ use common_utils::id_type;
 use csv::Reader;
 use masking::Secret;
 use rdkafka::message::ToBytes;
-use std::collections::HashMap;
+
+use crate::{
+    core::{errors, payment_methods::cards::migrate_payment_method},
+    routes, services,
+    types::{api, api::routing::api_enums, domain},
+};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodRecord {
-    pub id : Option<i64>,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: id_type::CustomerId,
     pub name: Option<Secret<String>>,
     pub email: Option<common_utils::pii::Email>,
     pub phone: Option<Secret<String>>,
@@ -44,6 +45,7 @@ pub struct PaymentMethodRecord {
     pub merchant_connector_id: String,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
+    pub line_number: Option<i64>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -74,42 +76,53 @@ type PaymentMethodMigrationResponseType = (
     PaymentMethodRecord,
 );
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
-    fn from(
-        (response, record): PaymentMethodMigrationResponseType,
-    ) -> PaymentMethodMigrationResponse {
+    fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
-            Ok(services::api::ApplicationResponse::Json(res)) => PaymentMethodMigrationResponse {
-                payment_method_id: Some(res.payment_method_id),
-                payment_method: res.payment_method,
-                payment_method_type: res.payment_method_type,
-                customer_id: res.customer_id,
-                migration_status: MigrationStatus::Success,
-                migration_error: None,
-                card_number_masked: Some(record.card_number_masked),
-                line_number: record.id,
-            },
-            Err(e) => PaymentMethodMigrationResponse {
+            Ok(services::api::ApplicationResponse::Json(res)) => {
+                let mut response = Self {
+                    payment_method_id: Some(res.payment_method_id),
+                    payment_method: res.payment_method,
+                    payment_method_type: res.payment_method_type,
+                    customer_id: res.customer_id,
+                    migration_status: MigrationStatus::Success,
+                    migration_error: None,
+                    card_number_masked: Some(record.card_number_masked),
+                    line_number: record.line_number,
+                };
+                if record.original_transaction_amount.is_none()
+                    || record.original_transaction_currency.is_none()
+                {
+                    if let Some(api_enums::CardNetwork::Discover) =
+                        res.card.and_then(|c| c.card_network)
+                    {
+                        response.migration_status = MigrationStatus::Failed;
+                        response.migration_error = Some("Recurring payments with Discover cards requires original_transaction_amount and original_transaction_currency. please update the details".to_string());
+                    }
+                }
+                response
+            }
+            Err(e) => Self {
                 customer_id: Some(record.customer_id),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some(e.to_string()),
                 card_number_masked: Some(record.card_number_masked),
-                line_number: record.id,
-                ..PaymentMethodMigrationResponse::default()
+                line_number: record.line_number,
+                ..Self::default()
             },
-            _ => PaymentMethodMigrationResponse {
+            _ => Self {
                 customer_id: Some(record.customer_id),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some("Failed to migrate payment method".to_string()),
                 card_number_masked: Some(record.card_number_masked),
-                line_number: record.id,
-                ..PaymentMethodMigrationResponse::default()
+                line_number: record.line_number,
+                ..Self::default()
             },
         }
     }
 }
 
 impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
-    fn from(record: PaymentMethodRecord) -> api::PaymentMethodMigrate {
+    fn from(record: PaymentMethodRecord) -> Self {
         let mut mandate_reference = HashMap::new();
         mandate_reference.insert(
             record.merchant_connector_id,
@@ -120,7 +133,7 @@ impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
                 original_payment_authorized_currency: record.original_transaction_currency,
             },
         );
-        api::PaymentMethodMigrate {
+        Self {
             merchant_id: record.merchant_id,
             customer_id: Some(record.customer_id),
             card: Some(MigrateCardDetail {
@@ -134,8 +147,8 @@ impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
                 card_issuing_country: None,
                 nick_name: Some(record.nick_name),
             }),
-            payment_method: record.payment_method.into(),
-            payment_method_type: record.payment_method_type.into(),
+            payment_method: record.payment_method,
+            payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
             billing: Some(api::Address {
                 address: Some(api::AddressDetails {
@@ -153,7 +166,7 @@ impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
                     number: record.phone,
                     country_code: record.phone_country_code,
                 }),
-                email: record.email.into(),
+                email: record.email,
             }),
             connector_mandate_details: Some(PaymentsMandateReference(mandate_reference)),
             metadata: None,
@@ -168,8 +181,8 @@ impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
 }
 
 impl From<PaymentMethodRecord> for api::CustomerRequest {
-    fn from(record: PaymentMethodRecord) -> api::CustomerRequest {
-        api::CustomerRequest {
+    fn from(record: PaymentMethodRecord) -> Self {
+        Self {
             customer_id: Some(record.customer_id),
             merchant_id: record.merchant_id,
             name: record.name,
@@ -204,15 +217,15 @@ pub async fn migrate_payment_methods(
     for record in payment_methods {
         let res = migrate_payment_method(
             state.clone(),
-            record.clone().into(),
+            api::PaymentMethodMigrate::from(record.clone()),
             merchant_id,
             merchant_account,
             key_store,
         )
         .await;
-        result.push((res, record).into());
+        result.push(PaymentMethodMigrationResponse::from((res, record)));
     }
-    return Ok(services::api::ApplicationResponse::Json(result));
+    Ok(services::api::ApplicationResponse::Json(result))
 }
 
 #[derive(Debug, MultipartForm)]
@@ -228,7 +241,7 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
     for result in csv_reader.deserialize() {
         let mut record: PaymentMethodRecord = result?;
         id_counter += 1;
-        record.id = Some(id_counter);
+        record.line_number = Some(id_counter);
         records.push(record);
     }
     Ok(records)
@@ -247,19 +260,16 @@ pub fn get_payment_method_records(
                 } else {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Only one merchant id can be updated at a time".to_string(),
-                    }
-                    .into())
+                    })
                 }
             } else {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "No records found".to_string(),
-                }
-                .into())
+                })
             }
         }
         Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: e.to_string(),
-        }
-        .into()),
+        }),
     }
 }

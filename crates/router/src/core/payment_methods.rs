@@ -1,9 +1,9 @@
 pub mod cards;
+pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
-pub mod migration;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};

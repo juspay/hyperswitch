@@ -282,7 +282,7 @@ pub async fn migrate_payment_method(
     if let Some(connector_mandate_details) = &req.connector_mandate_details {
         helpers::validate_merchant_connector_ids_in_connector_mandate_details(
             &*state.store,
-            &key_store,
+            key_store,
             connector_mandate_details,
             merchant_id,
         )
@@ -299,8 +299,8 @@ pub async fn migrate_payment_method(
             get_client_secret_or_add_payment_method(
                 state,
                 payment_method_create_request,
-                &merchant_account,
-                &key_store,
+                merchant_account,
+                key_store,
             )
             .await
         }
@@ -310,8 +310,8 @@ pub async fn migrate_payment_method(
                 state,
                 &req,
                 merchant_id.into(),
-                &key_store,
-                &merchant_account,
+                key_store,
+                merchant_account,
             )
             .await
         }
@@ -493,7 +493,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 payment_method_issuer: req.payment_method_issuer.clone(),
-                scheme: req.card_network.clone(),
+                scheme: req
+                    .card_network
+                    .clone()
+                    .or(card.clone().and_then(|card| card.scheme.clone())),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted,
                 connector_mandate_details: Some(connector_mandate_details),
