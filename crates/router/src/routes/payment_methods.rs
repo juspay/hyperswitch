@@ -1,22 +1,26 @@
+use crate::core::errors::utils::StorageErrorExt;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
 use crate::{
     core::{
-        api_locking, errors,
-        payment_methods::{self as payment_methods_routes, cards},
+        api_locking, customers, errors,
+        payment_methods::{self as payment_methods_routes, cards, migration},
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
+        domain,
         storage::payment_method::PaymentTokenData,
     },
     utils::Encode,
 };
+use actix_multipart::form::MultipartForm;
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
@@ -59,7 +63,82 @@ pub async fn migrate_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| async move { Box::pin(cards::migrate_payment_method(state, req)).await },
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            Box::pin(cards::migrate_payment_method(
+                state,
+                req,
+                &merchant_id,
+                &merchant_account,
+                &key_store,
+            ))
+            .await
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+async fn get_merchant_account(
+    state: &SessionState,
+    merchant_id: &str,
+) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    Ok((key_store, merchant_account))
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
+pub async fn migrate_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsMigrate;
+    let merchant_id = &form.merchant_id.clone();
+    let records = match migration::get_payment_method_records(form) {
+        Ok(records) => records,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| async move {
+            let (key_store, merchant_account) = get_merchant_account(&state, merchant_id).await?;
+            // Create customers if they are not already present
+            customers::migrate_customers(
+                state.clone(),
+                req.iter().map(|e| e.clone().into()).collect(),
+                merchant_account.clone(),
+                key_store.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            Box::pin(migration::migrate_payment_methods(
+                state,
+                req,
+                merchant_id,
+                &merchant_account,
+                &key_store,
+            ))
+            .await
+        },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
