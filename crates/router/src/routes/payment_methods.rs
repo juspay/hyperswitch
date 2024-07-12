@@ -1,4 +1,4 @@
-use crate::core::errors::utils::StorageErrorExt;
+use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
@@ -10,6 +10,7 @@ use super::app::{AppState, SessionState};
 use crate::{
     core::{
         api_locking, customers, errors,
+        errors::utils::StorageErrorExt,
         payment_methods::{self as payment_methods_routes, cards, migration},
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -20,7 +21,6 @@ use crate::{
     },
     utils::Encode,
 };
-use actix_multipart::form::MultipartForm;
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(

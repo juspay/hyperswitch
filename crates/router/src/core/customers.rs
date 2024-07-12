@@ -478,7 +478,14 @@ pub async fn migrate_customers(
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<()> {
     for customer in customers {
-        match create_customer(state.clone(), merchant_account.clone(), key_store.clone(), customer).await {
+        match create_customer(
+            state.clone(),
+            merchant_account.clone(),
+            key_store.clone(),
+            customer,
+        )
+        .await
+        {
             Ok(_) => (),
             Err(e) => match e.current_context() {
                 errors::CustomersErrorResponse::CustomerAlreadyExists => (),
