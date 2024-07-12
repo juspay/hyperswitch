@@ -345,7 +345,7 @@ impl TryFrom<UserCompanyName> for MerchantName {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(company_name: UserCompanyName) -> Result<Self, Self::Error> {
-        Self::try_new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
+        Self::new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
     }
 }
 
@@ -386,7 +386,7 @@ impl NewUserMerchant {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
         } else {
-            MerchantName::try_new("merchant".to_string())
+            MerchantName::new("merchant".to_string())
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("merchant name validation failed")
         }
