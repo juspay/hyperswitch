@@ -6,9 +6,7 @@ use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::payment_intent};
 
-#[derive(
-    Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
     pub payment_id: String,
