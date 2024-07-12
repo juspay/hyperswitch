@@ -172,7 +172,9 @@ impl From<PaymentMethodRecord> for api::PaymentMethodMigrate {
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.into(),
