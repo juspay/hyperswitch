@@ -681,7 +681,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             metadata,
             billing_address_id,
             shipping_address_id,
-            modified_at,
+            modified_at: modified_at.unwrap_or_else(common_utils::date_time::now),
             active_attempt_id,
             business_country,
             business_label,
