@@ -1044,12 +1044,8 @@ where
                 Ok(rendered_html) => {
                     let headers = boxed_generic_link_data.allowed_domains.map(|domains| {
                         let domains_str = domains.into_iter().collect::<Vec<String>>().join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {}", domains_str);
-                        let frame_header = format!("ALLOW-FROM {}", domains_str);
-                        HashSet::from([
-                            ("content-security-policy", csp_header),
-                            ("x-frame-options", frame_header),
-                        ])
+                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        HashSet::from([("content-security-policy", csp_header)])
                     });
                     http_response_html_data(rendered_html, headers)
                 }
