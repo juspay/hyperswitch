@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(
-    Clone, Debug, Default, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+    Clone, Debug, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptBatchNew {
@@ -35,9 +35,9 @@ pub struct PaymentAttemptBatchNew {
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<AuthenticationType>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
