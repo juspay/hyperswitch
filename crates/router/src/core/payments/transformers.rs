@@ -1021,6 +1021,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                     }
                 }
             }),
+            merchant_order_reference_id: pi.merchant_order_reference_id,
             ..Default::default()
         }
     }
