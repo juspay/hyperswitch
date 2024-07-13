@@ -198,6 +198,35 @@ impl SecretsHandler for settings::PaymentMethodAuth {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::KeyManagerConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        _secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        #[cfg(feature = "keymanager_mtls")]
+        let keyconfig = value.get_inner();
+
+        #[cfg(feature = "keymanager_mtls")]
+        let ca = _secret_management_client
+            .get_secret(keyconfig.ca.clone())
+            .await?;
+
+        #[cfg(feature = "keymanager_mtls")]
+        let cert = _secret_management_client
+            .get_secret(keyconfig.cert.clone())
+            .await?;
+
+        Ok(value.transition_state(|keyconfig| Self {
+            #[cfg(feature = "keymanager_mtls")]
+            ca,
+            #[cfg(feature = "keymanager_mtls")]
+            cert,
+            ..keyconfig
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::Secrets {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -220,6 +249,22 @@ impl SecretsHandler for settings::Secrets {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::UserAuthMethodSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let user_auth_methods = value.get_inner();
+
+        let encryption_key = secret_management_client
+            .get_secret(user_auth_methods.encryption_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|_| Self { encryption_key }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -232,6 +277,13 @@ pub(crate) async fn fetch_raw_secrets(
         settings::Database::convert_to_raw_secret(conf.master_database, secret_management_client)
             .await
             .expect("Failed to decrypt master database configuration");
+
+    #[cfg(feature = "olap")]
+    #[allow(clippy::expect_used)]
+    let analytics =
+        analytics::AnalyticsConfig::convert_to_raw_secret(conf.analytics, secret_management_client)
+            .await
+            .expect("Failed to decrypt analytics configuration");
 
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
@@ -295,6 +347,22 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt payment method auth configs");
 
+    #[allow(clippy::expect_used)]
+    let key_manager = settings::KeyManagerConfig::convert_to_raw_secret(
+        conf.key_manager,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt keymanager configs");
+
+    #[allow(clippy::expect_used)]
+    let user_auth_methods = settings::UserAuthMethodSettings::convert_to_raw_secret(
+        conf.user_auth_methods,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt user_auth_methods configs");
+
     Settings {
         server: conf.server,
         master_database,
@@ -306,6 +374,7 @@ pub(crate) async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         env: conf.env,
+        key_manager,
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
@@ -318,6 +387,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,
         file_storage: conf.file_storage,
@@ -327,7 +397,10 @@ pub(crate) async fn fetch_raw_secrets(
         dummy_connector: conf.dummy_connector,
         #[cfg(feature = "email")]
         email: conf.email,
+        user: conf.user,
         mandates: conf.mandates,
+        network_transaction_id_supported_connectors: conf
+            .network_transaction_id_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
@@ -340,9 +413,12 @@ pub(crate) async fn fetch_raw_secrets(
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
         temp_locker_enable_config: conf.temp_locker_enable_config,
+        generic_link: conf.generic_link,
         payment_link: conf.payment_link,
         #[cfg(feature = "olap")]
-        analytics: conf.analytics,
+        analytics,
+        #[cfg(feature = "olap")]
+        opensearch: conf.opensearch,
         #[cfg(feature = "kv_store")]
         kv_config: conf.kv_config,
         #[cfg(feature = "frm")]
@@ -353,6 +429,11 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         connector_onboarding,
         cors: conf.cors,
-        locker_open_banking_connectors: conf.locker_open_banking_connectors,
+        unmasked_headers: conf.unmasked_headers,
+        saved_payment_methods: conf.saved_payment_methods,
+        multitenancy: conf.multitenancy,
+        user_auth_methods,
+        decision: conf.decision,
+        locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
     }
 }

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::payments::{Address, AddressDetails, OrderDetailsWithAmount};
 use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, domain, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -16,12 +16,12 @@ impl ConnectorActions for PaymeTest {}
 impl utils::Connector for PaymeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payme;
-        types::api::ConnectorData {
-            connector: Box::new(&Payme),
-            connector_name: types::Connector::Payme,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Payme::new()),
+            types::Connector::Payme,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -42,9 +42,9 @@ static CONNECTOR: PaymeTest = PaymeTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            shipping: None,
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 address: Some(AddressDetails {
                     city: None,
                     country: None,
@@ -59,16 +59,18 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 phone: None,
                 email: None,
             }),
-            payment_method_billing: None,
-        }),
+            None,
+            None,
+        )),
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
         return_url: None,
         connector_customer: None,
         payment_method_token: None,
-        country: None,
+        #[cfg(feature = "payouts")]
         currency: None,
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
     })
 }
@@ -83,18 +85,18 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             requires_shipping: None,
             product_id: None,
             category: None,
+            sub_category: None,
             brand: None,
             product_type: None,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
         email: Some(Email::from_str("test@gmail.com").unwrap()),
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             card_cvc: Secret::new("123".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
         amount: 1000,
@@ -154,7 +156,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -279,7 +281,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -362,7 +364,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
@@ -371,7 +373,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -383,13 +385,14 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )
@@ -409,7 +412,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -421,13 +424,14 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )
@@ -447,7 +451,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2012".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -459,13 +463,14 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )

@@ -1,3 +1,4 @@
+use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -90,17 +91,16 @@ pub struct ResetPasswordRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct RotatePasswordRequest {
+    pub password: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct InviteUserRequest {
     pub email: pii::Email,
     pub name: Secret<String>,
     pub role_id: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct InviteUserResponse {
-    pub is_email_sent: bool,
-    pub password: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -128,8 +128,6 @@ pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
 
-pub type SwitchMerchantResponse = DashboardEntryResponse;
-
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {
     pub name: Secret<String>,
@@ -143,7 +141,7 @@ pub struct UserMerchantCreate {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUsersResponse(pub Vec<UserDetails>);
+pub struct ListUsersResponse(pub Vec<UserDetails>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserDetails {
@@ -154,6 +152,39 @@ pub struct UserDetails {
     pub status: UserStatus,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct GetUserDetailsResponse {
+    pub merchant_id: String,
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub verification_days_left: Option<i64>,
+    pub role_id: String,
+    // This field is added for audit/debug reasons
+    #[serde(skip_serializing)]
+    pub user_id: String,
+    pub org_id: String,
+    pub is_two_factor_auth_setup: bool,
+    pub recovery_codes_left: Option<usize>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetUserRoleDetailsRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserRoleDetailsResponse {
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+    pub role_name: String,
+    pub status: UserStatus,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: time::PrimitiveDateTime,
+    pub groups: Vec<PermissionGroup>,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -173,6 +204,9 @@ pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
     pub is_active: bool,
+    pub role_id: String,
+    pub role_name: String,
+    pub org_id: String,
 }
 
 #[cfg(feature = "recon")]
@@ -186,4 +220,167 @@ pub struct VerifyTokenResponse {
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
     pub preferred_merchant_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenOnlyQueryParam {
+    pub token_only: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkipTwoFactorAuthQueryParam {
+    pub skip_two_factor_auth: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenResponse {
+    pub token: Secret<String>,
+    pub token_type: TokenPurpose,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponse {
+    pub totp: bool,
+    pub recovery_code: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum TokenOrPayloadResponse<T> {
+    Token(TokenResponse),
+    Payload(T),
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFromEmailRequest {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct BeginTotpResponse {
+    pub secret: Option<TotpSecret>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TotpSecret {
+    pub secret: Secret<String>,
+    pub totp_url: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyTotpRequest {
+    pub totp: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyRecoveryCodeRequest {
+    pub recovery_code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RecoveryCodes {
+    pub recovery_codes: Vec<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthConfig {
+    OpenIdConnect {
+        private_config: OpenIdConnectPrivateConfig,
+        public_config: OpenIdConnectPublicConfig,
+    },
+    MagicLink,
+    Password,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPrivateConfig {
+    pub base_url: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OpenIdConnectPublicConfig {
+    pub name: OpenIdProvider,
+}
+
+#[derive(
+    Debug, serde::Deserialize, serde::Serialize, Copy, Clone, strum::Display, Eq, PartialEq,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OpenIdProvider {
+    Okta,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OpenIdConnect {
+    pub name: OpenIdProvider,
+    pub base_url: String,
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateUserAuthenticationMethodRequest {
+    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
+    pub auth_method: AuthConfig,
+    pub allow_signup: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateUserAuthenticationMethodRequest {
+    pub id: String,
+    // TODO: When adding more fields make config and new fields option
+    pub auth_method: AuthConfig,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetUserAuthenticationMethodsRequest {
+    pub auth_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
+    pub auth_method: AuthMethodDetails,
+    pub allow_signup: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthMethodDetails {
+    #[serde(rename = "type")]
+    pub auth_type: common_enums::UserAuthType,
+    pub name: Option<OpenIdProvider>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetSsoAuthUrlRequest {
+    pub id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SsoSignInRequest {
+    pub state: Secret<String>,
+    pub code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthIdQueryParam {
+    pub auth_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthSelectRequest {
+    pub id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserTransferKeyResponse {
+    pub total_transferred: usize,
 }

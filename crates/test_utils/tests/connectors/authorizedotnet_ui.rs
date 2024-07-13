@@ -14,7 +14,7 @@ impl SeleniumTest for AuthorizedotnetSeleniumTest {
 
 async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AuthorizedotnetSeleniumTest {};
-    let amount = rand::thread_rng().gen_range(1..1000); //This connector detects it as fradulent payment if the same amount is used for multiple payments so random amount is passed for testing
+    let amount = rand::thread_rng().gen_range(1..1000); //This connector detects it as fraudulent payment if the same amount is used for multiple payments so random amount is passed for testing
     let pub_key = conn
         .get_configs()
         .automation_configs
@@ -22,7 +22,7 @@ async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriver
         .authorizedotnet_gateway_merchant_id
         .unwrap();
     conn.make_gpay_payment(web_driver,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=authorizenet&gatewaymerchantid={pub_key}&amount={amount}&country=US&currency=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=authorizenet&gatewaymerchantid={pub_key}&amount={amount}&country=US&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("status")),
         Event::Assert(Assert::IsPresent("processing")), // This connector status will be processing for one day
@@ -34,7 +34,7 @@ async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriv
     let conn = AuthorizedotnetSeleniumTest {};
     conn.make_paypal_payment(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/156"),
+        &format!("{CHECKOUT_BASE_URL}/saved/156"),
         vec![
             Event::EitherOr(
                 Assert::IsElePresent(By::Css(".reviewButton")),

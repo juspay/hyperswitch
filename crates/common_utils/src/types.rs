@@ -1,14 +1,38 @@
 //! Types that can be used in other crates
-use error_stack::{IntoReport, ResultExt};
-use serde::{de::Visitor, Deserialize, Deserializer};
+pub mod keymanager;
+
+use std::{
+    fmt::Display,
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
+
+use common_enums::enums;
+use diesel::{
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    serialize::{Output, ToSql},
+    sql_types,
+    sql_types::Jsonb,
+    AsExpression, FromSqlRow, Queryable,
+};
+use error_stack::{report, ResultExt};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
+use semver::Version;
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use utoipa::ToSchema;
 
 use crate::{
     consts,
-    errors::{CustomResult, PercentageError},
+    errors::{CustomResult, ParsingError, PercentageError},
 };
-
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
@@ -28,12 +52,11 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if Self::is_valid_string_value(&value)? {
             Ok(Self {
                 percentage: value
-                    .parse()
-                    .into_report()
+                    .parse::<f32>()
                     .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
-            Err(PercentageError::InvalidPercentageValue.into())
+            Err(report!(PercentageError::InvalidPercentageValue))
                 .attach_printable(get_invalid_percentage_error_message(PRECISION))
         }
     }
@@ -44,15 +67,18 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
 
     /// apply the percentage to amount and ceil the result
     #[allow(clippy::as_conversions)]
-    pub fn apply_and_ceil_result(&self, amount: i64) -> CustomResult<i64, PercentageError> {
+    pub fn apply_and_ceil_result(
+        &self,
+        amount: MinorUnit,
+    ) -> CustomResult<MinorUnit, PercentageError> {
         let max_amount = i64::MAX / 10000;
+        let amount = amount.0;
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
-            Err(PercentageError::UnableToApplyPercentage {
+            Err(report!(PercentageError::UnableToApplyPercentage {
                 percentage: self.percentage,
-                amount,
-            }
-            .into())
+                amount: MinorUnit::new(amount),
+            }))
             .attach_printable(format!(
                 "Cannot calculate percentage for amount greater than {}",
                 max_amount
@@ -60,17 +86,17 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         } else {
             let percentage_f64 = f64::from(self.percentage);
             let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
-            Ok(result)
+            Ok(MinorUnit::new(result))
         }
     }
+
     fn is_valid_string_value(value: &str) -> CustomResult<bool, PercentageError> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
     }
     fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
         value
-            .parse()
-            .into_report()
+            .parse::<f32>()
             .change_context(PercentageError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
@@ -141,11 +167,541 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 }
 
 /// represents surcharge type and value
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }
+
+/// This struct lets us represent a semantic version type
+#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
+#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, serde::Deserialize)]
+pub struct SemanticVersion(#[serde(with = "Version")] Version);
+
+impl SemanticVersion {
+    /// returns major version number
+    pub fn get_major(&self) -> u64 {
+        self.0.major
+    }
+    /// Constructs new SemanticVersion instance
+    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
+        Self(Version::new(major, minor, patch))
+    }
+}
+
+impl Display for SemanticVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for SemanticVersion {
+    type Err = error_stack::Report<ParsingError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Version::from_str(s).change_context(
+            ParsingError::StructParseFailure("SemanticVersion"),
+        )?))
+    }
+}
+
+crate::impl_to_sql_from_sql_json!(SemanticVersion);
+
+/// Amount convertor trait for connector
+pub trait AmountConvertor: Send {
+    /// Output type for the connector
+    type Output;
+    /// helps in conversion of connector required amount type
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
+
+    /// helps in converting back connector required amount type to core minor unit
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct StringMinorUnitForConnector;
+
+impl AmountConvertor for StringMinorUnitForConnector {
+    type Output = StringMinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_string()
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64()
+    }
+}
+
+/// Core required conversion type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForCore;
+impl AmountConvertor for StringMajorUnitForCore {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForConnector;
+
+impl AmountConvertor for StringMajorUnitForConnector {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitForConnector;
+
+impl AmountConvertor for FloatMajorUnitForConnector {
+    type Output = FloatMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_f64(currency)
+    }
+    fn convert_back(
+        &self,
+        amount: FloatMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct MinorUnitForConnector;
+
+impl AmountConvertor for MinorUnitForConnector {
+    type Output = MinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+}
+
+/// This Unit struct represents MinorUnit in which core amount works
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::BigInt)]
+pub struct MinorUnit(i64);
+
+impl MinorUnit {
+    /// gets amount as i64 value will be removed in future
+    pub fn get_amount_as_i64(&self) -> i64 {
+        self.0
+    }
+
+    /// forms a new minor default unit i.e zero
+    pub fn zero() -> Self {
+        Self(0)
+    }
+
+    /// forms a new minor unit from amount
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    /// Convert the amount to its major denomination based on Currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    fn to_major_unit_as_string(
+        self,
+        currency: enums::Currency,
+    ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
+        let amount_f64 = self.to_major_unit_as_f64(currency)?;
+        let amount_string = if currency.is_zero_decimal_currency() {
+            amount_f64.0.to_string()
+        } else if currency.is_three_decimal_currency() {
+            format!("{:.3}", amount_f64.0)
+        } else {
+            format!("{:.2}", amount_f64.0)
+        };
+        Ok(StringMajorUnit::new(amount_string))
+    }
+
+    /// Convert the amount to its major denomination based on Currency and return f64
+    fn to_major_unit_as_f64(
+        self,
+        currency: enums::Currency,
+    ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal / Decimal::from(1000)
+        } else {
+            amount_decimal / Decimal::from(100)
+        };
+        let amount_f64 = amount
+            .to_f64()
+            .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        Ok(FloatMajorUnit::new(amount_f64))
+    }
+
+    ///Convert minor unit to string minor unit
+    fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
+        Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl Display for MinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: FromSql<sql_types::BigInt, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = i64::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: ToSql<sql_types::BigInt, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::BigInt, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl Add for MinorUnit {
+    type Output = Self;
+    fn add(self, a2: Self) -> Self {
+        Self(self.0 + a2.0)
+    }
+}
+
+impl Sub for MinorUnit {
+    type Output = Self;
+    fn sub(self, a2: Self) -> Self {
+        Self(self.0 - a2.0)
+    }
+}
+
+/// Connector specific types to send
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub struct StringMinorUnit(String);
+
+impl StringMinorUnit {
+    /// forms a new minor unit in string from amount
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// converts to minor unit i64 from minor unit string value
+    fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_string = &self.0;
+        let amount_decimal = Decimal::from_str(amount_string).map_err(|e| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: e.to_string(),
+            }
+        })?;
+        let amount_i64 = amount_decimal
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+/// Connector specific types to send
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnit(f64);
+
+impl FloatMajorUnit {
+    /// forms a new major unit from amount
+    fn new(value: f64) -> Self {
+        Self(value)
+    }
+
+    /// forms a new major unit with zero amount
+    pub fn zero() -> Self {
+        Self(0.0)
+    }
+
+    /// converts to minor unit as i64 from FloatMajorUnit
+    fn to_minor_unit_as_i64(
+        self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_f64(self.0).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal * Decimal::from(1000)
+        } else {
+            amount_decimal * Decimal::from(100)
+        };
+
+        let amount_i64 = amount
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+/// Connector specific types to send
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
+pub struct StringMajorUnit(String);
+
+impl StringMajorUnit {
+    /// forms a new major unit from amount
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// Converts to minor unit as i64 from StringMajorUnit
+    fn to_minor_unit_as_i64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal = Decimal::from_str(&self.0).map_err(|e| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: e.to_string(),
+            }
+        })?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal * Decimal::from(1000)
+        } else {
+            amount_decimal * Decimal::from(100)
+        };
+        let amount_i64 = amount
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+
+    /// Get string amount from struct to be removed in future
+    pub fn get_amount_as_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+#[cfg(test)]
+mod amount_conversion_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
+    const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
+    const ZERO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::JPY;
+    #[test]
+    fn amount_conversion_to_float_major_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let required_conversion = FloatMajorUnitForConnector;
+
+        // Two decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 9999999.99);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 999999.999);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 999999999.0);
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_major_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let required_conversion = StringMajorUnitForConnector;
+
+        // Two decimal currency conversions
+        let converted_amount_two_decimal_currency = required_conversion
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(
+            converted_amount_two_decimal_currency.0,
+            "9999999.99".to_string()
+        );
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount_two_decimal_currency, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount_three_decimal_currency = required_conversion
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(
+            converted_amount_three_decimal_currency.0,
+            "999999.999".to_string()
+        );
+        let converted_back_amount = required_conversion
+            .convert_back(
+                converted_amount_three_decimal_currency,
+                THREE_DECIMAL_CURRENCY,
+            )
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, "999999999".to_string());
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_minor_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let currency = TWO_DECIMAL_CURRENCY;
+        let required_conversion = StringMinorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert(request_amount, currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, "999999999".to_string());
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+}
+
+// Charges structs
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+/// Charge object for refunds
+pub struct ChargeRefunds {
+    /// Identifier for charge created for the payment
+    pub charge_id: String,
+
+    /// Toggle for reverting the application fee that was collected for the payment.
+    /// If set to false, the funds are pulled from the destination account.
+    pub revert_platform_fee: Option<bool>,
+
+    /// Toggle for reverting the transfer that was made during the charge.
+    /// If set to false, the funds are pulled from the main platform's account.
+    pub revert_transfer: Option<bool>,
+}
+
+crate::impl_to_sql_from_sql_json!(ChargeRefunds);

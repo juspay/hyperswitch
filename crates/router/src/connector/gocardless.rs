@@ -4,13 +4,13 @@ use std::fmt::Debug;
 
 use api_models::enums::enums;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as gocardless;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::utils::{self as connector_utils, PaymentMethodDataType},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -342,6 +342,19 @@ impl ConnectorValidation for Gocardless {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::SepaBankDebit,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
+            PaymentMethodDataType::BacsBankDebit,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -738,14 +751,10 @@ impl api::IncomingWebhook for Gocardless {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(

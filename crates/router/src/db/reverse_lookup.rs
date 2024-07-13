@@ -23,7 +23,7 @@ pub trait ReverseLookupInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::{ReverseLookupInterface, Store};
@@ -45,7 +45,9 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn).await.map_err(Into::into).into_report()
+            new.insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -57,18 +59,19 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             ReverseLookup::find_by_lookup_id(id, &conn)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 }
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -90,10 +93,14 @@ mod storage {
             new: ReverseLookupNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
+            let storage_scheme =
+                decide_storage_scheme::<_, ReverseLookup>(self, storage_scheme, Op::Insert).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn).await.map_err(Into::into).into_report()
+                    new.insert(&conn)
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let created_rev_lookup = ReverseLookup {
@@ -112,7 +119,12 @@ mod storage {
                     match kv_wrapper::<ReverseLookup, _, _>(
                         self,
                         KvOperation::SetNx(&created_rev_lookup, redis_entry),
-                        format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                        PartitionKey::CombinationKey {
+                            combination: &format!(
+                                "reverse_lookup_{}",
+                                &created_rev_lookup.lookup_id
+                            ),
+                        },
                     )
                     .await
                     .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
@@ -122,8 +134,8 @@ mod storage {
                         Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "reverse_lookup",
                             key: Some(created_rev_lookup.lookup_id.clone()),
-                        })
-                        .into_report(),
+                        }
+                        .into()),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -140,10 +152,10 @@ mod storage {
                 let conn = connection::pg_connection_read(self).await?;
                 ReverseLookup::find_by_lookup_id(id, &conn)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme =
+                decide_storage_scheme::<_, ReverseLookup>(self, storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -151,7 +163,9 @@ mod storage {
                         kv_wrapper(
                             self,
                             KvOperation::<ReverseLookup>::Get,
-                            format!("reverse_lookup_{id}"),
+                            PartitionKey::CombinationKey {
+                                combination: &format!("reverse_lookup_{id}"),
+                            },
                         )
                         .await?
                         .try_into_get()

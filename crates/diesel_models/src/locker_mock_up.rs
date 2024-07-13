@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{Identifiable, Insertable, Queryable};
 
 use crate::schema::locker_mock_up;
@@ -16,7 +17,7 @@ pub struct LockerMockUp {
     pub card_exp_month: String,
     pub name_on_card: Option<String>,
     pub nickname: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
     pub card_cvc: Option<String>,
     pub payment_method_id: Option<String>,
@@ -37,7 +38,7 @@ pub struct LockerMockUpNew {
     pub name_on_card: Option<String>,
     pub card_cvc: Option<String>,
     pub payment_method_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub nickname: Option<String>,
     pub enc_card_data: Option<String>,
 }

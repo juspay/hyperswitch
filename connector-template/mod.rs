@@ -1,13 +1,16 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-use error_stack::{ResultExt, IntoReport};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 
+use common_utils::{
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector}
+};
+use super::utils::{self as connector_utils};
 use crate::{
     events::connector_api_logs::ConnectorEvent,
     configs::settings,
-    utils::{self, BytesExt},
+    utils::BytesExt,
     core::{
         errors::{self, CustomResult},
     },
@@ -20,11 +23,20 @@ use crate::{
     }
 };
 
-
 use transformers as {{project-name | downcase}};
 
-#[derive(Debug, Clone)]
-pub struct {{project-name | downcase | pascal_case}};
+#[derive(Clone)]
+pub struct {{project-name | downcase | pascal_case}} {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync)
+}
+
+impl {{project-name | downcase | pascal_case}} {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector
+        }
+    }
+}
 
 impl api::Payment for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
@@ -74,8 +86,8 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         todo!()
-    //    TODO! Check connector documentation, on which unit they are processing the currency. 
-    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor, 
+    //    TODO! Check connector documentation, on which unit they are processing the currency.
+    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
     //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
@@ -117,7 +129,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 }
 
-impl ConnectorValidation for {{project-name | downcase | pascal_case}} 
+impl ConnectorValidation for {{project-name | downcase | pascal_case}}
 {
     //TODO: implement functions when support enabled
 }
@@ -165,13 +177,17 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
         let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
-                &self.get_currency_unit(),
-                req.request.currency,
-                req.request.amount,
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
+                amount,
                 req,
-            ))?;
+            ));
         let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -274,7 +290,7 @@ impl
             http_code: res.status_code,
         })
     }
-    
+
     fn get_error_response(
         &self,
         res: Response,
@@ -392,13 +408,17 @@ impl
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
         let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
-                &self.get_currency_unit(),
-                req.request.currency,
-                req.request.refund_amount,
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
+                refund_amount,
                 req,
-            ))?;
+            ));
         let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -492,20 +512,20 @@ impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

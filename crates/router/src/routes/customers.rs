@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -20,7 +21,7 @@ pub async fn customers_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| create_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -35,7 +36,7 @@ pub async fn customers_create(
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
     let payload = web::Json(customers::CustomerId {
@@ -46,21 +47,21 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth(Permission::CustomerRead))
     } else {
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+        match auth::is_ephemeral_auth(req.headers()) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         }
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -73,7 +74,9 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state,
         &req,
         (),
-        |state, auth, _| list_customers(state, auth.merchant_account.merchant_id, auth.key_store),
+        |state, auth, _, _| {
+            list_customers(state, auth.merchant_account.merchant_id, auth.key_store)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerRead),
@@ -88,18 +91,18 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
     mut json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
-    json_payload.customer_id = customer_id;
+    json_payload.customer_id = Some(customer_id);
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| update_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -114,19 +117,20 @@ pub async fn customers_update(
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersCreate;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })
     .into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -140,7 +144,7 @@ pub async fn customers_delete(
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersGetMandates;
     let customer_id = customers::CustomerId {
@@ -152,7 +156,7 @@ pub async fn get_customer_mandates(
         state,
         &req,
         customer_id,
-        |state, auth, req| {
+        |state, auth, req, _| {
             crate::core::mandate::get_customer_mandates(
                 state,
                 auth.merchant_account,

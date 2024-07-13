@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
 use common_utils::{
@@ -7,7 +6,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as airwallex;
 
@@ -19,7 +18,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, logger, routes,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -123,6 +122,7 @@ impl ConnectorValidation for Airwallex {
 }
 
 impl api::Payment for Airwallex {}
+impl api::PaymentsPreProcessing for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
 impl api::MandateSetup for Airwallex {}
 impl
@@ -223,12 +223,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -243,14 +242,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl
     ConnectorIntegration<
-        api::InitPayment,
-        types::PaymentsAuthorizeData,
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
     > for Airwallex
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -262,7 +261,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsInitRouterData,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -274,7 +273,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
@@ -283,16 +282,20 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsInitType::get_request_body(
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -301,10 +304,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsInitRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: airwallex::AirwallexPaymentsResponse = res
             .response
             .parse_struct("airwallex AirwallexPaymentsResponse")
@@ -313,12 +316,11 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -337,36 +339,6 @@ impl api::PaymentAuthorize for Airwallex {}
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Airwallex
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::InitPayment,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-        let authorize_data = &types::PaymentsInitRouterData::from((
-            &router_data.to_owned(),
-            router_data.request.clone(),
-        ));
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-        router_data.reference_id = resp.reference_id;
-        Ok(())
-    }
-
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -444,12 +416,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -526,7 +497,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -617,7 +588,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -706,12 +677,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -783,12 +753,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -897,12 +866,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -971,12 +939,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -1011,13 +978,10 @@ impl api::IncomingWebhook for Airwallex {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
         hex::decode(security_header)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
@@ -1035,10 +999,8 @@ impl api::IncomingWebhook for Airwallex {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
@@ -1081,7 +1043,7 @@ impl api::IncomingWebhook for Airwallex {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+            Err(report!(errors::ConnectorError::WebhookEventTypeNotFound))
         }
     }
 
@@ -1144,7 +1106,9 @@ impl services::ConnectorRedirectResponse for Airwallex {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

@@ -4,19 +4,16 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use transformers as shift4;
 
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, routes,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -74,8 +71,7 @@ impl ConnectorCommon for Shift4 {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: shift4::Shift4AuthType = auth_type
-            .try_into()
+        let auth = shift4::Shift4AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -137,6 +133,7 @@ impl api::Refund for Shift4 {}
 impl api::RefundExecute for Shift4 {}
 impl api::RefundSync for Shift4 {}
 impl api::PaymentToken for Shift4 {}
+impl api::PaymentsPreProcessing for Shift4 {}
 
 impl
     ConnectorIntegration<
@@ -211,45 +208,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
-            && router_data.payment_method == diesel_models::enums::PaymentMethod::Card
-        {
-            let integ: Box<
-                &(dyn ConnectorIntegration<
-                    api::InitPayment,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > + Send
-                      + Sync
-                      + 'static),
-            > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
-                &router_data.to_owned(),
-                router_data.request.clone(),
-            ));
-            let init_resp = services::execute_connector_processing_step(
-                app_state,
-                integ,
-                init_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await?;
-            if init_resp.request.enrolled_for_3ds {
-                router_data.response = init_resp.response;
-                router_data.status = init_resp.status;
-            } else {
-                router_data.request.enrolled_for_3ds = false;
-            }
-        }
-        Ok(())
     }
 
     fn build_request(
@@ -432,12 +390,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -471,14 +428,14 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
 impl
     ConnectorIntegration<
-        api::InitPayment,
-        types::PaymentsAuthorizeData,
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
     > for Shift4
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
@@ -502,7 +459,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsInitRouterData,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}3d-secure", self.base_url(connectors)))
@@ -510,7 +467,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
@@ -519,16 +476,20 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsInitType::get_request_body(
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -537,10 +498,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsInitRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: shift4::Shift4ThreeDsResponse = res
             .response
             .parse_struct("Shift4ThreeDsResponse")
@@ -717,12 +678,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -788,12 +748,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -834,7 +793,7 @@ impl api::IncomingWebhook for Shift4 {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+            Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
         }
     }
 

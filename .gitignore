@@ -261,3 +261,6 @@ result*
 
 # node_modules
 node_modules/
+
+# cypress credentials
+creds.json

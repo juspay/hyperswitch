@@ -3,7 +3,8 @@ pub mod api;
 use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate};
-use common_enums::{CountryAlpha2, PaymentMethodType};
+use common_enums::{CountryAlpha2, PaymentMethod, PaymentMethodType};
+use common_utils::{id_type, types};
 use masking::Secret;
 
 #[derive(Debug, Clone)]
@@ -22,7 +23,7 @@ pub struct LinkTokenRequest {
     pub client_name: String,
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
-    pub user_info: Option<String>,
+    pub user_info: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -56,13 +57,13 @@ pub type ExchangeTokenRouterData =
 
 #[derive(Debug, Clone)]
 pub struct BankAccountCredentialsRequest {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub optional_ids: Option<BankAccountOptionalIDs>,
 }
 
 #[derive(Debug, Clone)]
 pub struct BankAccountOptionalIDs {
-    pub ids: Vec<String>,
+    pub ids: Vec<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,11 +74,36 @@ pub struct BankAccountCredentialsResponse {
 #[derive(Debug, Clone)]
 pub struct BankAccountDetails {
     pub account_name: Option<String>,
-    pub account_number: String,
-    pub routing_number: String,
+    pub account_details: PaymentMethodTypeDetails,
     pub payment_method_type: PaymentMethodType,
-    pub account_id: String,
+    pub payment_method: PaymentMethod,
+    pub account_id: Secret<String>,
     pub account_type: Option<String>,
+    pub balance: Option<types::FloatMajorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PaymentMethodTypeDetails {
+    Ach(BankAccountDetailsAch),
+    Bacs(BankAccountDetailsBacs),
+    Sepa(BankAccountDetailsSepa),
+}
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsAch {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsBacs {
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsSepa {
+    pub iban: Secret<String>,
+    pub bic: Secret<String>,
 }
 
 pub type BankDetailsRouterData = PaymentAuthRouterData<
@@ -119,22 +145,19 @@ pub type RecipientCreateRouterData =
     PaymentAuthRouterData<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>;
 
 pub type PaymentAuthLinkTokenType =
-    dyn self::api::ConnectorIntegration<LinkToken, LinkTokenRequest, LinkTokenResponse>;
+    dyn api::ConnectorIntegration<LinkToken, LinkTokenRequest, LinkTokenResponse>;
 
 pub type PaymentAuthExchangeTokenType =
-    dyn self::api::ConnectorIntegration<ExchangeToken, ExchangeTokenRequest, ExchangeTokenResponse>;
+    dyn api::ConnectorIntegration<ExchangeToken, ExchangeTokenRequest, ExchangeTokenResponse>;
 
-pub type PaymentAuthBankAccountDetailsType = dyn self::api::ConnectorIntegration<
+pub type PaymentAuthBankAccountDetailsType = dyn api::ConnectorIntegration<
     BankAccountCredentials,
     BankAccountCredentialsRequest,
     BankAccountCredentialsResponse,
 >;
 
-pub type PaymentInitiationRecipientCreateType = dyn self::api::ConnectorIntegration<
-    RecipientCreate,
-    RecipientCreateRequest,
-    RecipientCreateResponse,
->;
+pub type PaymentInitiationRecipientCreateType =
+    dyn api::ConnectorIntegration<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>;
 
 #[derive(Clone, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
@@ -184,7 +207,7 @@ pub enum MerchantAccountData {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
-    RecipientId(Secret<String>),
+    ConnectorRecipientId(Secret<String>),
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }

@@ -1,15 +1,15 @@
 use async_trait::async_trait;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
-    types::{self, api, domain},
-    utils::OptionExt,
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -22,7 +22,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -63,16 +63,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 {
     async fn decide_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _business_profile: &storage::business_profile::BusinessProfile,
+        _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
@@ -93,19 +91,22 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>> {
+        should_continue_payment: bool,
+    ) -> RouterResult<types::PaymentMethodTokenResult> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
             let request = self.request.clone();
@@ -115,23 +116,26 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 &payments::TokenizationAction::TokenizeInConnector,
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
+                should_continue_payment,
             )
             .await
         } else {
-            Ok(None)
+            Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+            })
         }
     }
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::CompleteAuthorize,
                     types::CompleteAuthorizeData,
                     types::PaymentsResponseData,
@@ -149,7 +153,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
     async fn preprocessing_steps<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
@@ -157,14 +161,13 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 }
 
 pub async fn complete_authorize_preprocessing_steps<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
     confirm: bool,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
     if confirm {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PreProcessing,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
@@ -177,7 +180,7 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
@@ -196,13 +199,10 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[
-                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
-                metrics::request::add_attributes(
-                    "payment_method",
-                    router_data.payment_method.to_string(),
-                ),
-            ],
+            &add_attributes([
+                ("connector", connector.connector_name.to_string()),
+                ("payment_method", router_data.payment_method.to_string()),
+            ]),
         );
 
         let mut router_data_request = router_data.request.to_owned();
@@ -211,33 +211,17 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             connector_metadata, ..
         }) = &resp.response
         {
-            router_data_request.connector_meta = connector_metadata.to_owned();
+            connector_metadata.clone_into(&mut router_data_request.connector_meta);
         };
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data_request,
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data_request,
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())
-    }
-}
-
-impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data
-                .payment_method_data
-                .get_required_value("payment_method_data")?,
-            browser_info: data.browser_info,
-            currency: data.currency,
-            amount: Some(data.amount),
-        })
     }
 }

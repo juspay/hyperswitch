@@ -1,5 +1,9 @@
 pub mod types;
 
+use std::fmt::Debug;
+
+use serde::{Deserialize, Serialize};
+
 use crate::{
     backend::{self, inputs, EuclidBackend},
     frontend::{
@@ -9,6 +13,7 @@ use crate::{
     },
 };
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VirInterpreterBackend<O> {
     program: vir::ValuedProgram<O>,
 }
@@ -100,6 +105,7 @@ where
 #[cfg(all(test, feature = "ast_parser"))]
 mod test {
     #![allow(clippy::expect_used)]
+    use common_utils::types::MinorUnit;
     use rustc_hash::FxHashMap;
 
     use super::*;
@@ -125,7 +131,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -165,7 +171,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -206,7 +212,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -247,7 +253,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -288,7 +294,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -329,7 +335,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -370,7 +376,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -411,7 +417,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -454,7 +460,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: Some(meta_map),
             payment: inputs::PaymentInput {
-                amount: 32,
+                amount: MinorUnit::new(32),
                 card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -495,7 +501,7 @@ mod test {
         let inp_greater = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 150,
+                amount: MinorUnit::new(150),
                 card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -517,7 +523,7 @@ mod test {
             },
         };
         let mut inp_equal = inp_greater.clone();
-        inp_equal.payment.amount = 123;
+        inp_equal.payment.amount = MinorUnit::new(123);
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
         let result_greater = backend.execute(inp_greater).expect("Execution");
         let result_equal = backend.execute(inp_equal).expect("Execution");
@@ -545,7 +551,7 @@ mod test {
         let inp_lower = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                amount: 120,
+                amount: MinorUnit::new(120),
                 card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
@@ -567,7 +573,7 @@ mod test {
             },
         };
         let mut inp_equal = inp_lower.clone();
-        inp_equal.payment.amount = 123;
+        inp_equal.payment.amount = MinorUnit::new(123);
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
         let result_equal = backend.execute(inp_equal).expect("Execution");
         let result_lower = backend.execute(inp_lower).expect("Execution");

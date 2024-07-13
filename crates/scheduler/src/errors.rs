@@ -1,6 +1,7 @@
 pub use common_utils::errors::{ParsingError, ValidationError};
 #[cfg(feature = "email")]
 use external_services::email::EmailError;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
 use storage_impl::errors::StorageError;
@@ -45,19 +46,21 @@ pub enum ProcessTrackerError {
     EApiErrorResponse,
     #[error("Received Error ClientError")]
     EClientError,
-    #[error("Received Error StorageError: {0}")]
+    #[error("Received Error StorageError: {0:?}")]
     EStorageError(error_stack::Report<StorageError>),
-    #[error("Received Error RedisError: {0}")]
+    #[error("Received Error RedisError: {0:?}")]
     ERedisError(error_stack::Report<RedisError>),
-    #[error("Received Error ParsingError: {0}")]
+    #[error("Received Error ParsingError: {0:?}")]
     EParsingError(error_stack::Report<ParsingError>),
-    #[error("Validation Error Received: {0}")]
+    #[error("Validation Error Received: {0:?}")]
     EValidationError(error_stack::Report<ValidationError>),
     #[cfg(feature = "email")]
-    #[error("Received Error EmailError: {0}")]
+    #[error("Received Error EmailError: {0:?}")]
     EEmailError(error_stack::Report<EmailError>),
     #[error("Type Conversion error")]
     TypeConversionError,
+    #[error("Tenant not found")]
+    TenantNotFound,
 }
 
 #[macro_export]
@@ -85,6 +88,12 @@ pub trait PTError: Send + Sync + 'static {
 impl<T: PTError> From<T> for ProcessTrackerError {
     fn from(value: T) -> Self {
         value.to_pt_error()
+    }
+}
+
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
     }
 }
 

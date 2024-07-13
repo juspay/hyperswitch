@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -35,8 +35,7 @@ impl BlocklistFingerprintInterface for Store {
         pm_fingerprint_new
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -52,8 +51,7 @@ impl BlocklistFingerprintInterface for Store {
             fingerprint_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

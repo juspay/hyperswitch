@@ -1,12 +1,14 @@
 use common_utils::{errors::ValidationError, ext_traits::ValueExt};
-use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
-use router_env::logger;
-use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerAppState};
+use diesel_models::{
+    enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
+};
+use router_env::{logger, metrics::add_attributes};
+use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
 use crate::{
     errors,
     logger::error,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
     types::{api, domain::UserEmail, storage},
     utils::OptionExt,
@@ -15,10 +17,10 @@ use crate::{
 pub struct ApiKeyExpiryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -54,6 +56,10 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
 
         let retry_count = process.retry_count;
 
+        let api_key_name = tracking_data.api_key_name.clone();
+
+        let prefix = tracking_data.prefix.clone();
+
         let expires_in = tracking_data
             .expiry_reminder_days
             .get(
@@ -69,6 +75,9 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             })?,
             subject: "API Key Expiry Notice",
             expires_in: *expires_in,
+            api_key_name,
+            prefix,
+
         };
 
         state
@@ -89,7 +98,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             state
                 .get_db()
                 .as_scheduler()
-                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?
         }
         // If tasks are remaining that has to be scheduled
@@ -121,7 +130,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+                &add_attributes([("flow", "ApiKeyExpiry")]),
             );
         }
 
@@ -130,7 +139,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {

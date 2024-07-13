@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -537,7 +530,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"amount\":1,\"currency\":\"EUR\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"iban\":\"NL46TEST0136169112\",\"bic\":\"ABNANL2A\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
+                  "raw": "{\"amount\":1,\"currency\":\"EUR\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"iban\":\"NL46TEST0136169112\",\"bic\":\"ABNANL2A\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"9123456789\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payouts/create",
@@ -650,7 +643,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":1,\"currency\":\"GBP\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"bank_sort_code\":\"231470\",\"bank_account_number\":\"28821822\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true,\"connector\":[\"wise\"]}"
+                      "raw": "{\"amount\":1,\"currency\":\"GBP\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"bank_sort_code\":\"231470\",\"bank_account_number\":\"28821822\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"9123456789\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true,\"connector\":[\"wise\"]}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payouts/create",
@@ -760,7 +753,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":1,\"currency\":\"EUR\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"iban\":\"NL46TEST0136169112\",\"bic\":\"ABNANL2A\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
+                      "raw": "{\"amount\":1,\"currency\":\"EUR\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"iban\":\"NL46TEST0136169112\",\"bic\":\"ABNANL2A\",\"bank_name\":\"Deutsche Bank\",\"bank_country_code\":\"NL\",\"bank_city\":\"Amsterdam\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"9123456789\",\"country_code\":\"+91\"}},\"entity_type\":\"Individual\",\"recurring\":true,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payouts/create",
@@ -875,7 +868,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":10000,\"currency\":\"USD\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"Doest John\",\"phone\":\"6168205366\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"bank_routing_number\":\"110000000\",\"bank_account_number\":\"000123456789\",\"bank_name\":\"Stripe Test Bank\",\"bank_country_code\":\"US\",\"bank_city\":\"California\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"Doest\",\"last_name\":\"John\"},\"phone\":{\"number\":\"6168205366\",\"country_code\":\"1\"}},\"entity_type\":\"Individual\",\"recurring\":false,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
+                      "raw": "{\"amount\":10000,\"currency\":\"USD\",\"customer_id\":\"wise_customer\",\"email\":\"payout_customer@example.com\",\"name\":\"Doest John\",\"phone\":\"9123456789\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payout request\",\"connector\":[\"wise\"],\"payout_type\":\"bank\",\"payout_method_data\":{\"bank\":{\"bank_routing_number\":\"110000000\",\"bank_account_number\":\"000123456789\",\"bank_name\":\"Stripe Test Bank\",\"bank_country_code\":\"US\",\"bank_city\":\"California\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"CA\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"Doest\",\"last_name\":\"John\"},\"phone\":{\"number\":\"9123456789\",\"country_code\":\"1\"}},\"entity_type\":\"Individual\",\"recurring\":false,\"metadata\":{\"ref\":\"123\"},\"confirm\":true,\"auto_fulfill\":true}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payouts/create",

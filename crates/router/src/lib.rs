@@ -31,7 +31,8 @@ use actix_web::{
 };
 use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
-use routes::AppState;
+use router_env::tracing::Instrument;
+use routes::{AppState, SessionState};
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
@@ -46,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
@@ -70,6 +72,13 @@ pub mod headers {
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
+    pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
+    pub const X_CLIENT_VERSION: &str = "X-Client-Version";
+    pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
+    pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
+    pub const CONTENT_LENGTH: &str = "Content-Length";
+    pub const BROWSER_NAME: &str = "x-browser-name";
+    pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
 }
 
 pub mod pii {
@@ -124,6 +133,7 @@ pub fn mk_app(
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::PaymentMethods::server(state.clone()))
+            .service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -137,19 +147,19 @@ pub fn mk_app(
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::ApplePayCertificatesMigration::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
-    }
-
-    #[cfg(feature = "olap")]
-    {
-        server_app = server_app.service(routes::Verify::server(state.clone()));
+            .service(routes::Verify::server(state.clone()))
+            .service(routes::WebhookEvents::server(state.clone()));
     }
 
     #[cfg(feature = "payouts")]
     {
-        server_app = server_app.service(routes::Payouts::server(state.clone()));
+        server_app = server_app
+            .service(routes::Payouts::server(state.clone()))
+            .service(routes::PayoutLink::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
@@ -164,7 +174,7 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
-    server_app = server_app.service(routes::Health::server(state));
+    server_app = server_app.service(routes::Health::server(state.clone()));
 
     server_app
 }
@@ -188,14 +198,68 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
+    let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers)
-        .shutdown_timeout(server.shutdown_timeout)
-        .run();
-    tokio::spawn(receiver_for_error(rx, server.handle()));
+
+    let server_builder =
+        actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
+            .bind((server.host.as_str(), server.port))?
+            .workers(server.workers)
+            .shutdown_timeout(server.shutdown_timeout);
+
+    #[cfg(feature = "tls")]
+    let server = match server.tls {
+        None => server_builder.run(),
+        Some(tls_conf) => {
+            let cert_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.certificate).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+            let key_file =
+                &mut std::io::BufReader::new(std::fs::File::open(tls_conf.private_key).map_err(
+                    |err| errors::ApplicationError::InvalidConfigurationValueError(err.to_string()),
+                )?);
+
+            let cert_chain = rustls_pemfile::certs(cert_file)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            let mut keys = rustls_pemfile::pkcs8_private_keys(key_file)
+                .map(|key| key.map(rustls::pki_types::PrivateKeyDer::Pkcs8))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            // exit if no keys could be parsed
+            if keys.is_empty() {
+                return Err(errors::ApplicationError::InvalidConfigurationValueError(
+                    "Could not locate PKCS8 private keys.".into(),
+                ));
+            }
+
+            let config_builder = rustls::ServerConfig::builder().with_no_client_auth();
+            let config = config_builder
+                .with_single_cert(cert_chain, keys.remove(0))
+                .map_err(|err| {
+                    errors::ApplicationError::InvalidConfigurationValueError(err.to_string())
+                })?;
+
+            server_builder
+                .bind_rustls_0_22(
+                    (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
+                    config,
+                )?
+                .run()
+        }
+    };
+
+    #[cfg(not(feature = "tls"))]
+    let server = server_builder.run();
+
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 

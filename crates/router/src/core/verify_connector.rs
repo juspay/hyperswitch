@@ -1,20 +1,23 @@
 use api_models::{enums::Connector, verify_connector::VerifyConnectorRequest};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     connector,
     core::errors,
     services,
     types::{
-        api,
-        api::verify_connector::{self as types, VerifyConnector},
+        api::{
+            self,
+            verify_connector::{self as types, VerifyConnector},
+        },
+        transformers::ForeignInto,
     },
     utils::verify_connector as utils,
-    AppState,
+    SessionState,
 };
 
 pub async fn verify_connector_credentials(
-    state: AppState,
+    state: SessionState,
     req: VerifyConnectorRequest,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(
@@ -25,20 +28,20 @@ pub async fn verify_connector_credentials(
     )
     .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
 
-    let card_details = utils::get_test_card_details(req.connector_name)?
-        .ok_or(errors::ApiErrorResponse::FlowNotSupported {
+    let card_details = utils::get_test_card_details(req.connector_name)?.ok_or(
+        errors::ApiErrorResponse::FlowNotSupported {
             flow: "Verify credentials".to_string(),
             connector: req.connector_name.to_string(),
-        })
-        .into_report()?;
+        },
+    )?;
 
     match req.connector_name {
         Connector::Stripe => {
             connector::Stripe::verify(
                 &state,
                 types::VerifyConnectorData {
-                    connector: *boxed_connector.connector,
-                    connector_auth: req.connector_account_details.into(),
+                    connector: boxed_connector.connector,
+                    connector_auth: req.connector_account_details.foreign_into(),
                     card_details,
                 },
             )
@@ -47,8 +50,8 @@ pub async fn verify_connector_credentials(
         Connector::Paypal => connector::Paypal::get_access_token(
             &state,
             types::VerifyConnectorData {
-                connector: *boxed_connector.connector,
-                connector_auth: req.connector_account_details.into(),
+                connector: boxed_connector.connector,
+                connector_auth: req.connector_account_details.foreign_into(),
                 card_details,
             },
         )
@@ -57,7 +60,7 @@ pub async fn verify_connector_credentials(
         _ => Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Verify credentials".to_string(),
             connector: req.connector_name.to_string(),
-        })
-        .into_report(),
+        }
+        .into()),
     }
 }

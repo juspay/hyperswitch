@@ -1,8 +1,8 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use crate::{
     connection,
@@ -40,6 +40,11 @@ pub trait MerchantKeyStoreInterface {
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
+
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -57,8 +62,7 @@ impl MerchantKeyStoreInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -78,8 +82,7 @@ impl MerchantKeyStoreInterface for Store {
                 merchant_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -94,7 +97,7 @@ impl MerchantKeyStoreInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &key_store_cache_key,
                 fetch_func,
@@ -119,8 +122,7 @@ impl MerchantKeyStoreInterface for Store {
                 merchant_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -131,7 +133,7 @@ impl MerchantKeyStoreInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            super::cache::publish_and_redact(
+            cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(key_store_cache_key.into()),
                 delete_func,
@@ -155,8 +157,27 @@ impl MerchantKeyStoreInterface for Store {
                 merchant_ids,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            key_store
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
+        .await
+    }
+
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let fetch_func = || async {
+            diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(&conn)
+                .await
+                .map_err(|err| report!(errors::StorageError::from(err)))
         };
 
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
@@ -253,6 +274,21 @@ impl MerchantKeyStoreInterface for MockDb {
                         .change_context(errors::StorageError::DecryptionError)
                 }),
         )
+        .await
+    }
+    async fn get_all_key_stores(
+        &self,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let merchant_key_stores = self.merchant_key_store.lock().await;
+
+        futures::future::try_join_all(merchant_key_stores.iter().map(|merchant_key| async {
+            merchant_key
+                .to_owned()
+                .convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
         .await
     }
 }

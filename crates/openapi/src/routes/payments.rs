@@ -1,10 +1,12 @@
 /// Payments - Create
 ///
-/// **Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.
+/// **Creates a payment object when amount and currency are passed.**
 ///
-/// To completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.
+/// This API is also used to create a mandate by passing the `mandate_object`.
 ///
-/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:
+/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request **by attaching a payment method, setting `confirm=true` and `capture_method = automatic`** in the *Payments/Create API* request.
+///
+/// Otherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests -
 ///
 /// 1. Payments - Create
 ///
@@ -14,7 +16,9 @@
 ///
 /// 4. Payments - Capture.
 ///
-/// Use the client secret returned in this API along with your publishable key to make subsequent API calls from your client
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
+///
+/// This page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.
 #[utoipa::path(
     post,
     path = "/payments",
@@ -35,7 +39,7 @@
                     "customer": {
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9999999999",
+                      "phone": "9123456789",
                       "email": "john@example.com"
                     },
                     "description": "Its my first payment request",
@@ -87,7 +91,7 @@
                     "setup_future_usage": "off_session",
                     "mandate_data": {
                       "customer_acceptance": {
-                        "acceptance_type": "offline",
+                        "acceptance_type": "online",
                         "accepted_at": "1963-05-03T04:07:52.723Z",
                         "online": {
                           "ip_address": "127.0.0.1",
@@ -99,6 +103,14 @@
                           "amount": 6540,
                           "currency": "USD"
                         }
+                      }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
                     }
                   })
@@ -133,6 +145,14 @@
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
                         "card_cvc": "123"
+                      }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
                     },
                     "setup_future_usage": "off_session"
@@ -173,7 +193,7 @@
                         "last_name": "Doe"
                       },
                       "phone": {
-                        "number": "8056594427",
+                        "number": "9123456789",
                         "country_code": "+91"
                       }
                     }
@@ -183,7 +203,7 @@
         ),
     ),
     responses(
-        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
@@ -249,7 +269,7 @@ pub fn payments_retrieve() {}
                     "last_name": "Doe"
                 },
                 "phone": {
-                    "number": "8056594427",
+                    "number": "9123456789",
                     "country_code": "+91"
                 }
               },
@@ -260,7 +280,7 @@ pub fn payments_retrieve() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment updated", body = PaymentsResponse),
+        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
@@ -302,6 +322,14 @@ pub fn payments_update() {}
                   "card_holder_name": "joseph Doe",
                   "card_cvc": "123"
                 }
+              },
+              "customer_acceptance": {
+                "acceptance_type": "online",
+                "accepted_at": "1963-05-03T04:07:52.723Z",
+                "online": {
+                  "ip_address": "127.0.0.1",
+                  "user_agent": "amet irure esse"
+                }
               }
             }
           )
@@ -310,7 +338,7 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsResponse),
+        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
@@ -450,3 +478,43 @@ pub fn payments_list() {}
   security(("api_key" = []))
 )]
 pub fn payments_incremental_authorization() {}
+
+/// Payments - External 3DS Authentication
+///
+/// External 3DS Authentication is performed and returns the AuthenticationResponse
+#[utoipa::path(
+  post,
+  path = "/payments/{payment_id}/3ds/authentication",
+  request_body=PaymentsExternalAuthenticationRequest,
+  params(
+      ("payment_id" = String, Path, description = "The identifier for payment")
+  ),
+  responses(
+      (status = 200, description = "Authentication created", body = PaymentsExternalAuthenticationResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Initiate external authentication for a Payment",
+  security(("publishable_key" = []))
+)]
+pub fn payments_external_authentication() {}
+
+/// Payments - Complete Authorize
+///
+///
+#[utoipa::path(
+  post,
+  path = "/{payment_id}/complete_authorize",
+  request_body=PaymentsCompleteAuthorizeRequest,
+  params(
+    ("payment_id" =String, Path, description =  "The identifier for payment")
+  ),
+ responses(
+      (status = 200, description = "Payments Complete Authorize Success", body = PaymentsResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Complete Authorize a Payment",
+  security(("publishable_key" = []))
+)]
+pub fn payments_complete_authorize() {}

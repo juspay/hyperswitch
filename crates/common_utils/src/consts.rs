@@ -22,10 +22,26 @@ pub static FRM_CONFIGS_EG: &str = r#"
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
-pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
+pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 50;
+/// Default limit for payments list API
+pub fn default_payments_list_limit() -> u32 {
+    10
+}
+
+/// Average delay (in seconds) between account onboarding's API response and the changes to actually reflect at Stripe's end
+pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
 
 /// Maximum limit for payment link list get api
 pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
+
+/// Maximum limit for payouts list get api
+pub const PAYOUTS_LIST_MAX_LIMIT_GET: u32 = 100;
+/// Maximum limit for payouts list post api
+pub const PAYOUTS_LIST_MAX_LIMIT_POST: u32 = 20;
+/// Default limit for payouts list API
+pub fn default_payouts_list_limit() -> u32 {
+    10
+}
 
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
@@ -55,3 +71,33 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
+
+/// Payment intent fulfillment time (in seconds)
+pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
+
+/// Default bool for Display sdk only
+pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
+
+/// Default bool to enable saved payment method
+pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// Default ttl for Extended card info  in redis (in seconds)
+pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
+
+/// Max ttl for Extended card info in redis (in seconds)
+pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60 * 2;
+
+/// Default tenant to be used when multitenancy is disabled
+pub const DEFAULT_TENANT: &str = "public";
+
+/// Default tenant to be used when multitenancy is disabled
+pub const TENANT_HEADER: &str = "x-tenant-id";
+
+/// Max Length for MerchantReferenceId
+pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
+
+/// Minimum allowed length for MerchantReferenceId
+pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
+
+/// Maximum allowed length for MerchantName
+pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;

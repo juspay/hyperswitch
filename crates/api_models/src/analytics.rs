@@ -1,24 +1,33 @@
 use std::collections::HashSet;
 
-use common_utils::pii::EmailStrategy;
+use common_utils::{events::ApiEventMetric, pii::EmailStrategy};
 use masking::Secret;
 
 use self::{
+    active_payments::ActivePaymentsMetrics,
     api_event::{ApiEventDimensions, ApiEventMetrics},
+    auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
+    frm::{FrmDimensions, FrmMetrics},
+    payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
 pub use crate::payments::TimeRange;
 
+pub mod active_payments;
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
+pub mod frm;
 pub mod outgoing_webhook_event;
+pub mod payment_intents;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
+pub mod search;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -111,6 +120,20 @@ pub struct GenerateReportRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetPaymentIntentMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<PaymentIntentDimensions>,
+    #[serde(default)]
+    pub filters: payment_intents::PaymentIntentFilters,
+    pub metrics: HashSet<PaymentIntentMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -125,6 +148,22 @@ pub struct GetRefundMetricRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetFrmMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+    #[serde(default)]
+    pub filters: frm::FrmFilters,
+    pub metrics: HashSet<FrmMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+impl ApiEventMetric for GetFrmMetricRequest {}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetSdkEventMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -135,6 +174,25 @@ pub struct GetSdkEventMetricRequest {
     pub metrics: HashSet<SdkEventMetrics>,
     #[serde(default)]
     pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAuthEventMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub metrics: HashSet<AuthEventMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetActivePaymentsMetricRequest {
+    #[serde(default)]
+    pub metrics: HashSet<ActivePaymentsMetrics>,
+    pub time_range: TimeRange,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -165,6 +223,27 @@ pub struct FilterValue {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetPaymentIntentFiltersRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<PaymentIntentDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentIntentFiltersResponse {
+    pub query_data: Vec<PaymentIntentFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentIntentFilterValue {
+    pub dimension: PaymentIntentDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 
 pub struct GetRefundFilterRequest {
     pub time_range: TimeRange,
@@ -185,6 +264,33 @@ pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
     pub values: Vec<String>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetFrmFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+}
+
+impl ApiEventMetric for GetFrmFilterRequest {}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmFiltersResponse {
+    pub query_data: Vec<FrmFilterValue>,
+}
+
+impl ApiEventMetric for FrmFiltersResponse {}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmFilterValue {
+    pub dimension: FrmDimensions,
+    pub values: Vec<String>,
+}
+
+impl ApiEventMetric for FrmFilterValue {}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -251,7 +357,6 @@ pub struct GetApiEventMetricRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetDisputeFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]

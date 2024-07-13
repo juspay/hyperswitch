@@ -1,14 +1,16 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
-use time::PrimitiveDateTime;
 
-use super::app::AppState;
+use super::app::{AppState, SessionState};
 use crate::{
-    core::{api_locking, errors, payment_methods::cards},
-    services::{api, authentication as auth},
+    core::{
+        api_locking, errors,
+        payment_methods::{self as payment_methods_routes, cards},
+    },
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         storage::payment_method::PaymentTokenData,
@@ -23,13 +25,14 @@ pub async fn create_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| async move {
-            Box::pin(cards::add_payment_method(
+        |state, auth, req, _| async move {
+            Box::pin(cards::get_client_secret_or_add_payment_method(
                 state,
                 req,
                 &auth.merchant_account,
@@ -38,6 +41,61 @@ pub async fn create_payment_method_api(
             .await
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
+pub async fn migrate_payment_method_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodMigrate>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsMigrate;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| async move { Box::pin(cards::migrate_payment_method(state, req)).await },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
+pub async fn save_payment_method_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSave;
+    let payload = json_payload.into_inner();
+    let pm_id = path.into_inner();
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            Box::pin(cards::add_payment_method_data(
+                state,
+                req,
+                auth.merchant_account,
+                auth.key_store,
+                pm_id.clone(),
+            ))
+        },
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -61,7 +119,7 @@ pub async fn list_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
@@ -95,7 +153,7 @@ pub async fn list_payment_method_api(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
-    customer_id: web::Path<(String,)>,
+    customer_id: web::Path<(id_type::CustomerId,)>,
     req: HttpRequest,
     query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
@@ -103,23 +161,23 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
                 auth.key_store,
                 Some(req),
                 Some(&customer_id),
+                None,
             )
         },
         &*ephemeral_auth,
@@ -159,26 +217,88 @@ pub async fn list_customer_payment_method_api_client(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
+    let api_key = auth::get_api_key(req.headers()).ok();
+    let (auth, _, is_ephemeral_auth) =
+        match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload)).await {
+            Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
                 auth.key_store,
                 Some(req),
                 None,
+                is_ephemeral_auth.then_some(api_key).flatten(),
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn initiate_pm_collect_link_flow(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCollectLinkRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            payment_methods_routes::initiate_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn render_pm_collect_link(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    let (merchant_id, pm_collect_link_id) = path.into_inner();
+    let payload = payment_methods::PaymentMethodCollectLinkRenderRequest {
+        merchant_id: merchant_id.clone(),
+        pm_collect_link_id,
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payment_methods_routes::render_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -201,7 +321,9 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.key_store),
+        |state, auth, pm, _| {
+            cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -217,22 +339,28 @@ pub async fn payment_method_update_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth, payload| {
+        payload,
+        |state, auth, req, _| {
             cards::update_customer_payment_method(
                 state,
                 auth.merchant_account,
-                payload,
+                req,
                 &payment_method_id,
                 auth.key_store,
             )
         },
-        &auth::ApiKeyAuth,
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -248,13 +376,49 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         pm,
-        |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        |state, auth, req, _| {
+            cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
+        },
+        &*ephemeral_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::ListCountriesCurrenciesRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListCountriesCurrencies;
+    let payload = query_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth: auth::AuthenticationData, req, _| {
+            cards::list_countries_currencies_for_connector_payment_method(state, req)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -268,33 +432,34 @@ pub async fn default_payment_method_set_api(
 ) -> HttpResponse {
     let flow = Flow::DefaultPaymentMethodsSet;
     let payload = path.into_inner();
-    let customer_id = payload.clone().customer_id;
+    let pc = payload.clone();
+    let customer_id = &pc.customer_id;
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, default_payment_method| {
+        |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             cards::set_default_payment_method(
-                state,
-                auth.merchant_account,
+                &*state.clone().store,
+                auth.merchant_account.merchant_id,
                 auth.key_store,
-                &customer_id,
+                customer_id,
                 default_payment_method.payment_method_id,
+                auth.merchant_account.storage_scheme,
             )
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -338,9 +503,9 @@ impl ParentPaymentMethodToken {
     }
     pub async fn insert(
         &self,
-        intent_created_at: Option<PrimitiveDateTime>,
+        fulfillment_time: i64,
         token: PaymentTokenData,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let token_json_str = token
             .encode_to_string_of_json()
@@ -351,14 +516,8 @@ impl ParentPaymentMethodToken {
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc - intent_created_at.unwrap_or(current_datetime_utc);
         redis_conn
-            .set_key_with_expiry(
-                &self.key_for_token,
-                token_json_str,
-                TOKEN_TTL - time_elapsed.whole_seconds(),
-            )
+            .set_key_with_expiry(&self.key_for_token, token_json_str, fulfillment_time)
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -376,7 +535,7 @@ impl ParentPaymentMethodToken {
         .contains(&status)
     }
 
-    pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {
+    pub async fn delete(&self, state: &SessionState) -> CustomResult<(), errors::ApiErrorResponse> {
         let redis_conn = state
             .store
             .get_redis_conn()

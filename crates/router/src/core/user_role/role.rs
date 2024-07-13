@@ -2,12 +2,12 @@ use api_models::user_role::role::{self as role_api};
 use common_enums::RoleScope;
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::AppState,
+    routes::{app::ReqState, SessionState},
     services::{
         authentication::{blacklist, UserFromToken},
         authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub async fn get_role_from_token_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
@@ -38,7 +38,7 @@ pub async fn get_role_from_token_with_permissions(
 }
 
 pub async fn get_role_from_token_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
@@ -54,9 +54,10 @@ pub async fn get_role_from_token_with_groups(
 }
 
 pub async fn create_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     req: role_api::CreateRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let now = common_utils::date_time::now();
     let role_name = RoleName::new(req.role_name)?;
@@ -73,7 +74,7 @@ pub async fn create_role(
     if matches!(req.role_scope, RoleScope::Organization)
         && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
     {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user creating org level role");
     }
 
@@ -106,7 +107,7 @@ pub async fn create_role(
 
 // TODO: To be deprecated once groups are stable
 pub async fn list_invitable_roles_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
@@ -155,7 +156,7 @@ pub async fn list_invitable_roles_with_permissions(
 }
 
 pub async fn list_invitable_roles_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
@@ -197,7 +198,7 @@ pub async fn list_invitable_roles_with_groups(
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_role_with_permissions(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoResponse> {
@@ -231,7 +232,7 @@ pub async fn get_role_with_permissions(
 }
 
 pub async fn get_role_with_groups(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoResponse> {
@@ -259,7 +260,7 @@ pub async fn get_role_with_groups(
 }
 
 pub async fn update_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     req: role_api::UpdateRoleRequest,
     role_id: &str,
@@ -292,7 +293,7 @@ pub async fn update_role(
     if matches!(role_info.get_scope(), RoleScope::Organization)
         && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
     {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");
     }
 

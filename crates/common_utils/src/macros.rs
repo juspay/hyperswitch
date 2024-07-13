@@ -47,13 +47,6 @@ macro_rules! newtype {
     };
 }
 
-#[macro_export]
-macro_rules! async_spawn {
-    ($t:block) => {
-        tokio::spawn(async move { $t });
-    };
-}
-
 /// Use this to ensure that the corresponding
 /// openapi route has been implemented in the openapi crate
 #[macro_export]
@@ -100,5 +93,45 @@ macro_rules! collect_missing_value_keys {
             )*
             keys
         }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_to_sql_from_sql_json {
+    ($type:ty, $diesel_type:ty) => {
+        #[allow(unused_qualifications)]
+        impl diesel::serialize::ToSql<$diesel_type, diesel::pg::Pg> for $type {
+            fn to_sql<'b>(
+                &'b self,
+                out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+            ) -> diesel::serialize::Result {
+                let value = serde_json::to_value(self)?;
+
+                // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+                // please refer to the diesel migration blog:
+                // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+                <serde_json::Value as diesel::serialize::ToSql<
+                                                                $diesel_type,
+                                                                diesel::pg::Pg,
+                                                            >>::to_sql(&value, &mut out.reborrow())
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl diesel::deserialize::FromSql<$diesel_type, diesel::pg::Pg> for $type {
+            fn from_sql(
+                bytes: <diesel::pg::Pg as diesel::backend::Backend>::RawValue<'_>,
+            ) -> diesel::deserialize::Result<Self> {
+                let value = <serde_json::Value as diesel::deserialize::FromSql<
+                    $diesel_type,
+                    diesel::pg::Pg,
+                >>::from_sql(bytes)?;
+                Ok(serde_json::from_value(value)?)
+            }
+        }
+    };
+    ($type: ty) => {
+        $crate::impl_to_sql_from_sql_json!($type, diesel::sql_types::Json);
+        $crate::impl_to_sql_from_sql_json!($type, diesel::sql_types::Jsonb);
     };
 }

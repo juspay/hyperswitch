@@ -378,7 +378,7 @@ impl
         &self,
         req: &auth_types::RecipientCreateRouterData,
     ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = plaid::PlaidRecipientCreateRequest::try_from(req)?;
+        let req_obj = plaid::PlaidRecipientCreateRequest::from(req);
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -415,11 +415,13 @@ impl
             .response
             .parse_struct("PlaidRecipientCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        <auth_types::RecipientCreateRouterData>::try_from(auth_types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        Ok(<auth_types::RecipientCreateRouterData>::from(
+            auth_types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+        ))
     }
     fn get_error_response(
         &self,

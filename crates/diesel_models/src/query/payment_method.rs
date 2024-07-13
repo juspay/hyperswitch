@@ -1,4 +1,10 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use async_bb8_diesel::AsyncRunQueryDsl;
+use common_utils::id_type;
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl, Table,
+};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -80,7 +86,7 @@ impl PaymentMethod {
 
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
@@ -96,9 +102,36 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn get_count_by_customer_id_merchant_id_status(
+        conn: &PgPooledConn,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> StorageResult<i64> {
+        let filter = <Self as HasTable>::table()
+            .count()
+            .filter(
+                dsl::customer_id
+                    .eq(customer_id.to_owned())
+                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::status.eq(status.to_owned())),
+            )
+            .into_boxed();
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            generics::db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to get a count of payment methods")
+    }
+
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: storage_enums::PaymentMethodStatus,
         limit: Option<i64>,
@@ -119,7 +152,7 @@ impl PaymentMethod {
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
-        payment_method: payment_method::PaymentMethodUpdate,
+        payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -129,7 +162,7 @@ impl PaymentMethod {
         >(
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
-            payment_method::PaymentMethodUpdateInternal::from(payment_method),
+            payment_method,
         )
         .await
         {

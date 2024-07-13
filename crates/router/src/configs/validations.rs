@@ -180,3 +180,15 @@ impl super::settings::LockSettings {
         })
     }
 }
+
+impl super::settings::GenericLinkEnvConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.expiry == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "link's expiry should not be 0".into(),
+            ))
+        })
+    }
+}

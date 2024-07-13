@@ -1,0 +1,23 @@
+{
+  "email": "guest@example.com",
+  "name": "John Doe",
+  "phone": "999999999",
+  "phone_country_code": "+65",
+  "description": "First customer",
+  "address": {
+    "city": "Bangalore",
+    "country": "IN",
+    "line1": "Juspay router",
+    "line2": "Koramangala",
+    "line3": "Stallion",
+    "state": "Karnataka",
+    "zip": "560095",
+    "first_name": "John",
+    "last_name": "Doe"
+  },
+  "metadata": {
+    "udf1": "value1",
+    "new_customer": "true",
+    "login_date": "2019-09-10T10:11:12Z"
+  }
+}

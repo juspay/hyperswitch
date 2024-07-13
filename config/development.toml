@@ -10,6 +10,10 @@ log_format = "default"
 traces_enabled = false
 metrics_enabled = false
 use_xray_generator = false
+bg_metrics_collection_interval_in_secs = 15
+
+[key_manager]
+url = "http://localhost:5000"
 
 # TODO: Update database credentials before running application
 [master_database]
@@ -71,6 +75,7 @@ host_rs = ""
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
+ttl_for_storage_in_secs = 220752000
 
 [forex_api]
 call_delay = 21600
@@ -88,15 +93,18 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
+    "adyenplatform",
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bamboraapac",
     "bankofamerica",
+    "billwerk",
     "bitpay",
     "bluesnap",
     "boku",
@@ -105,17 +113,21 @@ cards = [
     "coinbase",
     "cryptopay",
     "cybersource",
+    "datatrans",
     "dlocal",
     "dummyconnector",
+    "ebanx",
     "fiserv",
     "forte",
     "globalpay",
     "globepay",
     "gocardless",
+    "gpayments",
     "helcim",
     "iatapay",
     "mollie",
     "multisafepay",
+    "netcetera",
     "nexinets",
     "nmi",
     "noon",
@@ -124,6 +136,7 @@ cards = [
     "opennode",
     "payeezy",
     "payme",
+    "payone",
     "paypal",
     "payu",
     "placetopay",
@@ -134,6 +147,7 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "threedsecureio",
     "trustpay",
     "tsys",
     "volt",
@@ -141,6 +155,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 [refund]
@@ -159,12 +174,16 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api/dts.asmx"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+billwerk.base_url = "https://api.reepay.com/"
+billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -176,19 +195,24 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
+datatrans.base_url = "https://api.sandbox.datatrans.com"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
+gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
+mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
@@ -198,6 +222,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
@@ -205,6 +230,7 @@ plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
+razorpay.base_url = "https://sandbox.juspay.in/"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -212,6 +238,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -222,6 +249,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -237,20 +265,25 @@ workers = 1
 
 [cors]
 max_age = 30
-origins = "http://localhost:8080,http://localhost:9000"
+# origins = "http://localhost:8080,http://localhost:9000"
 allowed_methods = "GET,POST,PUT,DELETE"
-wildcard_origin = false
+wildcard_origin = true
 
 [email]
 sender_email = "example@example.com"
 aws_region = ""
-base_url = "http://localhost:8080"
 allowed_unverified_days = 1
 active_email_client = "SES"
 
 [email.aws_ses]
 email_role_arn = ""
 sts_role_session_name = ""
+
+[user]
+password_validity_in_days = 90
+two_factor_auth_expiry_in_secs = 300
+totp_issuer_name = "Hyperswitch Dev"
+base_url = "http://localhost:8080"
 
 [bank_config.eps]
 stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
@@ -259,6 +292,7 @@ adyen = { banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_ban
 [bank_config.ideal]
 stripe = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
 adyen = { banks = "abn_amro,asn_bank,bunq,ing,knab,n26,nationale_nederlanden,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot, yoursafe" }
+multisafepay = { banks="abn_amro, asn_bank, bunq, handelsbanken, nationale_nederlanden, n26, ing, knab, rabobank, regiobank, revolut, sns_bank,triodos_bank, van_lanschot, yoursafe" }
 
 [bank_config.online_banking_czech_republic]
 adyen = { banks = "ceska_sporitelna,komercni_banka,platnosc_online_karta_platnicza" }
@@ -273,7 +307,7 @@ adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,
 stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank" }
 
 [bank_config.open_banking_uk]
-adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled"}
+adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled" }
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -287,7 +321,7 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 paypal = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
 klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US,CA", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
 affirm = { country = "US", currency = "USD" }
-afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "GBP" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ", currency = "GBP,AUD,NZD,CAD,USD" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
 sofort = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
@@ -306,7 +340,10 @@ ideal = { country = "NL", currency = "EUR" }
 cashapp = { country = "US", currency = "USD" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
+open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
+
+[pm_filters.razorpay]
+upi_collect = {country = "IN", currency = "INR"}
 
 [pm_filters.adyen]
 google_pay = { country = "AU,NZ,JP,HK,SG,MY,TH,VN,BH,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,RO,HR,LI,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,TR,IS,CA,US", currency = "AED,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HTG,HUF,IDR,ILS,INR,IQD,JMD,JOD,JPY,KES,KGS,KHR,KMF,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LYD,MAD,MDL,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLE,SOS,SRD,STN,SVC,SZL,THB,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW" }
@@ -316,61 +353,72 @@ mobile_pay = { country = "DK,FI", currency = "DKK,SEK,NOK,EUR" }
 ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
 we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,LI,MT,SI,GR,PT,IT,CA,US", currency = "AUD,CAD,CNY,EUR,GBP,HKD,JPY,NZD,SGD,USD" }
 mb_way = { country = "PT", currency = "EUR" }
-klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
 affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "AU,NZ,ES,GB,FR,IT,CA,US", currency = "GBP" }
 pay_bright = { country = "CA", currency = "CAD" }
 walley = { country = "SE,NO,DK,FI", currency = "DKK,EUR,NOK,SEK" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
-sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
-ideal = { country = "NL", currency = "EUR" }
-blik = {country = "PL", currency = "PLN"}
-trustly = {country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK"}
-online_banking_czech_republic = {country = "CZ", currency = "EUR,CZK"}
-online_banking_finland = {country = "FI", currency = "EUR"}
-online_banking_poland = {country = "PL", currency = "PLN"}
-online_banking_slovakia = {country = "SK", currency = "EUR,CZK"}
-bancontact_card = {country = "BE", currency = "EUR"}
-ach = {country = "US", currency = "USD"}
-bacs = {country = "GB", currency = "GBP"}
-sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
-ali_pay_hk = {country = "HK", currency = "HKD"}
-bizum = {country = "ES", currency = "EUR"}
-go_pay = {country = "ID", currency = "IDR"}
-kakao_pay = {country = "KR", currency = "KRW"}
-momo = {country = "VN", currency = "VND"}
-gcash = {country = "PH", currency = "PHP"}
-online_banking_fpx = {country = "MY", currency = "MYR"}
-online_banking_thailand = {country = "TH", currency = "THB"}
-touch_n_go = {country = "MY", currency = "MYR"}
-atome = {country = "MY,SG", currency = "MYR,SGD"}
-swish = {country = "SE", currency = "SEK"}
-permata_bank_transfer = {country = "ID", currency = "IDR"}
-bca_bank_transfer = {country = "ID", currency = "IDR"}
-bni_va = {country = "ID", currency = "IDR"}
-bri_va = {country = "ID", currency = "IDR"}
-cimb_va = {country = "ID", currency = "IDR"}
-danamon_va = {country = "ID", currency = "IDR"}
-mandiri_va = {country = "ID", currency = "IDR"}
-alfamart = {country = "ID", currency = "IDR"}
-indomaret = {country = "ID", currency = "IDR"}
-open_banking_uk = {country = "GB", currency = "GBP"}
-oxxo = {country = "MX", currency = "MXN"}
-pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
-seven_eleven = {country = "JP", currency = "JPY"}
-lawson = {country = "JP", currency = "JPY"}
-mini_stop = {country = "JP", currency = "JPY"}
-family_mart = {country = "JP", currency = "JPY"}
-seicomart = {country = "JP", currency = "JPY"}
-pay_easy = {country = "JP", currency = "JPY"}
+sofort = { not_available_flows = { capture_method = "manual" }, country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
+ideal = { not_available_flows = { capture_method = "manual" }, country = "NL", currency = "EUR" }
+blik = { country = "PL", currency = "PLN" }
+trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
+online_banking_czech_republic = { country = "CZ", currency = "EUR,CZK" }
+online_banking_finland = { country = "FI", currency = "EUR" }
+online_banking_poland = { country = "PL", currency = "PLN" }
+online_banking_slovakia = { country = "SK", currency = "EUR,CZK" }
+bancontact_card = { country = "BE", currency = "EUR" }
+ach = { country = "US", currency = "USD" }
+bacs = { country = "GB", currency = "GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
+ali_pay_hk = { country = "HK", currency = "HKD" }
+bizum = { country = "ES", currency = "EUR" }
+go_pay = { country = "ID", currency = "IDR" }
+kakao_pay = { country = "KR", currency = "KRW" }
+momo = { country = "VN", currency = "VND" }
+gcash = { country = "PH", currency = "PHP" }
+online_banking_fpx = { country = "MY", currency = "MYR" }
+online_banking_thailand = { country = "TH", currency = "THB" }
+touch_n_go = { country = "MY", currency = "MYR" }
+atome = { country = "MY,SG", currency = "MYR,SGD" }
+swish = { country = "SE", currency = "SEK" }
+permata_bank_transfer = { country = "ID", currency = "IDR" }
+bca_bank_transfer = { country = "ID", currency = "IDR" }
+bni_va = { country = "ID", currency = "IDR" }
+bri_va = { country = "ID", currency = "IDR" }
+cimb_va = { country = "ID", currency = "IDR" }
+danamon_va = { country = "ID", currency = "IDR" }
+mandiri_va = { country = "ID", currency = "IDR" }
+alfamart = { country = "ID", currency = "IDR" }
+indomaret = { country = "ID", currency = "IDR" }
+open_banking_uk = { country = "GB", currency = "GBP" }
+oxxo = { country = "MX", currency = "MXN" }
+pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
+seven_eleven = { country = "JP", currency = "JPY" }
+lawson = { country = "JP", currency = "JPY" }
+mini_stop = { country = "JP", currency = "JPY" }
+family_mart = { country = "JP", currency = "JPY" }
+seicomart = { country = "JP", currency = "JPY" }
+pay_easy = { country = "JP", currency = "JPY" }
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
+
+[pm_filters.cybersource]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
-credit = { not_available_flows = { capture_method = "manual" } }
-debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.helcim]
 credit = { currency = "USD" }
@@ -378,8 +426,9 @@ debit = { currency = "USD" }
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,EUR,EUR,CAD,CZK,DKK,EUR,EUR,EUR,EUR,EUR,EUR,EUR,NZD,NOK,PLN,EUR,EUR,SEK,CHF,GBP,USD" }
-credit = { not_available_flows = { capture_method = "manual" } }
-debit = { not_available_flows = { capture_method = "manual" } }
+
+[pm_filters.mifinity]
+mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -393,9 +442,14 @@ pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
+
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
+
+
 
 [pm_filters.mollie]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -437,25 +491,26 @@ debit = { currency = "USD" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
-mollie = {long_lived_token = false, payment_method = "card"}
-square = {long_lived_token = false, payment_method = "card"}
+mollie = { long_lived_token = false, payment_method = "card" }
+square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
-payme = {long_lived_token = false, payment_method = "card"}
-gocardless = {long_lived_token = true, payment_method = "bank_debit"}
+payme = { long_lived_token = false, payment_method = "card" }
+gocardless = { long_lived_token = true, payment_method = "bank_debit" }
+billwerk = { long_lived_token = false, payment_method = "card" }
 
 [temp_locker_enable_config]
-stripe = {payment_method = "bank_transfer"}
-nuvei = {payment_method = "card"}
-shift4 = {payment_method = "card"}
-bluesnap = {payment_method = "card"}
-bankofamerica = {payment_method = "card"}
-cybersource = {payment_method = "card"}
-nmi = {payment_method = "card"}
-payme = {payment_method = "card"}
+stripe = { payment_method = "bank_transfer" }
+nuvei = { payment_method = "card" }
+shift4 = { payment_method = "card" }
+bluesnap = { payment_method = "card" }
+bankofamerica = { payment_method = "card" }
+cybersource = { payment_method = "card" }
+nmi = { payment_method = "card" }
+payme = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
 [dummy_connector]
 enabled = true
@@ -474,7 +529,7 @@ refund_retrieve_tolerance = 100
 authorize_ttl = 36000
 assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
 default_return_url = "https://app.hyperswitch.io/"
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
@@ -485,21 +540,24 @@ connectors_with_webhook_source_verification_call = "paypal"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
-wallet.google_pay = { connector_list = "stripe,adyen,cybersource" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+wallet.google_pay = { connector_list = "stripe,adyen,cybersource,bankofamerica" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.paypal = { connector_list = "adyen" }
-card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
-card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
-bank_debit.ach = { connector_list = "gocardless"}
-bank_debit.becs = { connector_list = "gocardless"}
-bank_debit.sepa = { connector_list = "gocardless"}
-bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree" }
+card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree" }
+bank_debit.ach = { connector_list = "gocardless" }
+bank_debit.becs = { connector_list = "gocardless" }
+bank_debit.sepa = { connector_list = "gocardless" }
+bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay,multisafepay" }
+bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
+bank_redirect.giropay = { connector_list = "adyen,globalpay,multisafepay" }
 
 [mandates.update_mandate_supported]
-card.credit ={connector_list ="cybersource"}
-card.debit = {connector_list ="cybersource"}
+card.credit = { connector_list = "cybersource" }
+card.debit = { connector_list = "cybersource" }
+
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
@@ -516,6 +574,35 @@ apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = "credit,debit"
+
+[payout_method_filters.adyenplatform]
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+
+[payout_method_filters.stripe]
+ach = { country = "US", currency = "USD" }
+
 [payment_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"
 
@@ -524,11 +611,12 @@ redis_expiry = 900
 pm_auth_key = "Some_pm_auth_key"
 
 [lock_settings]
-redis_lock_expiry_seconds = 180 # 3 * 60 seconds
+redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
 [kv_config]
-ttl = 900 # 15 * 60 seconds
+ttl = 900         # 15 * 60 seconds
+soft_kill = false
 
 [frm]
 enabled = true
@@ -538,6 +626,7 @@ source = "logs"
 
 [events.kafka]
 brokers = ["localhost:9092"]
+fraud_check_analytics_topic= "hyperswitch-fraud-check-events"
 intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
@@ -545,6 +634,10 @@ api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
+audit_events_topic = "hyperswitch-audit-events"
+payout_analytics_topic = "hyperswitch-payout-events"
+consolidated_events_topic = "hyperswitch-consolidated-events"
+authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
@@ -574,5 +667,36 @@ enabled = true
 [file_storage]
 file_storage_backend = "file_system"
 
-[locker_open_banking_connectors]
-connector_list = []
+[unmasked_headers]
+keys = "user-agent"
+
+[opensearch]
+host = "https://localhost:9200"
+
+[opensearch.auth]
+auth = "basic"
+username = "admin"
+password = "0penS3arc#"
+region = "eu-central-1"
+
+[opensearch.indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[user_auth_methods]
+encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC698F"
+
+[locker_based_open_banking_connectors]
+connector_list = ""

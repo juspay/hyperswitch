@@ -4,23 +4,21 @@ use router_env::tracing::{self, instrument};
 
 use crate::{
     core::{
-        errors::RouterResult,
-        fraud_check::frm_core_types::FrmFulfillmentRequest,
-        payments::{helpers, PaymentAddress},
-        utils as core_utils,
+        errors::RouterResult, fraud_check::frm_core_types::FrmFulfillmentRequest,
+        payments::helpers, utils as core_utils,
     },
     errors,
     types::{
         domain,
         fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
-        storage, ConnectorAuthType, ErrorResponse, RouterData,
+        storage, ConnectorAuthType, ErrorResponse, PaymentAddress, RouterData,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
 #[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -71,13 +69,17 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount,
+            amount: payment_attempt.amount.get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },
@@ -108,6 +110,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

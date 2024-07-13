@@ -8,21 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-/// Merchant Account - Create
-///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
-#[utoipa::path(
-    post,
-    path = "/accounts",
-    request_body= MerchantAccountCreate,
-    responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
-        (status = 400, description = "Invalid data")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Create a Merchant Account",
-    security(("admin_api_key" = []))
-)]
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -35,12 +21,13 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(state, req),
+        |state, _, req, _| create_merchant_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
@@ -74,7 +61,7 @@ pub async fn retrieve_merchant_account(
         state,
         &req,
         payload,
-        |state, _, req| get_merchant_account(state, req),
+        |state, _, req, _| get_merchant_account(state, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -102,7 +89,7 @@ pub async fn merchant_account_list(
         state,
         &req,
         query_params.into_inner(),
-        |state, _, request| list_merchant_account(state, request),
+        |state, _, request, _| list_merchant_account(state, request),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -139,7 +126,7 @@ pub async fn update_merchant_account(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| merchant_account_update(state, &merchant_id, req),
+        |state, _, req, _| merchant_account_update(state, &merchant_id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -184,7 +171,7 @@ pub async fn delete_merchant_account(
         state,
         &req,
         payload,
-        |state, _, req| merchant_account_delete(state, req.merchant_id),
+        |state, _, req, _| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -219,7 +206,7 @@ pub async fn payment_connector_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_payment_connector(state, req, &merchant_id),
+        |state, _, req, _| create_payment_connector(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -270,7 +257,7 @@ pub async fn payment_connector_retrieve(
         state,
         &req,
         payload,
-        |state, _, req| {
+        |state, _, req, _| {
             retrieve_payment_connector(state, req.merchant_id, req.merchant_connector_id)
         },
         auth::auth_type(
@@ -317,7 +304,7 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _, merchant_id| list_payment_connectors(state, merchant_id),
+        |state, _, merchant_id, _| list_payment_connectors(state, merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -365,7 +352,9 @@ pub async fn payment_connector_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| update_payment_connector(state, &merchant_id, &merchant_connector_id, req),
+        |state, _, req, _| {
+            update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
+        },
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -411,12 +400,14 @@ pub async fn payment_connector_delete(
         merchant_connector_id,
     })
     .into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _, req| delete_payment_connector(state, req.merchant_id, req.merchant_connector_id),
+        |state, _, req, _| {
+            delete_payment_connector(state, req.merchant_id, req.merchant_connector_id)
+        },
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -426,7 +417,7 @@ pub async fn payment_connector_delete(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Account - Toggle KV
@@ -448,12 +439,37 @@ pub async fn merchant_account_toggle_kv(
         state,
         &req,
         payload,
-        |state, _, payload| kv_for_merchant(state, payload.merchant_id, payload.kv_enabled),
+        |state, _, payload, _| kv_for_merchant(state, payload.merchant_id, payload.kv_enabled),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await
 }
+
+/// Merchant Account - Transfer Keys
+///
+/// Transfer Merchant Encryption key to keymanager
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_all_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::ToggleAllKVRequest>,
+) -> HttpResponse {
+    let flow = Flow::MerchantTransferKey;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| toggle_kv_for_all_merchants(state, payload.kv_enabled),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -470,7 +486,7 @@ pub async fn business_profile_create(
         state,
         &req,
         payload,
-        |state, _, req| create_business_profile(state, req, &merchant_id),
+        |state, _, req, _| create_business_profile(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -497,7 +513,7 @@ pub async fn business_profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, _, profile_id| retrieve_business_profile(state, profile_id),
+        |state, _, profile_id, _| retrieve_business_profile(state, profile_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -525,7 +541,7 @@ pub async fn business_profile_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| update_business_profile(state, &profile_id, &merchant_id, req),
+        |state, _, req, _| update_business_profile(state, &profile_id, &merchant_id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -552,7 +568,7 @@ pub async fn business_profile_delete(
         state,
         &req,
         profile_id,
-        |state, _, profile_id| delete_business_profile(state, profile_id, &merchant_id),
+        |state, _, profile_id, _| delete_business_profile(state, profile_id, &merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -572,7 +588,7 @@ pub async fn business_profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, merchant_id| list_business_profile(state, merchant_id),
+        |state, _, merchant_id, _| list_business_profile(state, merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -583,6 +599,32 @@ pub async fn business_profiles_list(
         ),
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ToggleConnectorAgnosticMit))]
+pub async fn toggle_connector_agnostic_mit(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::ConnectorAgnosticMitChoice>,
+) -> HttpResponse {
+    let flow = Flow::ToggleConnectorAgnosticMit;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 /// Merchant Account - KV Status
@@ -602,9 +644,52 @@ pub async fn merchant_account_kv_status(
         state,
         &req,
         merchant_id,
-        |state, _, req| check_merchant_account_kv_status(state, req),
+        |state, _, req, _| check_merchant_account_kv_status(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_transfer_keys(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, _, _, _| transfer_key_store_to_key_manager(state),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ToggleExtendedCardInfo))]
+pub async fn toggle_extended_card_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::ExtendedCardInfoChoice>,
+) -> HttpResponse {
+    let flow = Flow::ToggleExtendedCardInfo;
+    let (_, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| extended_card_info_toggle(state, &profile_id, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

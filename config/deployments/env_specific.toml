@@ -42,19 +42,22 @@ client_secret = "paypal_client_secret"
 partner_id = "paypal_partner_id"
 
 [connector_request_reference_id_config]
-merchant_ids_send_payment_id_as_connector_request_id = ["merchant_id_1", "merchant_id_2", "etc.,"]
+merchant_ids_send_payment_id_as_connector_request_id = [
+    "merchant_id_1",
+    "merchant_id_2",
+    "etc.,",
+]
 
 [cors]
-max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
-origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+max_age = 30                            # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080"       # List of origins that are allowed to make requests.
 allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
-wildcard_origin = false # If true, allows any origin to make requests
+wildcard_origin = false                 # If true, allows any origin to make requests
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
-base_url = ""                        # Dashboard base url used when adding links that should redirect to self, say https://app.hyperswitch.io for example
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
 active_email_client = "SES"          # The currently active email client
 
@@ -67,13 +70,19 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                          # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"      # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"     # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
-api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
-outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+brokers = []                               # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"           # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"          # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"           # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                   # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"             # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"      # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"          # Kafka topic to be used for Dispute events
+audit_events_topic = "topic"               # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
+consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
+authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
+fraud_check_analytics_topic = "topic"      # Kafka topic to be used for Fraud Check events
 
 # File storage configuration
 [file_storage]
@@ -108,6 +117,8 @@ mock_locker = true                                                    # Emulate 
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
 redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encryption key for redis temp locker
+ttl_for_storage_in_secs = 220752000                                   # Time to live for storage entries in locker
+
 
 [log.console]
 enabled = true
@@ -129,6 +140,7 @@ otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
+bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
 
 [lock_settings]
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
@@ -145,6 +157,29 @@ pool_size = 5             # Number of connections to keep open
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
+[generic_link]
+[generic_link.payment_method_collect]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payment_method_collect.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payment_method_collect.enabled_payment_methods]
+card = "credit,debit"
+bank_transfer = "ach,bacs,sepa"
+wallet = "paypal,pix,venmo"
+
+[generic_link.payout_link]
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+expiry = 900
+[generic_link.payout_link.ui_config]
+theme = "#4285F4"
+logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
+merchant_name = "HyperSwitch"
+[generic_link.payout_link.enabled_payment_methods]
+card = "credit,debit"
+
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
 
@@ -160,21 +195,24 @@ https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HT
 [redis]
 host = "127.0.0.1"
 port = 6379
-pool_size = 5                                                           # Number of connections to keep open
-reconnect_max_attempts = 5                                              # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
-reconnect_delay = 5                                                     # Delay between reconnection attempts, in milliseconds
-default_ttl = 300                                                       # Default TTL for entries, in seconds
-default_hash_ttl = 900                                                  # Default TTL for hashes entries, in seconds
-use_legacy_version = false                                              # RESP protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
-stream_read_count = 1                                                   # Default number of entries to read from stream if not provided in stream read options
-auto_pipeline = true                                                    # Whether or not the client should automatically pipeline commands across tasks when possible.
-disable_auto_backpressure = false                                       # Whether or not to disable the automatic backpressure features when pipelining is enabled.
+pool_size = 5 # Number of connections to keep open
+reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
+reconnect_delay = 5 # Delay between reconnection attempts, in milliseconds
+default_ttl = 300 # Default TTL for entries, in seconds
+default_hash_ttl = 900 # Default TTL for hashes entries, in seconds
+use_legacy_version = false # RESP protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
+stream_read_count = 1 # Default number of entries to read from stream if not provided in stream read options
+auto_pipeline = true # Whether or not the client should automatically pipeline commands across tasks when possible.
+disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
 max_in_flight_commands = 5000 # The maximum number of in-flight commands (per connection) before backpressure will be applied.
-default_command_timeout = 30  # An optional timeout to apply to all commands. In seconds
+default_command_timeout = 30 # An optional timeout to apply to all commands. In seconds
 unresponsive_timeout = 10 # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
-max_feed_count = 200       # The maximum number of frames that will be fed to a socket before flushing.
-cluster_enabled = true                                                  # boolean
-cluster_urls = ["redis.cluster.uri-1:8080", "redis.cluster.uri-2:4115"] # List of redis cluster urls
+max_feed_count = 200 # The maximum number of frames that will be fed to a socket before flushing.
+cluster_enabled = true # boolean
+cluster_urls = [
+    "redis.cluster.uri-1:8080",
+    "redis.cluster.uri-2:4115",
+] # List of redis cluster urls
 
 # Replica SQL data store credentials
 [replica_database]
@@ -193,6 +231,25 @@ payment_function = "report_download_config_payment_function" # Config to downloa
 refund_function = "report_download_config_refund_function"   # Config to download refund report
 region = "report_download_config_region"                     # Region of the bucket
 
+[opensearch]
+host = "https://localhost:9200"
+
+[opensearch.auth]
+auth = "basic"
+username = "admin"
+password = "admin"
+region = "eu-central-1"
+
+[opensearch.indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
+
+# Configuration for the Key Manager Service
+[key_manager]
+url = "http://localhost:5000" # URL of the encryption service
+
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
@@ -202,7 +259,6 @@ recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authent
 
 # Server configuration
 [server]
-base_url = "https://server_base_url"
 workers = 8
 port = 8080
 host = "127.0.0.1"
@@ -212,16 +268,34 @@ shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
 
+# HTTPS Server Configuration
+# Self-signed Private Key and Certificate can be generated with mkcert for local development
+[server.tls]
+port = 8081
+host = "127.0.0.1"
+private_key = "/path/to/private_key.pem"
+certificate = "/path/to/certificate.pem"
+
 [secrets_management]
-secrets_manager = "aws_kms"               # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used
 
 [secrets_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [encryption_management]
-encryption_manager = "aws_kms"            # Encryption manager client to be used
+encryption_manager = "aws_kms" # Encryption manager client to be used
 
 [encryption_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+[multitenancy]
+enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[user_auth_methods]
+encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table

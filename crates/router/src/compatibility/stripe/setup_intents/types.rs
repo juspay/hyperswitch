@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret};
+use error_stack::ResultExt;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -152,7 +152,7 @@ impl From<Shipping> for payments::Address {
 #[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,
@@ -201,7 +201,6 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             })
             .map(|r| {
                 serde_json::to_value(r)
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("converting to routing failed")
             })
@@ -210,7 +209,6 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
@@ -248,7 +246,9 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 pmd.payment_method_details
                     .as_ref()
                     .map(|spmd| payments::PaymentMethodDataRequest {
-                        payment_method_data: payments::PaymentMethodData::from(spmd.to_owned()),
+                        payment_method_data: Some(payments::PaymentMethodData::from(
+                            spmd.to_owned(),
+                        )),
                         billing: pmd.billing_details.clone().map(payments::Address::from),
                     })
             }),
@@ -292,7 +292,6 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                     user_agent: item.user_agent,
                     ..Default::default()
                 })
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
@@ -337,24 +336,14 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CancellationReason {
     Duplicate,
     Fraudulent,
     RequestedByCustomer,
     Abandoned,
-}
-
-impl ToString for CancellationReason {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Duplicate => "duplicate",
-            Self::Fraudulent => "fradulent",
-            Self::RequestedByCustomer => "requested_by_customer",
-            Self::Abandoned => "abandoned",
-        })
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -393,12 +382,18 @@ pub enum StripeNextAction {
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
     },
+    FetchQrCodeInformation {
+        qr_code_fetch_url: url::Url,
+    },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
     },
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+    },
+    InvokeSdkClient {
+        next_action_data: payments::SdkNextActionData,
     },
 }
 
@@ -421,17 +416,9 @@ pub(crate) fn into_stripe_next_action(
             bank_transfer_steps_and_charges_details,
         },
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
-            match session_token {
-                Some(payments::SessionTokenType::Wallet(token)) => {
-                    StripeNextAction::ThirdPartySdkSessionToken {
-                        session_token: Some(token),
-                    }
-                }
-                _ => StripeNextAction::ThirdPartySdkSessionToken {
-                    session_token: None,
-                },
-            }
+            StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -441,6 +428,9 @@ pub(crate) fn into_stripe_next_action(
             display_to_timestamp,
             qr_code_url,
         },
+        payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
+            StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
+        }
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
@@ -451,6 +441,15 @@ pub(crate) fn into_stripe_next_action(
             display_from_timestamp,
             display_to_timestamp,
         },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
+        },
+        payments::NextActionData::InvokeSdkClient { next_action_data } => {
+            StripeNextAction::InvokeSdkClient { next_action_data }
+        }
     })
 }
 
@@ -460,10 +459,10 @@ pub struct StripeSetupIntentResponse {
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
-    pub metadata: Option<secret::SecretSerdeValue>,
+    pub metadata: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate_id: Option<String>,
     pub next_action: Option<StripeNextAction>,
@@ -540,7 +539,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]

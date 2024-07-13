@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     io::Read,
-    path::MAIN_SEPARATOR,
+    path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
     time::Duration,
 };
 
@@ -66,7 +66,7 @@ pub enum Assert<'a> {
     IsPresentNow(&'a str),
 }
 
-pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
+pub static CHECKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     fn get_saved_testcases(&self) -> serde_json::Value {
@@ -524,7 +524,7 @@ pub trait SeleniumTest {
         self.complete_actions(
             &web_driver,
             vec![Event::Trigger(Trigger::Goto(&format!(
-                "{CHEKOUT_BASE_URL}/events"
+                "{CHECKOUT_BASE_URL}/events"
             )))],
         )
         .await?;
@@ -862,7 +862,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
     if env::consts::OS == "macos" {
@@ -880,7 +880,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
     if env::consts::OS == "macos" {

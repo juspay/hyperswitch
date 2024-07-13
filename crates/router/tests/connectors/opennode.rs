@@ -1,6 +1,5 @@
-use api_models::payments::CryptoData;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, api, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -11,14 +10,14 @@ use crate::{
 struct OpennodeTest;
 impl ConnectorActions for OpennodeTest {}
 impl utils::Connector for OpennodeTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Opennode;
-        types::api::ConnectorData {
-            connector: Box::new(&Opennode),
-            connector_name: types::Connector::Opennode,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Opennode),
+            types::Connector::Opennode,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -39,8 +38,9 @@ static CONNECTOR: OpennodeTest = OpennodeTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -52,13 +52,14 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+            None,
+        )),
         return_url: Some(String::from("https://google.com")),
         ..Default::default()
     })
@@ -68,8 +69,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+        payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: None,
+            network: None,
         }),
         confirm: true,
         statement_descriptor_suffix: None,
@@ -97,6 +99,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
+        ..utils::PaymentAuthorizeType::default().0
     })
 }
 
@@ -125,7 +130,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "5adebfb1-802e-432b-8b42-5db4b754b2eb".to_string(),
                 ),
                 ..Default::default()
@@ -144,7 +149,7 @@ async fn should_sync_unresolved_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "4cf63e6b-5135-49cb-997f-6e0b30fecebc".to_string(),
                 ),
                 ..Default::default()
@@ -163,7 +168,7 @@ async fn should_sync_expired_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "c36a097a-5091-4317-8749-80343a71c1c4".to_string(),
                 ),
                 ..Default::default()

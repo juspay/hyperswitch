@@ -1,5 +1,5 @@
 use diesel_models::authorization::AuthorizationUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -41,8 +41,7 @@ impl AuthorizationInterface for Store {
         authorization
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -54,8 +53,7 @@ impl AuthorizationInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Authorization::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -73,8 +71,7 @@ impl AuthorizationInterface for Store {
             authorization,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

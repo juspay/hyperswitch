@@ -3,8 +3,8 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use transformers as zen;
 use uuid::Uuid;
 
@@ -197,7 +197,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => None,
+            domain::payments::PaymentMethodData::Wallet(_) => None,
             _ => Some(Self::get_default_header()),
         };
         if let Some(api_header) = api_headers {
@@ -216,7 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => {
+            domain::payments::PaymentMethodData::Wallet(_) => {
                 let base_url = connectors
                     .zen
                     .secondary_base_url
@@ -582,9 +582,7 @@ impl api::IncomingWebhook for Zen {
             .parse_struct("ZenWebhookSignature")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = webhook_body.hash;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -610,16 +608,17 @@ impl api::IncomingWebhook for Zen {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await?;
         let signature =
@@ -627,7 +626,7 @@ impl api::IncomingWebhook for Zen {
 
         let mut message = self.get_webhook_source_verification_message(
             request,
-            &merchant_account.merchant_id,
+            merchant_id,
             &connector_webhook_secrets,
         )?;
         let mut secret = connector_webhook_secrets.secret;
@@ -688,7 +687,6 @@ impl api::IncomingWebhook for Zen {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
     }
@@ -713,7 +711,9 @@ impl services::ConnectorRedirectResponse for Zen {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

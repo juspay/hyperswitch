@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use common_enums::PaymentMethodType;
-use masking::Secret;
+use common_enums::{PaymentMethod, PaymentMethodType};
+use common_utils::{id_type, types as util_types};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types};
@@ -19,7 +20,7 @@ pub struct PlaidLinkTokenRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 
 pub struct User {
-    pub client_user_id: String,
+    pub client_user_id: id_type::CustomerId,
 }
 
 impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
@@ -169,10 +170,9 @@ impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
     }
 }
 
-impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RecipientCreateRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    fn from(item: &types::RecipientCreateRouterData) -> Self {
+        Self {
             name: item.request.name.clone(),
             account_data: PlaidRecipientAccountData::from(&item.request.account_data),
             address: item
@@ -180,12 +180,12 @@ impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest 
                 .address
                 .as_ref()
                 .map(PlaidRecipientCreateAddress::from),
-        })
+        }
     }
 }
 
 impl<F, T>
-    TryFrom<
+    From<
         types::ResponseRouterData<
             F,
             PlaidRecipientCreateResponse,
@@ -194,21 +194,20 @@ impl<F, T>
         >,
     > for types::PaymentAuthRouterData<F, T, types::RecipientCreateResponse>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn from(
         item: types::ResponseRouterData<
             F,
             PlaidRecipientCreateResponse,
             T,
             types::RecipientCreateResponse,
         >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             response: Ok(types::RecipientCreateResponse {
                 recipient_id: item.response.recipient_id,
             }),
             ..item.data
-        })
+        }
     }
 }
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -218,7 +217,7 @@ pub struct PlaidBankAccountCredentialsRequest {
     options: Option<BankAccountCredentialsOptions>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
@@ -233,19 +232,20 @@ pub struct BankAccountCredentialsOptions {
     account_ids: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,
     pub subtype: Option<String>,
+    pub balances: Option<PlaidBankAccountCredentialsBalances>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct PlaidBankAccountCredentialsBalances {
-    pub available: Option<i32>,
-    pub current: Option<i32>,
-    pub limit: Option<i32>,
+    pub available: Option<util_types::FloatMajorUnit>,
+    pub current: Option<util_types::FloatMajorUnit>,
+    pub limit: Option<util_types::FloatMajorUnit>,
     pub iso_currency_code: Option<String>,
     pub unofficial_currency_code: Option<String>,
     pub last_updated_datetime: Option<String>,
@@ -299,13 +299,19 @@ pub struct PlaidBankAccountCredentialsBacs {
 impl TryFrom<&types::BankDetailsRouterData> for PlaidBankAccountCredentialsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::BankDetailsRouterData) -> Result<Self, Self::Error> {
+        let options = item.request.optional_ids.as_ref().map(|bank_account_ids| {
+            let ids = bank_account_ids
+                .ids
+                .iter()
+                .map(|id| id.peek().to_string())
+                .collect::<Vec<_>>();
+
+            BankAccountCredentialsOptions { account_ids: ids }
+        });
+
         Ok(Self {
-            access_token: item.request.access_token.clone(),
-            options: item.request.optional_ids.as_ref().map(|bank_account_ids| {
-                BankAccountCredentialsOptions {
-                    account_ids: bank_account_ids.ids.clone(),
-                }
-            }),
+            access_token: item.request.access_token.peek().to_string(),
+            options,
         })
     }
 }
@@ -331,27 +337,101 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let (account_numbers, accounts_info) = (item.response.numbers, item.response.accounts);
         let mut bank_account_vec = Vec::new();
-        let mut id_to_suptype = HashMap::new();
+        let mut id_to_subtype = HashMap::new();
 
         accounts_info.into_iter().for_each(|acc| {
-            id_to_suptype.insert(acc.account_id, (acc.subtype, acc.name));
+            id_to_subtype.insert(
+                acc.account_id,
+                (
+                    acc.subtype,
+                    acc.name,
+                    acc.balances.and_then(|balance| balance.available),
+                ),
+            );
         });
 
         account_numbers.ach.into_iter().for_each(|ach| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_suptype.get(&ach.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
-                } else {
-                    (None, None)
-                };
+            let (acc_type, acc_name, available_balance) = if let Some((
+                _type,
+                name,
+                available_balance,
+            )) = id_to_subtype.get(&ach.account_id)
+            {
+                (_type.to_owned(), Some(name.clone()), *available_balance)
+            } else {
+                (None, None, None)
+            };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::Ach(types::BankAccountDetailsAch {
+                    account_number: Secret::new(ach.account),
+                    routing_number: Secret::new(ach.routing),
+                });
 
             let bank_details_new = types::BankAccountDetails {
                 account_name: acc_name,
-                account_number: ach.account,
-                routing_number: ach.routing,
+                account_details,
                 payment_method_type: PaymentMethodType::Ach,
-                account_id: ach.account_id,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: ach.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.bacs.into_iter().for_each(|bacs| {
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&bacs.account_id)
+                {
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
+                } else {
+                    (None, None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::Bacs(types::BankAccountDetailsBacs {
+                    account_number: Secret::new(bacs.account),
+                    sort_code: Secret::new(bacs.sort_code),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Bacs,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: bacs.account_id.into(),
+                account_type: acc_type,
+                balance: available_balance,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.international.into_iter().for_each(|sepa| {
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&sepa.account_id)
+                {
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
+                } else {
+                    (None, None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::Sepa(types::BankAccountDetailsSepa {
+                    iban: Secret::new(sepa.iban),
+                    bic: Secret::new(sepa.bic),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Sepa,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: sepa.account_id.into(),
+                account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);

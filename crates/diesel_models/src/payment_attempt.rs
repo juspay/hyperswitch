@@ -8,9 +8,8 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_attempt)]
+#[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id))]
 pub struct PaymentAttempt {
-    pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
@@ -64,9 +63,15 @@ pub struct PaymentAttempt {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub charge_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -141,9 +146,15 @@ pub struct PaymentAttemptNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub charge_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -182,6 +193,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         fingerprint_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -203,6 +215,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -220,11 +233,21 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        payment_method_id: Option<String>,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
+        client_source: Option<String>,
+        client_version: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+        updated_by: String,
+    },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
         updated_by: String,
     },
     BlocklistUpdate {
@@ -244,7 +267,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
@@ -258,12 +281,14 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
+        charge_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
@@ -285,6 +310,8 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -298,7 +325,7 @@ pub enum PaymentAttemptUpdate {
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
@@ -310,11 +337,28 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
+        charge_id: Option<String>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
         amount: i64,
         amount_capturable: i64,
+    },
+    AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
 }
 
@@ -331,7 +375,7 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<Option<String>>,
-    payment_method_id: Option<Option<String>>,
+    payment_method_id: Option<String>,
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     mandate_id: Option<String>,
@@ -358,8 +402,14 @@ pub struct PaymentAttemptUpdateInternal {
     encoded_data: Option<String>,
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
+    external_three_ds_authentication_attempted: Option<bool>,
+    authentication_connector: Option<String>,
+    authentication_id: Option<String>,
     fingerprint_id: Option<String>,
     payment_method_billing_address_id: Option<String>,
+    charge_id: Option<String>,
+    client_source: Option<String>,
+    client_version: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -420,8 +470,14 @@ impl PaymentAttemptUpdate {
             encoded_data,
             unified_code,
             unified_message,
+            external_three_ds_authentication_attempted,
+            authentication_connector,
+            authentication_id,
             payment_method_billing_address_id,
             fingerprint_id,
+            charge_id,
+            client_source,
+            client_version,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -434,7 +490,7 @@ impl PaymentAttemptUpdate {
             authentication_type: authentication_type.or(source.authentication_type),
             payment_method: payment_method.or(source.payment_method),
             error_message: error_message.unwrap_or(source.error_message),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
+            payment_method_id: payment_method_id.or(source.payment_method_id),
             cancellation_reason: cancellation_reason.or(source.cancellation_reason),
             modified_at: common_utils::date_time::now(),
             mandate_id: mandate_id.or(source.mandate_id),
@@ -463,9 +519,16 @@ impl PaymentAttemptUpdate {
             encoded_data: encoded_data.or(source.encoded_data),
             unified_code: unified_code.unwrap_or(source.unified_code),
             unified_message: unified_message.unwrap_or(source.unified_message),
+            external_three_ds_authentication_attempted: external_three_ds_authentication_attempted
+                .or(source.external_three_ds_authentication_attempted),
+            authentication_connector: authentication_connector.or(source.authentication_connector),
+            authentication_id: authentication_id.or(source.authentication_id),
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
+            charge_id: charge_id.or(source.charge_id),
+            client_source: client_source.or(source.client_source),
+            client_version: client_version.or(source.client_version),
             ..source
         }
     }
@@ -492,6 +555,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 tax_amount,
                 fingerprint_id,
                 updated_by,
+                payment_method_billing_address_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -510,6 +574,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
                 ..Default::default()
             },
@@ -526,6 +591,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount,
                 currency,
                 authentication_type,
+                capture_method,
                 status,
                 payment_method,
                 browser_info,
@@ -543,8 +609,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
+                payment_method_id,
+                client_source,
+                client_version,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -567,8 +639,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id: merchant_connector_id.map(Some),
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
+                payment_method_id,
+                capture_method,
+                client_source,
+                client_version,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -607,6 +686,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id: Some(None),
                 ..Default::default()
             },
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self {
+                payment_method_id,
+                updated_by,
+                ..Default::default()
+            },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -626,6 +713,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
+                charge_id,
             } => Self {
                 status: Some(status),
                 connector: connector.map(Some),
@@ -646,6 +735,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
+                charge_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -659,6 +750,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
+                authentication_type,
             } => Self {
                 connector: connector.map(Some),
                 status: Some(status),
@@ -671,6 +764,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
+                authentication_type,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -766,12 +861,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector,
                 updated_by,
+                charge_id,
             } => Self {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector: connector.map(Some),
                 updated_by,
+                charge_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -782,6 +879,135 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount_capturable: Some(amount_capturable),
                 ..Default::default()
             },
+            PaymentAttemptUpdate::AuthenticationUpdate {
+                status,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => Self {
+                status,
+                error_code: error_code.map(Some),
+                error_message: error_message.map(Some),
+                error_reason: error_reason.map(Some),
+                updated_by,
+                unified_code: unified_code.map(Some),
+                unified_message: unified_message.map(Some),
+                ..Default::default()
+            },
         }
+    }
+}
+
+mod tests {
+
+    #[test]
+    fn test_backwards_compatibility() {
+        let serialized_payment_attempt = r#"{
+    "id": 1,
+    "payment_id": "PMT123456789",
+    "merchant_id": "M123456789",
+    "attempt_id": "ATMPT123456789",
+    "status": "pending",
+    "amount": 10000,
+    "currency": "USD",
+    "save_to_locker": true,
+    "connector": "stripe",
+    "error_message": null,
+    "offer_amount": 9500,
+    "surcharge_amount": 500,
+    "tax_amount": 800,
+    "payment_method_id": "CRD123456789",
+    "payment_method": "card",
+    "connector_transaction_id": "CNTR123456789",
+    "capture_method": "automatic",
+    "capture_on": "2022-09-10T10:11:12Z",
+    "confirm": false,
+    "authentication_type": "no_three_ds",
+    "created_at": "2024-02-26T12:00:00Z",
+    "modified_at": "2024-02-26T12:00:00Z",
+    "last_synced": null,
+    "cancellation_reason": null,
+    "amount_to_capture": 10000,
+    "mandate_id": null,
+    "browser_info": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "language": "nl-NL",
+        "color_depth": 24,
+        "screen_height": 723,
+        "screen_width": 1536,
+        "time_zone": 0,
+        "java_enabled": true,
+        "java_script_enabled": true,
+        "ip_address": "127.0.0.1"
+    },
+    "error_code": null,
+    "payment_token": "TOKEN123456789",
+    "connector_metadata": null,
+    "payment_experience": "redirect_to_url",
+    "payment_method_type": "credit",
+    "payment_method_data": {
+        "card": {
+            "card_number": "4242424242424242",
+            "card_exp_month": "10",
+            "card_cvc": "123",
+            "card_exp_year": "2024",
+            "card_holder_name": "John Doe"
+        }
+    },
+    "business_sub_label": "Premium",
+    "straight_through_algorithm": null,
+    "preprocessing_step_id": null,
+    "mandate_details": null,
+    "error_reason": null,
+    "multiple_capture_count": 0,
+    "connector_response_reference_id": null,
+    "amount_capturable": 10000,
+    "updated_by": "redis_kv",
+    "merchant_connector_id": "MCN123456789",
+    "authentication_data": null,
+    "encoded_data": null,
+    "unified_code": null,
+    "unified_message": null,
+    "net_amount": 10200,
+    "mandate_data": {
+    "customer_acceptance": {
+        "acceptance_type": "offline",
+        "accepted_at": "1963-05-03T04:07:52.723Z",
+        "online": {
+            "ip_address": "127.0.0.1",
+            "user_agent": "amet irure esse"
+        }
+    },
+    "mandate_type": {
+        "single_use": {
+            "amount": 6540,
+            "currency": "USD"
+        }
+    }
+},
+    "fingerprint_id": null
+}"#;
+        let deserialized =
+            serde_json::from_str::<super::PaymentAttempt>(serialized_payment_attempt);
+
+        assert!(deserialized.is_ok());
     }
 }

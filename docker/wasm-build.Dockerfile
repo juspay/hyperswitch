@@ -4,7 +4,7 @@ ARG RUN_ENV=sandbox
 ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
-    && apt-get install -y libssl-dev pkg-config
+    && apt-get install -y clang libssl-dev pkg-config
 
 ENV CARGO_INCREMENTAL=0
 # Allow more retries for network requests in cargo (downloading crates) and

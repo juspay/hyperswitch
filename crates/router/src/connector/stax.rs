@@ -4,8 +4,8 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use transformers as stax;
 
 use self::stax::StaxWebhookEventType;
@@ -24,7 +24,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
+        ErrorResponse, Response,
     },
     utils::BytesExt,
 };
@@ -107,7 +107,6 @@ impl ConnectorCommon for Stax {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(
                 std::str::from_utf8(&res.response)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .to_owned(),
             ),
@@ -853,8 +852,9 @@ impl api::IncomingWebhook for Stax {
     async fn verify_webhook_source(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _merchant_connector_account: domain::MerchantConnectorAccount,
+        _merchant_id: &str,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)
@@ -870,29 +870,25 @@ impl api::IncomingWebhook for Stax {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         match webhook_body.transaction_type {
-            stax::StaxWebhookEventType::Refund => {
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
-                ))
-            }
-            stax::StaxWebhookEventType::Unknown => {
+            StaxWebhookEventType::Refund => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
+            )),
+            StaxWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
-            stax::StaxWebhookEventType::PreAuth
-            | stax::StaxWebhookEventType::Capture
-            | stax::StaxWebhookEventType::Charge
-            | stax::StaxWebhookEventType::Void => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(match webhook_body
-                        .transaction_type
-                    {
-                        stax::StaxWebhookEventType::Capture => webhook_body
+            StaxWebhookEventType::PreAuth
+            | StaxWebhookEventType::Capture
+            | StaxWebhookEventType::Charge
+            | StaxWebhookEventType::Void => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    match webhook_body.transaction_type {
+                        StaxWebhookEventType::Capture => webhook_body
                             .auth_id
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                         _ => webhook_body.id,
-                    }),
-                ))
-            }
+                    },
+                ),
+            )),
         }
     }
 
@@ -927,7 +923,6 @@ impl api::IncomingWebhook for Stax {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
     }

@@ -153,6 +153,8 @@ where
                         i.authentication_type.as_ref().map(|i| i.0),
                         i.payment_method.clone(),
                         i.payment_method_type.clone(),
+                        i.client_source.clone(),
+                        i.client_version.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
