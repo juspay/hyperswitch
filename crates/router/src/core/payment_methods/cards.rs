@@ -269,23 +269,10 @@ pub async fn get_or_insert_payment_method(
 pub async fn migrate_payment_method(
     state: routes::SessionState,
     req: api::PaymentMethodMigrate,
+    merchant_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    let merchant_id = &req.merchant_id;
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
     let card_details = req.card.as_ref().get_required_value("card")?;
 
     let card_number_validation_result =
@@ -294,7 +281,7 @@ pub async fn migrate_payment_method(
     if let Some(connector_mandate_details) = &req.connector_mandate_details {
         helpers::validate_merchant_connector_ids_in_connector_mandate_details(
             &*state.store,
-            &key_store,
+            key_store,
             connector_mandate_details,
             merchant_id,
         )
@@ -311,8 +298,8 @@ pub async fn migrate_payment_method(
             get_client_secret_or_add_payment_method(
                 state,
                 payment_method_create_request,
-                &merchant_account,
-                &key_store,
+                merchant_account,
+                key_store,
             )
             .await
         }
@@ -322,8 +309,8 @@ pub async fn migrate_payment_method(
                 state,
                 &req,
                 merchant_id.into(),
-                &key_store,
-                &merchant_account,
+                key_store,
+                merchant_account,
             )
             .await
         }
@@ -513,7 +500,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 payment_method_issuer: req.payment_method_issuer.clone(),
-                scheme: req.card_network.clone(),
+                scheme: req
+                    .card_network
+                    .clone()
+                    .or(card.clone().and_then(|card| card.scheme.clone())),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted.map(Into::into),
                 connector_mandate_details: Some(connector_mandate_details),
