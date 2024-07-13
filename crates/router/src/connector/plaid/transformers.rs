@@ -1,11 +1,11 @@
 use common_enums::Currency;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
@@ -92,15 +92,15 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
         item: &PlaidRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankRedirect(ref bank) => match bank {
-                api_models::payments::BankRedirectData::OpenBanking { .. } => {
+            domain::PaymentMethodData::OpenBanking(ref data) => match data {
+                domain::OpenBankingData::OpenBankingPIS { .. } => {
                     let amount =
                         item.amount
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "amount",
                             })?;
                     let currency = item.router_data.request.currency;
-                    let reference = "Some ref".to_string();
+                    let reference = item.router_data.payment_id.clone();
                     let recipient_val = item
                         .router_data
                         .connector_meta_data
@@ -113,16 +113,16 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
 
                     let recipient_type =
                         serde_json::from_value::<types::MerchantRecipientData>(recipient_val)
-                            .into_report()
                             .change_context(errors::ConnectorError::ParsingFailed)?;
                     let recipient_id = match recipient_type {
-                        types::MerchantRecipientData::RecipientId(id) => Ok(id.peek().to_string()),
+                        types::MerchantRecipientData::ConnectorRecipientId(id) => {
+                            Ok(id.peek().to_string())
+                        }
                         _ => Err(errors::ConnectorError::NotSupported {
-                            message: "recipient_id not found, other methods".to_string(),
+                            message: "recipient_id not found for Plaid".to_string(),
                             connector: "plaid",
                         }),
-                    }
-                    .into_report()?;
+                    }?;
 
                     Ok(Self {
                         amount: PlaidAmount {
@@ -135,10 +135,6 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                         options: None,
                     })
                 }
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment method type".to_string())
-                        .into(),
-                ),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -167,8 +163,8 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for Pla
         item: &PlaidRouterData<&types::PaymentsPostProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankRedirect(ref bank) => match bank {
-                api_models::payments::BankRedirectData::OpenBanking { .. } => Ok(Self {
+            domain::PaymentMethodData::OpenBanking(ref data) => match data {
+                domain::OpenBankingData::OpenBankingPIS { .. } => Ok(Self {
                     // discuss this with folks
                     client_name: "Hyperswitch".to_string(),
                     country_codes: vec!["GB".to_string()],
@@ -193,10 +189,6 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for Pla
                             })?,
                     },
                 }),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment method type".to_string())
-                        .into(),
-                ),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -214,7 +206,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::OpenBankingAuth { api_key, key1, .. } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_id: api_key.to_owned(),
                 secret: key1.to_owned(),
             }),
@@ -288,6 +280,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -372,6 +365,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 })
             },
             ..item.data

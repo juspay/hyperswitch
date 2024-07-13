@@ -1823,6 +1823,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connector::Plaid,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2974,7 +2975,8 @@ default_imp_for_connector_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_authorize_session_token {
@@ -3064,5 +3066,6 @@ default_imp_for_authorize_session_token!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );

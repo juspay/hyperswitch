@@ -1501,14 +1501,23 @@ where
     )
     .await?;
 
-    let merchant_recipient_data = get_merchant_bank_data_for_open_banking_connectors(
-        &merchant_connector_account,
-        key_store,
-        &connector,
-        state,
-        merchant_account,
-    )
-    .await?;
+    let payment_method = payment_data
+        .payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?;
+
+    let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
+        get_merchant_bank_data_for_open_banking_connectors(
+            &merchant_connector_account,
+            key_store,
+            &connector,
+            state,
+            merchant_account,
+        )
+        .await?
+    } else {
+        None
+    };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -2136,17 +2145,17 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::BankRedirect(data)) => match data {
-            api_models::payments::BankRedirectData::OpenBanking { .. } => {
-                if connector.connector_name == router_types::Connector::Plaid {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-                    (router_data, true)
-                } else {
-                    (router_data, should_continue_payment)
-                }
-            }
-            _ => (router_data, should_continue_payment),
-        },
+        // Some(api_models::payments::PaymentMethodData::BankRedirect(data)) => match data {
+        //     api_models::payments::BankRedirectData::OpenBanking { .. } => {
+        //         if connector.connector_name == router_types::Connector::Plaid {
+        //             router_data = router_data.preprocessing_steps(state, connector).await?;
+        //             (router_data, true)
+        //         } else {
+        //             (router_data, should_continue_payment)
+        //         }
+        //     }
+        //     _ => (router_data, should_continue_payment),
+        // },
         _ => {
             // 3DS validation for paypal cards after verification (authorize call)
             if connector.connector_name == router_types::Connector::Paypal

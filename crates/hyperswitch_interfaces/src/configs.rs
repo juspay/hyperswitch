@@ -80,6 +80,7 @@ pub struct Connectors {
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
+    pub plaid: ConnectorParams,
 }
 
 /// struct ConnectorParams

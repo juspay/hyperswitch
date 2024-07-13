@@ -218,11 +218,6 @@ pub enum ConnectorAuthType {
         client_id: Secret<String>,
         secret: Secret<String>,
     },
-    OpenBankingAuth {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        merchant_data: MerchantRecipientData,
-    },
     #[default]
     NoKey,
 }
