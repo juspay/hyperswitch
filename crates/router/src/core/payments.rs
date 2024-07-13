@@ -1501,14 +1501,23 @@ where
     )
     .await?;
 
-    let merchant_recipient_data = get_merchant_bank_data_for_open_banking_connectors(
-        &merchant_connector_account,
-        key_store,
-        &connector,
-        state,
-        merchant_account,
-    )
-    .await?;
+    let payment_method = payment_data
+        .payment_attempt
+        .payment_method
+        .get_required_value("PaymentMethod")?;
+
+    let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
+        get_merchant_bank_data_for_open_banking_connectors(
+            &merchant_connector_account,
+            key_store,
+            &connector,
+            state,
+            merchant_account,
+        )
+        .await?
+    } else {
+        None
+    };
 
     let mut router_data = payment_data
         .construct_router_data(
