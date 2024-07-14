@@ -2002,6 +2002,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.2",
+ "thiserror",
  "utoipa",
 ]
 
@@ -6219,6 +6220,7 @@ name = "router_env"
 version = "0.1.0"
 dependencies = [
  "cargo_metadata 0.18.1",
+ "common_enums",
  "config",
  "error-stack",
  "gethostname",
@@ -7238,6 +7240,7 @@ dependencies = [
  "async-trait",
  "bb8",
  "bytes 1.6.0",
+ "common_enums",
  "common_utils",
  "config",
  "crc32fast",
@@ -8439,9 +8442,9 @@ checksum = "110352d4e9076c67839003c7788d8604e24dcded13e0b375af3efaa8cf468517"
 
 [[package]]
 name = "utf8parse"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
+checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "utoipa"

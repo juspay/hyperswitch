@@ -116,7 +116,8 @@ pub async fn start_web_server(
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new().service(Health::server(state.clone(), service.clone()))
     })
-    .bind((server.host.as_str(), server.port))?
+    .bind((server.host.as_str(), server.port))
+    .change_context(ApplicationError::ConfigurationError)?
     .workers(server.workers)
     .run();
     let _ = web_server.handle();
