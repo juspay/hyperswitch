@@ -2808,7 +2808,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Self::MandiriVaBankTransfer
                     }
-                    domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    domain::payments::BankTransferData::Pix { .. } => Self::Pix,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

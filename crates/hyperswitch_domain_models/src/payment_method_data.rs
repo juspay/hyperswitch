@@ -437,9 +437,18 @@ pub enum BankTransferData {
     CimbVaBankTransfer {},
     DanamonVaBankTransfer {},
     MandiriVaBankTransfer {},
-    Pix {},
+    Pix {
+        /// Unique key for pix transfer
+        pix_key: Option<Secret<String>>,
+        /// CPF is a Brazilian tax identification number
+        cpf: Option<Secret<String>>,
+        /// CNPJ is a Brazilian company tax identification number
+        cnpj: Option<Secret<String>>,
+    },
     Pse {},
-    LocalBankTransfer { bank_code: Option<String> },
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -901,7 +910,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix {} => Self::Pix {},
+            api_models::payments::BankTransferData::Pix { pix_key, cpf, cnpj } => {
+                Self::Pix { pix_key, cpf, cnpj }
+            }
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }

@@ -1841,7 +1841,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
-            Self::Pix {} => api_enums::PaymentMethodType::Pix,
+            Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
         }
@@ -2442,7 +2442,14 @@ pub enum BankTransferData {
         /// The billing details for BniVa Bank Transfer
         billing_details: Option<DokuBillingDetails>,
     },
-    Pix {},
+    Pix {
+        /// Unique key for pix transfer
+        pix_key: Option<Secret<String>>,
+        /// CPF is a Brazilian tax identification number
+        cpf: Option<Secret<String>>,
+        /// CNPJ is a Brazilian company tax identification number
+        cnpj: Option<Secret<String>>,
+    },
     Pse {},
     LocalBankTransfer {
         bank_code: Option<String>,
@@ -2514,7 +2521,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     email: details.email.clone(),
                 })
             }
-            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix { .. } | Self::Pse {} => None,
         }
     }
 }

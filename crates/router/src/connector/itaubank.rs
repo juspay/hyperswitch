@@ -1,8 +1,9 @@
 pub mod transformers;
 
-use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use hyperswitch_interfaces::consts;
+use masking::PeekInterface;
 use transformers as itaubank;
 
 use super::utils::{self as connector_utils};
@@ -11,11 +12,7 @@ use crate::{
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -26,13 +23,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Itaubank {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Itaubank {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -68,12 +65,24 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let access_token =
+            req.access_token
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "access_token",
+                })?;
+
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.peek()).into(),
+            ),
+        ];
+
         Ok(header)
     }
 }
@@ -93,18 +102,6 @@ impl ConnectorCommon for Itaubank {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.itaubank.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = itaubank::ItaubankAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -141,6 +138,105 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Itaubank
 {
+    fn get_url(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/oauth/jwt",
+            connectors.itaubank.secondary_base_url
+        ))
+    }
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+    fn get_headers(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefreshTokenType::get_content_type(self)
+                .to_string()
+                .into(),
+        )])
+    }
+    fn get_request_body(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = itaubank::ItaubankAuthRequest::try_from(req)?;
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let req = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+        let response: itaubank::ItaubankUpdateTokenResponse = res
+            .response
+            .parse_struct("ItaubankUpdateTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: itaubank::ItaubankTokenErrorResponse = res
+            .response
+            .parse_struct("ItaubankTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.to_string(),
+            message: response
+                .title
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.detail,
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
 }
 
 impl
@@ -170,9 +266,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/post/cob", self.base_url(connectors)))
     }
 
     fn get_request_body(

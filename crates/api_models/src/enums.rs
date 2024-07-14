@@ -182,6 +182,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {

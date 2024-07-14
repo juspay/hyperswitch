@@ -2458,7 +2458,7 @@ impl<'a>
             domain::BankTransferData::MandiriVaBankTransfer {} => Ok(
                 AdyenPaymentMethod::MandiriVa(Box::new(DokuBankData::try_from(item)?)),
             ),
-            domain::BankTransferData::Pix {} => {
+            domain::BankTransferData::Pix { .. } => {
                 Ok(AdyenPaymentMethod::Pix(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Pix,
                 })))
