@@ -631,7 +631,8 @@ impl
                         .map(|network| network.to_lowercase())
                         .as_deref()
                     {
-                        Some("discover") => {
+                        //This is to make original_authorized_amount mandatory for discover card networks in NetworkMandateId flow
+                        Some("004") => {
                             let original_amount = Some(
                                 item.router_data
                                     .get_recurring_mandate_payment_data()?
