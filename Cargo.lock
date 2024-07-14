@@ -2398,6 +2398,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "csv"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac574ff4d437a7b5ad237ef331c17ccca63c46479e5b5453eb8e10bb99a759fe"
+dependencies = [
+ "csv-core",
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
+name = "csv-core"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5efa2b3d7902f4b634a20cae3c9c4e6209dc4779feb6863329607560143efa70"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "currency_conversion"
 version = "0.1.0"
 dependencies = [
@@ -3914,10 +3935,14 @@ dependencies = [
 name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
+ "api_models",
  "async-trait",
  "bytes 1.6.0",
+ "common_enums",
  "common_utils",
  "dyn-clone",
+ "error-stack",
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking",
@@ -6089,6 +6114,7 @@ dependencies = [
  "common_utils",
  "config",
  "cookie 0.18.1",
+ "csv",
  "currency_conversion",
  "derive_deref",
  "diesel",

@@ -74,9 +74,9 @@ pub async fn toggle_blocklist_guard_for_merchant(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
         }
-        Err(e) => {
-            logger::error!(error=?e);
-            Err(e)
+        Err(error) => {
+            logger::error!(?error);
+            Err(error)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
         }
@@ -323,8 +323,8 @@ where
         .await
         .attach_printable("error in pm fingerprint creation")
         .map_or_else(
-            |err| {
-                logger::error!(error=?err);
+            |error| {
+                logger::error!(?error);
                 None
             },
             Some,
@@ -469,8 +469,8 @@ pub async fn generate_payment_fingerprint(
             .await
             .attach_printable("error in pm fingerprint creation")
             .map_or_else(
-                |err| {
-                    logger::error!(error=?err);
+                |error| {
+                    logger::error!(?error);
                     None
                 },
                 Some,

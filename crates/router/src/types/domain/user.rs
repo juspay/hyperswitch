@@ -6,6 +6,8 @@ use api_models::{
 use common_enums::TokenPurpose;
 #[cfg(not(feature = "v2"))]
 use common_utils::id_type;
+#[cfg(feature = "keymanager_create")]
+use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
@@ -37,6 +39,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
 
@@ -970,6 +973,19 @@ impl UserFromStorage {
                     .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
+
+            #[cfg(feature = "keymanager_create")]
+            {
+                common_utils::keymanager::create_key_in_key_manager(
+                    &state.into(),
+                    EncryptionCreateRequest {
+                        identifier: Identifier::User(key_store.user_id.clone()),
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+            }
+
             state
                 .global_store
                 .insert_user_key_store(key_store, &master_key.to_vec().into())
