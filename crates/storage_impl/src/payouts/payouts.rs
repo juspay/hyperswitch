@@ -747,7 +747,9 @@ impl DataModelExt for PayoutsNew {
             entity_type: self.entity_type,
             metadata: self.metadata,
             created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
-            last_modified_at: self.last_modified_at.unwrap_or_else(common_utils::date_time::now),
+            last_modified_at: self
+                .last_modified_at
+                .unwrap_or_else(common_utils::date_time::now),
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
