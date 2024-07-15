@@ -2690,6 +2690,7 @@ pub struct SamsungPayWalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum OpenBankingData {
+    #[serde(rename = "open_banking_pis")]
     OpenBankingPIS {},
 }
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
