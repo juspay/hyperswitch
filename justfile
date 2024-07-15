@@ -58,10 +58,10 @@ v1_migration_dir := 'migrations'
 resultant_dir := 'final-migrations'
 default_operation := 'run'
 default_migration_params := ''
-v1_config_file := 'diesel.toml'
-v2_config_file := 'diesel_v2.toml'
-v1_config_params := ('--config-file ' + v1_config_file)
-v2_config_params := ('--config-file ' + v2_config_file)
+v1_config_file_dir := 'diesel.toml'
+v2_config_file_dir := 'diesel_v2.toml'
+v1_config_params := ('--config-file ' + v1_config_file_dir)
+v2_config_params := ('--config-file ' + v2_config_file_dir)
 
 # Copy v1 and v2 migrations to a single directory
 [private]
@@ -82,21 +82,21 @@ delete_dir_if_exists dir=resultant_dir:
     fi
 
 [private]
-run_migration operation=default_operation migration_dir=v1_migration_dir migration_parameters=default_migration_params url=default_db_url:
+run_migration operation=default_operation migration_dir=v1_migration_dir config_file_dir=v1_config_file_dir url=default_db_url other_params=default_migration_params:
     diesel migration \
-        --database-url {{url}} \
+        --database-url '{{url}}' \
         {{ operation }} \
-        --migration-dir {{migration_dir}} \
-        {{migration_parameters}} ||  just delete_dir_if_exists 
+        --migration-dir '{{migration_dir}}' \
+        --config-file '{{config_file_dir}}' \
+        {{other_params}} ||  just delete_dir_if_exists 
 
 # Run database migrations for v1
-migrate_v1 operation='run': (run_migration operation v1_migration_dir v1_config_params)
+migrate_v1 operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir default_db_url args)
 
 # Run database migrations for v2
-migrate_v2 operation='run': copy_migrations (run_migration operation resultant_dir v2_config_params) delete_dir_if_exists
+migrate_v2 operation='run' *args='': copy_migrations (run_migration operation resultant_dir v2_config_file_dir default_db_url args) delete_dir_if_exists
 
 # Drop if exists and then create a new 'hyperswitch_db' Database
 reserruct:
     psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db WITH (FORCE)';
     psql -U postgres -c 'CREATE DATABASE hyperswitch_db';
-
