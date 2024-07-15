@@ -84,8 +84,6 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
-    /// Sync capture amount in case of automatic capture
-    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -384,7 +382,6 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
-    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
