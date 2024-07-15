@@ -120,6 +120,7 @@ pub enum WalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MifinityData {
     pub date_of_birth: Secret<Date>,
+    pub language_preference: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -620,6 +621,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::Mifinity(mifinity_data) => {
                 Self::Mifinity(MifinityData {
                     date_of_birth: mifinity_data.date_of_birth,
+                    language_preference: mifinity_data.language_preference,
                 })
             }
         }

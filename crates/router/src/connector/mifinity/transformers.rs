@@ -63,6 +63,8 @@ pub struct MifinityPaymentsRequest {
     destination_account_number: Secret<String>,
     brand_id: Secret<String>,
     return_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language_preference: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -136,6 +138,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     let destination_account_number = metadata.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
                     let brand_id = metadata.brand_id;
+                    let language_preference = data.language_preference.clone();
                     Ok(Self {
                         money,
                         client,
@@ -147,6 +150,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         destination_account_number,
                         brand_id,
                         return_url: item.router_data.request.get_router_return_url()?,
+                        language_preference,
                     })
                 }
                 domain::WalletData::AliPayQr(_)
