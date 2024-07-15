@@ -1,6 +1,5 @@
 use common_utils::custom_serde;
-use diesel::{
-    deserialize::FromSqlRow, expression::AsExpression, AsChangeset, Identifiable, Insertable,
+use diesel::{expression::AsExpression, AsChangeset, Identifiable, Insertable,
     Queryable, Selectable,
 };
 use serde::{Deserialize, Serialize};
@@ -60,7 +59,7 @@ pub struct Event {
     pub metadata: Option<EventMetadata>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, AsExpression, FromSqlRow)]
+#[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub enum EventMetadata {
     Payment {
