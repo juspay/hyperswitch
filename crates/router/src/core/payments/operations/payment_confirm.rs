@@ -345,7 +345,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .customer_acceptance
             .clone()
             .map(|customer_acceptance| {
-                serde_json::from_value(customer_acceptance.expose())
+                customer_acceptance
+                    .expose()
+                    .parse_value("CustomerAcceptance")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while deserializing customer_acceptance")
             })
