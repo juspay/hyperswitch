@@ -1504,7 +1504,7 @@ where
     let payment_method = payment_data
         .payment_attempt
         .payment_method
-        .get_required_value("payment_method")?;
+        .get_required_value("PaymentMethod")?;
 
     let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
         get_merchant_bank_data_for_open_banking_connectors(
