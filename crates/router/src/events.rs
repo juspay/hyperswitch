@@ -90,11 +90,8 @@ impl EventsHandler {
         };
     }
     pub fn add_tenant(&mut self, tenant_config: &dyn TenantConfig) {
-        match self {
-            Self::Kafka(kafka_producer) => {
-                kafka_producer.set_tenancy(tenant_config);
-            }
-            _ => {}
+        if let Self::Kafka(kafka_producer) = self {
+            kafka_producer.set_tenancy(tenant_config);
         }
     }
 }
