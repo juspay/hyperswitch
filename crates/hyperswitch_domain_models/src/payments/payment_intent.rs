@@ -630,7 +630,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
 
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
-        let modified_at = Some(common_utils::date_time::now());
+        let modified_at = common_utils::date_time::now();
 
         let PaymentIntentUpdateInternal {
             amount,
@@ -681,7 +681,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             metadata,
             billing_address_id,
             shipping_address_id,
-            modified_at: modified_at.unwrap_or_else(common_utils::date_time::now),
+            modified_at,
             active_attempt_id,
             business_country,
             business_label,
