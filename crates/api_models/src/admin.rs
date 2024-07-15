@@ -9,13 +9,11 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -24,7 +22,6 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
