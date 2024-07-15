@@ -632,7 +632,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_account (id) {
+    merchant_account (merchant_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -739,6 +739,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_attempt (attempt_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -828,6 +829,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_intent (payment_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]

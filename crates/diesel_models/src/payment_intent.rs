@@ -9,6 +9,7 @@ use crate::{encryption::Encryption, enums as storage_enums, schema::payment_inte
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id))]
 pub struct PaymentIntent {
+    pub id: Option<i32>,
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,

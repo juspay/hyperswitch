@@ -10,6 +10,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id))]
 pub struct PaymentAttempt {
+    pub id: Option<i32>,
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
