@@ -1338,7 +1338,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|data| data.customer_id.clone());
 
-        let conn_transaction_id = payment_data.payment_attempt.connector_transaction_id;
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges
                 .peek()
@@ -1377,7 +1376,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_category,
             session_token: None,
             enrolled_for_3ds: true,
-            related_transaction_id: conn_transaction_id,
+            related_transaction_id: None,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             router_return_url,
             webhook_url,
