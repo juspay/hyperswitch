@@ -186,9 +186,113 @@ jobs:
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}"
+            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2' 
             echo '::endgroup::'
           done
+
+  check-msrv-v2:
+    name: Check compilation on MSRV toolchain for v2 related features
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - hyperswitch-runners
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Fetch base branch"
+        shell: bash
+        run: git fetch origin $GITHUB_BASE_REF --depth 1
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Get rust version from Cargo.toml
+        shell: bash
+        run: |
+          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
+          echo "rust_version=${rust_version}" >> $GITHUB_ENV
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "${{ env.rust_version }}"
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
+      - name: Check modified crates
+        shell: bash
+        run: |
+          # Obtain a list of workspace members
+          workspace_members="$(
+            cargo metadata --format-version 1 --no-deps \
+              | jq \
+                --compact-output \
+                --monochrome-output \
+                --raw-output \
+                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
+          )"
+
+          PACKAGES_CHECKED=()
+          PACKAGES_SKIPPED=()
+
+          while IFS= read -r package_name; do
+            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
+            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
+              | grep 'crates/' \
+              | sort --unique \
+              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
+
+            # Store change paths in an array by splitting `change_paths` by comma
+            IFS=',' read -ra change_paths <<< "${change_paths}"
+
+            # A package must be checked if any of its transitive dependencies (or itself) has been modified
+            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
+              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_SKIPPED+=("${package_name}")
+            else
+              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_CHECKED+=("${package_name}")
+            fi
+          done <<< "${workspace_members}"
+
+          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
+
+      - name: Run `cargo hack` for v2 & intermediate_v2 features on api_models, hyperswitch_domain_models, diesel_models, hyperswitch_interfaces
+        shell: bash
+        run: |
+          cargo hack check --all-targets --features 'v2 merchant_account_v2 payment_v2' --package api_models --package hyperswitch_domain_models --package hyperswitch_interfaces --package diesel_models
+          echo '::endgroup::'
+
+      - name: Run `cargo hack` for v2 feature on all packages
+        shell: bash
+        run: |
+          cargo hack check --all-targets --features 'v2'
+          echo '::endgroup::'
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -351,9 +455,154 @@ jobs:
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}"
+            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2'
             echo '::endgroup::'
           done
+
+
+  test-v2:
+    name: Run tests on stable toolchain for v2 related features
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - hyperswitch-runners
+
+    steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository for fork
+        if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v4
+
+      - name: Checkout repository with token
+        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: "Fetch base branch"
+        shell: bash
+        run: git fetch origin $GITHUB_BASE_REF --depth 1
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
+
+      # - name: Install cargo-nextest
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: cargo-nextest
+      #     checksum: true
+
+      # - name: Setup Embark Studios lint rules
+      #   shell: bash
+      #   run: |
+      #     mkdir -p .cargo
+      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
+      - name: Run clippy
+        shell: bash
+        run: cargo clippy --all-features --all-targets
+
+      - name: Check Cargo.lock changed
+        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- Cargo.lock ; then
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+            git add Cargo.lock
+            git commit --message 'chore: update Cargo.lock'
+            git push
+          fi
+
+      - name: Check modified crates
+        shell: bash
+        run: |
+          # Obtain a list of workspace members
+          workspace_members="$(
+            cargo metadata --format-version 1 --no-deps \
+              | jq \
+                --compact-output \
+                --monochrome-output \
+                --raw-output \
+                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
+          )"
+
+          PACKAGES_CHECKED=()
+          PACKAGES_SKIPPED=()
+
+          while IFS= read -r package_name; do
+            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
+            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
+              | grep 'crates/' \
+              | sort --unique \
+              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
+
+            # Store change paths in an array by splitting `change_paths` by comma
+            IFS=',' read -ra change_paths <<< "${change_paths}"
+
+            # A package must be checked if any of its transitive dependencies (or itself) has been modified
+            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
+              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_SKIPPED+=("${package_name}")
+            else
+              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_CHECKED+=("${package_name}")
+            fi
+          done <<< "${workspace_members}"
+
+          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
+
+      - name: Run `cargo hack` for v2 & intermediate_v2 features on api_models, hyperswitch_domain_models, diesel_models, hyperswitch_interfaces
+        shell: bash
+        run: |
+          cargo hack check --all-targets --features 'v2 merchant_account_v2 payment_v2' --package api_models --package hyperswitch_domain_models --package hyperswitch_interfaces --package diesel_models
+          echo '::endgroup::'
+
+      - name: Run `cargo hack` for v2 feature on all packages
+        shell: bash
+        run: |
+          cargo hack check --all-targets --features 'v2'
+          echo '::endgroup::'
 
   typos:
     name: Spell check
