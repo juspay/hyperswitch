@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.12.0-hotfix1
+
+### Bug Fixes
+
+- **payments:** Populate merchant order ref id in list ([#5321](https://github.com/juspay/hyperswitch/pull/5321)) ([`f1750f7`](https://github.com/juspay/hyperswitch/commit/f1750f7dbb70f375b81f32fa06a624eef36ea6c0))
+
+- - -
+
 ## 2024.07.12.0
 
 ### Features
