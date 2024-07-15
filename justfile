@@ -91,12 +91,12 @@ run_migration operation=default_operation migration_dir=v1_migration_dir config_
         {{other_params}} ||  just delete_dir_if_exists 
 
 # Run database migrations for v1
-migrate_v1 operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir default_db_url args)
+migrate operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir default_db_url args)
 
 # Run database migrations for v2
 migrate_v2 operation='run' *args='': copy_migrations (run_migration operation resultant_dir v2_config_file_dir default_db_url args) delete_dir_if_exists
 
-# Drop if exists and then create a new 'hyperswitch_db' Database
+# Drop database if exists and then create a new 'hyperswitch_db' Database
 reserruct:
     psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db WITH (FORCE)';
     psql -U postgres -c 'CREATE DATABASE hyperswitch_db';
