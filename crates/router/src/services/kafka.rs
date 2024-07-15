@@ -352,6 +352,7 @@ impl KafkaProducer {
             self.log_event(&KafkaEvent::old(
                 &KafkaFraudCheck::from_storage(&negative_event),
                 tenant_id.clone(),
+                self.ckh_database_name.clone(),
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative fraud check event {negative_event:?}")
@@ -361,6 +362,7 @@ impl KafkaProducer {
         self.log_event(&KafkaEvent::new(
             &KafkaFraudCheck::from_storage(attempt),
             tenant_id.clone(),
+            self.ckh_database_name.clone(),
         ))
         .attach_printable_lazy(|| {
             format!("Failed to add positive fraud check event {attempt:?}")
