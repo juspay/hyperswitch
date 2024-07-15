@@ -25,7 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/utils";
+import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/Utils";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
@@ -79,6 +79,53 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
     globalState.set("apiKey", response.body.api_key);
   });
 });
+
+Cypress.Commands.add(
+  "createNamedConnectorCallTest",
+  (
+    createConnectorBody,
+    payment_methods_enabled,
+    globalState,
+    connectorName
+  ) => {
+    const merchantId = globalState.get("merchantId");
+    createConnectorBody.connector_name = connectorName;
+    createConnectorBody.payment_methods_enabled = payment_methods_enabled;
+    // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
+    // it is best to use then() to handle the response within the same block of code
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const authDetails = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
+        );
+        createConnectorBody.connector_account_details = authDetails;
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          body: createConnectorBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          if (response.status === 200) {
+            expect(connectorName).to.equal(response.body.connector_name);
+          } else {
+            cy.task(
+              "cli_log",
+              "response status -> " + JSON.stringify(response.status)
+            );
+          }
+        });
+      }
+    );
+  }
+);
 
 Cypress.Commands.add(
   "createConnectorCallTest",
@@ -211,6 +258,82 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       globalState.set("customerId", response.body.customer_id);
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "paymentMethodListTestLessThanEqualToOnePaymentMethod",
+  (res_data, globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        expect(response.body).to.have.property("currency");
+        if (res_data["payment_methods"].length == 1) {
+          function getPaymentMethodType(obj) {
+            return obj["payment_methods"][0]["payment_method_types"][0][
+              "payment_method_type"
+            ];
+          }
+          expect(getPaymentMethodType(res_data)).to.equal(
+            getPaymentMethodType(response.body)
+          );
+        } else {
+          expect(0).to.equal(response.body["payment_methods"].length);
+        }
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit",
+  (res_data, globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        expect(response.body).to.have.property("currency");
+        if (res_data["payment_methods"].length > 0) {
+          function getPaymentMethodType(obj) {
+            return obj["payment_methods"][0]["payment_method_types"][0][
+              "card_networks"
+            ][0]["eligible_connectors"]
+              .slice()
+              .sort();
+          }
+          for (let i = 0; i < getPaymentMethodType(response.body).length; i++) {
+            expect(getPaymentMethodType(res_data)[i]).to.equal(
+              getPaymentMethodType(response.body)[i]
+            );
+          }
+        } else {
+          expect(0).to.equal(response.body["payment_methods"].length);
+        }
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
     });
   }
 );

@@ -476,7 +476,6 @@ where
             });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
-
     let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 

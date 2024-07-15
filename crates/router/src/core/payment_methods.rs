@@ -1,6 +1,7 @@
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 use std::collections::HashMap;
 
@@ -279,12 +280,7 @@ pub async fn render_pm_collect_link(
                     ))?;
 
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    publishable_key: merchant_account
-                        .publishable_key
-                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "publishable_key",
-                        })?
-                        .into(),
+                    publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
                     customer_id: customer.customer_id,
