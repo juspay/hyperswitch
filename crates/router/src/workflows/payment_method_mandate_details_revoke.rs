@@ -1,10 +1,3 @@
-use common_utils::ext_traits::ValueExt;
-use diesel_models::process_tracker::business_status;
-use error_stack::ResultExt;
-use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
-};
-
 use crate::{
     core::{
         mandate::utils,
@@ -12,13 +5,20 @@ use crate::{
     },
     db::StorageInterface,
     errors,
-    routes::SessionState,
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
         api::{ConnectorData, GetToken},
         storage,
     },
+};
+use common_utils::ext_traits::ValueExt;
+use diesel_models::process_tracker::business_status;
+use error_stack::ResultExt;
+use router_env::metrics::add_attributes;
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
 
 pub struct PaymentMethodMandateDetailsRevokeWorkflow;
@@ -77,7 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
             merchant_connector_account,
             &merchant_account,
             tracking_data.customer_id.clone(),
-            connector_name,
+            &connector_name,
             Some(tracking_data.connector_mandate_id),
             None,
         )
@@ -94,11 +94,27 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
         match response.response {
             Ok(_mandate) => {
+                metrics::CONNECTOR_MANDATE_REVOKE_SUCCEDED.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([("flow", "")]),
+                );
                 db.as_scheduler()
                     .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                     .await?;
             }
             Err(err) => {
+                metrics::CONNECTOR_MANDATE_REVOKE_FAILED.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([(
+                        "flow",
+                        format!(
+                            "connector_name = {:?}, error_code = {:?}",
+                            &connector_name, err.code
+                        ),
+                    )]),
+                );
                 // if not implemented end the task in the PT
                 if err.code == "IR_00" {
                     db.as_scheduler()
@@ -109,6 +125,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
                         .await?;
                 } else {
                     // if connector err re-schedule task
+                    metrics::TASKS_RESET_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &add_attributes([("flow", "ConnectorMandateRevokeFlow")]),
+                    );
                     connector_reschedule_task(db, retry_count, process).await?;
                 }
             }

@@ -113,7 +113,7 @@ pub async fn revoke_mandate(
                 merchant_connector_account,
                 &merchant_account,
                 mandate.customer_id.clone(),
-                mandate.connector.clone(),
+                &mandate.connector,
                 mandate.connector_mandate_id.clone(),
                 mandate.original_payment_id.clone(),
             )

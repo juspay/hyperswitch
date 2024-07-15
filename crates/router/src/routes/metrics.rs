@@ -134,3 +134,9 @@ counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 
 // A counter to indicate the integrity check failures
 counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);
+
+// A counter for all the Successful Connector Mandate Revocation
+counter_metric!(CONNECTOR_MANDATE_REVOKE_SUCCEDED, GLOBAL_METER);
+
+// A counter for all the Successful Connector Mandate Revocation
+counter_metric!(CONNECTOR_MANDATE_REVOKE_FAILED, GLOBAL_METER);

@@ -3772,7 +3772,6 @@ where
             }
         }
     }
-
     #[cfg(feature = "connector_choice_mca_id")]
     for connector_data in connectors {
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {

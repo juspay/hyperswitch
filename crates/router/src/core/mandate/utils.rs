@@ -20,7 +20,7 @@ pub async fn construct_mandate_revoke_router_data(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     merchant_account: &domain::MerchantAccount,
     customer_id: id_type::CustomerId,
-    connector: String,
+    connector: &str,
     connector_mandate_id: Option<String>,
     payment_id: Option<String>,
 ) -> CustomResult<types::MandateRevokeRouterData, errors::ApiErrorResponse> {
@@ -33,7 +33,7 @@ pub async fn construct_mandate_revoke_router_data(
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: Some(customer_id),
         connector_customer: None,
-        connector,
+        connector: connector.to_string(),
         payment_id: payment_id
             .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW.to_string()),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
