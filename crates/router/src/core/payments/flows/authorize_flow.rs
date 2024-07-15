@@ -424,7 +424,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
         > = connector.connector.get_connector_integration();
 
         let postprocessing_request_data =
-            types::PaymentsPostProcessingData::try_from(router_data.request.to_owned())?;
+            types::PaymentsPostProcessingData::try_from(router_data.to_owned())?;
 
         let postprocessing_response_data: Result<
             types::PaymentsResponseData,
