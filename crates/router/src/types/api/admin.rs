@@ -11,8 +11,8 @@ pub use api_models::admin::{
 use common_utils::ext_traits::{Encode, ValueExt};
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
@@ -84,65 +84,67 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProfileResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
+pub async fn business_profile_response(
+    item: storage::business_profile::BusinessProfile,
+    key_store: &MerchantKeyStore,
+) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
+    let outgoing_webhook_custom_http_headers = decrypt::<serde_json::Value, masking::WithType>(
+        item.outgoing_webhook_custom_http_headers.clone(),
+        key_store.key.get_inner().peek(),
+    )
+    .await
+    .change_context(errors::ParsingError::StructParseFailure(
+        "Outgoing webhook custom HTTP headers",
+    ))
+    .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+    .map(|decrypted_value| {
+        decrypted_value
+            .into_inner()
+            .expose()
+            .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+    })
+    .transpose()?;
 
-    fn foreign_try_from(
-        item: storage::business_profile::BusinessProfile,
-    ) -> Result<Self, Self::Error> {
-        let outgoing_webhook_custom_http_headers = item
-            .outgoing_webhook_custom_http_headers
-            .as_ref()
-            .map(|headers| {
-                headers.encode_to_value().and_then(|value| {
-                    value.parse_value::<HashMap<String, String>>("HashMap<String,String>")
-                })
+    Ok(BusinessProfileResponse {
+        merchant_id: item.merchant_id,
+        profile_id: item.profile_id,
+        profile_name: item.profile_name,
+        return_url: item.return_url,
+        enable_payment_response_hash: item.enable_payment_response_hash,
+        payment_response_hash_key: item.payment_response_hash_key,
+        redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+        webhook_details: item.webhook_details.map(Secret::new),
+        metadata: item.metadata,
+        routing_algorithm: item.routing_algorithm,
+        intent_fulfillment_time: item.intent_fulfillment_time,
+        frm_routing_algorithm: item.frm_routing_algorithm,
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm: item.payout_routing_algorithm,
+        applepay_verified_domains: item.applepay_verified_domains,
+        payment_link_config: item.payment_link_config,
+        session_expiry: item.session_expiry,
+        authentication_connector_details: item
+            .authentication_connector_details
+            .map(|authentication_connector_details| {
+                authentication_connector_details.parse_value("AuthenticationDetails")
             })
-            .transpose()?;
-
-        Ok(Self {
-            merchant_id: item.merchant_id,
-            profile_id: item.profile_id,
-            profile_name: item.profile_name,
-            return_url: item.return_url,
-            enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details.map(Secret::new),
-            metadata: item.metadata,
-            routing_algorithm: item.routing_algorithm,
-            intent_fulfillment_time: item.intent_fulfillment_time,
-            frm_routing_algorithm: item.frm_routing_algorithm,
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: item.payout_routing_algorithm,
-            applepay_verified_domains: item.applepay_verified_domains,
-            payment_link_config: item.payment_link_config,
-            session_expiry: item.session_expiry,
-            authentication_connector_details: item
-                .authentication_connector_details
-                .map(|authentication_connector_details| {
-                    authentication_connector_details.parse_value("AuthenticationDetails")
-                })
-                .transpose()?,
-            payout_link_config: item
-                .payout_link_config
-                .map(|payout_link_config| {
-                    payout_link_config.parse_value("BusinessPayoutLinkConfig")
-                })
-                .transpose()?,
-            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
-            extended_card_info_config: item
-                .extended_card_info_config
-                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
-                .transpose()?,
-            collect_shipping_details_from_wallet_connector: item
-                .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: item
-                .collect_billing_details_from_wallet_connector,
-            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers,
-        })
-    }
+            .transpose()?,
+        payout_link_config: item
+            .payout_link_config
+            .map(|payout_link_config| payout_link_config.parse_value("BusinessPayoutLinkConfig"))
+            .transpose()?,
+        use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+        extended_card_info_config: item
+            .extended_card_info_config
+            .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+            .transpose()?,
+        collect_shipping_details_from_wallet_connector: item
+            .collect_shipping_details_from_wallet_connector,
+        collect_billing_details_from_wallet_connector: item
+            .collect_billing_details_from_wallet_connector,
+        is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
+        outgoing_webhook_custom_http_headers,
+    })
 }
 
 pub async fn create_business_profile(

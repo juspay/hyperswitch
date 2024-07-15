@@ -7,6 +7,7 @@ use api_models::{
 use common_utils::{ext_traits::Encode, request::RequestContent};
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::type_encryption::decrypt;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -85,10 +86,15 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         timestamp: now,
     };
 
-    let request_content =
-        get_outgoing_webhook_request(&merchant_account, outgoing_webhook, &business_profile)
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to construct outgoing webhook request content")?;
+    let request_content = get_outgoing_webhook_request(
+        &merchant_account,
+        outgoing_webhook,
+        &business_profile,
+        merchant_key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    .attach_printable("Failed to construct outgoing webhook custom HTTP headers")?;
 
     let event_metadata = storage::EventMetadata::foreign_from((&content, &primary_object_id));
 
@@ -545,15 +551,17 @@ fn get_webhook_url_from_business_profile(
         .map(ExposeInterface::expose)
 }
 
-pub(crate) fn get_outgoing_webhook_request(
+pub(crate) async fn get_outgoing_webhook_request(
     merchant_account: &domain::MerchantAccount,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &diesel_models::business_profile::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
     #[inline]
-    fn get_outgoing_webhook_request_inner<WebhookType: types::OutgoingWebhookType>(
+    async fn get_outgoing_webhook_request_inner<WebhookType: types::OutgoingWebhookType>(
         outgoing_webhook: api::OutgoingWebhook,
         business_profile: &diesel_models::business_profile::BusinessProfile,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
         let mut headers = vec![(
             reqwest::header::CONTENT_TYPE.to_string(),
@@ -562,16 +570,24 @@ pub(crate) fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let custom_headers = business_profile
-            .outgoing_webhook_custom_http_headers
-            .as_ref()
-            .map(|headers| {
-                headers.encode_to_value().and_then(|value| {
-                    value.parse_value::<HashMap<String, String>>("HashMap<String,String>")
-                })
-            })
-            .transpose()
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)?;
+        let custom_headers = decrypt::<serde_json::Value, masking::WithType>(
+            business_profile
+                .outgoing_webhook_custom_http_headers
+                .clone(),
+            key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+        .map(|decrypted_value| {
+            decrypted_value
+                .into_inner()
+                .expose()
+                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+                .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")
+        })
+        .transpose()?;
         if let Some(ref map) = custom_headers {
             headers.extend(
                 map.iter()
@@ -596,13 +612,22 @@ pub(crate) fn get_outgoing_webhook_request(
 
     match merchant_account.get_compatible_connector() {
         #[cfg(feature = "stripe")]
-        Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
-            stripe_webhooks::StripeOutgoingWebhook,
-        >(outgoing_webhook, business_profile),
-        _ => get_outgoing_webhook_request_inner::<webhooks::OutgoingWebhook>(
-            outgoing_webhook,
-            business_profile,
-        ),
+        Some(api_models::enums::Connector::Stripe) => {
+            get_outgoing_webhook_request_inner::<stripe_webhooks::StripeOutgoingWebhook>(
+                outgoing_webhook,
+                business_profile,
+                key_store,
+            )
+            .await
+        }
+        _ => {
+            get_outgoing_webhook_request_inner::<webhooks::OutgoingWebhook>(
+                outgoing_webhook,
+                business_profile,
+                key_store,
+            )
+            .await
+        }
     }
 }
 

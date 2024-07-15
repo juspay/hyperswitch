@@ -1855,8 +1855,9 @@ pub async fn create_business_profile(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .await?,
     ))
 }
 
@@ -1865,17 +1866,23 @@ pub async fn list_business_profile(
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
-    let business_profiles = db
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let profiles = db
         .list_business_profile_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
-        .into_iter()
-        .map(|business_profile| {
-            api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse business profile details")?;
+        .clone();
+    let mut business_profiles = Vec::new();
+    for profile in profiles {
+        let business_profile = admin::business_profile_response(profile, &key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")?;
+        business_profiles.push(business_profile);
+    }
 
     Ok(service_api::ApplicationResponse::Json(business_profiles))
 }
@@ -1883,8 +1890,13 @@ pub async fn list_business_profile(
 pub async fn retrieve_business_profile(
     state: SessionState,
     profile_id: String,
+    merchant_id: String,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     let db = state.store.as_ref();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
         .await
@@ -1893,8 +1905,9 @@ pub async fn retrieve_business_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .await?,
     ))
 }
 
@@ -2056,8 +2069,9 @@ pub async fn update_business_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(updated_business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .await?,
     ))
 }
 

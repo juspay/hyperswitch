@@ -165,7 +165,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             &merchant_account,
                             outgoing_webhook,
                             &business_profile,
+                            &key_store,
                         )
+                        .await
                         .map_err(|error| {
                             logger::error!(
                                 ?error,
