@@ -414,7 +414,7 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain::WalletData::PaypalRedirect(_) => {
                     let payment_source = ZeroMandateSourceItem::Paypal(PaypalMandateStruct {
-                        experience_context:Some(ContextStruct {
+                        experience_context: Some(ContextStruct {
                             return_url: item.request.return_url.clone(),
                             cancel_url: item.request.return_url.clone(),
                             shipping_preference: if item.get_optional_shipping().is_some() {
