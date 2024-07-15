@@ -100,7 +100,8 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                                 field_name: "amount",
                             })?;
                     let currency = item.router_data.request.currency;
-                    let reference = item.router_data.payment_id.clone();
+                    // This reference is supposed to be under 18 chars in length, so unable to use payment_id
+                    let reference = "SomeRef".to_string();
                     let recipient_val = item
                         .router_data
                         .connector_meta_data
