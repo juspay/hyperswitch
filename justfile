@@ -46,12 +46,14 @@ hack_flags := '--workspace --each-feature --all-targets'
 hack:
     cargo hack check {{ hack_flags }}
 
-db_user := 'db_user'
-db_password := 'db_pass'
-db_host := 'localhost'
-db_port := '5432'
-db_name := 'hyperswitch_db'
+# Use the env variables if present, or fallback to default values
+db_user := env_var_or_default('DB_USER', 'db_user')
+db_password := env_var_or_default('DB_PASSEORD','db_pass')
+db_host := env_var_or_default('DB_HOST','localhost')
+db_port := env_var_or_default('DB_PORT','5432')
+db_name := env_var_or_default('DB_NAME','hyperswitch_db')
 default_db_url := ('postgresql://' + db_user + ':'+ db_password +'@'+ db_host +':'+ db_port / db_name)
+database_url := env_var_or_default('DATABASE_URL',default_db_url)
 
 v2_migration_dir := 'v2_migrations'
 v1_migration_dir := 'migrations'
@@ -82,7 +84,7 @@ delete_dir_if_exists dir=resultant_dir:
     fi
 
 [private]
-run_migration operation=default_operation migration_dir=v1_migration_dir config_file_dir=v1_config_file_dir url=default_db_url other_params=default_migration_params:
+run_migration operation=default_operation migration_dir=v1_migration_dir config_file_dir=v1_config_file_dir url=database_url other_params=default_migration_params:
     diesel migration \
         --database-url '{{url}}' \
         {{ operation }} \
@@ -91,10 +93,10 @@ run_migration operation=default_operation migration_dir=v1_migration_dir config_
         {{other_params}} ||  just delete_dir_if_exists 
 
 # Run database migrations for v1
-migrate operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir default_db_url args)
+migrate operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir database_url args)
 
 # Run database migrations for v2
-migrate_v2 operation='run' *args='': copy_migrations (run_migration operation resultant_dir v2_config_file_dir default_db_url args) delete_dir_if_exists
+migrate_v2 operation='run' *args='': copy_migrations (run_migration operation resultant_dir v2_config_file_dir database_url args) delete_dir_if_exists
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database
 reserruct:
