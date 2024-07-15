@@ -11,7 +11,7 @@ use common_utils::{
 };
 #[cfg(all(feature = "keymanager_create", feature = "olap"))]
 use common_utils::{keymanager, types::keymanager as km_types};
-use diesel_models::{configs, encryption::Encryption};
+use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -2053,12 +2053,13 @@ pub async fn update_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers: create_encrypted_data(
-            &key_store,
-            request.outgoing_webhook_custom_http_headers,
-        )
-        .await
-        .map(Encryption::from),
+        outgoing_webhook_custom_http_headers: Some(
+            create_encrypted_data(&key_store, request.outgoing_webhook_custom_http_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?
+                .into(),
+        ),
     };
 
     let updated_business_profile = db

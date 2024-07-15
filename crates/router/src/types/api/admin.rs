@@ -9,7 +9,6 @@ pub use api_models::admin::{
     ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
-use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -260,11 +259,12 @@ pub async fn create_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
-        outgoing_webhook_custom_http_headers: create_encrypted_data(
-            key_store,
-            request.outgoing_webhook_custom_http_headers,
-        )
-        .await
-        .map(Encryption::from),
+        outgoing_webhook_custom_http_headers: Some(
+            create_encrypted_data(&key_store, request.outgoing_webhook_custom_http_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?
+                .into(),
+        ),
     })
 }
