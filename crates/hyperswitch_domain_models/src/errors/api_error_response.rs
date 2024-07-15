@@ -94,26 +94,13 @@ pub enum ApiErrorResponse {
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     FileProviderNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_29", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     UnprocessableEntity { message: String },
     #[error(
         error_type = ErrorType::ProcessingError, code = "IR_24",
         message = "Invalid {wallet_name} wallet token"
     )]
     InvalidWalletToken { wallet_name: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "{message}")]
-    CurrencyNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_30", message = "Merchant connector account is configured with invalid {config}")]
-    InvalidConnectorConfiguration { config: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
-    PaymentMethodDeleteFailed,
-    #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_26",
-        message = "Invalid Cookie"
-    )]
-    InvalidCookie,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
-    ExtendedCardInfoNotFound,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -140,6 +127,8 @@ pub enum ApiErrorResponse {
     VerificationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
     DisputeFailed { data: Option<serde_json::Value> },
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
+    InternalServerError,
     #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
     ResourceBusy,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate refund request. Refund already attempted with the refund ID")]
@@ -246,43 +235,54 @@ pub enum ApiErrorResponse {
     GenericNotFoundError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_01", message = "{message}")]
     GenericDuplicateError { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
-    IncorrectPaymentMethodConfiguration,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment Link does not exist in our records")]
-    PaymentLinkNotFound,
-    #[error(error_type = ErrorType::ServerNotAvailable, code= "HE_00", message = "{component} health check is failing with error: {message}")]
-    HealthCheckError {
-        component: &'static str,
-        message: String,
-    },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to minor unit")]
-    CurrencyConversionFailed,
-    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
-    MissingTenantId,
-    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
-    InvalidTenant { tenant_id: String },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
-    AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
-    InternalServerError,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
     WebhookResourceNotFound,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
+    IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment Link does not exist in our records")]
+    PaymentLinkNotFound,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    CurrencyNotSupported { message: String },
+    #[error(error_type = ErrorType::ServerNotAvailable, code= "HE_00", message = "{component} health check is failing with error: {message}")]
+    HealthCheckError {
+        component: &'static str,
+        message: String,
+    },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_24", message = "Merchant connector account is configured with invalid {config}")]
+    InvalidConnectorConfiguration { config: String },
+    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    CurrencyConversionFailed,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
+    PaymentMethodDeleteFailed,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_26",
+        message = "Invalid Cookie"
+    )]
+    InvalidCookie,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
+    ExtendedCardInfoNotFound,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
     IntegrityCheckFailed {
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
+    MissingTenantId,
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
+    InvalidTenant { tenant_id: String },
+    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
+    AmountConversionFailed { amount_type: &'static str },
 }
 
 #[derive(Clone)]
