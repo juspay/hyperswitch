@@ -55,6 +55,7 @@ impl Default for super::settings::Proxy {
             http_url: Default::default(),
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
+            bypass_proxy_urls: Vec::new(),
         }
     }
 }

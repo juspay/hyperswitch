@@ -1446,7 +1446,7 @@ pub async fn get_refund_sync_process_schedule_time(
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(err) => {
-            logger::error!("Error: while getting connector mapping: {}", err);
+            logger::error!("Error: while getting connector mapping: {err:?}");
             process_data::ConnectorPTMapping::default()
         }
     };

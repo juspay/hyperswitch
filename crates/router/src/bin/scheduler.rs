@@ -38,7 +38,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker),
+            services::proxy_bypass_urls(&conf.locker, &conf.proxy.bypass_proxy_urls),
         )
         .change_context(ProcessTrackerError::ConfigurationError)?,
     );
@@ -116,7 +116,8 @@ pub async fn start_web_server(
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new().service(Health::server(state.clone(), service.clone()))
     })
-    .bind((server.host.as_str(), server.port))?
+    .bind((server.host.as_str(), server.port))
+    .change_context(ApplicationError::ConfigurationError)?
     .workers(server.workers)
     .run();
     let _ = web_server.handle();
@@ -328,7 +329,7 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
             {
                 Ok(_) => (),
                 Err(error) => {
-                    logger::error!(%error, "Failed while handling error");
+                    logger::error!(?error, "Failed while handling error");
                     let status = state
                         .get_db()
                         .as_scheduler()
@@ -337,8 +338,12 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             business_status::GLOBAL_FAILURE,
                         )
                         .await;
-                    if let Err(err) = status {
-                        logger::error!(%err, "Failed while performing database operation: {}", business_status::GLOBAL_FAILURE);
+                    if let Err(error) = status {
+                        logger::error!(
+                            ?error,
+                            "Failed while performing database operation: {}",
+                            business_status::GLOBAL_FAILURE
+                        );
                     }
                 }
             },

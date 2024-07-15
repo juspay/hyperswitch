@@ -8,6 +8,7 @@ use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
@@ -33,7 +34,7 @@ use storage_impl::config::QueueStrategy;
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
-    env::{self, logger, Env},
+    env::{self, Env},
     events::EventsConfig,
 };
 
@@ -581,6 +582,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -722,7 +724,8 @@ impl Settings<SecuredSecret> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        let config = router_env::Config::builder(&environment.to_string())?
+        let config = router_env::Config::builder(&environment.to_string())
+            .change_context(ApplicationError::ConfigurationError)?
             .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -732,17 +735,17 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
+                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
-            .build()?;
+            .build()
+            .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config).map_err(|error| {
-            logger::error!(%error, "Unable to deserialize application configuration");
-            eprintln!("Unable to deserialize application configuration: {error}");
-            ApplicationError::from(error.into_inner())
-        })
+        serde_path_to_error::deserialize(config)
+            .attach_printable("Unable to deserialize application configuration")
+            .change_context(ApplicationError::ConfigurationError)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -756,14 +759,18 @@ impl Settings<SecuredSecret> {
         })?;
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log file name must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log file name must not be empty".into(),
+                    ),
                 ));
             }
 
             if self.log.file.path.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log directory path must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log directory path must not be empty".into(),
+                    ),
                 ));
             }
         }
