@@ -18,3 +18,6 @@ pub struct PoRecipient;
 
 #[derive(Debug, Clone)]
 pub struct PoRecipientAccount;
+
+#[derive(Debug, Clone)]
+pub struct PoSync;
