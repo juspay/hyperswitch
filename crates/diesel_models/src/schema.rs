@@ -676,7 +676,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (id) {
+    merchant_connector_account (merchant_connector_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,

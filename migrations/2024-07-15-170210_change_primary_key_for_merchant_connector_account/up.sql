@@ -1,0 +1,11 @@
+-- Your SQL goes here
+-- The below query will lock the merchant account table
+-- Running this query is not necessary on higher environments
+-- as the application will work fine without these queries being run
+ALTER TABLE merchant_connector_account DROP CONSTRAINT merchant_connector_account_pkey;
+
+-- Use the `merchant_connector_id` column as primary key
+-- This is not a unique column, but in an ideal scenerio there should not be any duplicate keys
+-- So this query should not fail for not null or duplicate values reasons
+ALTER TABLE merchant_connector_account
+ADD PRIMARY KEY (merchant_connector_id);
