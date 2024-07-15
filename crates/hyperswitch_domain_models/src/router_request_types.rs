@@ -357,25 +357,35 @@ pub struct PaymentsPostProcessingData {
     pub connector_transaction_id: Option<String>,
 }
 
-impl TryFrom<PaymentsAuthorizeData> for PaymentsPostProcessingData {
+impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
+    for PaymentsPostProcessingData
+{
     type Error = error_stack::Report<ApiErrorResponse>;
 
-    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: data.payment_method_data,
-            amount: data.amount,
-            email: data.email,
-            currency: data.currency,
-            payment_method_type: data.payment_method_type,
-            setup_mandate_details: data.setup_mandate_details,
-            capture_method: data.capture_method,
-            order_details: data.order_details,
-            router_return_url: data.router_return_url,
-            webhook_url: data.webhook_url,
-            complete_authorize_url: data.complete_authorize_url,
-            browser_info: data.browser_info,
-            connector_transaction_id: data.related_transaction_id,
-            customer_id: data.customer_id,
+            payment_method_data: data.request.payment_method_data,
+            amount: data.request.amount,
+            email: data.request.email,
+            currency: data.request.currency,
+            payment_method_type: data.request.payment_method_type,
+            setup_mandate_details: data.request.setup_mandate_details,
+            capture_method: data.request.capture_method,
+            order_details: data.request.order_details,
+            router_return_url: data.request.router_return_url,
+            webhook_url: data.request.webhook_url,
+            complete_authorize_url: data.request.complete_authorize_url,
+            browser_info: data.request.browser_info,
+            connector_transaction_id: match data.response {
+                Ok(response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(id),
+                    ..
+                }) => Some(id.clone()),
+                _ => None,
+            },
+            customer_id: data.request.customer_id,
         })
     }
 }

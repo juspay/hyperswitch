@@ -331,12 +331,12 @@ where
                         )
                         .await?;
 
-                    operation
+                    let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
                             &validate_result.payment_id,
-                            payment_data.clone(),
+                            payment_data,
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
@@ -453,12 +453,12 @@ where
                         )
                         .await?;
 
-                    operation
+                    let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
                             &validate_result.payment_id,
-                            payment_data.clone(),
+                            payment_data,
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
