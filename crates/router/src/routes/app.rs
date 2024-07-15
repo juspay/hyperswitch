@@ -935,6 +935,9 @@ impl PaymentMethods {
                     web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
                 )
                 .service(
+                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
+                )
+                .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
                 )
                 .service(

@@ -470,3 +470,28 @@ pub async fn update_customer(
         customers::CustomerResponse::from((response, update_customer.address)),
     ))
 }
+
+pub async fn migrate_customers(
+    state: SessionState,
+    customers: Vec<customers::CustomerRequest>,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+) -> errors::CustomerResponse<()> {
+    for customer in customers {
+        match create_customer(
+            state.clone(),
+            merchant_account.clone(),
+            key_store.clone(),
+            customer,
+        )
+        .await
+        {
+            Ok(_) => (),
+            Err(e) => match e.current_context() {
+                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
+                _ => return Err(e),
+            },
+        }
+    }
+    Ok(services::ApplicationResponse::Json(()))
+}
