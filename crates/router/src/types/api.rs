@@ -41,7 +41,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
+    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
 
@@ -105,9 +106,6 @@ pub trait ConnectorVerifyWebhookSourceV2:
 >
 {
 }
-
-#[derive(Clone, Debug)]
-pub struct MandateRevoke;
 
 pub trait ConnectorMandateRevoke:
     ConnectorIntegration<

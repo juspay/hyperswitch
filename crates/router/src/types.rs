@@ -53,13 +53,14 @@ pub use hyperswitch_domain_models::{
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
+    types::*,
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
-pub use hyperswitch_interfaces::types::Response;
+pub use hyperswitch_interfaces::types::*;
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
@@ -76,229 +77,6 @@ use crate::{
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
 };
-pub type PaymentsAuthorizeRouterData =
-    RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsPreProcessingRouterData =
-    RouterData<api::PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
-pub type PaymentsAuthorizeSessionTokenRouterData =
-    RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
-pub type PaymentsCompleteAuthorizeRouterData =
-    RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
-pub type PaymentsInitRouterData =
-    RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsBalanceRouterData =
-    RouterData<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
-pub type PaymentsCaptureRouterData =
-    RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
-    api::IncrementalAuthorization,
-    PaymentsIncrementalAuthorizationData,
-    PaymentsResponseData,
->;
-pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsRejectRouterData =
-    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
-pub type PaymentsApproveRouterData =
-    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
-pub type PaymentsSessionRouterData =
-    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
-pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
-pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
-pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
-pub type TokenizationRouterData =
-    RouterData<api::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
-pub type ConnectorCustomerRouterData =
-    RouterData<api::CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
-
-pub type RefreshTokenRouterData =
-    RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
-
-pub type PaymentsResponseRouterData<R> =
-    ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsCancelResponseRouterData<R> =
-    ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsBalanceResponseRouterData<R> =
-    ResponseRouterData<api::Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsSyncResponseRouterData<R> =
-    ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
-pub type PaymentsSessionResponseRouterData<R> =
-    ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
-pub type PaymentsInitResponseRouterData<R> =
-    ResponseRouterData<api::InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsCaptureResponseRouterData<R> =
-    ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsPreprocessingResponseRouterData<R> =
-    ResponseRouterData<api::PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
-pub type TokenizationResponseRouterData<R> = ResponseRouterData<
-    api::PaymentMethodToken,
-    R,
-    PaymentMethodTokenizationData,
-    PaymentsResponseData,
->;
-pub type ConnectorCustomerResponseRouterData<R> = ResponseRouterData<
-    api::CreateConnectorCustomer,
-    R,
-    ConnectorCustomerData,
-    PaymentsResponseData,
->;
-
-pub type RefundsResponseRouterData<F, R> =
-    ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
-
-pub type PaymentsAuthorizeType =
-    dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type SetupMandateType = dyn services::ConnectorIntegration<
-    api::SetupMandate,
-    SetupMandateRequestData,
-    PaymentsResponseData,
->;
-pub type MandateRevokeType = dyn services::ConnectorIntegration<
-    api::MandateRevoke,
-    MandateRevokeRequestData,
-    MandateRevokeResponseData,
->;
-pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
-    api::PreProcessing,
-    PaymentsPreProcessingData,
-    PaymentsResponseData,
->;
-pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
-    api::CompleteAuthorize,
-    CompleteAuthorizeData,
-    PaymentsResponseData,
->;
-pub type PaymentsPreAuthorizeType = dyn services::ConnectorIntegration<
-    api::AuthorizeSessionToken,
-    AuthorizeSessionTokenData,
-    PaymentsResponseData,
->;
-pub type PaymentsInitType = dyn services::ConnectorIntegration<
-    api::InitPayment,
-    PaymentsAuthorizeData,
-    PaymentsResponseData,
->;
-pub type PaymentsBalanceType =
-    dyn services::ConnectorIntegration<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsSyncType =
-    dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
-pub type PaymentsCaptureType =
-    dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsSessionType =
-    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
-pub type PaymentsVoidType =
-    dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
-pub type TokenizationType = dyn services::ConnectorIntegration<
-    api::PaymentMethodToken,
-    PaymentMethodTokenizationData,
-    PaymentsResponseData,
->;
-pub type IncrementalAuthorizationType = dyn services::ConnectorIntegration<
-    api::IncrementalAuthorization,
-    PaymentsIncrementalAuthorizationData,
-    PaymentsResponseData,
->;
-
-pub type ConnectorCustomerType = dyn services::ConnectorIntegration<
-    api::CreateConnectorCustomer,
-    ConnectorCustomerData,
-    PaymentsResponseData,
->;
-
-pub type RefundExecuteType =
-    dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
-pub type RefundSyncType =
-    dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
-
-#[cfg(feature = "payouts")]
-pub type PayoutCancelType =
-    dyn services::ConnectorIntegration<api::PoCancel, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutCreateType =
-    dyn services::ConnectorIntegration<api::PoCreate, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutEligibilityType =
-    dyn services::ConnectorIntegration<api::PoEligibility, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutFulfillType =
-    dyn services::ConnectorIntegration<api::PoFulfill, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutRecipientType =
-    dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutRecipientAccountType =
-    dyn services::ConnectorIntegration<api::PoRecipientAccount, PayoutsData, PayoutsResponseData>;
-#[cfg(feature = "payouts")]
-pub type PayoutQuoteType =
-    dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
-
-pub type RefreshTokenType =
-    dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
-
-pub type AcceptDisputeType = dyn services::ConnectorIntegration<
-    api::Accept,
-    AcceptDisputeRequestData,
-    AcceptDisputeResponse,
->;
-pub type VerifyWebhookSourceType = dyn services::ConnectorIntegration<
-    api::VerifyWebhookSource,
-    VerifyWebhookSourceRequestData,
-    VerifyWebhookSourceResponseData,
->;
-
-pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
-    api::Evidence,
-    SubmitEvidenceRequestData,
-    SubmitEvidenceResponse,
->;
-
-pub type UploadFileType =
-    dyn services::ConnectorIntegration<api::Upload, UploadFileRequestData, UploadFileResponse>;
-
-pub type RetrieveFileType = dyn services::ConnectorIntegration<
-    api::Retrieve,
-    RetrieveFileRequestData,
-    RetrieveFileResponse,
->;
-
-pub type DefendDisputeType = dyn services::ConnectorIntegration<
-    api::Defend,
-    DefendDisputeRequestData,
-    DefendDisputeResponse,
->;
-
-pub type SetupMandateRouterData =
-    RouterData<api::SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
-
-pub type AcceptDisputeRouterData =
-    RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
-
-pub type VerifyWebhookSourceRouterData = RouterData<
-    api::VerifyWebhookSource,
-    VerifyWebhookSourceRequestData,
-    VerifyWebhookSourceResponseData,
->;
-
-pub type SubmitEvidenceRouterData =
-    RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
-
-pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, UploadFileResponse>;
-
-pub type RetrieveFileRouterData =
-    RouterData<api::Retrieve, RetrieveFileRequestData, RetrieveFileResponse>;
-
-pub type DefendDisputeRouterData =
-    RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
-
-pub type MandateRevokeRouterData =
-    RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
-
-#[cfg(feature = "payouts")]
-pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
-
-#[cfg(feature = "payouts")]
-pub type PayoutsResponseRouterData<F, R> =
-    ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 #[cfg(feature = "payouts")]
 pub trait PayoutIndividualDetailsExt {
@@ -598,12 +376,6 @@ pub struct ConnectorResponse {
     pub connector_transaction_id: String,
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
-}
-
-pub struct ResponseRouterData<Flow, R, Request, Response> {
-    pub response: R,
-    pub data: RouterData<Flow, Request, Response>,
-    pub http_code: u16,
 }
 
 impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {

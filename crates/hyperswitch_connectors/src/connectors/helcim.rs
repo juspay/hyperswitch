@@ -23,6 +23,11 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, ResponseRouterData,
+        SetupMandateRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration},
@@ -30,7 +35,7 @@ use hyperswitch_interfaces::{
     consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::Response,
+    types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::ExposeInterface;
@@ -184,7 +189,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -193,14 +198,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &types::SetupMandateRouterData,
+        _req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/payment/verify", self.base_url(connectors)))
     }
     fn get_request_body(
         &self,
-        req: &types::SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = helcim::HelcimVerifyRequest::try_from(req)?;
@@ -209,7 +214,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
     fn build_request(
         &self,
-        _req: &types::SetupMandateRouterData,
+        _req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
@@ -231,17 +236,17 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
     fn handle_response(
         &self,
-        data: &types::SetupMandateRouterData,
+        data: &SetupMandateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("Helcim PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -259,7 +264,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -272,7 +277,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.is_auto_capture()? {
@@ -283,7 +288,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
@@ -298,7 +303,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -320,10 +325,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("Helcim PaymentsAuthorizeResponse")
@@ -332,7 +337,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -351,7 +356,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -372,7 +377,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req
@@ -389,7 +394,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -404,10 +409,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("helcim PaymentsSyncResponse")
@@ -416,7 +421,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -441,7 +446,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -454,7 +459,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/payment/capture", self.base_url(connectors)))
@@ -462,7 +467,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
@@ -477,7 +482,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -497,10 +502,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("Helcim PaymentsCaptureResponse")
@@ -509,7 +514,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -528,7 +533,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -541,7 +546,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        _req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/payment/reverse", self.base_url(connectors)))
@@ -549,7 +554,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = helcim::HelcimVoidRequest::try_from(req)?;
@@ -558,7 +563,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -576,10 +581,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("HelcimPaymentsResponse")
@@ -588,7 +593,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -608,7 +613,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -621,7 +626,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<Execute>,
+        _req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/payment/refund", self.base_url(connectors)))
@@ -629,7 +634,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
@@ -644,7 +649,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
@@ -663,10 +668,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: helcim::RefundResponse =
             res.response
                 .parse_struct("helcim RefundResponse")
@@ -675,7 +680,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -694,7 +699,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
+        req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
     {
@@ -715,7 +720,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
+        req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_refund_id = req
@@ -732,7 +737,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
+        req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -747,10 +752,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: helcim::RefundResponse = res
             .response
             .parse_struct("helcim RefundSyncResponse")
@@ -759,7 +764,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
