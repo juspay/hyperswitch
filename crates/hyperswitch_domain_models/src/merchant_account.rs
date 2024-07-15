@@ -209,7 +209,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
-
+        let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -220,25 +220,11 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| {
-                        decrypt(
-                            state,
-                            inner,
-                            keymanager::Identifier::Merchant(key_store_ref_id.clone()),
-                            key.peek(),
-                        )
-                    })
+                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| {
-                        decrypt(
-                            state,
-                            inner,
-                            keymanager::Identifier::Merchant(key_store_ref_id.clone()),
-                            key.peek(),
-                        )
-                    })
+                    .async_lift(|inner| decrypt(state, inner, identifier, key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
