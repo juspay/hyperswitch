@@ -615,65 +615,6 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MerchantAccountDataResponse {
-    Iban {
-        iban: Secret<String>,
-        name: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        connector_recipient_id: Option<Secret<String>>,
-    },
-    Bacs {
-        account_number: Secret<String>,
-        sort_code: Secret<String>,
-        name: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        connector_recipient_id: Option<Secret<String>>,
-    },
-}
-
-impl From<MerchantAccountData> for MerchantAccountDataResponse {
-    fn from(value: MerchantAccountData) -> Self {
-        match value {
-            MerchantAccountData::Bacs {
-                account_number,
-                sort_code,
-                name,
-                connector_recipient_id,
-            } => Self::Bacs {
-                account_number,
-                sort_code,
-                name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    match conn {
-                        RecipientIdType::ConnectorId(id) => Some(id),
-                        RecipientIdType::LockerId(_id) => None,
-                    }
-                } else {
-                    None
-                },
-            },
-            MerchantAccountData::Iban {
-                iban,
-                name,
-                connector_recipient_id,
-            } => Self::Iban {
-                iban,
-                name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    match conn {
-                        RecipientIdType::ConnectorId(id) => Some(id),
-                        RecipientIdType::LockerId(_id) => None,
-                    }
-                } else {
-                    None
-                },
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum RecipientIdType {
     ConnectorId(Secret<String>),
     LockerId(Secret<String>),
@@ -681,7 +622,6 @@ pub enum RecipientIdType {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-#[serde(into = "MerchantAccountDataResponse")]
 pub enum MerchantAccountData {
     Iban {
         iban: Secret<String>,
@@ -801,6 +741,18 @@ impl ForeignFrom<api_models::admin::AdditionalMerchantData> for AdditionalMercha
         match value {
             api_models::admin::AdditionalMerchantData::OpenBankingRecipientData(data) => {
                 Self::OpenBankingRecipientData(MerchantRecipientData::from(data))
+            }
+        }
+    }
+}
+
+impl ForeignFrom<AdditionalMerchantData> for api_models::admin::AdditionalMerchantData {
+    fn foreign_from(value: AdditionalMerchantData) -> Self {
+        match value {
+            AdditionalMerchantData::OpenBankingRecipientData(data) => {
+                Self::OpenBankingRecipientData(
+                    api_models::admin::MerchantRecipientData::foreign_from(data),
+                )
             }
         }
     }
