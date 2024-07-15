@@ -67,10 +67,10 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,

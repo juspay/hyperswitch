@@ -1300,8 +1300,8 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: self.capture_on,
             confirm: self.confirm,
             authentication_type: self.authentication_type,
-            created_at: self.created_at.unwrap_or(common_utils::date_time::now()),
-            modified_at: self.modified_at.unwrap_or(common_utils::date_time::now()),
+            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
+            modified_at: self.modified_at.unwrap_or_else(common_utils::date_time::now),
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
             amount_to_capture: self
