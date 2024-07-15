@@ -1,6 +1,6 @@
 use common_utils::custom_serde;
-use diesel::{expression::AsExpression, AsChangeset, Identifiable, Insertable,
-    Queryable, Selectable,
+use diesel::{
+    expression::AsExpression, AsChangeset, Identifiable, Insertable, Queryable, Selectable,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
