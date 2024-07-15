@@ -2785,7 +2785,6 @@ pub struct SwishQrData {}
 pub struct MifinityData {
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
-    #[schema(value_type = Option<String>)]
     pub language_preference: Option<String>,
 }
 

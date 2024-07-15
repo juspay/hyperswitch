@@ -138,7 +138,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     let destination_account_number = metadata.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
                     let brand_id = metadata.brand_id;
-                    let language_preference = data.language_preference.clone();
+                    let language_preference = data.language_preference;
                     Ok(Self {
                         money,
                         client,
