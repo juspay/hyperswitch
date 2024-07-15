@@ -192,7 +192,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker),
+            services::proxy_bypass_urls(&conf.locker, &conf.proxy.bypass_proxy_urls),
         )
         .map_err(|error| {
             errors::ApplicationError::ApiClientError(error.current_context().clone())
