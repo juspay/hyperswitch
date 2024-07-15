@@ -8,6 +8,10 @@ use diesel::{
 use error_stack::{report, ResultExt};
 
 use super::generics;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt::dsl;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt::dsl;
 use crate::{
     enums::{self, IntentStatus},
     errors::DatabaseError,
@@ -17,12 +21,6 @@ use crate::{
     query::generics::db_metrics,
     PaymentIntent, PgPooledConn, StorageResult,
 };
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
-use crate::schema::payment_attempt::dsl;
-
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-use crate::schema_v2::payment_attempt::dsl;
 
 impl PaymentAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {

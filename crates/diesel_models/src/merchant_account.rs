@@ -1,16 +1,14 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{encryption::Encryption, enums as storage_enums};
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
 use crate::schema::merchant_account;
-
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::merchant_account;
+use crate::{encryption::Encryption, enums as storage_enums};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),

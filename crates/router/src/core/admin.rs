@@ -19,7 +19,6 @@ use uuid::Uuid;
 
 #[cfg(any(feature = "olap", feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
-
 use crate::{
     consts,
     core::{
