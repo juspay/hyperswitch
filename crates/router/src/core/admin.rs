@@ -236,7 +236,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let key = key_store.key.into_inner();
+        let key = key_store.key.clone().into_inner();
 
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
@@ -289,7 +289,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         CreateBusinessProfile::new(self.primary_business_details.clone())
-            .create_business_profiles(db, &mut merchant_account)
+            .create_business_profiles(db, &mut merchant_account, &key_store)
             .await?;
 
         Ok(merchant_account)
@@ -383,6 +383,7 @@ impl CreateBusinessProfile {
         &self,
         db: &dyn StorageInterface,
         merchant_account: &mut domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()> {
         match self {
             Self::CreateFromPrimaryBusinessDetails {
@@ -392,6 +393,7 @@ impl CreateBusinessProfile {
                     db,
                     merchant_account.clone(),
                     primary_business_details,
+                    key_store,
                 )
                 .await?;
 
@@ -404,7 +406,7 @@ impl CreateBusinessProfile {
             }
             Self::CreateDefaultBusinessProfile => {
                 let business_profile = self
-                    .create_default_business_profile(db, merchant_account.clone())
+                    .create_default_business_profile(db, merchant_account.clone(), key_store)
                     .await?;
 
                 merchant_account.default_profile = Some(business_profile.profile_id);
@@ -419,11 +421,13 @@ impl CreateBusinessProfile {
         &self,
         db: &dyn StorageInterface,
         merchant_account: domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<diesel_models::business_profile::BusinessProfile> {
         let business_profile = create_and_insert_business_profile(
             db,
             api_models::admin::BusinessProfileCreate::default(),
             merchant_account.clone(),
+            key_store,
         )
         .await?;
 
@@ -437,6 +441,7 @@ impl CreateBusinessProfile {
         db: &dyn StorageInterface,
         merchant_account: domain::MerchantAccount,
         primary_business_details: &Vec<admin_types::PrimaryBusinessDetails>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Vec<diesel_models::business_profile::BusinessProfile>> {
         let mut business_profiles_vector = Vec::with_capacity(primary_business_details.len());
 
@@ -456,6 +461,7 @@ impl CreateBusinessProfile {
                 db,
                 business_profile_create_request,
                 merchant_account.clone(),
+                key_store,
             )
             .await
             .map_err(|business_profile_insert_error| {
@@ -650,6 +656,7 @@ pub async fn create_business_profile_from_business_labels(
             db,
             business_profile_create_request,
             merchant_account.clone(),
+            key_store,
         )
         .await
         .map_err(|business_profile_insert_error| {
@@ -1783,18 +1790,10 @@ pub async fn create_and_insert_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
     merchant_account: domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<storage::business_profile::BusinessProfile> {
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_account.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
-
     let business_profile_new =
-        admin::create_business_profile(merchant_account, request, &key_store).await?;
+        admin::create_business_profile(merchant_account, request, key_store).await?;
 
     let profile_name = business_profile_new.profile_name.clone();
 
@@ -1845,7 +1844,8 @@ pub async fn create_business_profile(
     }
 
     let business_profile =
-        create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
+        create_and_insert_business_profile(db, request, merchant_account.clone(), &key_store)
+            .await?;
 
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
