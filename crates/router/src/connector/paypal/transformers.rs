@@ -208,7 +208,7 @@ pub struct RedirectRequest {
     experience_context: ContextStruct,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ContextStruct {
     return_url: Option<String>,
     cancel_url: Option<String>,
@@ -216,13 +216,13 @@ pub struct ContextStruct {
     shipping_preference: ShippingPreference,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum UserAction {
     #[serde(rename = "PAY_NOW")]
     PayNow,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ShippingPreference {
     #[serde(rename = "SET_PROVIDED_ADDRESS")]
     SetProvidedAddress,
@@ -312,6 +312,174 @@ pub struct PaypalPaymentsRequest {
     intent: PaypalPaymentIntent,
     purchase_units: Vec<PurchaseUnitRequest>,
     payment_source: Option<PaymentSourceItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalZeroMandateRequest {
+    payment_source: ZeroMandateSourceItem,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+// #[serde(untagged)]
+pub enum ZeroMandateSourceItem {
+    Card(CardMandateRequest),
+    Paypal(PaypalMandateStruct),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaypalMandateStruct {
+    experience_context: Option<ContextStruct>,
+    usage_type: UsageType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardMandateRequest {
+    billing_address: Option<Address>,
+    expiry: Option<Secret<String>>,
+    name: Secret<String>,
+    number: Option<cards::CardNumber>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+// #[serde(rename_all = "camelCase")]
+pub struct PaypalSetupMandatesResponse {
+    id: String,
+    customer: Customer,
+    status: PaypalOrderStatus,
+    payment_source: ZeroMandateSourceItem,
+    links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Customer {
+    id: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, PaypalSetupMandatesResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaypalSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let info_response = item.response;
+
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(info_response.id.clone()),
+            payment_method_id: None,
+        });
+        Ok(Self {
+            status: enums::AttemptStatus::Charged,
+            return_url: None,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(info_response.id.clone()),
+                incremental_authorization_allowed: Some(
+                    // mandate_status == enums::AttemptStatus::Authorized,
+                    false,
+                ),
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        println!("audit vaulting 3");
+
+        let payment_source = match item.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(ccard) => {
+                ZeroMandateSourceItem::Card(CardMandateRequest {
+                    billing_address: get_address_info(item.get_optional_billing())?,
+                    expiry: Some(ccard.get_expiry_date_as_yyyymm("-")),
+                    name: ccard.nick_name.unwrap_or_default(),
+                    number: Some(ccard.card_number),
+                })
+            }
+
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::WalletData::PaypalRedirect(_) => {
+                    let payment_source = ZeroMandateSourceItem::Paypal(PaypalMandateStruct {
+                        experience_context:Some(ContextStruct {
+                            return_url: item.request.return_url.clone(),
+                            cancel_url: item.request.return_url.clone(),
+                            shipping_preference: if item.get_optional_shipping().is_some() {
+                                ShippingPreference::SetProvidedAddress
+                            } else {
+                                ShippingPreference::GetFromFile
+                            },
+                            user_action: Some(UserAction::PayNow),
+                        }),
+                        usage_type: UsageType::Merchant,
+                    });
+
+                    payment_source
+                }
+                domain::WalletData::ApplePay(_)
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                ))?,
+            },
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                ))?
+            }
+        };
+        println!("audit vaulting 4");
+
+        Ok(Self { payment_source })
+    }
 }
 
 fn get_address_info(
