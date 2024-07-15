@@ -8642,6 +8642,36 @@ impl Default for super::settings::RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::Upi,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::UpiCollect,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Razorpay,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate :  HashMap::new(),
+                                        common : HashMap::from([
+                                            (
+                                                "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                    display_name: "vpa_id".to_string(),
+                                                    field_type: enums::FieldType::UserVpaId,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                    }
+                                ),
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
                 enums::PaymentMethod::BankDebit,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::Ach,
@@ -8777,6 +8807,18 @@ impl Default for super::settings::ApiKeys {
             // Specifies the number of days before API key expiry when email reminders should be sent
             #[cfg(feature = "email")]
             expiry_reminder_days: vec![7, 3, 1],
+        }
+    }
+}
+
+impl Default for super::settings::KeyManagerConfig {
+    fn default() -> Self {
+        Self {
+            url: String::from("localhost:5000"),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: String::default().into(),
+            #[cfg(feature = "keymanager_mtls")]
+            cert: String::default().into(),
         }
     }
 }

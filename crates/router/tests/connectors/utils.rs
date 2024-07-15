@@ -405,6 +405,7 @@ pub trait ConnectorActions: Connector {
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
                 charges: None,
+                integrity_object: None,
             }),
             payment_info,
         );
@@ -538,6 +539,7 @@ pub trait ConnectorActions: Connector {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         }
     }
 
@@ -935,6 +937,8 @@ impl Default for PaymentAuthorizeType {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
+            integrity_object: None,
+            merchant_order_reference_id: None,
         };
         Self(data)
     }
@@ -994,6 +998,8 @@ impl Default for PaymentSyncType {
             payment_method_type: None,
             currency: enums::Currency::USD,
             payment_experience: None,
+            amount: MinorUnit::new(100),
+            integrity_object: None,
         };
         Self(data)
     }
@@ -1015,6 +1021,7 @@ impl Default for PaymentRefundType {
             connector_refund_id: None,
             browser_info: None,
             charges: None,
+            integrity_object: None,
         };
         Self(data)
     }

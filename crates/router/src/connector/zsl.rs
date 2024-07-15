@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::enums;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use transformers as zsl;
 
 use crate::{
@@ -418,12 +418,12 @@ impl api::IncomingWebhook for Zsl {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &types::domain::MerchantAccount,
-        merchant_connector_account: types::domain::MerchantConnectorAccount,
+        _merchant_id: &str,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let connector_account_details = merchant_connector_account
-            .connector_account_details
+        let connector_account_details = connector_account_details
             .parse_value::<types::ConnectorAuthType>("ConnectorAuthType")
             .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let auth_type = zsl::ZslAuthType::try_from(&connector_account_details)?;

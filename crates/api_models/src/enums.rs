@@ -78,7 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -90,7 +90,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -121,6 +121,7 @@ pub enum Connector {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Shift4,
     Square,
     Stax,
@@ -205,6 +206,7 @@ impl Connector {
             | Self::Airwallex
             | Self::Authorizedotnet
             | Self::Bambora
+            | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Billwerk
             | Self::Bitpay
@@ -252,9 +254,10 @@ impl Connector {
             | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
+            | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            // | Self::Datatrans
+            | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
@@ -466,6 +469,7 @@ pub enum FieldType {
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
+    UserVpaId,
 }
 
 impl FieldType {
@@ -551,6 +555,7 @@ impl PartialEq for FieldType {
                 },
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
+            (Self::UserVpaId, Self::UserVpaId) => true,
             _unused => false,
         }
     }

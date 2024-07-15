@@ -179,6 +179,7 @@ pub struct AdyenPaymentRequest<'a> {
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
+    merchant_order_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1972,9 +1973,6 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             storage_enums::PaymentMethodType::Credit
             | storage_enums::PaymentMethodType::Debit
             | storage_enums::PaymentMethodType::Klarna
-            | storage_enums::PaymentMethodType::Ach
-            | storage_enums::PaymentMethodType::Sepa
-            | storage_enums::PaymentMethodType::Bacs
             | storage_enums::PaymentMethodType::BancontactCard
             | storage_enums::PaymentMethodType::Blik
             | storage_enums::PaymentMethodType::Eps
@@ -1998,6 +1996,9 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             | storage_enums::PaymentMethodType::AfterpayClearpay
             | storage_enums::PaymentMethodType::PayBright
             | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
+            storage_enums::PaymentMethodType::Sepa => Ok(Self::SepaDirectDebit),
+            storage_enums::PaymentMethodType::Bacs => Ok(Self::BacsDirectDebit),
+            storage_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
             storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2524,19 +2525,17 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
-        let browser_info = get_browser_info(item.router_data)?;
+        let browser_info = None;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method_type = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+        let payment_method_type = item.router_data.request.payment_method_type;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
-                    payment_type: PaymentType::try_from(payment_method_type)?,
+                    payment_type: match payment_method_type {
+                        Some(pm_type) => PaymentType::try_from(&pm_type)?,
+                        None => PaymentType::Scheme,
+                    },
                     stored_payment_method_id: Secret::new(
                         connector_mandate_ids.get_connector_mandate_id()?,
                     ),
@@ -2609,7 +2608,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2671,7 +2671,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -2694,7 +2695,8 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let recurring_processing_model = get_recurring_processing_model(item.router_data)?.0;
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
+            get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
@@ -2719,12 +2721,13 @@ impl<'a>
             delivery_address: None,
             country_code,
             line_items: None,
-            shopper_reference: None,
-            store_payment_method: None,
+            shopper_reference,
+            store_payment_method,
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2778,7 +2781,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2828,7 +2832,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2878,7 +2883,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         };
         Ok(request)
     }
@@ -2938,7 +2944,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3033,7 +3040,8 @@ impl<'a>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3108,7 +3116,8 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3166,7 +3175,8 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }

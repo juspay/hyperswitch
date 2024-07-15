@@ -15,6 +15,7 @@ use common_utils::{
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
     generate_id,
+    types::{self as util_types, AmountConvertor},
 };
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
@@ -65,6 +66,19 @@ pub async fn create_link_token(
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+
+    redis_conn
+        .exists::<Vec<u8>>(&pm_auth_key)
+        .await
+        .change_context(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?
+        .then_some(())
+        .ok_or(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?;
 
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
@@ -324,8 +338,8 @@ async fn store_bank_details_in_payment_methods(
                     .attach_printable("Failed to deserialize Payment Method Auth config")
             })
             .transpose()
-            .unwrap_or_else(|err| {
-                logger::error!(error=?err);
+            .unwrap_or_else(|error| {
+                logger::error!(?error);
                 None
             })
             .and_then(|pmd| match pmd {
@@ -418,13 +432,13 @@ async fn store_bank_details_in_payment_methods(
             );
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
-            let encrypted_data =
-                cards::create_encrypted_data(&key_store, Some(payment_method_data))
-                    .await
-                    .map(|details| details.into())
-                    .ok_or(ApiErrorResponse::InternalServerError)?;
+            let encrypted_data = cards::create_encrypted_data(&key_store, payment_method_data)
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt customer details")?;
+
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                payment_method_data: Some(encrypted_data),
+                payment_method_data: Some(encrypted_data.into()),
             };
 
             update_entries.push((pm.clone(), pm_update));
@@ -433,8 +447,8 @@ async fn store_bank_details_in_payment_methods(
             let encrypted_data =
                 cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
-                    .map(|details| details.into())
-                    .ok_or(ApiErrorResponse::InternalServerError)?;
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt customer details")?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let now = common_utils::date_time::now();
             let pm_new = storage::PaymentMethodNew {
@@ -447,7 +461,7 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_issuer: None,
                 scheme: None,
                 metadata: None,
-                payment_method_data: Some(encrypted_data),
+                payment_method_data: Some(encrypted_data.into()),
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -464,7 +478,6 @@ async fn store_bank_details_in_payment_methods(
                 last_used_at: now,
                 connector_mandate_details: None,
                 customer_acceptance: None,
-
                 network_transaction_id: None,
                 client_secret: None,
                 payment_method_billing_address: None,
@@ -637,6 +650,19 @@ async fn get_selected_config_from_redis(
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
 
+    redis_conn
+        .exists::<Vec<u8>>(&pm_auth_key)
+        .await
+        .change_context(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?
+        .then_some(())
+        .ok_or(ApiErrorResponse::InvalidRequestData {
+            message: "Incorrect payment_id provided in request".to_string(),
+        })
+        .attach_printable("Corresponding pm_auth_key does not exist in redis")?;
+
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
             pm_auth_key.as_str(),
@@ -719,6 +745,21 @@ pub async fn retrieve_payment_method_from_auth_service(
         })
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("Bank account details not found")?;
+
+    if let (Some(balance), Some(currency)) = (bank_account.balance, payment_intent.currency) {
+        let required_conversion = util_types::FloatMajorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert_back(balance, currency)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert FloatMajorUnit to MinorUnit")?;
+
+        if converted_amount < payment_intent.amount {
+            return Err((ApiErrorResponse::PreconditionFailed {
+                message: "selected bank account has insufficient balance".to_string(),
+            })
+            .into());
+        }
+    }
 
     let mut bank_type = None;
     if let Some(account_type) = bank_account.account_type.clone() {

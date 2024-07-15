@@ -8,6 +8,7 @@ use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
@@ -33,7 +34,7 @@ use storage_impl::config::QueueStrategy;
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
-    env::{self, logger, Env},
+    env::{self, Env},
     events::EventsConfig,
 };
 
@@ -69,6 +70,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
+    pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
@@ -101,6 +103,7 @@ pub struct Settings<S: SecretState> {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
@@ -125,6 +128,7 @@ pub struct Settings<S: SecretState> {
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
+    pub decision: Option<DecisionConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -144,6 +148,11 @@ impl Multitenancy {
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DecisionConfig {
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -206,6 +215,15 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeyManagerConfig {
+    pub url: String,
+    #[cfg(feature = "keymanager_mtls")]
+    pub cert: Secret<String>,
+    #[cfg(feature = "keymanager_mtls")]
+    pub ca: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -706,7 +724,8 @@ impl Settings<SecuredSecret> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        let config = router_env::Config::builder(&environment.to_string())?
+        let config = router_env::Config::builder(&environment.to_string())
+            .change_context(ApplicationError::ConfigurationError)?
             .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -720,13 +739,12 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
-            .build()?;
+            .build()
+            .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config).map_err(|error| {
-            logger::error!(%error, "Unable to deserialize application configuration");
-            eprintln!("Unable to deserialize application configuration: {error}");
-            ApplicationError::from(error.into_inner())
-        })
+        serde_path_to_error::deserialize(config)
+            .attach_printable("Unable to deserialize application configuration")
+            .change_context(ApplicationError::ConfigurationError)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -740,14 +758,18 @@ impl Settings<SecuredSecret> {
         })?;
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log file name must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log file name must not be empty".into(),
+                    ),
                 ));
             }
 
             if self.log.file.path.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log directory path must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log directory path must not be empty".into(),
+                    ),
                 ));
             }
         }
@@ -1002,15 +1024,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_and_payment_method_types() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            "bank_transfer": "ach,bacs",
-            "wallet": "paypal,venmo",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("bank_transfer".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,venmo".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,
@@ -1036,15 +1053,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_and_payment_method_types_with_spaces() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            " bank_transfer ": " ach , bacs ",
-            "wallet ": " paypal , pix , venmo ",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            (" bank_transfer ".to_string(), " ach , bacs ".to_string()),
+            ("wallet ".to_string(), " paypal , pix , venmo ".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,
@@ -1074,15 +1086,10 @@ mod hashmap_deserialization_test {
     fn test_payment_method_deserializer_error() {
         use diesel_models::enums::{PaymentMethod, PaymentMethodType};
 
-        let input_map: HashMap<String, String> = serde_json::json!({
-            "unknown": "ach,bacs",
-            "wallet": "paypal,unknown",
-        })
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("unknown".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,unknown".to_string()),
+        ]);
         let deserializer: MapDeserializer<
             '_,
             std::collections::hash_map::IntoIter<String, String>,

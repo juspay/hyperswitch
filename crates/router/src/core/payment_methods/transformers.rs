@@ -348,7 +348,10 @@ pub fn mk_add_card_response_hs(
     let card_isin = card_number.get_card_isin();
 
     let card = api::CardDetailFromLocker {
-        scheme: None,
+        scheme: card
+            .card_network
+            .clone()
+            .map(|card_network| card_network.to_string()),
         last4_digits: Some(last4_digits),
         issuer_country: card.card_issuing_country,
         card_number: Some(card.card_number.clone()),

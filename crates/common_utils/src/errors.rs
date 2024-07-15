@@ -69,6 +69,15 @@ pub enum ValidationError {
     InvalidValue { message: String },
 }
 
+/// Integrity check errors.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IntegrityCheckError {
+    /// Field names for which integrity check failed!
+    pub field_names: String,
+    /// Connector transaction reference id
+    pub connector_transaction_id: Option<String>,
+}
+
 /// Cryptographic algorithm errors
 #[derive(Debug, thiserror::Error)]
 pub enum CryptoError {
@@ -134,6 +143,42 @@ where
             }
         }
     }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, thiserror::Error)]
+pub enum KeyManagerClientError {
+    #[error("Failed to construct header from the given value")]
+    FailedtoConstructHeader,
+    #[error("Failed to send request to Keymanager")]
+    RequestNotSent(String),
+    #[error("URL encoding of request failed")]
+    UrlEncodingFailed,
+    #[error("Failed to build the reqwest client ")]
+    ClientConstructionFailed,
+    #[error("Failed to send the request to Keymanager")]
+    RequestSendFailed,
+    #[error("Internal Server Error Received {0:?}")]
+    InternalServerError(bytes::Bytes),
+    #[error("Bad request received {0:?}")]
+    BadRequest(bytes::Bytes),
+    #[error("Unexpected Error occurred while calling the KeyManager")]
+    Unexpected(bytes::Bytes),
+    #[error("Response Decoding failed")]
+    ResponseDecodingFailed,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, thiserror::Error)]
+pub enum KeyManagerError {
+    #[error("Failed to add key to the KeyManager")]
+    KeyAddFailed,
+    #[error("Failed to transfer the key to the KeyManager")]
+    KeyTransferFailed,
+    #[error("Failed to Encrypt the data in the KeyManager")]
+    EncryptionFailed,
+    #[error("Failed to Decrypt the data in the KeyManager")]
+    DecryptionFailed,
 }
 
 /// Allow [error_stack::Report] to convert between error types

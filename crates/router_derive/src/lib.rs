@@ -63,7 +63,7 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 /// // yourself if required.
 /// #[derive(strum::Display, strum::EnumString)]
 /// #[derive(Debug)]
-/// #[diesel_enum(storage_type = "pg_enum")]
+/// #[diesel_enum(storage_type = "db_enum")]
 /// enum Color {
 ///     Red,
 ///     Green,
@@ -153,14 +153,16 @@ pub fn diesel_enum(
 /// # Example
 /// ```
 /// use router_derive::Setter;
+///
+/// #[derive(Setter)]
 /// struct Test {
 ///     test:u32
 /// }
 /// ```
 /// The above Example will expand to
-/// ```
+/// ```rust, ignore
 /// impl Test {
-///     fn set_test(&mut self,val:u32)->&mut Self {
+///     fn set_test(&mut self, val: u32) -> &mut Self {
 ///         self.test = val;
 ///         self
 ///     }
@@ -381,7 +383,7 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// - update_tracker
 ///
 /// ## Example
-/// ```
+/// ```rust, ignore
 /// use router_derive::Operation;
 ///
 /// #[derive(Operation)]
@@ -470,12 +472,14 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// Generates different schemas with the ability to mark few fields as mandatory for certain schema
 /// Usage
 /// ```
+/// use router_derive::PolymorphicSchema;
+///
 /// #[derive(PolymorphicSchema)]
 /// #[generate_schemas(PaymentsCreateRequest, PaymentsConfirmRequest)]
 /// struct PaymentsRequest {
-///     #[mandatory_in(PaymentsCreateRequest)]
+///     #[mandatory_in(PaymentsCreateRequest = u64)]
 ///     amount: Option<u64>,
-///     #[mandatory_in(PaymentsCreateRequest)]
+///     #[mandatory_in(PaymentsCreateRequest = String)]
 ///     currency: Option<String>,
 ///     payment_method: String,
 /// }
@@ -520,6 +524,17 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// Implements the `Validate` trait to check if the config variable is present
 /// Usage
 /// ```
+/// use router_derive::ConfigValidate;
+///
+/// #[derive(ConfigValidate)]
+/// struct ConnectorParams {
+///     base_url: String,
+/// }
+///
+/// enum ApplicationError {
+///     InvalidConfigurationValueError(String),
+/// }
+///
 /// #[derive(ConfigValidate)]
 /// struct Connectors {
 ///     pub stripe: ConnectorParams,
@@ -529,7 +544,7 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// This will call the `validate()` function for all the fields in the struct
 ///
-/// ```
+/// ```rust, ignore
 /// impl Connectors {
 ///      fn validate(&self) -> Result<(), ApplicationError> {
 ///         self.stripe.validate()?;
@@ -549,9 +564,26 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// Generates the function to get the value out of enum variant
 /// Usage
 /// ```
+/// use router_derive::TryGetEnumVariant;
+///
+/// impl std::fmt::Display for RedisError {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+///         match self {
+///             Self::UnknownResult => write!(f, "Unknown result")
+///         }
+///     }
+/// }
+///
+/// impl std::error::Error for RedisError {}
+///
+/// #[derive(Debug)]
+/// enum RedisError {
+///     UnknownResult
+/// }
+///
 /// #[derive(TryGetEnumVariant)]
-/// #[error(RedisError(UnknownResult))]
-/// enum Result {
+/// #[error(RedisError::UnknownResult)]
+/// enum RedisResult {
 ///     Set(String),
 ///     Get(i32)
 /// }
@@ -559,8 +591,8 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///
 /// This will generate the function to get `String` and `i32` out of the variants
 ///
-/// ```
-/// impl Result {
+/// ```rust, ignore
+/// impl RedisResult {
 ///     fn try_into_get(&self)-> Result<i32, RedisError> {
 ///         match self {
 ///             Self::Get(a) => Ok(a),
@@ -575,6 +607,7 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///         }
 ///     }
 /// }
+/// ```
 #[proc_macro_derive(TryGetEnumVariant, attributes(error))]
 pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);

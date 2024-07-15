@@ -944,6 +944,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
+                search_tags: None,
             }),
             ..Default::default()
         };
@@ -1230,6 +1231,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                             req.json_payload.unwrap_or(serde_json::json!({})).into(),
                         ),
                     }),
+                    search_tags: None,
                 }),
                 ..Default::default()
             };
@@ -1973,8 +1975,7 @@ where
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 (router_data, false)
-            } else if (connector.connector_name == router_types::Connector::Cybersource
-                || connector.connector_name == router_types::Connector::Bankofamerica)
+            } else if connector.connector_name == router_types::Connector::Cybersource
                 && is_operation_complete_authorize(&operation)
                 && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
             {
@@ -2171,9 +2172,9 @@ fn check_apple_pay_metadata(
                             )
                         })
                 })
-                .map_err(
-                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
-                );
+                .map_err(|error| {
+                    logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
+                });
 
             parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
@@ -2182,24 +2183,33 @@ fn check_apple_pay_metadata(
                     api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
                         domain::ApplePayFlow::Simplified(payments_api::PaymentProcessingDetails {
                             payment_processing_certificate: state
-                            .conf
-                            .applepay_decrypt_keys
-                            .get_inner()
-                            .apple_pay_ppc
-                            .clone(),
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc
+                                .clone(),
                             payment_processing_certificate_key: state
-                            .conf
-                            .applepay_decrypt_keys
-                            .get_inner()
-                            .apple_pay_ppc_key
-                            .clone(),
-                         })
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc_key
+                                .clone(),
+                        })
                     }
-                    api_models::payments::ApplePayCombinedMetadata::Manual { payment_request_data: _, session_token_data } => {
-                        if let Some(manual_payment_processing_details_at) = session_token_data.payment_processing_details_at {
+                    api_models::payments::ApplePayCombinedMetadata::Manual {
+                        payment_request_data: _,
+                        session_token_data,
+                    } => {
+                        if let Some(manual_payment_processing_details_at) =
+                            session_token_data.payment_processing_details_at
+                        {
                             match manual_payment_processing_details_at {
-                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(payment_processing_details) => domain::ApplePayFlow::Simplified(payment_processing_details),
-                                payments_api::PaymentProcessingDetailsAt::Connector => domain::ApplePayFlow::Manual,
+                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(
+                                    payment_processing_details,
+                                ) => domain::ApplePayFlow::Simplified(payment_processing_details),
+                                payments_api::PaymentProcessingDetailsAt::Connector => {
+                                    domain::ApplePayFlow::Manual
+                                }
                             }
                         } else {
                             domain::ApplePayFlow::Manual
@@ -3279,7 +3289,7 @@ where
                 && should_do_retry
             {
                 let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
-                    state,
+                    &state,
                     merchant_account,
                     payment_data,
                     key_store,
@@ -3302,6 +3312,8 @@ where
             let first_pre_routing_connector_data_list = pre_routing_connector_data_list
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
             return Ok(ConnectorCallType::PreDetermined(
                 first_pre_routing_connector_data_list.clone(),
@@ -3598,24 +3610,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
         _ => {
-            let skip_saving_wallet_at_connector_optional =
-                helpers::config_skip_saving_wallet_at_connector(
-                    &*state.store,
-                    &payment_data.payment_intent.merchant_id,
-                )
-                .await?;
-
-            if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional
-            {
-                if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type
-                {
-                    if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                        logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                        payment_data.payment_intent.setup_future_usage =
-                            Some(enums::FutureUsage::OnSession);
-                    }
-                }
-            };
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
             let first_choice = connectors
                 .first()

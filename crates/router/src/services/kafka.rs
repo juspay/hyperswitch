@@ -12,11 +12,15 @@ use rdkafka::{
 use storage_impl::config::TenantConfig;
 #[cfg(feature = "payouts")]
 pub mod payout;
-use crate::events::EventType;
+use diesel_models::fraud_check::FraudCheck;
+
+use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
 mod dispute;
 mod dispute_event;
+mod fraud_check;
+mod fraud_check_event;
 mod payment_attempt;
 mod payment_attempt_event;
 mod payment_intent;
@@ -37,7 +41,7 @@ use self::{
     payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
     refund_event::KafkaRefundEvent,
 };
-use crate::types::storage::Dispute;
+use crate::{services::kafka::fraud_check::KafkaFraudCheck, types::storage::Dispute};
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
@@ -143,6 +147,7 @@ impl<'a, T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'a, T> {
 #[serde(default)]
 pub struct KafkaSettings {
     brokers: Vec<String>,
+    fraud_check_analytics_topic: String,
     intent_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
@@ -250,6 +255,7 @@ impl KafkaSettings {
 pub struct KafkaProducer {
     producer: Arc<RdKafkaProducer>,
     intent_analytics_topic: String,
+    fraud_check_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
@@ -297,6 +303,7 @@ impl KafkaProducer {
                 .change_context(KafkaError::InitializationError)?,
             )),
 
+            fraud_check_analytics_topic: conf.fraud_check_analytics_topic.clone(),
             intent_analytics_topic: conf.intent_analytics_topic.clone(),
             attempt_analytics_topic: conf.attempt_analytics_topic.clone(),
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
@@ -322,14 +329,50 @@ impl KafkaProducer {
                 BaseRecord::to(topic)
                     .key(&event.key())
                     .payload(&event.value()?)
-                    .timestamp(
-                        event
-                            .creation_timestamp()
-                            .unwrap_or_else(|| OffsetDateTime::now_utc().unix_timestamp() * 1_000),
-                    ),
+                    .timestamp(event.creation_timestamp().unwrap_or_else(|| {
+                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
+                            .try_into()
+                            .unwrap_or_else(|_| {
+                                // kafka producer accepts milliseconds
+                                // try converting nanos to millis if that fails convert seconds to millis
+                                OffsetDateTime::now_utc().unix_timestamp() * 1_000
+                            })
+                    })),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)
+    }
+    pub async fn log_fraud_check(
+        &self,
+        attempt: &FraudCheck,
+        old_attempt: Option<FraudCheck>,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        if let Some(negative_event) = old_attempt {
+            self.log_event(&KafkaEvent::old(
+                &KafkaFraudCheck::from_storage(&negative_event),
+                tenant_id.clone(),
+            ))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative fraud check event {negative_event:?}")
+            })?;
+        };
+
+        self.log_event(&KafkaEvent::new(
+            &KafkaFraudCheck::from_storage(attempt),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add positive fraud check event {attempt:?}")
+        })?;
+
+        self.log_event(&KafkaConsolidatedEvent::new(
+            &KafkaFraudCheckEvent::from_storage(attempt),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add consolidated fraud check  event {attempt:?}")
+        })
     }
 
     pub async fn log_payment_attempt(
@@ -579,6 +622,7 @@ impl KafkaProducer {
 
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
+            EventType::FraudCheck => &self.fraud_check_analytics_topic,
             EventType::ApiLogs => &self.api_logs_topic,
             EventType::PaymentAttempt => &self.attempt_analytics_topic,
             EventType::PaymentIntent => &self.intent_analytics_topic,

@@ -82,6 +82,7 @@ audit_events_topic = "topic"               # Kafka topic to be used for Payment 
 payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
 consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
+fraud_check_analytics_topic = "topic"      # Kafka topic to be used for Fraud Check events
 
 # File storage configuration
 [file_storage]
@@ -178,8 +179,6 @@ logo = "https://app.hyperswitch.io/HyperswitchFavicon.png"
 merchant_name = "HyperSwitch"
 [generic_link.payout_link.enabled_payment_methods]
 card = "credit,debit"
-bank_transfer = "ach,bacs,sepa"
-wallet = "paypal,pix,venmo"
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -246,6 +245,10 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+
+# Configuration for the Key Manager Service
+[key_manager]
+url = "http://localhost:5000" # URL of the encryption service
 
 # This section provides some secret values.
 [secrets]
