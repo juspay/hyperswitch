@@ -15987,6 +15987,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "To check if mandates are enabled for that payment_method",
+            "nullable": true
           }
         }
       },
@@ -17065,6 +17070,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "To check if mandates are enabled for that payment_method",
+            "nullable": true
           }
         }
       },
