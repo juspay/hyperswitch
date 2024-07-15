@@ -1056,7 +1056,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             payout_type: payout.payout_type,
             auto_fulfill: payout.auto_fulfill,
             customer_id: customer.customer_id,
-            customer: customer.foreign_into(),
+            customer: Some((&customer).foreign_into()),
             return_url: payout.return_url,
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label,

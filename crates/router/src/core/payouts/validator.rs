@@ -105,6 +105,13 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
+    // Customer ID
+    match (req.customer_id, req.customer) {
+        (Some(customer_id), Some(customer)) {
+            
+        }
+    }
+
     // Payout token
     let payout_method_data = match req.payout_token.to_owned() {
         Some(payout_token) => {

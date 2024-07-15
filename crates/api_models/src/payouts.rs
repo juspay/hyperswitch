@@ -408,7 +408,7 @@ pub struct PayoutCreateResponse {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payout
-    #[schema(value_type = Option<CustomerDetails>)]
+    #[schema(value_type = Option<CustomerDetailsResponse>)]
     pub customer: Option<payments::CustomerDetailsResponse>,
 
     /// It's a token used for client side verification.
