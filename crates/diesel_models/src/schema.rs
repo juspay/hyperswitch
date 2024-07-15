@@ -335,7 +335,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dispute (id) {
+    dispute (dispute_id) {
         id -> Int4,
         #[max_length = 64]
         dispute_id -> Varchar,
@@ -586,7 +586,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    mandate (id) {
+    mandate (mandate_id) {
         id -> Int4,
         #[max_length = 64]
         mandate_id -> Varchar,
