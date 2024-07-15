@@ -260,7 +260,7 @@ pub async fn create_business_profile(
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
         outgoing_webhook_custom_http_headers: Some(
-            create_encrypted_data(&key_store, request.outgoing_webhook_custom_http_headers)
+            create_encrypted_data(key_store, request.outgoing_webhook_custom_http_headers)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?
