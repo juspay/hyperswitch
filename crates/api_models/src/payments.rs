@@ -3777,9 +3777,6 @@ pub struct PaymentsResponse {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
-
-    /// To check if mandates are enabled for that payment_method
-    pub recurring_enabled: Option<bool>,
 }
 
 /// Fee information to be charged on the payment being collected
