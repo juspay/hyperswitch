@@ -273,7 +273,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{date_time, ext_traits::Encode, fallback_reverse_lookup_not_found};
+    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -389,8 +389,8 @@ mod storage {
                         refund_error_code: None,
                         metadata: new.metadata.clone(),
                         refund_arn: new.refund_arn.clone(),
-                        created_at: new.created_at.unwrap_or_else(date_time::now),
-                        modified_at: new.created_at.unwrap_or_else(date_time::now),
+                        created_at: new.created_at,
+                        modified_at: new.created_at,
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
@@ -844,7 +844,7 @@ impl RefundInterface for MockDb {
             refund_error_code: None,
             metadata: new.metadata,
             refund_arn: new.refund_arn.clone(),
-            created_at: new.created_at.unwrap_or(current_time),
+            created_at: new.created_at,
             modified_at: current_time,
             description: new.description,
             refund_reason: new.refund_reason.clone(),

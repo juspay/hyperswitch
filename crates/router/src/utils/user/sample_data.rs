@@ -319,8 +319,8 @@ pub async fn generate_sample_data(
                 connector_transaction_id: attempt_id.clone(),
                 connector_refund_id: None,
                 description: Some("This is a sample refund".to_string()),
-                created_at: Some(created_at),
-                modified_at: Some(modified_at),
+                created_at: created_at,
+                modified_at: modified_at,
                 refund_reason: Some("Sample Refund".to_string()),
                 connector: payment_attempt
                     .connector
