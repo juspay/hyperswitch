@@ -162,7 +162,7 @@ where
         connector_meta_data: if let Some(data) = merchant_recipient_data {
             let val = serde_json::to_value(data)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while encoding MerchantRecipientDatas")?;
+                .attach_printable("Failed while encoding MerchantRecipientData")?;
             Some(Secret::new(val))
         } else {
             merchant_connector_account.get_metadata()
