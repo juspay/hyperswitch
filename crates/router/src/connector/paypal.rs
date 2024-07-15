@@ -14,7 +14,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use transformers as paypal;
 
-// use crate::connector::utils::PaymentMethodDataType;
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData};
 use crate::{
@@ -336,7 +335,6 @@ impl ConnectorValidation for Paypal {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
             PaymentMethodDataType::PaypalRedirect,
-            // PaymentMethodDataType::GooglePay,
         ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
