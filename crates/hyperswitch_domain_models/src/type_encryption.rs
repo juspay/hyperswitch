@@ -22,6 +22,7 @@ use {
             EncryptDataResponse,
         },
     },
+    http::Method,
     router_env::logger,
 };
 
@@ -115,6 +116,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -151,6 +153,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
@@ -223,6 +226,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -259,6 +263,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
@@ -350,6 +355,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -386,6 +392,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
@@ -458,6 +465,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -493,6 +501,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
@@ -582,6 +591,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 EncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -618,6 +628,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 DecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
@@ -686,6 +697,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/encrypt",
                 BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
             )
@@ -721,6 +733,7 @@ impl<
                 error_stack::Report<errors::KeyManagerClientError>,
             > = call_encryption_service(
                 state,
+                Method::POST,
                 "data/decrypt",
                 BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )

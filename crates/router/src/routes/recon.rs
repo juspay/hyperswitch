@@ -20,6 +20,7 @@ use crate::{
         api::{self as api_types, enums},
         domain::{UserEmail, UserFromStorage, UserName},
         storage,
+        transformers::ForeignTryFrom,
     },
 };
 
@@ -221,7 +222,7 @@ pub async fn recon_merchant_account_update(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_types::MerchantAccountResponse::try_from(response).change_context(
+        api_types::MerchantAccountResponse::foreign_try_from(response).change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
             },

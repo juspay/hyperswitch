@@ -1,8 +1,6 @@
-import confirmBody from "../../fixtures/confirm-body.json";
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import refundBody from "../../fixtures/refund-flow-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -34,7 +32,7 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        createPaymentBody,
+        fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
@@ -57,14 +55,20 @@ describe("UPI Payments - Hyperswitch", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.confirmUpiCall(confirmBody, req_data, res_data, true, globalState);
+      cy.confirmUpiCall(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
 
     it("Handle UPI Redirection", () => {
-      let expected_redirection = confirmBody["return_url"];
+      let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleUpiRedirection(
         globalState,
@@ -83,7 +87,13 @@ describe("UPI Payments - Hyperswitch", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.refundCallTest(refundBody, req_data, res_data, 6500, globalState);
+      cy.refundCallTest(
+        fixtures.refundBody,
+        req_data,
+        res_data,
+        6500,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -118,7 +128,7 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        createPaymentBody,
+        fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
@@ -141,14 +151,20 @@ describe("UPI Payments - Hyperswitch", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.confirmUpiCall(confirmBody, req_data, res_data, true, globalState);
+      cy.confirmUpiCall(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
 
     it("Handle UPI Redirection", () => {
-      let expected_redirection = confirmBody["return_url"];
+      let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleUpiRedirection(
         globalState,

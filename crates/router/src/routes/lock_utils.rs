@@ -45,6 +45,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
+            | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
 
             Flow::RoutingCreateConfig
@@ -93,6 +94,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
+            | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::PaymentMethodsRetrieve

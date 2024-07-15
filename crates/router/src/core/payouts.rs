@@ -368,8 +368,6 @@ pub async fn payouts_confirm_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
-    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
-        .await?;
     helpers::validate_payout_status_against_not_allowed_statuses(
         &status,
         &[
@@ -384,10 +382,11 @@ pub async fn payouts_confirm_core(
         "confirm",
     )?;
 
-    // Update payout link's status
+    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
+        .await?;
+
     let db = &*state.store;
 
-    // payout_data.payout_link
     payout_data.payout_link = payout_data
         .payout_link
         .clone()
@@ -467,15 +466,17 @@ pub async fn payouts_update_core(
     )
     .await?;
 
-    payouts_core(
-        &state,
-        &merchant_account,
-        &key_store,
-        &mut payout_data,
-        req.routing.clone(),
-        req.connector.clone(),
-    )
-    .await?;
+    if let Some(true) = payout_data.payouts.confirm {
+        payouts_core(
+            &state,
+            &merchant_account,
+            &key_store,
+            &mut payout_data,
+            req.routing.clone(),
+            req.connector.clone(),
+        )
+        .await?;
+    }
 
     response_handler(&merchant_account, &payout_data).await
 }
@@ -2061,6 +2062,18 @@ pub async fn payout_create_db_entries(
         format!("payout_{payout_id}_secret").as_str(),
     );
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
+    let status = if req.payout_method_data.is_some()
+        || req.payout_token.is_some()
+        || stored_payout_method_data.is_some()
+    {
+        match req.confirm {
+            Some(true) => storage_enums::PayoutStatus::RequiresCreation,
+            _ => storage_enums::PayoutStatus::RequiresConfirmation,
+        }
+    } else {
+        storage_enums::PayoutStatus::RequiresPayoutMethodData
+    };
+
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),
@@ -2085,6 +2098,7 @@ pub async fn payout_create_db_entries(
             .map(|link_data| link_data.link_id.clone()),
         client_secret: Some(client_secret),
         priority: req.priority,
+        status,
         ..Default::default()
     };
     let payouts = db
@@ -2095,17 +2109,6 @@ pub async fn payout_create_db_entries(
         })
         .attach_printable("Error inserting payouts in db")?;
     // Make payout_attempt entry
-    let status = if req.payout_method_data.is_some()
-        || req.payout_token.is_some()
-        || stored_payout_method_data.is_some()
-    {
-        match req.confirm {
-            Some(true) => storage_enums::PayoutStatus::RequiresCreation,
-            _ => storage_enums::PayoutStatus::RequiresConfirmation,
-        }
-    } else {
-        storage_enums::PayoutStatus::RequiresPayoutMethodData
-    };
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
 
     let payout_attempt_req = storage::PayoutAttemptNew {

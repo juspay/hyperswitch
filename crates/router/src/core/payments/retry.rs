@@ -541,8 +541,8 @@ pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &Str
         .await;
     match config {
         Ok(conf) => conf.config == "true",
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             false
         }
     }

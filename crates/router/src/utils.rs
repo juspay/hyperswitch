@@ -989,6 +989,10 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
     }
 }
 
+pub(crate) fn get_merchant_fingerprint_secret_key(merchant_id: impl AsRef<str>) -> String {
+    format!("fingerprint_secret_{}", merchant_id.as_ref())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils;

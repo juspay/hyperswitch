@@ -40,6 +40,7 @@ use crate::{
 };
 pub mod blacklist;
 pub mod cookies;
+pub mod decision;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -797,10 +798,10 @@ where
 {
     let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
         Ok(cookies) => cookies,
-        Err(e) => {
+        Err(error) => {
             let token = get_jwt_from_authorization_header(headers);
             if token.is_err() {
-                logger::error!(?e);
+                logger::error!(?error);
             }
             token?.to_owned()
         }

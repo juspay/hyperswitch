@@ -4,10 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-#[cfg(feature = "keymanager_create")]
-use common_utils::keymanager;
 use common_utils::{
-    crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
@@ -21,6 +18,8 @@ use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
@@ -32,7 +31,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api},
+    services::{self, api as service_api, authentication},
     types::{
         self, api,
         domain::{
@@ -40,7 +39,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
 };
@@ -54,81 +53,78 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
+pub async fn insert_merchant_configs(
+    db: &dyn StorageInterface,
+    merchant_id: &String,
+) -> RouterResult<()> {
+    db.insert_config(configs::ConfigNew {
+        key: format!("{}_requires_cvv", merchant_id),
+        config: "true".to_string(),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while setting requires_cvv config")?;
+
+    db.insert_config(configs::ConfigNew {
+        key: utils::get_merchant_fingerprint_secret_key(merchant_id),
+        config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while inserting merchant fingerprint secret")?;
+
+    Ok(())
+}
+
+#[cfg(feature = "olap")]
+fn add_publishable_key_to_decision_service(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) {
+    let state = state.clone();
+    let publishable_key = merchant_account.publishable_key.clone();
+    let merchant_id = merchant_account.merchant_id.clone();
+
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::add_publishable_key(
+                &state,
+                publishable_key.into(),
+                merchant_id,
+                None,
+            )
+            .await
+        },
+        authentication::decision::ADD,
+    );
+}
+
+#[cfg(feature = "olap")]
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    #[cfg(feature = "keymanager_create")]
+    use common_utils::keymanager;
+
     let db = state.store.as_ref();
-    let master_key = db.get_master_key();
 
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate aes 256 key")?;
 
-    let publishable_key = Some(create_merchant_publishable_key());
-
-    let primary_business_details = req
-        .primary_business_details
-        .clone()
-        .unwrap_or_default()
-        .encode_to_value()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "primary_business_details",
-        })?;
-
-    let merchant_details: OptionalSecretValue = req
-        .merchant_details
-        .as_ref()
-        .map(|merchant_details| {
-            merchant_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_details",
-                },
-            )
-        })
-        .transpose()?
-        .map(Into::into);
-
-    let webhook_details = req
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            webhook_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
-            )
-        })
-        .transpose()?;
-
-    if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
+    let master_key = db.get_master_key();
 
     let key_manager_state: &KeyManagerState = &(&state).into();
-    let pm_collect_link_config = req
-        .pm_collect_link_config
-        .as_ref()
-        .map(|c| {
-            c.encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "pm_collect_link_config",
-                })
-        })
-        .transpose()?;
+    let merchant_id = req.get_merchant_reference_id().get_string_repr().to_owned();
+    let identifier = km_types::Identifier::Merchant(merchant_id.clone());
 
     let key_store = domain::MerchantKeyStore {
-        merchant_id: req.merchant_id.clone(),
+        merchant_id: merchant_id.clone(),
         key: domain_types::encrypt(
             key_manager_state,
             key.to_vec().into(),
-            km_types::Identifier::Merchant(req.merchant_id.clone()),
+            identifier.clone(),
             master_key,
         )
         .await
@@ -137,19 +133,28 @@ pub async fn create_merchant_account(
         created_at: date_time::now(),
     };
 
-    let enable_payment_response_hash = req.enable_payment_response_hash.unwrap_or(true);
+    let domain_merchant_account = req
+        .create_domain_model_from_request(&state, key_store.clone())
+        .await?;
 
-    let payment_response_hash_key = req
-        .payment_response_hash_key
-        .or(Some(generate_cryptographically_secure_random_string(64)));
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            &(&state).into(),
+            km_types::EncryptionCreateRequest {
+                identifier: identifier.clone(),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
 
     #[cfg(feature = "keymanager_create")]
     {
         keymanager::create_key_in_key_manager(
             key_manager_state,
-            km_types::EncryptionCreateRequest {
-                identifier: km_types::Identifier::Merchant(req.merchant_id.clone()),
-            },
+            km_types::EncryptionCreateRequest { identifier },
         )
         .await
         .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
@@ -160,124 +165,319 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let parent_merchant_id = get_parent_merchant(
-        &state,
-        req.sub_merchants_enabled,
-        req.parent_merchant_id,
-        &key_store,
-    )
-    .await?;
-
-    let metadata = req
-        .metadata
-        .as_ref()
-        .map(|meta| {
-            meta.encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "metadata",
-                })
-        })
-        .transpose()?
-        .map(Secret::new);
-
-    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
-    if let Some(fingerprint) = fingerprint {
-        db.insert_config(configs::ConfigNew {
-            key: format!("fingerprint_secret_{}", req.merchant_id),
-            config: fingerprint,
-        })
+    let merchant_account = db
+        .insert_merchant(&state, domain_merchant_account, &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Mot able to generate Merchant fingerprint")?;
-    };
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
-        db.find_organization_by_org_id(organization_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "organization with the given id does not exist".to_string(),
-            })?;
-        organization_id.to_string()
-    } else {
-        let new_organization = api_models::organization::OrganizationNew::new(None);
-        let db_organization = ForeignFrom::foreign_from(new_organization);
-        let organization = db
-            .insert_organization(db_organization)
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error when creating organization")?;
-        organization.org_id
-    };
+    add_publishable_key_to_decision_service(&state, &merchant_account);
 
-    let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
-    let key_manager_state: KeyManagerState = (&state).into();
-    let mut merchant_account = async {
-        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
-            merchant_id: req.merchant_id,
-            merchant_name: req
-                .merchant_name
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
-                        &key_manager_state,
-                        inner,
-                        identifier.clone(),
-                        &key,
-                    )
-                })
-                .await?,
-            merchant_details: merchant_details
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
-                        &key_manager_state,
-                        inner,
-                        identifier.clone(),
-                        &key,
-                    )
-                })
-                .await?,
-            return_url: req.return_url.map(|a| a.to_string()),
-            webhook_details,
-            routing_algorithm: Some(serde_json::json!({
-                "algorithm_id": null,
-                "timestamp": 0
-            })),
-            sub_merchants_enabled: req.sub_merchants_enabled,
-            parent_merchant_id,
-            enable_payment_response_hash,
-            payment_response_hash_key,
-            redirect_to_merchant_with_http_post: req
-                .redirect_to_merchant_with_http_post
-                .unwrap_or_default(),
-            publishable_key,
-            locker_id: req.locker_id,
-            metadata,
-            storage_scheme: MerchantStorageScheme::PostgresOnly,
-            primary_business_details,
-            created_at: date_time::now(),
-            modified_at: date_time::now(),
-            intent_fulfillment_time: None,
-            frm_routing_algorithm: req.frm_routing_algorithm,
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: req.payout_routing_algorithm,
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            id: None,
-            organization_id,
-            is_recon_enabled: false,
-            default_profile: None,
-            recon_status: diesel_models::enums::ReconStatus::NotRequested,
-            payment_link_config: None,
-            pm_collect_link_config,
+    insert_merchant_configs(db, &merchant_id).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while generating response")?,
+    ))
+}
+
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+trait MerchantAccountCreateBridge {
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: domain::MerchantKeyStore,
+    ) -> RouterResult<domain::MerchantAccount>;
+}
+
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[async_trait::async_trait]
+impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+    ) -> RouterResult<domain::MerchantAccount> {
+        let db = &*state.store;
+        let publishable_key = create_merchant_publishable_key();
+
+        let primary_business_details = self.get_primary_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            },
+        )?;
+
+        let webhook_details = self.get_webhook_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "webhook details",
+            },
+        )?;
+
+        let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "pm_collect_link_config",
+            },
+        )?;
+
+        let merchant_details = self.get_merchant_details_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_details",
+            },
+        )?;
+
+        self.parse_routing_algorithm()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+
+        let metadata = self.get_metadata_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            },
+        )?;
+
+        // Get the enable payment response hash as a boolean, where the default value is true
+        let enable_payment_response_hash = self.get_enable_payment_response_hash();
+
+        let payment_response_hash_key = self.get_payment_response_hash_key();
+
+        let parent_merchant_id = get_parent_merchant(
+            state,
+            self.sub_merchants_enabled,
+            self.parent_merchant_id,
+            &key_store,
+        )
+        .await?;
+
+        let organization_id = CreateOrValidateOrganization::new(self.organization_id)
+            .create_or_validate(db)
+            .await?;
+
+        let key = key_store.key.into_inner();
+        let key_manager_state: KeyManagerState = state.into();
+
+        let mut merchant_account = async {
+            Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                domain::MerchantAccount {
+                    merchant_id: self.merchant_id.get_string_repr().to_owned(),
+                    merchant_name: self
+                        .merchant_name
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                &key_manager_state,
+                                inner,
+                                km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                                key.peek(),
+                            )
+                        })
+                        .await?,
+                    merchant_details: merchant_details
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                &key_manager_state,
+                                inner,
+                                km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                                key.peek(),
+                            )
+                        })
+                        .await?,
+                    return_url: self.return_url.map(|a| a.to_string()),
+                    webhook_details,
+                    routing_algorithm: Some(serde_json::json!({
+                        "algorithm_id": null,
+                        "timestamp": 0
+                    })),
+                    sub_merchants_enabled: self.sub_merchants_enabled,
+                    parent_merchant_id,
+                    enable_payment_response_hash,
+                    payment_response_hash_key,
+                    redirect_to_merchant_with_http_post: self
+                        .redirect_to_merchant_with_http_post
+                        .unwrap_or_default(),
+                    publishable_key,
+                    locker_id: self.locker_id,
+                    metadata,
+                    storage_scheme: MerchantStorageScheme::PostgresOnly,
+                    primary_business_details,
+                    created_at: date_time::now(),
+                    modified_at: date_time::now(),
+                    intent_fulfillment_time: None,
+                    frm_routing_algorithm: self.frm_routing_algorithm,
+                    #[cfg(feature = "payouts")]
+                    payout_routing_algorithm: self.payout_routing_algorithm,
+                    #[cfg(not(feature = "payouts"))]
+                    payout_routing_algorithm: None,
+                    id: None,
+                    organization_id,
+                    is_recon_enabled: false,
+                    default_profile: None,
+                    recon_status: diesel_models::enums::ReconStatus::NotRequested,
+                    payment_link_config: None,
+                    pm_collect_link_config,
+                },
+            )
+        }
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        CreateBusinessProfile::new(self.primary_business_details.clone())
+            .create_business_profiles(db, &mut merchant_account)
+            .await?;
+
+        Ok(merchant_account)
+    }
+}
+
+#[cfg(feature = "olap")]
+enum CreateOrValidateOrganization {
+    /// Creates a new organization
+    #[cfg(not(feature = "v2"))]
+    Create,
+    /// Validates if this organization exists in the records
+    Validate { organization_id: String },
+}
+
+#[cfg(feature = "olap")]
+impl CreateOrValidateOrganization {
+    #[cfg(all(not(feature = "v2"), feature = "olap"))]
+    /// Create an action to either create or validate the given organization_id
+    /// If organization_id is passed, then validate if this organization exists
+    /// If not passed, create a new organization
+    fn new(organization_id: Option<String>) -> Self {
+        if let Some(organization_id) = organization_id {
+            Self::Validate { organization_id }
+        } else {
+            Self::Create
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    /// Create an action to validate the provided organization_id
+    fn new(organization_id: String) -> Self {
+        Self::Validate { organization_id }
+    }
+
+    #[cfg(feature = "olap")]
+    /// Apply the action, whether to create the organization or validate the given organization_id
+    async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
+        Ok(match self {
+            #[cfg(not(feature = "v2"))]
+            Self::Create => {
+                let new_organization = api_models::organization::OrganizationNew::new(None);
+                let db_organization = ForeignFrom::foreign_from(new_organization);
+                let organization = db
+                    .insert_organization(db_organization)
+                    .await
+                    .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error when creating organization")?;
+                organization.org_id
+            }
+            Self::Validate { organization_id } => {
+                db.find_organization_by_org_id(organization_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "organization with the given id does not exist".to_string(),
+                    })?;
+                organization_id.to_string()
+            }
         })
     }
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+}
 
-    // Create a default business profile
-    // If business_labels are passed, then use it as the profile_name
-    // else use `default` as the profile_name
-    if let Some(business_details) = req.primary_business_details.as_ref() {
-        for business_profile in business_details {
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
+enum CreateBusinessProfile {
+    /// Create business profiles from primary business details
+    /// If there is only one business profile created, then set this profile as default
+    CreateFromPrimaryBusinessDetails {
+        primary_business_details: Vec<admin_types::PrimaryBusinessDetails>,
+    },
+    /// Create a default business profile, set this as default profile
+    CreateDefaultBusinessProfile,
+}
+
+#[cfg(all(not(feature = "v2"), feature = "olap"))]
+impl CreateBusinessProfile {
+    /// Create a new business profile action from the given information
+    /// If primary business details exist, then create business profiles from them
+    /// If primary business details are empty, then create default business profile
+    fn new(primary_business_details: Option<Vec<admin_types::PrimaryBusinessDetails>>) -> Self {
+        match primary_business_details {
+            Some(primary_business_details) if !primary_business_details.is_empty() => {
+                Self::CreateFromPrimaryBusinessDetails {
+                    primary_business_details,
+                }
+            }
+            _ => Self::CreateDefaultBusinessProfile,
+        }
+    }
+
+    async fn create_business_profiles(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_account: &mut domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        match self {
+            Self::CreateFromPrimaryBusinessDetails {
+                primary_business_details,
+            } => {
+                let business_profiles = Self::create_business_profiles_for_each_business_details(
+                    db,
+                    merchant_account.clone(),
+                    primary_business_details,
+                )
+                .await?;
+
+                // Update the default business profile in merchant account
+                if business_profiles.len() == 1 {
+                    merchant_account.default_profile = business_profiles
+                        .first()
+                        .map(|business_profile| business_profile.profile_id.clone())
+                }
+            }
+            Self::CreateDefaultBusinessProfile => {
+                let business_profile = self
+                    .create_default_business_profile(db, merchant_account.clone())
+                    .await?;
+
+                merchant_account.default_profile = Some(business_profile.profile_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Create default business profile
+    async fn create_default_business_profile(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_account: domain::MerchantAccount,
+    ) -> RouterResult<diesel_models::business_profile::BusinessProfile> {
+        let business_profile = create_and_insert_business_profile(
+            db,
+            api_models::admin::BusinessProfileCreate::default(),
+            merchant_account.clone(),
+        )
+        .await?;
+
+        Ok(business_profile)
+    }
+
+    /// Create business profile for each primary_business_details,
+    /// If there is no default profile in merchant account and only one primary_business_detail
+    /// is available, then create a default business profile.
+    async fn create_business_profiles_for_each_business_details(
+        db: &dyn StorageInterface,
+        merchant_account: domain::MerchantAccount,
+        primary_business_details: &Vec<admin_types::PrimaryBusinessDetails>,
+    ) -> RouterResult<Vec<diesel_models::business_profile::BusinessProfile>> {
+        let mut business_profiles_vector = Vec::with_capacity(primary_business_details.len());
+
+        // This must ideally be run in a transaction,
+        // if there is an error in inserting some business profile, because of unique constraints
+        // the whole query must be rolled back
+        for business_profile in primary_business_details {
             let profile_name =
                 format!("{}_{}", business_profile.country, business_profile.business);
 
@@ -286,7 +486,7 @@ pub async fn create_merchant_account(
                 ..Default::default()
             };
 
-            let _ = create_and_insert_business_profile(
+            create_and_insert_business_profile(
                 db,
                 business_profile_create_request,
                 merchant_account.clone(),
@@ -297,44 +497,114 @@ pub async fn create_merchant_account(
                     "Business profile already exists {business_profile_insert_error:?}"
                 );
             })
-            .map(|business_profile| {
-                if business_details.len() == 1 && merchant_account.default_profile.is_none() {
-                    merchant_account.default_profile = Some(business_profile.profile_id);
-                }
-            });
+            .map(|business_profile| business_profiles_vector.push(business_profile))
+            .ok();
         }
-    } else {
-        let business_profile = create_and_insert_business_profile(
-            db,
-            api_models::admin::BusinessProfileCreate::default(),
-            merchant_account.clone(),
-        )
-        .await?;
 
-        // Update merchant account with the business profile id
-        merchant_account.default_profile = Some(business_profile.profile_id);
-    };
+        Ok(business_profiles_vector)
+    }
+}
 
-    let merchant_account = db
-        .insert_merchant(&state, merchant_account, &key_store)
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[async_trait::async_trait]
+impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+    ) -> RouterResult<domain::MerchantAccount> {
+        let publishable_key = create_merchant_publishable_key();
+        let db = &*state.store;
+
+        let metadata = self.get_metadata_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            },
+        )?;
+
+        let merchant_details = self.get_merchant_details_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_details",
+            },
+        )?;
+
+        let primary_business_details = self.get_primary_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            },
+        )?;
+
+        CreateOrValidateOrganization::new(self.organization_id.clone())
+            .create_or_validate(db)
+            .await?;
+
+        let key = key_store.key.into_inner();
+        let merchant_id = self
+            .get_merchant_reference_id()
+            .get_string_repr()
+            .to_owned();
+        let key_manager_state: KeyManagerState = state.into();
+        let identifier = km_types::Identifier::Merchant(merchant_id.clone());
+
+        async {
+            Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                domain::MerchantAccount {
+                    merchant_id,
+                    merchant_name: Some(
+                        domain_types::encrypt(
+                            &key_manager_state,
+                            self.merchant_name
+                                .map(|merchant_name| merchant_name.into_inner()),
+                            identifier.clone(),
+                            key.peek(),
+                        )
+                        .await?,
+                    ),
+                    merchant_details: merchant_details
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                &key_manager_state,
+                                inner,
+                                identifier.clone(),
+                                key.peek(),
+                            )
+                        })
+                        .await?,
+                    return_url: None,
+                    webhook_details: None,
+                    routing_algorithm: Some(serde_json::json!({
+                        "algorithm_id": null,
+                        "timestamp": 0
+                    })),
+                    sub_merchants_enabled: None,
+                    parent_merchant_id: None,
+                    enable_payment_response_hash: true,
+                    payment_response_hash_key: None,
+                    redirect_to_merchant_with_http_post: true,
+                    publishable_key,
+                    locker_id: None,
+                    metadata,
+                    storage_scheme: MerchantStorageScheme::PostgresOnly,
+                    primary_business_details,
+                    created_at: date_time::now(),
+                    modified_at: date_time::now(),
+                    intent_fulfillment_time: None,
+                    frm_routing_algorithm: None,
+                    payout_routing_algorithm: None,
+                    id: None,
+                    organization_id: self.organization_id,
+                    is_recon_enabled: false,
+                    default_profile: None,
+                    recon_status: diesel_models::enums::ReconStatus::NotRequested,
+                    payment_link_config: None,
+                    pm_collect_link_config: None,
+                },
+            )
+        }
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
-
-    db.insert_config(configs::ConfigNew {
-        key: format!("{}_requires_cvv", merchant_account.merchant_id),
-        config: "true".to_string(),
-    })
-    .await
-    .map_err(|err| {
-        crate::logger::error!("Error while setting requires_cvv config: {err:?}");
-    })
-    .ok();
-
-    Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(merchant_account)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while generating response")?,
-    ))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to encrypt merchant details")
+    }
 }
 
 #[cfg(feature = "olap")]
@@ -351,7 +621,7 @@ pub async fn list_merchant_account(
     let merchant_accounts = merchant_accounts
         .into_iter()
         .map(|merchant_account| {
-            api::MerchantAccountResponse::try_from(merchant_account).change_context(
+            api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_account",
                 },
@@ -382,7 +652,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -697,7 +967,7 @@ pub async fn merchant_account_update(
     // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(response)
+        api::MerchantAccountResponse::foreign_try_from(response)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -709,6 +979,21 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
+
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &state,
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&state, &merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -720,6 +1005,18 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    let state = state.clone();
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::revoke_api_key(
+                &state,
+                merchant_account.publishable_key.into(),
+            )
+            .await
+        },
+        authentication::decision::REVOKE,
+    );
 
     match db
         .delete_config_by_key(format!("{}_requires_cvv", merchant_id).as_str())
@@ -2008,10 +2305,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             bambora::transformers::BamboraAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Bamboraapac => {
-        //     bamboraapac::transformers::BamboraapacAuthType::try_from(val)?;
-        //     Ok(())
-        // }
+        api_enums::Connector::Bamboraapac => {
+            bamboraapac::transformers::BamboraapacAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Boku => {
             boku::transformers::BokuAuthType::try_from(val)?;
             Ok(())
@@ -2048,11 +2345,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             cybersource::transformers::CybersourceAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Datatrans => {
-        //     datatrans::transformers::DatatransAuthType::try_from(val)?;
-        //     Ok(())
-        // }
-        // added for future use
+        api_enums::Connector::Datatrans => {
+            datatrans::transformers::DatatransAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Dlocal => {
             dlocal::transformers::DlocalAuthType::try_from(val)?;
             Ok(())
@@ -2168,6 +2464,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
         }
         api_enums::Connector::Rapyd => {
             rapyd::transformers::RapydAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Razorpay => {
+            razorpay::transformers::RazorpayAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Shift4 => {

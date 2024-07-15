@@ -81,6 +81,8 @@ pub enum Flow {
     MerchantConnectorsDelete,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
+    /// Merchant Transfer Keys
+    MerchantTransferKey,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -111,6 +113,8 @@ pub enum Flow {
     MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
+    /// Payment methods migrate flow.
+    PaymentMethodsMigrate,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow

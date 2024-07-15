@@ -197,7 +197,6 @@ impl SecretsHandler for settings::PaymentMethodAuth {
     }
 }
 
-#[allow(unused_variables)]
 #[async_trait::async_trait]
 impl SecretsHandler for settings::KeyManagerConfig {
     async fn convert_to_raw_secret(
@@ -388,6 +387,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,
         file_storage: conf.file_storage,
@@ -433,5 +433,6 @@ pub(crate) async fn fetch_raw_secrets(
         saved_payment_methods: conf.saved_payment_methods,
         multitenancy: conf.multitenancy,
         user_auth_methods,
+        decision: conf.decision,
     }
 }

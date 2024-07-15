@@ -101,3 +101,6 @@ pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// Maximum allowed length for MerchantName
+pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;

@@ -1,7 +1,8 @@
 //! Configs interface
+use common_enums::ApplicationError;
+use masking::Secret;
 use router_derive;
 use serde::Deserialize;
-use storage_impl::errors::ApplicationError;
 
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
@@ -63,6 +64,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub razorpay: ConnectorParamsWithKeys,
     pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,
@@ -88,6 +90,18 @@ pub struct ConnectorParams {
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: Option<String>,
+}
+
+/// struct ConnectorParamsWithKeys
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithKeys {
+    /// base url
+    pub base_url: String,
+    /// api key
+    pub api_key: Secret<String>,
+    /// merchant ID
+    pub merchant_id: Secret<String>,
 }
 
 /// struct ConnectorParamsWithModeType
