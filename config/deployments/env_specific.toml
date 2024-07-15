@@ -43,9 +43,9 @@ partner_id = "paypal_partner_id"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = [
-    "merchant_id_1",
-    "merchant_id_2",
-    "etc.,",
+  "merchant_id_1",
+  "merchant_id_2",
+  "etc.,",
 ]
 
 [cors]
@@ -70,19 +70,19 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                               # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"           # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"          # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"           # Kafka topic to be used for Refund events
-api_logs_topic = "topic"                   # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"             # Kafka topic to be used for connector api events
-outgoing_webhook_logs_topic = "topic"      # Kafka topic to be used for outgoing webhook events
-dispute_analytics_topic = "topic"          # Kafka topic to be used for Dispute events
-audit_events_topic = "topic"               # Kafka topic to be used for Payment Audit events
-payout_analytics_topic = "topic"           # Kafka topic to be used for Payouts and PayoutAttempt events
-consolidated_events_topic = "topic"        # Kafka topic to be used for Consolidated events
-authentication_analytics_topic = "topic"   # Kafka topic to be used for Authentication events
-fraud_check_analytics_topic = "topic"      # Kafka topic to be used for Fraud Check events
+brokers = []                             # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"         # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"        # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"         # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                 # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"           # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"    # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"        # Kafka topic to be used for Dispute events
+audit_events_topic = "topic"             # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts and PayoutAttempt events
+consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
+authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
+fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 
 # File storage configuration
 [file_storage]
@@ -190,6 +190,7 @@ redis_expiry = 900          # Redis expiry time in milliseconds
 [proxy]
 http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the HTTP traffic
 https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HTTPS traffic
+bypass_proxy_urls = []                # A list of URLs that should bypass the proxy
 
 # Redis credentials
 [redis]
@@ -210,8 +211,8 @@ unresponsive_timeout = 10 # An optional timeout for Unresponsive commands in sec
 max_feed_count = 200 # The maximum number of frames that will be fed to a socket before flushing.
 cluster_enabled = true # boolean
 cluster_urls = [
-    "redis.cluster.uri-1:8080",
-    "redis.cluster.uri-2:4115",
+  "redis.cluster.uri-1:8080",
+  "redis.cluster.uri-2:4115",
 ] # List of redis cluster urls
 
 # Replica SQL data store credentials
@@ -295,7 +296,7 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
