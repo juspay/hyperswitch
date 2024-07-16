@@ -133,9 +133,10 @@ base_url = "https://app.hyperswitch.io"
 enabled = true
 
 [mandates.supported_payment_methods]
-bank_debit.ach.connector_list = "gocardless"                    # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs.connector_list = "gocardless"                   # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa.connector_list = "gocardless"                   # Mandate supported payment method type and connector for bank_debit
+bank_debit.ach = { connector_list = "gocardless,adyen" }                 # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
+bank_debit.bacs = { connector_list = "adyen" }                           # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless,adyen" }                # Mandate supported payment method type and connector for bank_debit
 card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"     # Mandate supported payment method type and connector for card
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"      # Mandate supported payment method type and connector for card
 pay_later.klarna.connector_list = "adyen"                       # Mandate supported payment method type and connector for pay_later
@@ -330,6 +331,12 @@ red_pagos = { country = "UY", currency = "UYU" }
 
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
+
+[payout_method_filters.adyenplatform]
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+
+[payout_method_filters.stripe]
+ach = { country = "US", currency = "USD" }
 
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"

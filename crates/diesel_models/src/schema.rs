@@ -820,6 +820,7 @@ diesel::table! {
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
+        customer_acceptance -> Nullable<Jsonb>,
     }
 }
 

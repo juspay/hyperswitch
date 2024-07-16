@@ -932,6 +932,12 @@ impl PaymentMethods {
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
+                    web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
+                )
+                .service(
+                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
+                )
+                .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
                 )
                 .service(
@@ -1024,6 +1030,9 @@ impl MerchantAccount {
                 web::resource("/{id}/kv")
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
+            )
+            .service(
+                web::resource("/transfer").route(web::post().to(merchant_account_transfer_keys)),
             )
             .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
@@ -1394,6 +1403,11 @@ impl User {
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
             );
+
+        route = route.service(
+            web::scope("/key")
+                .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
+        );
 
         // Two factor auth routes
         route = route.service(
