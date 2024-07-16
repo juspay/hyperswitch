@@ -3,8 +3,10 @@
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
 use actix_web::{web, HttpRequest, Responder};
-use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-use api_models::{enums, routing as routing_types};
+use api_models::{
+    enums, routing as routing_types,
+    routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
+};
 use router_env::{
     tracing::{self, instrument},
     Flow,
