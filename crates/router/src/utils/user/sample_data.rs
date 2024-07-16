@@ -305,6 +305,7 @@ pub async fn generate_sample_data(
             charge_id: None,
             client_source: None,
             client_version: None,
+            customer_acceptance: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

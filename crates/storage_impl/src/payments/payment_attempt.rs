@@ -418,6 +418,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charge_id: payment_attempt.charge_id.clone(),
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
+                    customer_acceptance: payment_attempt.customer_acceptance.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1202,6 +1203,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 
@@ -1268,6 +1270,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
         }
     }
 }
@@ -1341,6 +1344,7 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 
@@ -1406,6 +1410,7 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
         }
     }
 }
@@ -1530,6 +1535,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: amount.get_amount_as_i64(),
                 currency,
@@ -1562,6 +1568,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             },
             Self::VoidUpdate {
                 status,
@@ -1865,6 +1872,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => Self::ConfirmUpdate {
                 amount: MinorUnit::new(amount),
                 currency,
@@ -1895,6 +1903,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

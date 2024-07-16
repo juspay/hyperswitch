@@ -76,6 +76,7 @@ pub struct PaymentAttemptBatchNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[allow(dead_code)]
@@ -139,6 +140,7 @@ impl PaymentAttemptBatchNew {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 }

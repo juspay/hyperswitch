@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -74,6 +75,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttempt {
@@ -155,6 +157,7 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptNew {
@@ -240,6 +243,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -410,6 +414,7 @@ pub struct PaymentAttemptUpdateInternal {
     charge_id: Option<String>,
     client_source: Option<String>,
     client_version: Option<String>,
+    customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -478,6 +483,7 @@ impl PaymentAttemptUpdate {
             charge_id,
             client_source,
             client_version,
+            customer_acceptance,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -529,6 +535,7 @@ impl PaymentAttemptUpdate {
             charge_id: charge_id.or(source.charge_id),
             client_source: client_source.or(source.client_source),
             client_version: client_version.or(source.client_version),
+            customer_acceptance: customer_acceptance.or(source.customer_acceptance),
             ..source
         }
     }
@@ -603,6 +610,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -653,6 +661,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -684,6 +693,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -715,6 +725,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 client_source,
                 client_version,
+                customer_acceptance,
                 net_amount: None,
                 connector_transaction_id: None,
                 amount_to_capture: None,
@@ -781,6 +792,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
+                
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -833,6 +846,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -885,6 +899,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -935,6 +950,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -1003,6 +1019,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_billing_address_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
@@ -1063,6 +1080,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1110,6 +1128,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -1166,6 +1185,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -1223,6 +1243,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
                 status,
@@ -1278,6 +1299,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
@@ -1329,6 +1351,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -1380,6 +1403,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -1434,6 +1458,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_billing_address_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
@@ -1484,6 +1509,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -1537,6 +1563,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -1592,6 +1619,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: None,
             },
         }
     }

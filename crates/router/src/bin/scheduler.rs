@@ -38,7 +38,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker),
+            services::proxy_bypass_urls(&conf.locker, &conf.proxy.bypass_proxy_urls),
         )
         .change_context(ProcessTrackerError::ConfigurationError)?,
     );
