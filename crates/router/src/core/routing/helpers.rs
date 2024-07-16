@@ -284,6 +284,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         collect_shipping_details_from_wallet_connector: None,
         collect_billing_details_from_wallet_connector: None,
         is_connector_agnostic_mit_enabled: None,
+        outgoing_webhook_custom_http_headers: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)

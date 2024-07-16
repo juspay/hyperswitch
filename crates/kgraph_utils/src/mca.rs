@@ -755,6 +755,7 @@ mod tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
+            additional_merchant_data: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

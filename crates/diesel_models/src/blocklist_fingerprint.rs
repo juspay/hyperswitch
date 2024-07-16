@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::blocklist_fingerprint;
@@ -13,8 +13,10 @@ pub struct BlocklistFingerprintNew {
     pub created_at: time::PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Queryable, Identifiable, Deserialize, Serialize)]
-#[diesel(table_name = blocklist_fingerprint)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Queryable, Identifiable, Selectable, Deserialize, Serialize,
+)]
+#[diesel(table_name = blocklist_fingerprint, check_for_backend(diesel::pg::Pg))]
 pub struct BlocklistFingerprint {
     #[serde(skip_serializing)]
     pub id: i32,

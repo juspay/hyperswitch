@@ -3467,7 +3467,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 let merchant_connector_id = connector_data
                     .merchant_connector_id
                     .as_ref()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to find the merchant connector id")?;
 
                 if is_network_transaction_id_flow(
                     state,

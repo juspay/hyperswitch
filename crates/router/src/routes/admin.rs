@@ -508,22 +508,22 @@ pub async fn business_profile_retrieve(
     let flow = Flow::BusinessProfileRetrieve;
     let (merchant_id, profile_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         profile_id,
-        |state, _, profile_id, _| retrieve_business_profile(state, profile_id),
+        |state, _, profile_id, _| retrieve_business_profile(state, profile_id, merchant_id.clone()),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountRead,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
@@ -583,7 +583,7 @@ pub async fn business_profiles_list(
     let flow = Flow::BusinessProfileList;
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -598,7 +598,7 @@ pub async fn business_profiles_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
