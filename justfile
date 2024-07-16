@@ -89,7 +89,7 @@ run_migration operation=default_operation migration_dir=v1_migration_dir config_
         {{ operation }} \
         --migration-dir '{{migration_dir}}' \
         --config-file '{{config_file_dir}}' \
-        {{other_params}} ||  just delete_dir_if_exists 
+        {{other_params}} ||  ( just delete_dir_if_exists; exit 1; )
 
 # Run database migrations for v1
 migrate operation='run' *args='': (run_migration operation v1_migration_dir v1_config_file_dir database_url args)
