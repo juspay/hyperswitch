@@ -5,6 +5,7 @@ use api_models::{
     enums as api_enums, routing as routing_types,
 };
 use common_utils::{
+    crypto::generate_cryptographically_secure_random_string,
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     id_type, pii,
@@ -184,6 +185,18 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         db: &dyn StorageInterface,
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<domain::MerchantAccount> {
+        let key = key_store.key.clone().into_inner();
+        let fingerprint = format!(
+            "fs_{}",
+            generate_cryptographically_secure_random_string(consts::FINGERPRINT_SECRET_LENGTH)
+        );
+
+        let fingerprint_hash_key =
+            domain::types::encrypt(Secret::new(fingerprint.clone()), &key.peek())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt fingerprint hash key")?;
+
         let publishable_key = create_merchant_publishable_key();
 
         let primary_business_details = self.get_primary_details_as_value().change_context(
@@ -239,8 +252,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let key = key_store.key.into_inner();
-
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount {
@@ -285,6 +296,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
+                    fingerprint_hash_key: Some(fingerprint_hash_key),
                 },
             )
         }

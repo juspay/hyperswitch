@@ -622,6 +622,7 @@ pub async fn unlink_routing_config(
             default_profile: None,
             payment_link_config: None,
             pm_collect_link_config: None,
+            fingerprint_hash_key: None,
         };
 
         db.update_specific_fields_in_merchant(

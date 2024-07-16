@@ -325,6 +325,9 @@ pub struct MerchantAccountUpdate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// key used by locker to perform HMAC Hash on Payment method data
+    pub fingerprint_hash_key: Option<Secret<String>>,
 }
 
 #[cfg(not(feature = "v2"))]
