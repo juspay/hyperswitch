@@ -71,6 +71,7 @@ fn build_test_data(
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
+        additional_merchant_data: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),
