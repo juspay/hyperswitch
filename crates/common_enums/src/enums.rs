@@ -20,6 +20,80 @@ pub mod diesel_exports {
     };
 }
 
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApplicationError {
+    #[error("Application configuration error")]
+    ConfigurationError,
+
+    #[error("Invalid configuration value provided: {0}")]
+    InvalidConfigurationValueError(String),
+
+    #[error("Metrics error")]
+    MetricsError,
+
+    #[error("I/O: {0}")]
+    IoError(std::io::Error),
+
+    #[error("Error while constructing api client: {0}")]
+    ApiClientError(ApiClientError),
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum ApiClientError {
+    #[error("Header map construction failed")]
+    HeaderMapConstructionFailed,
+    #[error("Invalid proxy configuration")]
+    InvalidProxyConfiguration,
+    #[error("Client construction failed")]
+    ClientConstructionFailed,
+    #[error("Certificate decode failed")]
+    CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
+
+    #[error("URL encoding of request payload failed")]
+    UrlEncodingFailed,
+    #[error("Failed to send request to connector {0}")]
+    RequestNotSent(String),
+    #[error("Failed to decode response")]
+    ResponseDecodingFailed,
+
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
+
+    #[error("connection closed before a message could complete")]
+    ConnectionClosedIncompleteMessage,
+
+    #[error("Server responded with Internal Server Error")]
+    InternalServerErrorReceived,
+    #[error("Server responded with Bad Gateway")]
+    BadGatewayReceived,
+    #[error("Server responded with Service Unavailable")]
+    ServiceUnavailableReceived,
+    #[error("Server responded with Gateway Timeout")]
+    GatewayTimeoutReceived,
+    #[error("Server responded with unexpected response")]
+    UnexpectedServerResponse,
+}
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
+    }
+}
+
+impl From<std::io::Error> for ApplicationError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
 /// The status of the attempt
 #[derive(
     Clone,
@@ -132,7 +206,7 @@ pub enum RoutableConnectors {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -176,6 +250,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Plaid,
     Zsl,
 }
 

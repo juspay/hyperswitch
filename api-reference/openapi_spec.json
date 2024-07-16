@@ -4887,6 +4887,21 @@
           }
         }
       },
+      "AdditionalMerchantData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_recipient_data"
+            ],
+            "properties": {
+              "open_banking_recipient_data": {
+                "$ref": "#/components/schemas/MerchantRecipientData"
+              }
+            }
+          }
+        ]
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -7736,6 +7751,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -9765,6 +9781,28 @@
             "enum": [
               "user_vpa_id"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "language_preference"
+            ],
+            "properties": {
+              "language_preference": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11225,6 +11263,68 @@
         },
         "additionalProperties": false
       },
+      "MerchantAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "iban"
+            ],
+            "properties": {
+              "iban": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "MerchantAccountDeleteResponse": {
         "type": "object",
         "required": [
@@ -11669,6 +11769,14 @@
               }
             ],
             "nullable": true
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11904,6 +12012,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12110,6 +12226,45 @@
         },
         "additionalProperties": false
       },
+      "MerchantRecipientData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "connector_recipient_id"
+            ],
+            "properties": {
+              "connector_recipient_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_id"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "account_data"
+            ],
+            "properties": {
+              "account_data": {
+                "$ref": "#/components/schemas/MerchantAccountData"
+              }
+            }
+          }
+        ]
+      },
       "MerchantRoutingAlgorithm": {
         "type": "object",
         "description": "Routing Algorithm specific to merchants",
@@ -12176,6 +12331,10 @@
           "date_of_birth": {
             "type": "string",
             "format": "date"
+          },
+          "language_preference": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -19460,6 +19619,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -19500,6 +19660,7 @@
           "worldline",
           "worldpay",
           "zen",
+          "plaid",
           "zsl"
         ]
       },

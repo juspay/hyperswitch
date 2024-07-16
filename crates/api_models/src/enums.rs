@@ -90,7 +90,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -257,7 +257,7 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            // | Self::Datatrans
+            | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
@@ -470,6 +470,7 @@ pub enum FieldType {
     DropDown { options: Vec<String> },
     UserDateOfBirth,
     UserVpaId,
+    LanguagePreference { options: Vec<String> },
 }
 
 impl FieldType {
@@ -556,6 +557,7 @@ impl PartialEq for FieldType {
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }
     }

@@ -11,6 +11,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -23,6 +24,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  datatrans:datatransConnectorDetails
 };
 
 export default function getConnectorDetails(connectorId) {

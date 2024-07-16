@@ -707,6 +707,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
+        additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
     }
 }
@@ -739,6 +740,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_attempt (attempt_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -820,6 +822,7 @@ diesel::table! {
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
+        customer_acceptance -> Nullable<Jsonb>,
     }
 }
 
@@ -828,6 +831,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_intent (payment_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]

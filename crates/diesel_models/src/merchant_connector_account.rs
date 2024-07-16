@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_connector_account};
@@ -13,9 +13,10 @@ use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_con
     serde::Deserialize,
     Identifiable,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_connector_account)]
+#[diesel(table_name = merchant_connector_account, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantConnectorAccount {
     pub id: i32,
     pub merchant_id: String,
@@ -43,6 +44,7 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: storage_enums::ConnectorStatus,
+    pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
 }
 
@@ -73,6 +75,7 @@ pub struct MerchantConnectorAccountNew {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: storage_enums::ConnectorStatus,
+    pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
 }
 
