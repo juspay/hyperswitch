@@ -2786,6 +2786,7 @@ pub struct SwishQrData {}
 pub struct MifinityData {
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
+    pub language_preference: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

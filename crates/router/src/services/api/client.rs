@@ -110,11 +110,16 @@ pub fn create_client(
     }
 }
 
-pub fn proxy_bypass_urls(key_manager: &KeyManagerConfig, locker: &Locker) -> Vec<String> {
+pub fn proxy_bypass_urls(
+    key_manager: &KeyManagerConfig,
+    locker: &Locker,
+    config_whitelist: &[String],
+) -> Vec<String> {
     let key_manager_host = key_manager.url.to_owned();
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
-    vec![
+
+    let proxy_list = [
         format!("{locker_host}/cards/add"),
         format!("{locker_host}/cards/fingerprint"),
         format!("{locker_host}/cards/retrieve"),
@@ -130,7 +135,8 @@ pub fn proxy_bypass_urls(key_manager: &KeyManagerConfig, locker: &Locker) -> Vec
         format!("{key_manager_host}/data/decrypt"),
         format!("{key_manager_host}/key/create"),
         format!("{key_manager_host}/key/rotate"),
-    ]
+    ];
+    [&proxy_list, config_whitelist].concat().to_vec()
 }
 
 pub trait RequestBuilder: Send + Sync {

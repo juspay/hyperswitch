@@ -284,6 +284,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_method_info,
             merchant_key_store,
             profile_id,
+            &customer_acceptance,
         )
         .await?;
 
@@ -808,6 +809,7 @@ impl PaymentCreate {
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: String,
+        customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -980,6 +982,13 @@ impl PaymentCreate {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: customer_acceptance
+                    .clone()
+                    .map(|customer_acceptance| customer_acceptance.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize customer_acceptance")?
+                    .map(Secret::new),
             },
             additional_pm_data,
         ))

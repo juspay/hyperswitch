@@ -3,6 +3,7 @@ use common_enums as storage_enums;
 use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    pii,
     types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::ResultExt;
@@ -176,6 +177,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttempt {
@@ -265,6 +267,7 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptNew {
@@ -347,6 +350,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
