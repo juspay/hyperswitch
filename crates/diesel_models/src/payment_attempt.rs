@@ -793,7 +793,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
-                
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
