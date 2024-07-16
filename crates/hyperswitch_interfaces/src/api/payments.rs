@@ -18,9 +18,10 @@ use hyperswitch_domain_models::{
 
 use crate::api;
 
+/// trait Payment
 pub trait Payment:
     api::ConnectorCommon
-    + api_types::ConnectorValidation
+    + api::ConnectorValidation
     + PaymentAuthorize
     + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize

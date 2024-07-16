@@ -1,12 +1,16 @@
 //! API interface
 
 pub mod payments;
+pub mod refunds;
 
+use common_enums::enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::AccessTokenAuth,
     router_request_types::AccessTokenRequestData,
@@ -15,7 +19,7 @@ use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
-pub use self::payments::*;
+pub use self::{payments::*, refunds::*};
 use crate::{
     configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
@@ -266,4 +270,64 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
 {
+}
+
+/// trait ConnectorValidation
+pub trait ConnectorValidation: ConnectorCommon {
+    /// fn validate_capture_method
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
+    }
+
+    /// fn validate_mandate_payment
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+
+    /// fn validate_psync_reference_id
+    fn validate_psync_reference_id(
+        &self,
+        data: &hyperswitch_domain_models::types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        data.request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+            .map(|_| ())
+    }
+
+    /// fn is_webhook_source_verification_mandatory
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
+    }
 }
