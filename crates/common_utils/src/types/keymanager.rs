@@ -4,13 +4,12 @@ use core::fmt;
 
 use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
-use regex::Regex;
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
-    ser, Deserialize, Deserializer, Serialize,
+    Deserialize, Deserializer, Serialize,
 };
 
 use crate::{
@@ -433,12 +432,13 @@ impl Serialize for EncryptedData {
     where
         S: serde::Serializer,
     {
-        let mut data = String::from_utf8(self.data.peek().clone()).map_err(ser::Error::custom)?;
-        let regex: Regex = Regex::new(r"v([0-9]+):(.+)$").map_err(ser::Error::custom)?;
-        // To handle older data which does not have version
-        if !regex.is_match(data.as_str()) {
-            data = format!("{DEFAULT_ENCRYPTION_VERSION}:{data}");
-        }
+        let data = match String::from_utf8(self.data.peek().clone()) {
+            Ok(data) => data,
+            Err(_) => {
+                let data = BASE64_ENGINE.encode(self.data.peek().clone());
+                format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
+            }
+        };
         serializer.serialize_str(data.as_str())
     }
 }

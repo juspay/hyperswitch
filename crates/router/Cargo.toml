@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls", "encryption_service", "keymanager_create"]
 tls = ["actix-web/rustls-0_22"]
 keymanager_mtls = ["reqwest/rustls-tls","common_utils/keymanager_mtls"]
 encryption_service = ["hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
