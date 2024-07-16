@@ -388,6 +388,9 @@ impl ConnectorData {
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Cybersource)))
                 }
+                enums::Connector::Datatrans => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
+                }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
@@ -542,6 +545,7 @@ pub trait Payouts:
     + PayoutQuote
     + PayoutRecipient
     + PayoutRecipientAccount
+    + PayoutSync
 {
 }
 #[cfg(not(feature = "payouts"))]

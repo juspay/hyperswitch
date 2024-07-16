@@ -2920,21 +2920,15 @@ pub fn get_sync_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: String,
-    captured_amount: Option<T>,
 ) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
     let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
         .change_context(errors::ConnectorError::ParsingFailed)?;
     let amount_in_minor_unit =
         convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
 
-    let capture_amount_in_minor_unit = captured_amount
-        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
-        .transpose()?;
-
     Ok(SyncIntegrityObject {
         amount: Some(amount_in_minor_unit),
         currency: Some(currency_enum),
-        captured_amount: capture_amount_in_minor_unit,
     })
 }
 

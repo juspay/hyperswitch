@@ -281,6 +281,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_method_info,
             merchant_key_store,
             profile_id,
+            &customer_acceptance,
         )
         .await?;
 
@@ -642,10 +643,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, raw_customer_details).await
-            })
-            .await;
+            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")?;
 
         payment_data.payment_intent = state
             .store
@@ -795,6 +797,7 @@ impl PaymentCreate {
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: String,
+        customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -965,6 +968,13 @@ impl PaymentCreate {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: customer_acceptance
+                    .clone()
+                    .map(|customer_acceptance| customer_acceptance.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize customer_acceptance")?
+                    .map(Secret::new),
             },
             additional_pm_data,
         ))
@@ -1047,20 +1057,22 @@ impl PaymentCreate {
         let billing_details = request
             .billing
             .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, request.billing.clone()).await
-            })
-            .await;
+            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?;
 
         // Derivation of directly supplied Shipping Address data in our Payment Create Request
         // Encrypting our Shipping Address Details to be stored in Payment Intent
         let shipping_details = request
             .shipping
             .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, request.shipping.clone()).await
-            })
-            .await;
+            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.get_customer_id().is_none()
@@ -1080,11 +1092,12 @@ impl PaymentCreate {
         };
 
         // Encrypting our Customer Details to be stored in Payment Intent
-        let customer_details = if raw_customer_details.is_some() {
-            create_encrypted_data(key_store, raw_customer_details).await
-        } else {
-            None
-        };
+        let customer_details = raw_customer_details
+            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")?;
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
