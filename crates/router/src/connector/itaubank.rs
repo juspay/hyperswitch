@@ -116,9 +116,12 @@ impl ConnectorCommon for Itaubank {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.status.to_string(),
+            message: response
+                .error
+                .title
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.detail,
             attempt_status: None,
             connector_transaction_id: None,
         })

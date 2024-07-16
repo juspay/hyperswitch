@@ -378,10 +378,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ItaubankErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub error: ItaubankErrorBody,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ItaubankErrorBody {
+    pub status: u16,
+    pub title: Option<String>,
+    pub detail: Option<String>,
 }
