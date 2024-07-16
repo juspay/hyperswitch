@@ -700,3 +700,6 @@ public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "p
 
 [user_auth_methods]
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table
+
+[locker_based_open_banking_connectors]
+connector_list = ""
