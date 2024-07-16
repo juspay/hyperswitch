@@ -7751,6 +7751,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -9780,6 +9781,28 @@
             "enum": [
               "user_vpa_id"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "language_preference"
+            ],
+            "properties": {
+              "language_preference": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -12308,6 +12331,10 @@
           "date_of_birth": {
             "type": "string",
             "format": "date"
+          },
+          "language_preference": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -19644,6 +19671,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",

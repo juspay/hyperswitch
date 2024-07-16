@@ -186,7 +186,7 @@ pub async fn accept_invitation(
             )
             .await
             .map_err(|e| {
-                logger::error!("Error while accepting invitation {}", e);
+                logger::error!("Error while accepting invitation {e:?}");
             })
             .ok()
     }))
@@ -216,7 +216,7 @@ pub async fn merchant_select(
             )
             .await
             .map_err(|e| {
-                logger::error!("Error while accepting invitation {}", e);
+                logger::error!("Error while accepting invitation {e:?}");
             })
             .ok()
     }))
@@ -270,7 +270,7 @@ pub async fn merchant_select_token_only_flow(
             )
             .await
             .map_err(|e| {
-                logger::error!("Error while accepting invitation {}", e);
+                logger::error!("Error while accepting invitation {e:?}");
             })
             .ok()
     }))

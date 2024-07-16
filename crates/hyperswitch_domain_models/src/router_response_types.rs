@@ -191,6 +191,8 @@ pub struct PayoutsResponseData {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub should_add_next_step_to_process_tracker: bool,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -1053,11 +1053,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 match data.parse_value("PaymentMethodDataResponseWithBilling") {
                     Ok(parsed_data) => Some(parsed_data),
                     Err(e) => {
-                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
                         None
                     }
                 }
             }),
+            merchant_order_reference_id: pi.merchant_order_reference_id,
             ..Default::default()
         }
     }
@@ -1338,7 +1339,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|data| data.customer_id.clone());
 
-        let conn_transaction_id = payment_data.payment_attempt.connector_transaction_id;
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges
                 .peek()
@@ -1377,7 +1377,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_category,
             session_token: None,
             enrolled_for_3ds: true,
-            related_transaction_id: conn_transaction_id,
+            related_transaction_id: None,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             router_return_url,
             webhook_url,
@@ -1415,7 +1415,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
-        let captured_amount = payment_data.payment_intent.amount_captured;
         Ok(Self {
             amount,
             integrity_object: None,
@@ -1438,7 +1437,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
             payment_experience: payment_data.payment_attempt.payment_experience,
-            captured_amount,
         })
     }
 }
