@@ -345,7 +345,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("CE", 3, "Capture attempt failed while processing with connector", Some(Extra { data: data.clone(), ..Default::default()})))
             }
             Self::DisputeFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 1, "Dispute operation failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
+                AER::BadRequest(ApiError::new("CE", 8, "Dispute operation failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
             }
             Self::InvalidCardData { data } => AER::BadRequest(ApiError::new("CE", 4, "The card data is invalid", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::CardExpired { data } => AER::BadRequest(ApiError::new("CE", 5, "The card has expired", Some(Extra { data: data.clone(), ..Default::default()}))),
@@ -399,7 +399,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
             Self::CurrencyNotSupported { message } => {
-                AER::BadRequest(ApiError::new("IR", 9, message, None))
+                AER::BadRequest(ApiError::new("IR", 28, message, None))
             }
             Self::MandateActive => {
                 AER::BadRequest(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
@@ -427,7 +427,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::ClientSecretExpired => AER::BadRequest(ApiError::new(
                 "IR",
-                19,
+                8,
                 "The provided client_secret has expired", None
             )),
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
@@ -439,7 +439,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::FileProviderNotSupported { message } => {
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
-            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 23, message.to_string(), None)),
+            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 29, message.to_string(), None)),
             Self::InvalidWalletToken { wallet_name} => AER::Unprocessable(ApiError::new(
                 "IR",
                 24,
@@ -452,7 +452,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
             },
             Self::PayoutFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 4, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
+                AER::BadRequest(ApiError::new("CE", 9, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
             },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
@@ -468,7 +468,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
             }
             Self::GenericDuplicateError { message } => {
-                AER::BadRequest(ApiError::new("HE", 1, message, None))
+                AER::BadRequest(ApiError::new("IR", 38, message, None))
             }
             Self::RefundNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
@@ -532,16 +532,16 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
             },
             Self::GenericNotFoundError { message } => {
-                AER::NotFound(ApiError::new("HE", 5, message, None))
+                AER::NotFound(ApiError::new("IR", 37, message, None))
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
             }
             Self::NotSupported { message } => {
-                AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
+                AER::BadRequest(ApiError::new("IR", 19, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
             },
-            Self::InvalidCardIin => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None)),
-            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
+            Self::InvalidCardIin => AER::BadRequest(ApiError::new("IR", 31, "The provided card IIN does not exist", None)),
+            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("IR", 32, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
             Self::FlowNotSupported { flow, connector } => {
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
             }
@@ -570,16 +570,16 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 2, format!("File validation failed {reason}"), None))
             }
             Self::MissingFile => {
-                AER::BadRequest(ApiError::new("HE", 2, "File not found in the request", None))
+                AER::BadRequest(ApiError::new("IR", 33, "File not found in the request", None))
             }
             Self::MissingFilePurpose => {
-                AER::BadRequest(ApiError::new("HE", 2, "File purpose not found in the request or is invalid", None))
+                AER::BadRequest(ApiError::new("IR", 35, "File purpose not found in the request or is invalid", None))
             }
             Self::MissingFileContentType => {
-                AER::BadRequest(ApiError::new("HE", 2, "File content type not found", None))
+                AER::BadRequest(ApiError::new("IR", 36, "File content type not found", None))
             }
             Self::MissingDisputeId => {
-                AER::BadRequest(ApiError::new("HE", 2, "Dispute id not found in the request", None))
+                AER::BadRequest(ApiError::new("IR", 34, "Dispute id not found in the request", None))
             }
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
@@ -594,10 +594,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
             Self::WebhookInvalidMerchantSecret => {
-                AER::BadRequest(ApiError::new("WE", 2, "Merchant Secret set for webhook source verificartion is invalid", None))
+                AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verificartion is invalid", None))
             }
             Self::IncorrectPaymentMethodConfiguration => {
-                AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
+                AER::BadRequest(ApiError::new("IR", 39, "No eligible connector was found for the current payment method configuration", None))
             }
             Self::WebhookUnprocessableEntity => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
@@ -609,10 +609,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, "Payment Link does not exist in our records", None))
             }
             Self::InvalidConnectorConfiguration {config} => {
-                AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
+                AER::BadRequest(ApiError::new("IR", 30, format!("Merchant connector account is configured with invalid {config}"), None))
             }
             Self::CurrencyConversionFailed => {
-                AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
+                AER::Unprocessable(ApiError::new("HE", 1, "Failed to convert currency to minor unit", None))
             }
             Self::PaymentMethodDeleteFailed => {
                 AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
@@ -643,7 +643,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE", 5, format!("Invalid Tenant {tenant_id}"), None))
             }
             Self::AmountConversionFailed { amount_type }  => {
-                AER::InternalServerError(ApiError::new("HE", 5, format!("Failed to convert amount to {amount_type} type"), None))
+                AER::InternalServerError(ApiError::new("HE", 1, format!("Failed to convert amount to {amount_type} type"), None))
             }
         }
     }
