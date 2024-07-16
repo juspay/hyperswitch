@@ -327,7 +327,7 @@ mod tests {
         types::domain,
     };
 
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
         let conf = Settings::new().expect("invalid settings");

@@ -18,7 +18,7 @@ frm = ["api_models/frm"]
 # First party deps
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
 masking = { version = "0.1.0", path = "../masking" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 cards = { version = "0.1.0", path = "../cards" }
