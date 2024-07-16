@@ -490,6 +490,7 @@ impl behaviour::Conversion for PaymentIntent {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(DieselPaymentIntent {
+            id: None,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
