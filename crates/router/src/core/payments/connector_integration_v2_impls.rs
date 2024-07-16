@@ -1898,7 +1898,8 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
