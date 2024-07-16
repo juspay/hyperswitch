@@ -1,7 +1,5 @@
 use core::fmt;
 
-use serde::Deserialize;
-
 /// Debugging trait which is specialized for handling secret values
 pub trait Strategy<T> {
     /// Format information about the secret's type.
@@ -9,7 +7,8 @@ pub trait Strategy<T> {
 }
 
 /// Debug with type
-#[derive(Debug, Copy, Clone, Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Copy, Clone)]
 pub enum WithType {}
 
 impl<T> Strategy<T> for WithType {
