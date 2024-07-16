@@ -1,6 +1,7 @@
 use crate::{
     router_data::{AccessToken, PaymentMethodToken, RouterData},
     router_flow_types::{
+        self,
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
         files::{Retrieve, Upload},
@@ -55,8 +56,11 @@ pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, Pa
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<RSync, RefundsData, RefundsResponseData>;
-pub type TokenizationRouterData =
-    RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
+pub type TokenizationRouterData = RouterData<
+    router_flow_types::PaymentMethodToken,
+    PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
 pub type ConnectorCustomerRouterData =
     RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 

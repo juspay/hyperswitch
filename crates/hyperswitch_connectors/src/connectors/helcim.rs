@@ -41,6 +41,8 @@ use hyperswitch_interfaces::{
 use masking::ExposeInterface;
 use transformers as helcim;
 
+use crate::{constants::headers, utils::to_connector_meta};
+
 #[derive(Debug, Clone)]
 pub struct Helcim;
 
@@ -93,7 +95,7 @@ where
         const ID_LENGTH: usize = 22;
         let mut idempotency_key = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            utils::generate_id(ID_LENGTH, "HS").into_masked(),
+            crate::utils::generate_id(ID_LENGTH, "HS").into_masked(),
         )];
 
         header.append(&mut api_key);
@@ -174,7 +176,7 @@ impl ConnectorValidation for Helcim {
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                super::utils::construct_not_supported_error_report(capture_method, self.id()),
+                crate::utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }

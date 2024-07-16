@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData, ResponseRouterData, SetupMandateRouterData,
+        RefundsResponseRouterData, RefundsRouterData, ResponseRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -32,7 +32,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for HelcimRouterD
     fn try_from(
         (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        let amount = crate::utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -170,7 +170,7 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Helcim"),
+                crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
             ))?,
         }
     }
@@ -193,7 +193,7 @@ impl TryFrom<(&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card)> for Helci
             .get_billing()?
             .to_owned()
             .address
-            .ok_or_else(utils::missing_field_err("billing.address"))?;
+            .ok_or_else(crate::utils::missing_field_err("billing.address"))?;
 
         let billing_address = HelcimBillingAddress {
             name: req_address.get_full_name()?,
@@ -262,7 +262,7 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Helcim"),
+                crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
             ))?,
         }
     }
@@ -454,7 +454,7 @@ impl<F>
         item: ResponseRouterData<F, HelcimPaymentsResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.data.request.sync_type {
-            SyncRequestType::SinglePaymentSync => Ok(Self {
+            hyperswitch_domain_models::router_request_types::SyncRequestType::SinglePaymentSync => Ok(Self {
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.transaction_id.to_string(),
@@ -470,7 +470,7 @@ impl<F>
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
             }),
-            SyncRequestType::MultipleCaptureSync(_) => {
+            hyperswitch_domain_models::router_request_types::SyncRequestType::MultipleCaptureSync(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "manual multiple capture sync".to_string(),
                 )

@@ -3884,9 +3884,11 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "nanoid",
  "router_env",
  "serde",
  "serde_json",
+ "strum 0.26.2",
 ]
 
 [[package]]
