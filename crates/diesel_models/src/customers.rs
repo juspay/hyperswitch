@@ -1,5 +1,5 @@
 use common_utils::{encryption::Encryption, id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::schema::customers;
@@ -52,8 +52,10 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, serde::Deserialize, serde::Serialize)]
-#[diesel(table_name = customers)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
+)]
+#[diesel(table_name = customers, check_for_backend(diesel::pg::Pg))]
 pub struct Customer {
     pub id: i32,
     pub customer_id: id_type::CustomerId,

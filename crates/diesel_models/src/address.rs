@@ -5,7 +5,7 @@ use common_utils::{
     pii::EmailStrategy,
     types::keymanager::ToEncryptable,
 };
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::{Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -37,8 +37,8 @@ pub struct AddressNew {
     pub email: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
-#[diesel(table_name = address, primary_key(address_id))]
+#[derive(Clone, Debug, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
+#[diesel(table_name = address, primary_key(address_id), check_for_backend(diesel::pg::Pg))]
 pub struct Address {
     pub id: Option<i32>,
     pub address_id: String,

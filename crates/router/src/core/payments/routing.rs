@@ -1010,7 +1010,9 @@ pub async fn perform_session_flow_routing(
                     });
                 }
             }
-            result.insert(pm_type, session_routing_choice);
+            if !session_routing_choice.is_empty() {
+                result.insert(pm_type, session_routing_choice);
+            }
         }
     }
 

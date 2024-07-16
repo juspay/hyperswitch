@@ -1,5 +1,5 @@
 use common_utils::{encryption::Encryption, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
@@ -8,8 +8,8 @@ use crate::{diesel_impl::OptionalDieselArray, enums::TotpStatus, schema::users};
 pub mod dashboard_metadata;
 
 pub mod sample_data;
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = users)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = users, check_for_backend(diesel::pg::Pg))]
 pub struct User {
     pub id: i32,
     pub user_id: String,

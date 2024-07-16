@@ -1,10 +1,10 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::roles};
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = roles)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = roles, check_for_backend(diesel::pg::Pg))]
 pub struct Role {
     pub id: i32,
     pub role_name: String,
