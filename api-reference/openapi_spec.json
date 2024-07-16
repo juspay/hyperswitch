@@ -9505,11 +9505,11 @@
             "nullable": true
           },
           "search_tags": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RedirectResponse"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional tags to be used for global search",
             "nullable": true
           }
         }
