@@ -6823,7 +6823,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "A list of allowed domains regexes where this link can be embedded / opened from",
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true
               }
             }
