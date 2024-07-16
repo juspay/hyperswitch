@@ -94,7 +94,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
         match response.response {
             Ok(_mandate) => {
-                metrics::CONNECTOR_MANDATE_REVOKE_SUCCEDED.add(
+                metrics::CONNECTOR_MANDATE_REVOKE_SUCCEEDED.add(
                     &metrics::CONTEXT,
                     1,
                     &add_attributes([("flow", "")]),
