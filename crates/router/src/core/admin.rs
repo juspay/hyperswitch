@@ -124,6 +124,19 @@ pub async fn create_merchant_account(
     let merchant_id = req.get_merchant_reference_id().get_string_repr().to_owned();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
 
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            key_manager_state,
+            km_types::EncryptionCreateRequest {
+                identifier: identifier.clone(),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
+
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
         key: domain_types::encrypt(
@@ -141,19 +154,6 @@ pub async fn create_merchant_account(
     let domain_merchant_account = req
         .create_domain_model_from_request(&state, key_store.clone())
         .await?;
-
-    #[cfg(feature = "keymanager_create")]
-    {
-        keymanager::create_key_in_key_manager(
-            key_manager_state,
-            km_types::EncryptionCreateRequest {
-                identifier: identifier.clone(),
-            },
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        .attach_printable("Failed to insert key to KeyManager")?;
-    }
 
     db.insert_merchant_key_store(&state, key_store.clone(), &master_key.to_vec().into())
         .await
