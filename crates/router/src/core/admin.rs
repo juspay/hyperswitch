@@ -1899,6 +1899,7 @@ pub async fn create_business_profile(
     Ok(service_api::ApplicationResponse::Json(
         admin::business_profile_response(business_profile, &key_store)
             .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
             .await?,
     ))
 }
@@ -1949,6 +1950,7 @@ pub async fn retrieve_business_profile(
     Ok(service_api::ApplicationResponse::Json(
         admin::business_profile_response(business_profile, &key_store)
             .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
             .await?,
     ))
 }
@@ -2115,6 +2117,7 @@ pub async fn update_business_profile(
     Ok(service_api::ApplicationResponse::Json(
         admin::business_profile_response(updated_business_profile, &key_store)
             .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
             .await?,
     ))
 }
