@@ -1274,6 +1274,7 @@ impl<F, T>
                         None => None,
                     },
                     payment_method_id: None,
+                    connector_customer_id: None,
                 }),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,

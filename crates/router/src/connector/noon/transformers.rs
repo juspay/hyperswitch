@@ -572,6 +572,7 @@ impl<F, T>
                 .map(|subscription_data| types::MandateReference {
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
+                    connector_customer_id: None,
                 });
         Ok(Self {
             status,

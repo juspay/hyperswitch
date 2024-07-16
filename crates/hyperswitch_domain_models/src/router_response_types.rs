@@ -71,6 +71,7 @@ pub enum PaymentsResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
