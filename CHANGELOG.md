@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.16.0
+
+### Features
+
+- **core:** [Payouts] Add retrieve flow for payouts ([#4936](https://github.com/juspay/hyperswitch/pull/4936)) ([`693f08d`](https://github.com/juspay/hyperswitch/commit/693f08dc5bf57de3ec180968209f98a133503109))
+- **proxy:** Add support to pass proxy bypass urls from configs ([#5322](https://github.com/juspay/hyperswitch/pull/5322)) ([`61b3aef`](https://github.com/juspay/hyperswitch/commit/61b3aef6617ccfa02d2892b31612811602aabd2b))
+
+### Bug Fixes
+
+- **connector:** [AUTHORIZEDOTNET] Populate error reason for failure transactions ([#5319](https://github.com/juspay/hyperswitch/pull/5319)) ([`d8d222a`](https://github.com/juspay/hyperswitch/commit/d8d222a5d53f934cd45761c6c68edfab37590c85))
+- **router:** Store `customer_acceptance` in payment_attempt, use it in confirm flow for delayed authorizations like external 3ds flow ([#5308](https://github.com/juspay/hyperswitch/pull/5308)) ([`0f70473`](https://github.com/juspay/hyperswitch/commit/0f70473a3a0764d95441ac5dd39d6c1676071a82))
+
+### Refactors
+
+- **connector:** [Mifinity] add a field language_preference in payment request for mifinity payment method data ([#5326](https://github.com/juspay/hyperswitch/pull/5326)) ([`e4a0ff1`](https://github.com/juspay/hyperswitch/commit/e4a0ff1c190c0d711aacc67cd25d57bf6c481f0d))
+
+### Documentation
+
+- Updating Error codes in API-ref ([#5296](https://github.com/juspay/hyperswitch/pull/5296)) ([`da1f604`](https://github.com/juspay/hyperswitch/commit/da1f604bb86293b9897d5eb2a0242afb36956efa))
+
+**Full Changelog:** [`2024.07.15.0...2024.07.16.0`](https://github.com/juspay/hyperswitch/compare/2024.07.15.0...2024.07.16.0)
+
+- - -
+
 ## 2024.07.15.0
 
 ### Features
