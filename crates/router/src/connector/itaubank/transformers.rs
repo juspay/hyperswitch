@@ -41,8 +41,11 @@ pub struct PixPaymentValue {
 
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankDebtor {
+    #[serde(skip_serializing_if = "Option::is_none")]
     cpf: Option<Secret<String>>, // CPF is a Brazilian tax identification number
+    #[serde(skip_serializing_if = "Option::is_none")]
     cnpj: Option<Secret<String>>, // CNPJ is a Brazilian company tax identification number
+    #[serde(skip_serializing_if = "Option::is_none")]
     nome: Option<Secret<String>>, // name of the debtor
 }
 
@@ -57,18 +60,20 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     domain::BankTransferData::Pix { pix_key, cpf, cnpj } => {
                         let nome = item.router_data.get_optional_billing_full_name();
                         // cpf and cnpj are mutually exclusive
-                        let devedor = if cpf.is_some() {
-                            ItaubankDebtor {
-                                cpf,
+                        let devedor = match (cpf, cnpj) {
+                            (Some(cpf), _) => ItaubankDebtor {
+                                cpf: Some(cpf),
                                 cnpj: None,
                                 nome,
-                            }
-                        } else {
-                            ItaubankDebtor {
+                            },
+                            (None, Some(cnpj)) => ItaubankDebtor {
                                 cpf: None,
-                                cnpj,
+                                cnpj: Some(cnpj),
                                 nome,
-                            }
+                            },
+                            _ => Err(errors::ConnectorError::MissingRequiredField {
+                                field_name: "cpf and cnpj both missing in payment_method_data",
+                            })?,
                         };
                         Ok(Self {
                             valor: PixPaymentValue {
@@ -177,7 +182,7 @@ pub enum ItaubankPaymentStatus {
 impl From<ItaubankPaymentStatus> for enums::AttemptStatus {
     fn from(item: ItaubankPaymentStatus) -> Self {
         match item {
-            ItaubankPaymentStatus::Ativa => Self::Started,
+            ItaubankPaymentStatus::Ativa => Self::AuthenticationPending,
             ItaubankPaymentStatus::Concluida => Self::Charged,
             ItaubankPaymentStatus::RemovidaPeloPsp
             | ItaubankPaymentStatus::RemovidaPeloUsuarioRecebedor => Self::Failure,
@@ -198,8 +203,9 @@ pub struct ItaubankPaymentsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItaubankPixExpireTime {
-    creation: PrimitiveDateTime,
-    expiration: i64,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    criacao: PrimitiveDateTime,
+    expiracao: i64,
 }
 
 impl<F, T>
@@ -238,9 +244,9 @@ impl<F, T>
 fn get_qr_code_data(
     response: &ItaubankPaymentsResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let creation_time = utils::get_timestamp_in_milliseconds(&response.calendario.creation);
+    let creation_time = utils::get_timestamp_in_milliseconds(&response.calendario.criacao);
     // convert expiration to milliseconds and add to creation time
-    let expiration_time = creation_time + (response.calendario.expiration * 1000);
+    let expiration_time = creation_time + (response.calendario.expiracao * 1000);
 
     let image_data = crate_utils::QrImage::new_from_data(response.pix_qr_value.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;

@@ -6,7 +6,7 @@ use hyperswitch_interfaces::consts;
 use masking::PeekInterface;
 use transformers as itaubank;
 
-use super::utils::{self as connector_utils};
+use super::utils::{self as connector_utils, BrowserInformationData, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -72,16 +72,10 @@ where
                     field_name: "access_token",
                 })?;
 
-        let header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token.peek()).into(),
-            ),
-        ];
+        let header = vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token.peek()).into(),
+        )];
 
         Ok(header)
     }
@@ -156,12 +150,21 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![(
+        let flow_header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::RefreshTokenType::get_content_type(self)
                 .to_string()
                 .into(),
-        )])
+        ),
+        (
+            headers::ACCEPT.to_string(),
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.".to_string().into(),
+        ),
+        (
+            headers::USER_AGENT.to_string(),
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36".to_string().into(),
+        )];
+        Ok(flow_header)
     }
     fn get_request_body(
         &self,
@@ -256,7 +259,26 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = self.build_headers(req, connectors)?;
+        let browser_info = req.request.get_browser_info()?;
+        let mut flow_header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::RefreshTokenType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                browser_info.get_accept_header()?.into(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                browser_info.get_user_agent()?.into(),
+            ),
+        ];
+        header.append(&mut flow_header);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -268,7 +290,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/post/cob", self.base_url(connectors)))
+        Ok(format!("{}/cob", self.base_url(connectors)))
     }
 
     fn get_request_body(

@@ -47,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const ACCEPT_LANGUAGE: &str = "Accept-Language";
     pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
@@ -59,6 +60,7 @@ pub mod headers {
     pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
     pub const TOKEN: &str = "token";
+    pub const USER_AGENT: &str = "User-Agent";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
