@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_enums as enums;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
@@ -18,7 +19,6 @@ use crate::{
     types::{self, api, domain, storage, transformers::ForeignFrom},
     utils::OptionExt,
 };
-use common_enums as enums;
 
 #[async_trait]
 impl
