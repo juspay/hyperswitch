@@ -87,7 +87,7 @@ impl ConnectorCommon for Itaubank {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -137,10 +137,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/oauth/jwt",
-            connectors.itaubank.secondary_base_url
-        ))
+        Ok(format!("{}api/oauth/jwt", self.base_url(connectors)))
     }
     fn get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
@@ -264,7 +261,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let mut flow_header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self)
+                types::PaymentsAuthorizeType::get_content_type(self)
                     .to_string()
                     .into(),
             ),
@@ -290,7 +287,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/cob", self.base_url(connectors)))
+        Ok(format!(
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
