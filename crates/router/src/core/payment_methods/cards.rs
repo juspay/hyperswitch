@@ -3884,7 +3884,9 @@ pub async fn list_customer_payment_method(
             bank: bank_details,
             surcharge_details: None,
             requires_cvv: requires_cvv
-                && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
+                && !(off_session_payment_flag
+                    && (pm.connector_mandate_details.is_some()
+                        || pm.network_transaction_id.is_some())),
             last_used_at: Some(pm.last_used_at),
             default_payment_method_set: customer.default_payment_method_id.is_some()
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
