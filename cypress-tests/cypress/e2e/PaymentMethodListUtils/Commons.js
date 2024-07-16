@@ -162,18 +162,3 @@ export const create_payment_body_with_currency = (currency) => ({
   },
   business_label: "default",
 });
-
-export const create_payment_body_in_USD = {
-  currency: "USD",
-  amount: 6500,
-  authentication_type: "three_ds",
-  description: "Joseph First Crypto",
-  email: "hyperswitch_sdk_demo_id@gmail.com",
-  setup_future_usage: "",
-  metadata: {
-    udf1: "value1",
-    new_customer: "true",
-    login_date: "2019-09-10T10:11:12Z",
-  },
-  business_label: "default",
-};

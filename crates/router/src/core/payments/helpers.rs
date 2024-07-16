@@ -1613,8 +1613,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
-        .async_and_then(|_| async { create_encrypted_data(key_store, raw_customer_details).await })
-        .await;
+        .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+        .await
+        .transpose()
+        .change_context(errors::StorageError::EncryptionError)
+        .attach_printable("Unable to encrypt customer details")?;
 
     let customer_id = request_customer_details
         .customer_id
@@ -1923,7 +1926,7 @@ pub async fn retrieve_card_with_permanent_token(
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
             .transpose()
             .map_err(|e| {
-                logger::error!("Failed to parse card network {}", e);
+                logger::error!("Failed to parse card network {e:?}");
             })
             .ok()
             .flatten(),
@@ -3724,6 +3727,7 @@ impl AttemptType {
             charge_id: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
+            customer_acceptance: old_payment_attempt.customer_acceptance,
         }
     }
 
@@ -5092,8 +5096,8 @@ pub async fn config_skip_saving_wallet_at_connector(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
         ),
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             None
         }
     })
