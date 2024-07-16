@@ -1,4 +1,5 @@
 use core::fmt;
+use serde::Deserialize;
 
 /// Debugging trait which is specialized for handling secret values
 pub trait Strategy<T> {
@@ -6,6 +7,7 @@ pub trait Strategy<T> {
     fn fmt(value: &T, fmt: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
+#[derive(Debug, Copy, Clone, Deserialize)]
 /// Debug with type
 pub enum WithType {}
 

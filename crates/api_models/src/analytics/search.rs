@@ -1,5 +1,6 @@
 use common_utils::hashing::HashedString;
 use serde_json::Value;
+use masking::WithType;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
@@ -7,6 +8,7 @@ pub struct SearchFilters {
     pub currency: Option<Vec<String>>,
     pub status: Option<Vec<String>>,
     pub customer_email: Option<Vec<HashedString<common_utils::pii::EmailStrategy>>>,
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

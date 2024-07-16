@@ -12,8 +12,10 @@ use common_utils::{
     id_type,
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
+    hashing::HashedString,
 };
-use masking::{PeekInterface, Secret};
+
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -4951,15 +4953,16 @@ pub struct PaymentsStartRequest {
     pub attempt_id: String,
 }
 
-/// additional data that might be required by hyperswitch
+/// additional data that might be required by hyperswitch 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
     // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
-    #[schema(value_type = Option<RedirectResponse>)]
-    pub search_tags: Option<Vec<Secret<String>>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
