@@ -97,7 +97,7 @@ impl MerchantKeyStoreInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(state, key)
+                .convert(&state.into(), key, merchant_id.to_string())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }

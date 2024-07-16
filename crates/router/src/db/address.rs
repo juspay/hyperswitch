@@ -92,6 +92,7 @@ mod storage {
     use crate::{
         connection,
         core::errors::{self, CustomResult},
+        routes::SessionState,
         services::Store,
         types::{
             domain::{
@@ -106,6 +107,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
+            state: &SessionState,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -115,7 +117,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -125,6 +131,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
+            state: &SessionState,
             merchant_id: &str,
             payment_id: &str,
             address_id: &str,
@@ -142,7 +149,11 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|address| async {
                 address
-                    .convert(key_store.key.get_inner())
+                    .convert(
+                        &state.into(),
+                        key_store.key.get_inner(),
+                        merchant_id.to_string(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -152,6 +163,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address(
             &self,
+            state: &SessionState,
             address_id: String,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -162,7 +174,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -172,6 +188,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
+            state: &SessionState,
             this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
             _payment_id: String,
@@ -188,7 +205,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -198,6 +219,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
+            state: &SessionState,
             _payment_id: &str,
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
@@ -213,7 +235,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -223,6 +249,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
+            state: &SessionState,
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -236,7 +263,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -246,6 +277,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
+            state: &SessionState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             address: storage_types::AddressUpdate,
@@ -265,7 +297,11 @@ mod storage {
                 for address in addresses.into_iter() {
                     output.push(
                         address
-                            .convert(key_store.key.get_inner())
+                            .convert(
+                                &state.into(),
+                                key_store.key.get_inner(),
+                                merchant_id.to_string(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )

@@ -371,7 +371,7 @@ pub async fn link_routing_config(
         .await?;
         let key =
             cache::CacheKind::Routing(format!("dsl_{}", &merchant_account.merchant_id).into());
-        helpers::update_merchant_active_algorithm_ref(db, &key_store, key, routing_ref).await?;
+        helpers::update_merchant_active_algorithm_ref(&state, &key_store, key, routing_ref).await?;
 
         metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
@@ -625,6 +625,7 @@ pub async fn unlink_routing_config(
         };
 
         db.update_specific_fields_in_merchant(
+            &state,
             &key_store.merchant_id,
             merchant_account_update,
             &key_store,

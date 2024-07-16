@@ -93,7 +93,7 @@ pub trait TypeEncryption<
 #[async_trait]
 impl<
         V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<String> + Send,
+        S: masking::Strategy<String> + Send + Sync,
     > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
     #[instrument(skip_all)]
@@ -331,7 +331,7 @@ impl<
 #[async_trait]
 impl<
         V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<serde_json::Value> + Send,
+        S: masking::Strategy<serde_json::Value> + Send + Sync,
     > TypeEncryption<serde_json::Value, V, S>
     for crypto::Encryptable<Secret<serde_json::Value, S>>
 {
@@ -568,7 +568,7 @@ impl<
 #[async_trait]
 impl<
         V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<Vec<u8>> + Send,
+        S: masking::Strategy<Vec<u8>> + Send + Sync,
     > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
 {
     #[instrument(skip_all)]

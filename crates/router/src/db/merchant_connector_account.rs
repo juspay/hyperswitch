@@ -217,7 +217,11 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    merchant_id.to_string(),
+                )
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
@@ -267,7 +271,11 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
@@ -351,7 +359,11 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }

@@ -465,6 +465,7 @@ mod storage {
             customers::REDACTED,
             errors::{self, CustomResult},
         },
+        routes::SessionState,
         services::Store,
         types::{
             domain::{
@@ -480,6 +481,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
+            state: &SessionState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -495,9 +497,13 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?
                 .async_map(|c| async {
-                    c.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        &state.into(),
+                        key_store.key.get_inner(),
+                        merchant_id.to_string(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
                 .transpose()?;
@@ -516,6 +522,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
+            state: &SessionState,
             customer_id: id_type::CustomerId,
             merchant_id: String,
             _customer: domain::Customer,
@@ -527,13 +534,13 @@ mod storage {
             storage_types::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
-                merchant_id,
+                merchant_id.clone(),
                 customer_update.into(),
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|c| async {
-                c.convert(key_store.key.get_inner())
+                c.convert(&state.into(), key_store.key.get_inner(), merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -543,6 +550,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
+            state: &SessionState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -558,9 +566,13 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
-                    c.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        &state.into(),
+                        key_store.key.get_inner(),
+                        merchant_id.to_string(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await?;
             match customer.name {
@@ -574,6 +586,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
+            state: &SessionState,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
@@ -587,7 +600,11 @@ mod storage {
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
                     encrypted_customer
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            &state.into(),
+                            key_store.key.get_inner(),
+                            merchant_id.to_string(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
@@ -600,6 +617,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_customer(
             &self,
+            state: &SessionState,
             customer_data: domain::Customer,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -613,9 +631,13 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
-                    c.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        &state.into(),
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
         }

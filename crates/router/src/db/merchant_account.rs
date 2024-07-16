@@ -135,7 +135,11 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    &state.into(),
+                    merchant_key_store.key.get_inner(),
+                    merchant_id.to_string(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
