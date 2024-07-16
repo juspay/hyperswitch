@@ -1,10 +1,19 @@
 pub mod helpers;
 pub mod transformers;
 
+use api_models::{
+    enums,
+    routing::{
+        self as routing_types, RoutingAlgorithmId, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
+    },
+};
+use diesel_models::routing_algorithm::RoutingAlgorithm;
+use error_stack::ResultExt;
+use rustc_hash::FxHashSet;
+
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-use crate::types::transformers::{ForeignInto, ForeignTryFrom};
 use crate::{
     consts,
     core::{
@@ -13,18 +22,12 @@ use crate::{
     },
     routes::SessionState,
     services::api as service_api,
-    types::domain,
+    types::{
+        domain,
+        transformers::{ForeignInto, ForeignTryFrom},
+    },
     utils::{self, OptionExt, ValueExt},
 };
-use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-use api_models::{
-    enums,
-    routing::{self as routing_types, RoutingAlgorithmId},
-};
-use diesel_models::routing_algorithm::RoutingAlgorithm;
-
-use error_stack::ResultExt;
-use rustc_hash::FxHashSet;
 
 pub enum TransactionData<'a, F>
 where

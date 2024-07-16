@@ -36,7 +36,6 @@ use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
-
 use crate::{
     core::{
         errors, errors as oss_errors, payments as payments_oss,
