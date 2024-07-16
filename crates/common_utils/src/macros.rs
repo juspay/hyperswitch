@@ -65,7 +65,7 @@ macro_rules! fallback_reverse_lookup_not_found {
         match $a {
             Ok(res) => res,
             Err(err) => {
-                router_env::logger::error!(reverse_lookup_fallback = %err);
+                router_env::logger::error!(reverse_lookup_fallback = ?err);
                 match err.current_context() {
                     errors::StorageError::ValueNotFound(_) => return $b,
                     errors::StorageError::DatabaseError(data_err) => {
