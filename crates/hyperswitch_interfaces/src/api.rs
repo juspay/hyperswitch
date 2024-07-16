@@ -1,14 +1,21 @@
 //! API interface
 
+pub mod payments;
+
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
-use hyperswitch_domain_models::router_data::{ConnectorAuthType, ErrorResponse, RouterData};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::AccessTokenAuth,
+    router_request_types::AccessTokenRequestData,
+};
 use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
+pub use self::payments::*;
 use crate::{
     configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
@@ -253,4 +260,10 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
+}
+
+/// trait ConnectorAccessToken
+pub trait ConnectorAccessToken:
+    ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
 }

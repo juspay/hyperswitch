@@ -44,7 +44,9 @@ pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
     webhooks::VerifyWebhookSource,
 };
-pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
+pub use hyperswitch_interfaces::api::{
+    ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, CurrencyUnit,
+};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -67,10 +69,6 @@ use crate::{
     },
     types::{self, api::enums as api_enums},
 };
-pub trait ConnectorAccessToken:
-    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-{
-}
 
 pub trait ConnectorAccessTokenV2:
     ConnectorIntegrationV2<
