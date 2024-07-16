@@ -48,30 +48,29 @@ hack:
 
 # Use the env variables if present, or fallback to default values
 db_user := env_var_or_default('DB_USER', 'db_user')
-db_password := env_var_or_default('DB_PASSEORD','db_pass')
+db_password := env_var_or_default('DB_PASSWORD','db_pass')
 db_host := env_var_or_default('DB_HOST','localhost')
 db_port := env_var_or_default('DB_PORT','5432')
 db_name := env_var_or_default('DB_NAME','hyperswitch_db')
-default_db_url := ('postgresql://' + db_user + ':'+ db_password +'@'+ db_host +':'+ db_port / db_name)
+default_db_url := 'postgresql://' + db_user + ':'+ db_password +'@'+ db_host +':'+ db_port / db_name
 database_url := env_var_or_default('DATABASE_URL',default_db_url)
 
-v2_migration_dir := 'v2_migrations'
-v1_migration_dir := 'migrations'
-resultant_dir := 'final-migrations'
+v2_migration_dir := source_directory() / 'v2_migrations'
+v1_migration_dir := source_directory() / 'migrations'
+resultant_dir := source_directory() / 'final-migrations'
 default_operation := 'run'
 default_migration_params := ''
-v1_config_file_dir := 'diesel.toml'
-v2_config_file_dir := 'diesel_v2.toml'
+v1_config_file_dir := source_directory() / 'diesel.toml'
+v2_config_file_dir := source_directory() / 'diesel_v2.toml'
 v1_config_params := ('--config-file ' + v1_config_file_dir)
 v2_config_params := ('--config-file ' + v2_config_file_dir)
 
 # Copy v1 and v2 migrations to a single directory
 [private]
 copy_migrations:
-    @mkdir {{resultant_dir}}
-    @cp -r {{v1_migration_dir}}/* {{resultant_dir}}
-    @cp -r {{v2_migration_dir}}/* {{resultant_dir}}
-    @echo "Created {{resultant_dir}}"
+    @mkdir -p {{resultant_dir}}
+    @cp -r {{v1_migration_dir}}/. {{v2_migration_dir}}/. {{resultant_dir}}/
+    echo "Created {{resultant_dir}}"
 
 # Delete the newly created directory
 [private]
@@ -99,6 +98,6 @@ migrate operation='run' *args='': (run_migration operation v1_migration_dir v1_c
 migrate_v2 operation='run' *args='': copy_migrations (run_migration operation resultant_dir v2_config_file_dir database_url args) delete_dir_if_exists
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database
-reserruct:
-    psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db WITH (FORCE)';
+reserrect:
+    psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db';
     psql -U postgres -c 'CREATE DATABASE hyperswitch_db';

@@ -56,7 +56,6 @@ jobs:
       - uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: just
-          args: "--no-default-features"
 
       - name: Verify `diesel migration run for v1`
         shell: bash
