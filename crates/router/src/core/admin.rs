@@ -293,7 +293,11 @@ enum CreateOrValidateOrganization {
 
 #[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
-    #[cfg(all(not(feature = "v2"), feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2"),
+        feature = "olap"
+    ))]
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
@@ -305,7 +309,7 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
     fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
@@ -338,7 +342,10 @@ impl CreateOrValidateOrganization {
     }
 }
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -349,7 +356,10 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl CreateBusinessProfile {
     /// Create a new business profile action from the given information
     /// If primary business details exist, then create business profiles from them

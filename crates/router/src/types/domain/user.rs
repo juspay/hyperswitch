@@ -380,7 +380,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
@@ -399,7 +399,10 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(any(feature = "v1", feature = "v2"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())

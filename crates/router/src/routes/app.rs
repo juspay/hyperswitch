@@ -1015,7 +1015,7 @@ impl MerchantAccount {
 
 #[cfg(all(
     feature = "olap",
-    not(feature = "v2"),
+    any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
 impl MerchantAccount {
