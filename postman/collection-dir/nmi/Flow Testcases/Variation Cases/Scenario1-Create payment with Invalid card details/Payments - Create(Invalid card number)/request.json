@@ -12,17 +12,75 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"amount\": {{random_number}},\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": {{random_number}},\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"123456\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
     "options": {
       "raw": {
         "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": "{{random_number}}",
+      "currency": "USD",
+      "confirm": true,
+      "capture_method": "automatic",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "amount_to_capture": "{{random_number}}",
+      "customer_id": "StripeCustomer",
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payment request",
+      "authentication_type": "no_three_ds",
+      "return_url": "https://duck.com",
+      "payment_method": "card",
+      "payment_method_data": {
+        "card": {
+          "card_number": "123456",
+          "card_exp_month": "10",
+          "card_exp_year": "25",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "123"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US"
+        }
+      },
+      "shipping": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US"
+        }
+      },
+      "statement_descriptor_name": "joseph",
+      "statement_descriptor_suffix": "JS",
+      "metadata": {
+        "udf1": "value1",
+        "new_customer": "true",
+        "login_date": "2019-09-10T10:11:12Z"
       }
     }
   },
   "url": {
     "raw": "{{baseUrl}}/payments",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments"]
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
   },
   "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
 }

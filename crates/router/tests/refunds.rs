@@ -19,7 +19,7 @@ async fn refund_create_fail_stripe() {
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
+    assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]
@@ -33,7 +33,7 @@ async fn refund_create_fail_adyen() {
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
+    assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]

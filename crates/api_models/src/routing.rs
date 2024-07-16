@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
-use error_stack::IntoReport;
-use euclid::{
+pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
         ast,
@@ -10,10 +9,11 @@ use euclid::{
     },
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-use crate::enums::{self, RoutableConnectors};
+use crate::enums::{RoutableConnectors, TransactionType};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ConnectorSelection {
     Priority(Vec<RoutableConnectorChoice>),
@@ -31,7 +31,7 @@ impl ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -39,7 +39,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     pub profile_id: String,
     pub connectors: Vec<RoutableConnectorChoice>,
@@ -58,19 +58,21 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
     MerchantAccountBased(RoutingRetrieveResponse),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
     pub profile_id: String,
@@ -79,6 +81,7 @@ pub struct MerchantRoutingAlgorithm {
     pub algorithm: RoutingAlgorithm,
     pub created_at: i64,
     pub modified_at: i64,
+    pub algorithm_for: TransactionType,
 }
 
 impl EuclidDirFilter for ConnectorSelection {
@@ -110,6 +113,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::VoucherType,
         DirKeyKind::CardRedirectType,
         DirKeyKind::BankTransferType,
+        DirKeyKind::RealTimePaymentType,
     ];
 }
 
@@ -140,22 +144,24 @@ impl EuclidAnalysable for ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorVolumeSplit {
     pub connector: RoutableConnectorChoice,
     pub split: u8,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-
+/// Routable Connector chosen for a payment
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 pub struct RoutableConnectorChoice {
     pub connector: RoutableConnectors,
     pub merchant_connector_id: Option<String>,
 }
 
-impl ToString for RoutableConnectorChoice {
-    fn to_string(&self) -> String {
-        self.connector.to_string()
+impl std::fmt::Display for RoutableConnectorChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let base = self.connector.to_string();
+
+        write!(f, "{}", base)
     }
 }
 
@@ -167,36 +173,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DetailedConnectorChoice {
-    pub connector: RoutableConnectors,
-    pub business_label: Option<String>,
-    pub business_country: Option<enums::CountryAlpha2>,
-    pub business_sub_label: Option<String>,
-}
-
-impl DetailedConnectorChoice {
-    pub fn get_connector_label(&self) -> Option<String> {
-        self.business_country
-            .as_ref()
-            .zip(self.business_label.as_ref())
-            .map(|(business_country, business_label)| {
-                let mut base_label = format!(
-                    "{}_{:?}_{}",
-                    self.connector, business_country, business_label
-                );
-
-                if let Some(ref sub_label) = self.business_sub_label {
-                    base_label.push('_');
-                    base_label.push_str(sub_label);
-                }
-
-                base_label
-            })
-    }
-}
-
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -213,18 +190,20 @@ pub struct RoutingPayloadWrapper {
     pub profile_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
+/// Routing Algorithm kind
 pub enum RoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
+    #[schema(value_type=ProgramConnectorSelection)]
+    Advanced(ast::Program<ConnectorSelection>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -233,7 +212,7 @@ pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
+    Advanced(ast::Program<ConnectorSelection>),
 }
 
 impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
@@ -244,14 +223,12 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             RoutingAlgorithmSerde::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };
@@ -264,7 +241,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
@@ -273,8 +250,11 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
+    #[schema(title = "Single")]
     Single(Box<RoutableConnectorChoice>),
+    #[schema(title = "Priority")]
     Priority(Vec<RoutableConnectorChoice>),
+    #[schema(title = "VolumeSplit")]
     VolumeSplit(Vec<ConnectorVolumeSplit>),
 }
 
@@ -308,14 +288,12 @@ impl TryFrom<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
             StraightThroughAlgorithmInner::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             StraightThroughAlgorithmInner::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };
@@ -390,7 +368,7 @@ impl RoutingAlgorithmRef {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct RoutingDictionaryRecord {
     pub id: String,
@@ -401,16 +379,17 @@ pub struct RoutingDictionaryRecord {
     pub description: String,
     pub created_at: i64,
     pub modified_at: i64,
+    pub algorithm_for: Option<TransactionType>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
     pub merchant_id: String,
     pub active_id: Option<String>,
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, ToSchema)]
 #[serde(untagged)]
 pub enum RoutingKind {
     Config(RoutingDictionary),

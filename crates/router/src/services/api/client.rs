@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
@@ -10,11 +10,12 @@ use router_env::tracing_actix_web::RequestId;
 use super::{request::Maskable, Request};
 use crate::{
     configs::settings::{Locker, Proxy},
+    consts::LOCKER_HEALTH_CALL_PATH,
     core::{
         errors::{ApiClientError, CustomResult},
         payments,
     },
-    routes::AppState,
+    routes::SessionState,
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -26,7 +27,7 @@ fn get_client_builder(
 ) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
     let mut client_builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .pool_idle_timeout(std::time::Duration::from_secs(
+        .pool_idle_timeout(Duration::from_secs(
             proxy_config
                 .idle_pool_connection_timeout
                 .unwrap_or_default(),
@@ -40,7 +41,6 @@ fn get_client_builder(
     if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
-                .into_report()
                 .change_context(ApiClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTPS proxy configuration error")?,
         );
@@ -50,7 +50,6 @@ fn get_client_builder(
     if let Some(url) = proxy_config.http_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::http(url)
-                .into_report()
                 .change_context(ApiClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?,
         );
@@ -73,7 +72,6 @@ fn get_base_client(
     .get_or_try_init(|| {
         get_client_builder(proxy_config, should_bypass_proxy)?
             .build()
-            .into_report()
             .change_context(ApiClientError::ClientConstructionFailed)
             .attach_printable("Failed to construct base client")
     })?
@@ -82,25 +80,29 @@ fn get_base_client(
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
-pub(super) fn create_client(
+pub fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    client_certificate: Option<String>,
-    client_certificate_key: Option<String>,
+    client_certificate: Option<masking::Secret<String>>,
+    client_certificate_key: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
             let identity = payments::helpers::create_identity_from_certificate_and_key(
-                encoded_certificate,
+                encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-
+            let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
             client_builder
                 .identity(identity)
                 .build()
-                .into_report()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
@@ -108,25 +110,25 @@ pub(super) fn create_client(
     }
 }
 
-pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
+pub fn proxy_bypass_urls(locker: &Locker, config_whitelist: &[String]) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
-    let basilisk_host = locker.basilisk_host.to_owned();
-    vec![
+
+    let proxy_list = [
         format!("{locker_host}/cards/add"),
+        format!("{locker_host}/cards/fingerprint"),
         format!("{locker_host}/cards/retrieve"),
         format!("{locker_host}/cards/delete"),
         format!("{locker_host_rs}/cards/add"),
         format!("{locker_host_rs}/cards/retrieve"),
         format!("{locker_host_rs}/cards/delete"),
+        format!("{locker_host_rs}{}", LOCKER_HEALTH_CALL_PATH),
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
-        format!("{basilisk_host}/tokenize"),
-        format!("{basilisk_host}/tokenize/get"),
-        format!("{basilisk_host}/tokenize/delete"),
-        format!("{basilisk_host}/tokenize/delete/token"),
-    ]
+    ];
+
+    [&proxy_list, config_whitelist].concat().to_vec()
 }
 
 pub trait RequestBuilder: Send + Sync {
@@ -160,13 +162,13 @@ where
         &self,
         method: Method,
         url: String,
-        certificate: Option<String>,
-        certificate_key: Option<String>,
+        certificate: Option<masking::Secret<String>>,
+        certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         forward_to_kafka: bool,
@@ -196,7 +198,6 @@ impl ProxyClient {
         let non_proxy_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .into_report()
             .change_context(ApiClientError::ClientConstructionFailed)?;
 
         let mut proxy_builder =
@@ -205,7 +206,6 @@ impl ProxyClient {
         if let Some(url) = proxy_config.https_url.as_ref() {
             proxy_builder = proxy_builder.proxy(
                 reqwest::Proxy::https(url)
-                    .into_report()
                     .change_context(ApiClientError::InvalidProxyConfiguration)?,
             );
         }
@@ -213,14 +213,12 @@ impl ProxyClient {
         if let Some(url) = proxy_config.http_url.as_ref() {
             proxy_builder = proxy_builder.proxy(
                 reqwest::Proxy::http(url)
-                    .into_report()
                     .change_context(ApiClientError::InvalidProxyConfiguration)?,
             );
         }
 
         let proxy_client = proxy_builder
             .build()
-            .into_report()
             .change_context(ApiClientError::InvalidProxyConfiguration)?;
         Ok(Self {
             proxy_client,
@@ -233,8 +231,8 @@ impl ProxyClient {
     pub fn get_reqwest_client(
         &self,
         base_url: String,
-        client_certificate: Option<String>,
-        client_certificate_key: Option<String>,
+        client_certificate: Option<masking::Secret<String>>,
+        client_certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
@@ -247,7 +245,6 @@ impl ProxyClient {
                 Ok(client_builder
                     .identity(identity)
                     .build()
-                    .into_report()
                     .change_context(ApiClientError::ClientConstructionFailed)
                     .attach_printable(
                         "Failed to construct client with certificate and certificate key",
@@ -297,7 +294,6 @@ impl RequestBuilder for RouterRequestBuilder {
             }),
             Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
         }
-        .into_report()
         .change_context(ApiClientError::HeaderMapConstructionFailed)?;
 
         self.inner = self.inner.take().map(|r| r.header(key, header_value));
@@ -335,8 +331,8 @@ impl ApiClient for ProxyClient {
         &self,
         method: Method,
         url: String,
-        certificate: Option<String>,
-        certificate_key: Option<String>,
+        certificate: Option<masking::Secret<String>>,
+        certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(url.clone(), certificate, certificate_key)
@@ -347,7 +343,7 @@ impl ApiClient for ProxyClient {
     }
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
@@ -390,8 +386,8 @@ impl ApiClient for MockApiClient {
         &self,
         _method: Method,
         _url: String,
-        _certificate: Option<String>,
-        _certificate_key: Option<String>,
+        _certificate: Option<masking::Secret<String>>,
+        _certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
@@ -399,7 +395,7 @@ impl ApiClient for MockApiClient {
 
     async fn send_request(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _request: Request,
         _option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,

@@ -22,7 +22,7 @@ pub async fn config_key_create(
         state,
         &req,
         payload,
-        |state, _, data| configs::set_config(state, data),
+        |state, _, data, _| configs::set_config(state, data),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -42,7 +42,7 @@ pub async fn config_key_retrieve(
         state,
         &req,
         &key,
-        |state, _, key| configs::read_config(state, key),
+        |state, _, key, _| configs::read_config(state, key),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -65,7 +65,28 @@ pub async fn config_key_update(
         state,
         &req,
         &payload,
-        |state, _, payload| configs::update_config(state, payload),
+        |state, _, payload, _| configs::update_config(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyDelete))]
+pub async fn config_key_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::ConfigKeyDelete;
+    let key = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        key,
+        |state, _, key, _| configs::config_delete(state, key),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

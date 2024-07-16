@@ -1,4 +1,9 @@
-use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
+use std::collections::HashMap;
+
+use drainer::{
+    errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
+};
+use router_env::tracing::Instrument;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -12,13 +17,16 @@ async fn main() -> DrainerResult<()> {
     conf.validate()
         .expect("Failed to validate drainer configuration");
 
-    let store = services::Store::new(&conf, false).await;
-    let store = std::sync::Arc::new(store);
+    let state = settings::AppState::new(conf.clone()).await;
 
-    let number_of_streams = store.config.drainer_num_partitions;
-    let max_read_count = conf.drainer.max_read_count;
-    let shutdown_intervals = conf.drainer.shutdown_interval;
-    let loop_interval = conf.drainer.loop_interval;
+    let mut stores = HashMap::new();
+    for (tenant_name, tenant) in conf.multitenancy.get_tenants() {
+        let store = std::sync::Arc::new(services::Store::new(&state.conf, false, tenant).await);
+        stores.insert(tenant_name.clone(), store);
+    }
+
+    #[cfg(feature = "vergen")]
+    println!("Starting drainer (Version: {})", router_env::git_tag!());
 
     let _guard = router_env::setup(
         &conf.log,
@@ -26,17 +34,26 @@ async fn main() -> DrainerResult<()> {
         [router_env::service_name!()],
     );
 
+    #[allow(clippy::expect_used)]
+    let web_server = Box::pin(start_web_server(
+        state.conf.as_ref().clone(),
+        stores.clone(),
+    ))
+    .await
+    .expect("Failed to create the server");
+
+    tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
+
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 
-    start_drainer(
-        store.clone(),
-        number_of_streams,
-        max_read_count,
-        shutdown_intervals,
-        loop_interval,
-    )
-    .await?;
+    start_drainer(stores.clone(), conf.drainer).await?;
 
     Ok(())
 }

@@ -2,10 +2,7 @@ use std::str::FromStr;
 
 use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{
-    self, api,
-    storage::{self, enums},
-};
+use router::types::{self, api, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -14,14 +11,14 @@ use crate::{
 struct Cybersource;
 impl ConnectorActions for Cybersource {}
 impl utils::Connector for Cybersource {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cybersource;
-        types::api::ConnectorData {
-            connector: Box::new(&Cybersource),
-            connector_name: types::Connector::Cybersource,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Cybersource),
+            types::Connector::Cybersource,
+            api::GetToken::Connector,
+            None,
+        )
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
@@ -38,8 +35,9 @@ impl utils::Connector for Cybersource {
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(types::PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -51,18 +49,20 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+            None,
+        )),
         ..Default::default()
     })
 }
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        currency: storage::enums::Currency::USD,
+        currency: enums::Currency::USD,
         email: Some(Email::from_str("abc@gmail.com").unwrap()),
         ..PaymentAuthorizeType::default().0
     })
@@ -125,7 +125,7 @@ async fn should_sync_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "6699597903496176903954".to_string(),
                 ),
                 ..Default::default()
@@ -158,7 +158,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("13".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -183,7 +183,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2022".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -201,8 +201,8 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_cvc: Secret::new("2131233213".to_string()),
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
+                    card_cvc: Secret::new("9123456789".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..get_default_payment_authorize_data().unwrap()

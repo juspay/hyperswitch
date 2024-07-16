@@ -9,6 +9,8 @@ pub struct ConnectorAuthentication {
     #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
+    pub adyenplatform: Option<HeaderKey>,
+    #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
     #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
@@ -17,7 +19,9 @@ pub struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
+    pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
@@ -26,18 +30,23 @@ pub struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub datatrans: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
+    pub ebanx: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
+    pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
+    pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
+    pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
@@ -46,16 +55,19 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payme: Option<BodyKey>,
+    pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub placetopay: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
     pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
+    pub razorpay: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub threedsecureio: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
@@ -65,7 +77,9 @@ pub struct ConnectorAuthentication {
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
+    pub zsl: Option<BodyKey>,
     pub automation_configs: Option<AutomationConfigs>,
+    pub users: Option<UsersConfigs>,
 }
 
 impl Default for ConnectorAuthentication {
@@ -328,4 +342,13 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsersConfigs {
+    pub user_email: String,
+    pub user_password: String,
+    pub wrong_password: String,
+    pub user_base_email_for_signup: String,
+    pub user_domain_for_signup: String,
 }

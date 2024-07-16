@@ -1,4 +1,6 @@
-use common_utils::pii::Email;
+use api_models::enums::BankNames;
+use common_enums::AttemptStatus;
+use common_utils::pii::{Email, IpAddress};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -10,7 +12,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -19,23 +21,11 @@ pub struct MultisafepayRouterData<T> {
     router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for MultisafepayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MultisafepayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -63,12 +53,14 @@ pub enum Gateway {
     Klarna,
     Googlepay,
     Paypal,
+    Ideal,
+    Giropay,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Coupons {
-    pub allow: Option<Vec<String>>,
+    pub allow: Option<Vec<Secret<String>>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -126,20 +118,20 @@ pub struct Browser {
 pub struct Customer {
     pub browser: Option<Browser>,
     pub locale: Option<String>,
-    pub ip_address: Option<String>,
-    pub forward_ip: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub gender: Option<String>,
-    pub birthday: Option<String>,
-    pub address1: Option<String>,
-    pub address2: Option<String>,
-    pub house_number: Option<String>,
-    pub zip_code: Option<String>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
+    pub forward_ip: Option<Secret<String, IpAddress>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub gender: Option<Secret<String>>,
+    pub birthday: Option<Secret<String>>,
+    pub address1: Option<Secret<String>>,
+    pub address2: Option<Secret<String>>,
+    pub house_number: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     pub email: Option<Email>,
     pub user_agent: Option<String>,
     pub referrer: Option<String>,
@@ -150,7 +142,7 @@ pub struct Customer {
 pub struct CardInfo {
     pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
-    pub card_expiry_date: Option<i32>,
+    pub card_expiry_date: Option<Secret<i32>>,
     pub card_cvc: Option<Secret<String>>,
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
@@ -159,7 +151,7 @@ pub struct CardInfo {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GpayInfo {
-    pub payment_token: Option<String>,
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -173,12 +165,214 @@ pub enum GatewayInfo {
     Card(CardInfo),
     Wallet(WalletInfo),
     PayLater(PayLaterInfo),
+    BankRedirect(BankRedirectInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum BankRedirectInfo {
+    Ideal(IdealInfo),
+}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct IdealInfo {
+    pub issuer_id: MultisafepayBankNames,
+}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub enum MultisafepayBankNames {
+    #[serde(rename = "0031")]
+    AbnAmro,
+    #[serde(rename = "0761")]
+    AsnBank,
+    #[serde(rename = "4371")]
+    Bunq,
+    #[serde(rename = "0721")]
+    Ing,
+    #[serde(rename = "0801")]
+    Knab,
+    #[serde(rename = "9926")]
+    N26,
+    #[serde(rename = "9927")]
+    NationaleNederlanden,
+    #[serde(rename = "0021")]
+    Rabobank,
+    #[serde(rename = "0771")]
+    Regiobank,
+    #[serde(rename = "1099")]
+    Revolut,
+    #[serde(rename = "0751")]
+    SnsBank,
+    #[serde(rename = "0511")]
+    TriodosBank,
+    #[serde(rename = "0161")]
+    VanLanschot,
+    #[serde(rename = "0806")]
+    Yoursafe,
+    #[serde(rename = "1235")]
+    Handelsbanken,
+}
+
+impl TryFrom<&BankNames> for MultisafepayBankNames {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: &BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            BankNames::AbnAmro => Ok(Self::AbnAmro),
+            BankNames::AsnBank => Ok(Self::AsnBank),
+            BankNames::Bunq => Ok(Self::Bunq),
+            BankNames::Ing => Ok(Self::Ing),
+            BankNames::Knab => Ok(Self::Knab),
+            BankNames::N26 => Ok(Self::N26),
+            BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            BankNames::Rabobank => Ok(Self::Rabobank),
+            BankNames::Regiobank => Ok(Self::Regiobank),
+            BankNames::Revolut => Ok(Self::Revolut),
+            BankNames::SnsBank => Ok(Self::SnsBank),
+            BankNames::TriodosBank => Ok(Self::TriodosBank),
+            BankNames::VanLanschot => Ok(Self::VanLanschot),
+            BankNames::Yoursafe => Ok(Self::Yoursafe),
+            BankNames::Handelsbanken => Ok(Self::Handelsbanken),
+            BankNames::AmericanExpress
+            | BankNames::AffinBank
+            | BankNames::AgroBank
+            | BankNames::AllianceBank
+            | BankNames::AmBank
+            | BankNames::BankOfAmerica
+            | BankNames::BankIslam
+            | BankNames::BankMuamalat
+            | BankNames::BankRakyat
+            | BankNames::BankSimpananNasional
+            | BankNames::Barclays
+            | BankNames::BlikPSP
+            | BankNames::CapitalOne
+            | BankNames::Chase
+            | BankNames::Citi
+            | BankNames::CimbBank
+            | BankNames::Discover
+            | BankNames::NavyFederalCreditUnion
+            | BankNames::PentagonFederalCreditUnion
+            | BankNames::SynchronyBank
+            | BankNames::WellsFargo
+            | BankNames::HongLeongBank
+            | BankNames::HsbcBank
+            | BankNames::KuwaitFinanceHouse
+            | BankNames::Moneyou
+            | BankNames::ArzteUndApothekerBank
+            | BankNames::AustrianAnadiBankAg
+            | BankNames::BankAustria
+            | BankNames::Bank99Ag
+            | BankNames::BankhausCarlSpangler
+            | BankNames::BankhausSchelhammerUndSchatteraAg
+            | BankNames::BankMillennium
+            | BankNames::BankPEKAOSA
+            | BankNames::BawagPskAg
+            | BankNames::BksBankAg
+            | BankNames::BrullKallmusBankAg
+            | BankNames::BtvVierLanderBank
+            | BankNames::CapitalBankGraweGruppeAg
+            | BankNames::CeskaSporitelna
+            | BankNames::Dolomitenbank
+            | BankNames::EasybankAg
+            | BankNames::EPlatbyVUB
+            | BankNames::ErsteBankUndSparkassen
+            | BankNames::FrieslandBank
+            | BankNames::HypoAlpeadriabankInternationalAg
+            | BankNames::HypoNoeLbFurNiederosterreichUWien
+            | BankNames::HypoOberosterreichSalzburgSteiermark
+            | BankNames::HypoTirolBankAg
+            | BankNames::HypoVorarlbergBankAg
+            | BankNames::HypoBankBurgenlandAktiengesellschaft
+            | BankNames::KomercniBanka
+            | BankNames::MBank
+            | BankNames::MarchfelderBank
+            | BankNames::Maybank
+            | BankNames::OberbankAg
+            | BankNames::OsterreichischeArzteUndApothekerbank
+            | BankNames::OcbcBank
+            | BankNames::PayWithING
+            | BankNames::PlaceZIPKO
+            | BankNames::PlatnoscOnlineKartaPlatnicza
+            | BankNames::PosojilnicaBankEGen
+            | BankNames::PostovaBanka
+            | BankNames::PublicBank
+            | BankNames::RaiffeisenBankengruppeOsterreich
+            | BankNames::RhbBank
+            | BankNames::SchelhammerCapitalBankAg
+            | BankNames::StandardCharteredBank
+            | BankNames::SchoellerbankAg
+            | BankNames::SpardaBankWien
+            | BankNames::SporoPay
+            | BankNames::SantanderPrzelew24
+            | BankNames::TatraPay
+            | BankNames::Viamo
+            | BankNames::VolksbankGruppe
+            | BankNames::VolkskreditbankAg
+            | BankNames::VrBankBraunau
+            | BankNames::UobBank
+            | BankNames::PayWithAliorBank
+            | BankNames::BankiSpoldzielcze
+            | BankNames::PayWithInteligo
+            | BankNames::BNPParibasPoland
+            | BankNames::BankNowySA
+            | BankNames::CreditAgricole
+            | BankNames::PayWithBOS
+            | BankNames::PayWithCitiHandlowy
+            | BankNames::PayWithPlusBank
+            | BankNames::ToyotaBank
+            | BankNames::VeloBank
+            | BankNames::ETransferPocztowy24
+            | BankNames::PlusBank
+            | BankNames::EtransferPocztowy24
+            | BankNames::BankiSpbdzielcze
+            | BankNames::BankNowyBfgSa
+            | BankNames::GetinBank
+            | BankNames::Blik
+            | BankNames::NoblePay
+            | BankNames::IdeaBank
+            | BankNames::EnveloBank
+            | BankNames::NestPrzelew
+            | BankNames::MbankMtransfer
+            | BankNames::Inteligo
+            | BankNames::PbacZIpko
+            | BankNames::BnpParibas
+            | BankNames::BankPekaoSa
+            | BankNames::VolkswagenBank
+            | BankNames::AliorBank
+            | BankNames::Boz
+            | BankNames::BangkokBank
+            | BankNames::KrungsriBank
+            | BankNames::KrungThaiBank
+            | BankNames::TheSiamCommercialBank
+            | BankNames::KasikornBank
+            | BankNames::OpenBankSuccess
+            | BankNames::OpenBankFailure
+            | BankNames::OpenBankCancelled
+            | BankNames::Aib
+            | BankNames::BankOfScotland
+            | BankNames::DanskeBank
+            | BankNames::FirstDirect
+            | BankNames::FirstTrust
+            | BankNames::Halifax
+            | BankNames::Lloyds
+            | BankNames::Monzo
+            | BankNames::NatWest
+            | BankNames::NationwideBank
+            | BankNames::RoyalBankOfScotland
+            | BankNames::Starling
+            | BankNames::TsbBank
+            | BankNames::TescoBank
+            | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Multisafepay",
+            })),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -242,7 +436,7 @@ pub struct MultisafepayPaymentsRequest {
     pub shopping_cart: Option<ShoppingCart>,
     pub items: Option<String>,
     pub recurring_model: Option<MandateType>,
-    pub recurring_id: Option<String>,
+    pub recurring_id: Option<Secret<String>>,
     pub capture: Option<String>,
     pub days_active: Option<i32>,
     pub seconds_active: Option<i32>,
@@ -278,96 +472,145 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let payment_type = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
-            api::PaymentMethodData::MandatePayment => Type::Direct,
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api::WalletData::GooglePay(_) => Type::Direct,
-                api::WalletData::PaypalRedirect(_) => Type::Redirect,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            domain::PaymentMethodData::MandatePayment => Type::Direct,
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(_) => Type::Direct,
+                domain::WalletData::PaypalRedirect(_) => Type::Redirect,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
+            domain::PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
+                domain::BankRedirectData::Giropay { .. } => Type::Redirect,
+                domain::BankRedirectData::Ideal { .. } => Type::Direct,
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum { .. }
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::OpenBankingUk { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
+            },
+            domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 Some(Gateway::try_from(ccard.get_card_issuer()?)?)
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
-                api::WalletData::GooglePay(_) => Gateway::Googlepay,
-                api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
+                domain::WalletData::GooglePay(_) => Gateway::Googlepay,
+                domain::WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            api::PaymentMethodData::PayLater(
-                api_models::payments::PayLaterData::KlarnaRedirect {
-                    billing_email: _,
-                    billing_country: _,
-                },
-            ) => Some(Gateway::Klarna),
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
+                domain::BankRedirectData::Giropay { .. } => Gateway::Giropay,
+                domain::BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum { .. }
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::OpenBankingUk { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
+            }),
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
+                Some(Gateway::Klarna)
+            }
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
         let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
@@ -410,9 +653,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             .address
             .as_ref()
             .ok_or_else(utils::missing_field_err("billing.address"))?;
+        let first_name = billing_address.get_first_name()?;
         let delivery = DeliveryObject {
-            first_name: billing_address.get_first_name()?.to_owned(),
-            last_name: billing_address.get_last_name()?.to_owned(),
+            first_name: first_name.clone(),
+            last_name: billing_address
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
             address1: billing_address.get_line1()?.to_owned(),
             house_number: billing_address.get_line2()?.to_owned(),
             zip_code: billing_address.get_zip()?.to_owned(),
@@ -421,76 +668,75 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         };
 
         let gateway_info = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
+            domain::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
-                card_expiry_date: Some(
+                card_expiry_date: Some(Secret::new(
                     (format!(
                         "{}{}",
-                        ccard.get_card_expiry_year_2_digit().expose(),
+                        ccard.get_card_expiry_year_2_digit()?.expose(),
                         ccard.card_exp_month.clone().expose()
                     ))
                     .parse::<i32>()
                     .unwrap_or_default(),
-                ),
+                )),
                 card_cvc: Some(ccard.card_cvc.clone()),
                 card_holder_name: None,
                 flexible_3d: None,
                 moto: None,
                 term_url: None,
             })),
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api::WalletData::GooglePay(ref google_pay) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(ref google_pay) => {
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
-                            payment_token: Some(google_pay.tokenization_data.token.clone()),
+                            payment_token: Some(Secret::new(
+                                google_pay.tokenization_data.token.clone(),
+                            )),
                         }
                     })))
                 }
-                api::WalletData::PaypalRedirect(_) => None,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                domain::WalletData::PaypalRedirect(_) => None,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref paylater) => {
+            domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
-                        api_models::payments::PayLaterData::KlarnaRedirect {
-                            billing_email,
-                            ..
-                        } => billing_email.clone(),
-                        api_models::payments::PayLaterData::KlarnaSdk { token: _ }
-                        | api_models::payments::PayLaterData::AffirmRedirect {}
-                        | api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                            billing_email: _,
-                            billing_name: _,
+                        domain::PayLaterData::KlarnaRedirect {} => {
+                            item.router_data.get_billing_email()?
                         }
-                        | api_models::payments::PayLaterData::PayBrightRedirect {}
-                        | api_models::payments::PayLaterData::WalleyRedirect {}
-                        | api_models::payments::PayLaterData::AlmaRedirect {}
-                        | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                        domain::PayLaterData::KlarnaSdk { token: _ }
+                        | domain::PayLaterData::AffirmRedirect {}
+                        | domain::PayLaterData::AfterpayClearpayRedirect {}
+                        | domain::PayLaterData::PayBrightRedirect {}
+                        | domain::PayLaterData::WalleyRedirect {}
+                        | domain::PayLaterData::AlmaRedirect {}
+                        | domain::PayLaterData::AtomeRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",
@@ -500,19 +746,51 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     }),
                 }))
             }
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                match bank_redirect_data {
+                    domain::BankRedirectData::Ideal { bank_name, .. } => Some(
+                        GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(IdealInfo {
+                            issuer_id: MultisafepayBankNames::try_from(&bank_name.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ideal.bank_name",
+                                },
+                            )?)?,
+                        })),
+                    ),
+                    domain::BankRedirectData::BancontactCard { .. }
+                    | domain::BankRedirectData::Bizum { .. }
+                    | domain::BankRedirectData::Blik { .. }
+                    | domain::BankRedirectData::Eps { .. }
+                    | domain::BankRedirectData::Giropay { .. }
+                    | domain::BankRedirectData::Interac { .. }
+                    | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | domain::BankRedirectData::OnlineBankingFinland { .. }
+                    | domain::BankRedirectData::OnlineBankingPoland { .. }
+                    | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                    | domain::BankRedirectData::OpenBankingUk { .. }
+                    | domain::BankRedirectData::Przelewy24 { .. }
+                    | domain::BankRedirectData::Sofort { .. }
+                    | domain::BankRedirectData::Trustly { .. }
+                    | domain::BankRedirectData::OnlineBankingFpx { .. }
+                    | domain::BankRedirectData::OnlineBankingThailand { .. }
+                    | domain::BankRedirectData::LocalBankRedirect {} => None,
+                }
+            }
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
 
         Ok(Self {
@@ -543,7 +821,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
                     Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_ids,
-                    )) => connector_mandate_ids.connector_mandate_id,
+                    )) => connector_mandate_ids.connector_mandate_id.map(Secret::new),
                     _ => None,
                 }),
             days_active: Some(30),
@@ -581,6 +859,7 @@ pub enum MultisafepayPaymentStatus {
     #[default]
     Initialized,
     Void,
+    Uncleared,
 }
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialEq)]
@@ -589,12 +868,13 @@ pub enum MandateType {
     Unscheduled,
 }
 
-impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
+impl From<MultisafepayPaymentStatus> for AttemptStatus {
     fn from(item: MultisafepayPaymentStatus) -> Self {
         match item {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Uncleared => Self::Pending,
             MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
@@ -611,21 +891,21 @@ pub struct Data {
     pub capture: Option<String>,
     pub payment_url: Option<Url>,
     pub status: Option<MultisafepayPaymentStatus>,
-    pub error_code: Option<i32>,
-    pub error_info: Option<String>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
     pub payment_details: Option<MultisafepayPaymentDetails>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 
 pub struct MultisafepayPaymentDetails {
-    pub account_holder_name: Option<String>,
-    pub account_id: Option<String>,
-    pub card_expiry_date: Option<i32>,
+    pub account_holder_name: Option<Secret<String>>,
+    pub account_id: Option<Secret<String>>,
+    pub card_expiry_date: Option<Secret<String>>,
     pub external_transaction_id: Option<serde_json::Value>,
-    pub last4: Option<serde_json::Value>,
+    pub last4: Option<Secret<String>>,
     pub recurring_flow: Option<String>,
-    pub recurring_id: Option<String>,
+    pub recurring_id: Option<Secret<String>>,
     pub recurring_model: Option<String>,
     #[serde(rename = "type")]
     pub payment_type: Option<String>,
@@ -671,44 +951,60 @@ impl<F, T>
                     MultisafepayPaymentStatus::Declined
                 };
 
-                let status = payment_response.data.status.unwrap_or(default_status);
+                let status =
+                    AttemptStatus::from(payment_response.data.status.unwrap_or(default_status));
 
                 Ok(Self {
-                    status: enums::AttemptStatus::from(status),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            payment_response.data.order_id.clone(),
-                        ),
-                        redirection_data,
-                        mandate_reference: payment_response
-                            .data
-                            .payment_details
-                            .and_then(|payment_details| payment_details.recurring_id)
-                            .map(|id| types::MandateReference {
-                                connector_mandate_id: Some(id),
-                                payment_method_id: None,
-                            }),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(
-                            payment_response.data.order_id.clone(),
-                        ),
-                        incremental_authorization_allowed: None,
-                    }),
+                    status,
+                    response: if utils::is_payment_failure(status) {
+                        Err(types::ErrorResponse::foreign_from((
+                            payment_response.data.reason_code,
+                            payment_response.data.reason.clone(),
+                            payment_response.data.reason,
+                            item.http_code,
+                            Some(status),
+                            Some(payment_response.data.order_id),
+                        )))
+                    } else {
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                payment_response.data.order_id.clone(),
+                            ),
+                            redirection_data,
+                            mandate_reference: payment_response
+                                .data
+                                .payment_details
+                                .and_then(|payment_details| payment_details.recurring_id)
+                                .map(|id| types::MandateReference {
+                                    connector_mandate_id: Some(id.expose()),
+                                    payment_method_id: None,
+                                }),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                payment_response.data.order_id.clone(),
+                            ),
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        })
+                    },
                     ..item.data
                 })
             }
-            MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response.error_code.to_string(),
-                    message: error_response.error_info.clone(),
-                    reason: Some(error_response.error_info),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            MultisafepayAuthResponse::ErrorResponse(error_response) => {
+                let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
+                Ok(Self {
+                    response: Err(types::ErrorResponse::foreign_from((
+                        Some(error_response.error_code.to_string()),
+                        Some(error_response.error_info.clone()),
+                        Some(error_response.error_info),
+                        item.http_code,
+                        attempt_status,
+                        None,
+                    ))),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -806,17 +1102,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                     ..item.data
                 })
             }
-            MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response.error_code.to_string(),
-                    message: error_response.error_info.clone(),
-                    reason: Some(error_response.error_info),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            MultisafepayRefundResponse::ErrorResponse(error_response) => {
+                let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
+                Ok(Self {
+                    response: Err(types::ErrorResponse {
+                        code: error_response.error_code.to_string(),
+                        message: error_response.error_info.clone(),
+                        reason: Some(error_response.error_info),
+                        status_code: item.http_code,
+                        attempt_status,
+                        connector_transaction_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -845,14 +1144,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                 })
             }
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response.error_code.to_string(),
-                    message: error_response.error_info.clone(),
-                    reason: Some(error_response.error_info),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
+                response: Err(types::ErrorResponse::foreign_from((
+                    Some(error_response.error_code.to_string()),
+                    Some(error_response.error_info.clone()),
+                    Some(error_response.error_info),
+                    item.http_code,
+                    None,
+                    None,
+                ))),
                 ..item.data
             }),
         }
@@ -863,4 +1162,48 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
 pub struct MultisafepayErrorResponse {
     pub error_code: i32,
     pub error_info: String,
+}
+
+impl From<MultisafepayErrorResponse> for Option<AttemptStatus> {
+    fn from(error_data: MultisafepayErrorResponse) -> Self {
+        match error_data.error_code {
+            10001 // InvalidAmount
+            | 1002 // InvalidCurrency
+            | 1003  // InvalidAccountID
+            | 1004 // InvalidSiteID
+            | 1005 // InvalidSecurityCode
+            | 1006 // InvalidTransactionID
+            | 1007 // InvalidIPAddress
+            | 1008 // InvalidDescription
+            | 1010 // InvalidVariable
+            | 1011 // InvalidCustomerAccountID
+            | 1012 // InvalidCustomerSecurityCode
+            | 1013 // InvalidSignature
+            | 1015 //UnknownAccountID
+            | 1016 // MissingData
+            | 1018 // InvalidCountryCode
+            | 1025 // MultisafepayErrorCodes::IncorrectCustomerIPAddress
+            | 1026 // MultisafepayErrorCodes::MultipleCurrenciesInCart
+            | 1027 // MultisafepayErrorCodes::CartCurrencyDifferentToOrderCurrency
+            | 1028 // IncorrectCustomTaxRate
+            | 1029 // IncorrectItemTaxRate
+            | 1030 // IncorrectItemCurrency
+            | 1031 // IncorrectItemPrice
+            | 1035 // InvalidSignatureRefund
+            | 1036 // InvalidIdealIssuerID
+            | 5001 // CartDataNotValidated
+            | 1032 // InvalidAPIKey
+            => {
+                Some(AttemptStatus::AuthenticationFailed)
+            }
+
+            1034 // CannotRefundTransaction
+            | 1022 // CannotInitiateTransaction
+            | 1024 //TransactionDeclined
+            => Some(AttemptStatus::Failure),
+            1017 // InsufficientFunds
+            => Some(AttemptStatus::AuthorizationFailed),
+            _ => None,
+        }
+    }
 }

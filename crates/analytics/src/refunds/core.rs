@@ -8,9 +8,10 @@ use api_models::analytics::{
     AnalyticsMetadata, GetRefundFilterRequest, GetRefundMetricRequest, MetricsResponse,
     RefundFilterValue, RefundFiltersResponse,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     logger,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -66,14 +67,13 @@ pub async fn get_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         let data = data?;
-        let attributes = &[
-            metrics::request::add_attributes("metric_type", metric.to_string()),
-            metrics::request::add_attributes("source", pool.to_string()),
-        ];
+        let attributes = &add_attributes([
+            ("metric_type", metric.to_string()),
+            ("source", pool.to_string()),
+        ]);
 
         let value = u64::try_from(data.len());
         if let Ok(val) = value {

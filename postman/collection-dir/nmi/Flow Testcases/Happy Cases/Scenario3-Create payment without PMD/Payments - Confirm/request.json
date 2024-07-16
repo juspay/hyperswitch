@@ -44,7 +44,7 @@
         "card": {
           "card_number": "4111111111111111",
           "card_exp_month": "10",
-          "card_exp_year": "25",
+          "card_exp_year": "69",
           "card_holder_name": "joseph Doe",
           "card_cvc": "123"
         }
@@ -53,8 +53,14 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments", ":id", "confirm"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
     "variable": [
       {
         "key": "id",

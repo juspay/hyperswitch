@@ -1,19 +1,23 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as iatapay;
 
 use self::iatapay::IatapayPaymentsResponse;
-use super::utils::{self, base64_decode};
+use super::utils::{self as connector_utils, base64_decode};
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -28,8 +32,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Iatapay;
+#[derive(Clone)]
+pub struct Iatapay {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Iatapay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Iatapay {}
 impl api::PaymentSession for Iatapay {}
@@ -113,20 +127,35 @@ impl ConnectorCommon for Iatapay {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: iatapay::IatapayErrorResponse = res
-            .response
-            .parse_struct("IatapayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_error_message = if res.response.is_empty() && res.status_code == 401 {
+            ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }
+        } else {
+            let response: iatapay::IatapayErrorResponse = res
+                .response
+                .parse_struct("IatapayErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+            event_builder.map(|i| i.set_error_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            ErrorResponse {
+                status_code: res.status_code,
+                code: response.error,
+                message: response.message,
+                reason: response.reason,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }
+        };
+        Ok(response_error_message)
     }
 }
 
@@ -207,12 +236,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: iatapay::IatapayAuthUpdateResponse = res
             .response
             .parse_struct("iatapay IatapayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -224,16 +257,20 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: iatapay::IatapayAccessTokenErrorResponse = res
             .response
             .parse_struct("Iatapay AccessTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error,
-            message: response.path,
+            code: response.error.clone(),
+            message: response.path.unwrap_or(response.error),
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
@@ -248,6 +285,20 @@ impl
         types::PaymentsResponseData,
     > for Iatapay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Iatapay".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -278,12 +329,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = iatapay::IatapayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = iatapay::IatapayRouterData::try_from((amount, req))?;
         let connector_req = iatapay::IatapayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -313,12 +365,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("Iatapay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -330,8 +385,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -355,15 +411,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let auth: iatapay::IatapayAuthType =
+            iatapay::IatapayAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth.merchant_id.peek();
         Ok(format!(
-            "{}/payments/{}",
+            "{}/merchants/{merchant_id}/payments/{}",
             self.base_url(connectors),
-            connector_id
+            req.connector_request_reference_id.clone()
         ))
     }
 
@@ -385,12 +439,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("iatapay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -402,8 +459,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -462,12 +520,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = iatapay::IatapayRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.payment_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = iatapay::IatapayRouterData::try_from((refund_amount, req))?;
         let connector_req = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -494,12 +553,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: iatapay::RefundResponse = res
             .response
             .parse_struct("iatapay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -511,8 +573,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -556,9 +619,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -566,12 +626,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: iatapay::RefundResponse = res
             .response
             .parse_struct("iatapay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -583,8 +646,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -602,7 +666,8 @@ impl api::IncomingWebhook for Iatapay {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
+        let base64_signature =
+            connector_utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
         base64_decode(base64_signature)
     }
@@ -614,7 +679,6 @@ impl api::IncomingWebhook for Iatapay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
     }
@@ -623,23 +687,41 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        if notif.iata_payment_id.is_some() {
-            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    notif.iata_payment_id.unwrap_or_default(),
-                ),
-            ))
-        } else {
-            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(
-                    notif.iata_refund_id.unwrap_or_default(),
-                ),
-            ))
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        match notif {
+            iatapay::IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => {
+                match wh_body.merchant_payment_id {
+                    Some(merchant_payment_id) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                            api_models::payments::PaymentIdType::PaymentAttemptId(
+                                merchant_payment_id,
+                            ),
+                        ))
+                    }
+                    None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            wh_body.iata_payment_id,
+                        ),
+                    )),
+                }
+            }
+            iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => {
+                match wh_body.merchant_refund_id {
+                    Some(merchant_refund_id) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                            api_models::webhooks::RefundIdType::RefundId(merchant_refund_id),
+                        ))
+                    }
+                    None => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::ConnectorRefundId(
+                            wh_body.iata_refund_id,
+                        ),
+                    )),
+                }
+            }
         }
     }
 
@@ -647,44 +729,29 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        match notif.status {
-            iatapay::IatapayPaymentStatus::Authorized => match notif.iata_payment_id.is_some() {
-                true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
-                false => Ok(api::IncomingWebhookEvent::RefundSuccess),
-            },
-            iatapay::IatapayPaymentStatus::Failed => match notif.iata_payment_id.is_some() {
-                true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
-                false => Ok(api::IncomingWebhookEvent::RefundFailure),
-            },
-            iatapay::IatapayPaymentStatus::Unknown
-            | iatapay::IatapayPaymentStatus::Created
-            | iatapay::IatapayPaymentStatus::Initiated
-            | iatapay::IatapayPaymentStatus::Cleared
-            | iatapay::IatapayPaymentStatus::Settled
-            | iatapay::IatapayPaymentStatus::Tobeinvestigated
-            | iatapay::IatapayPaymentStatus::Blocked
-            | iatapay::IatapayPaymentStatus::Locked
-            | iatapay::IatapayPaymentStatus::UnexpectedSettled => {
-                Ok(api::IncomingWebhookEvent::EventNotSupported)
-            }
-        }
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        api::IncomingWebhookEvent::try_from(notif)
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(Box::new(notif))
+        match notif {
+            iatapay::IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => {
+                Ok(Box::new(wh_body))
+            }
+            iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(refund_wh_body) => {
+                Ok(Box::new(refund_wh_body))
+            }
+        }
     }
 }

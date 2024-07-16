@@ -63,16 +63,16 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "succeeded" for "status"
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }
-// Response body should have value "adyen" for "connector"
+// Response body should have value "checkout" for "connector"
 if (jsonData?.connector) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'connector' matches 'checkout'",

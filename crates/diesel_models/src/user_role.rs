@@ -15,7 +15,7 @@ pub struct UserRole {
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
-    pub last_modified_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -29,7 +29,7 @@ pub struct UserRoleNew {
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
-    pub last_modified_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -38,7 +38,7 @@ pub struct UserRoleUpdateInternal {
     role_id: Option<String>,
     status: Option<enums::UserStatus>,
     last_modified_by: Option<String>,
-    last_modified_at: PrimitiveDateTime,
+    last_modified: PrimitiveDateTime,
 }
 
 pub enum UserRoleUpdate {
@@ -54,7 +54,7 @@ pub enum UserRoleUpdate {
 
 impl From<UserRoleUpdate> for UserRoleUpdateInternal {
     fn from(value: UserRoleUpdate) -> Self {
-        let last_modified_at = common_utils::date_time::now();
+        let last_modified = common_utils::date_time::now();
         match value {
             UserRoleUpdate::UpdateRole {
                 role_id,
@@ -63,14 +63,14 @@ impl From<UserRoleUpdate> for UserRoleUpdateInternal {
                 role_id: Some(role_id),
                 last_modified_by: Some(modified_by),
                 status: None,
-                last_modified_at,
+                last_modified,
             },
             UserRoleUpdate::UpdateStatus {
                 status,
                 modified_by,
             } => Self {
                 status: Some(status),
-                last_modified_at,
+                last_modified,
                 last_modified_by: Some(modified_by),
                 role_id: None,
             },

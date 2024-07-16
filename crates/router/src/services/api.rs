@@ -1,34 +1,60 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt::Debug,
     future::Future,
     str,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
-use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use actix_http::header::HeaderMap;
+use actix_web::{
+    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
+    ResponseError,
+};
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
-use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::PeekInterface;
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
+pub use hyperswitch_domain_models::{
+    api::{
+        ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
+        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
+        RedirectionFormData,
+    },
+    router_response_types::RedirectForm,
+};
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
+};
+use masking::{Maskable, PeekInterface};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::AuthenticateAndFetch;
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
 use crate::{
-    configs::settings::{Connectors, Settings},
+    configs::Settings,
     consts,
     core::{
         api_locking,
@@ -41,9 +67,12 @@ use crate::{
     },
     logger,
     routes::{
-        app::AppStateInfo,
-        metrics::{self, request as metrics_request},
-        AppState,
+        app::{AppStateInfo, ReqState, SessionStateInfo},
+        metrics, AppState, SessionState,
+    },
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
     },
     types::{
         self,
@@ -52,26 +81,34 @@ use crate::{
     },
 };
 
-pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
-
-pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
-}
-
-impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
-where
-    S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
-{
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
-        Box::new(self)
-    }
-}
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::RefundFlowData, Req, Resp>;
+#[cfg(feature = "frm")]
+pub type BoxedFrmConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FrmFlowData, Req, Resp>;
+pub type BoxedDisputeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputesFlowData, Req, Resp>;
+pub type BoxedMandateRevokeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::MandateRevokeFlowData, Req, Resp>;
+#[cfg(feature = "payouts")]
+pub type BoxedPayoutConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PayoutFlowData, Req, Resp>;
+pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
+pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
+pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
 pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -83,6 +120,26 @@ pub trait ConnectorValidation: ConnectorCommon {
                 }
                 .into())
             }
+        }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
         }
     }
 
@@ -102,192 +159,33 @@ pub trait ConnectorValidation: ConnectorCommon {
     }
 }
 
-#[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
-    fn get_headers(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        mime::APPLICATION_JSON.essence_str()
-    }
-
-    /// primarily used when creating signature based on request method of payment flow
-    fn get_http_method(&self) -> Method {
-        Method::Post
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::new())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
-    }
-
-    fn get_request_form_data(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    /// This module can be called before executing a payment flow where a pre-task is needed
-    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
-    async fn execute_pretasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    /// This module can be called after executing a payment flow where a post-task needed
-    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
-    async fn execute_posttasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &[metrics::request::add_attributes(
-                "connector",
-                req.connector.clone(),
-            )],
-        );
-        Ok(None)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RouterData<T, Req, Resp>,
-        _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
-    where
-        T: Clone,
-        Req: Clone,
-        Resp: Clone,
-    {
-        Ok(data.clone())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Ok(ErrorResponse::get_not_implemented())
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let error_message = match res.status_code {
-            500 => "internal_server_error",
-            501 => "not_implemented",
-            502 => "bad_gateway",
-            503 => "service_unavailable",
-            504 => "gateway_timeout",
-            505 => "http_version_not_supported",
-            506 => "variant_also_negotiates",
-            507 => "insufficient_storage",
-            508 => "loop_detected",
-            510 => "not_extended",
-            511 => "network_authentication_required",
-            _ => "unknown_error",
-        };
-        Ok(ErrorResponse {
-            code: res.status_code.to_string(),
-            message: error_message.to_string(),
-            reason: String::from_utf8(res.response.to_vec()).ok(),
-            status_code: res.status_code,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-
-    // whenever capture sync is implemented at the connector side, this method should be overridden
-    fn get_multiple_capture_sync_method(
-        &self,
-    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
-    }
-
-    fn get_certificate(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    fn get_certificate_key(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-}
-
-pub enum CaptureSyncMethod {
-    Individual,
-    Bulk,
-}
-
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
-    T: 'static,
+    T,
+    ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    state: &'b SessionState,
+    connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
-    T: Clone + Debug,
+    T: Clone + Debug + 'static,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    tracing::Span::current().record("connector_name", &req.connector);
+    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
-    let masked_conn_req = connector_request.as_ref().map(|req| match &req.body {
-        Some(RequestContent::Json(payload))
-        | Some(RequestContent::FormUrlEncoded(payload))
-        | Some(RequestContent::Xml(payload)) => payload.masked_serialize().unwrap_or_default(),
-        Some(RequestContent::FormData(_)) => json!({"request_type": "FORM_DATA"}),
-        None => serde_json::Value::Null,
-    });
-    logger::debug!(connector_request_body=?masked_conn_req);
-    logger::debug!(payment_id=?req.payment_id);
     let mut router_data = req.clone();
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
@@ -296,8 +194,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
-
-            connector_integration.handle_response(req, response)
+            connector_integration.handle_response(req, None, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
@@ -325,9 +222,9 @@ where
             metrics::CONNECTOR_CALL_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    ("connector", req.connector.to_string()),
+                    (
                         "flow",
                         std::any::type_name::<T>()
                             .split("::")
@@ -335,33 +232,31 @@ where
                             .unwrap_or_default()
                             .to_string(),
                     ),
-                ],
+                ]),
             );
 
-            let connector_request = connector_request.or(connector_integration
-                .build_request(req, &state.conf.connectors)
-                .map_err(|error| {
-                    if matches!(
-                        error.current_context(),
-                        &errors::ConnectorError::RequestEncodingFailed
-                            | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
-                    ) {
-                        metrics::REQUEST_BUILD_FAILURE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &[metrics::request::add_attributes(
-                                "connector",
-                                req.connector.to_string(),
-                            )],
-                        )
-                    }
-                    error
-                })?);
+            let connector_request = match connector_request {
+                Some(connector_request) => Some(connector_request),
+                None => connector_integration
+                    .build_request(req, &state.conf.connectors)
+                    .map_err(|error| {
+                        if matches!(
+                            error.current_context(),
+                            &errors::ConnectorError::RequestEncodingFailed
+                                | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
+                        ) {
+                            metrics::REQUEST_BUILD_FAILURE.add(
+                                &metrics::CONTEXT,
+                                1,
+                                &add_attributes([("connector", req.connector.to_string())]),
+                            )
+                        }
+                        error
+                    })?,
+            };
 
             match connector_request {
                 Some(request) => {
-                    logger::debug!(connector_request=?request);
-
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
@@ -370,46 +265,47 @@ where
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,
                     };
                     let request_url = request.url.clone();
                     let request_method = request.method;
-
                     let current_time = Instant::now();
-                    let response = call_connector_api(state, request).await;
+                    let response =
+                        call_connector_api(state, request, "execute_connector_processing_step")
+                            .await;
                     let external_latency = current_time.elapsed().as_millis();
-                    logger::debug!(connector_response=?response);
-
-                    let connector_event = ConnectorEvent::new(
+                    logger::info!(raw_connector_request=?masked_request_body);
+                    let status_code = response
+                        .as_ref()
+                        .map(|i| {
+                            i.as_ref()
+                                .map_or_else(|value| value.status_code, |value| value.status_code)
+                        })
+                        .unwrap_or_default();
+                    let mut connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        None,
                         request_url,
                         request_method,
                         req.payment_id.clone(),
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        req.refund_id.clone(),
+                        req.dispute_id.clone(),
+                        status_code,
                     );
-
-                    match connector_event.try_into() {
-                        Ok(event) => {
-                            state.event_handler().log_event(event);
-                        }
-                        Err(err) => {
-                            logger::error!(error=?err, "Error Logging Connector Event");
-                        }
-                    }
 
                     match response {
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
-                                    let mut data = connector_integration
-                                        .handle_response(req, body)
+                                    let handle_response_result = connector_integration
+                                        .handle_response(req, Some(&mut connector_event), body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -417,21 +313,36 @@ where
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
                                                 &metrics::CONTEXT,
                                                 1,
-                                                &[metrics::request::add_attributes(
+                                                &add_attributes([(
                                                     "connector",
                                                     req.connector.to_string(),
-                                                )],
+                                                )]),
                                             )
                                         }
                                             error
-                                        })?;
-                                    data.connector_http_status_code = connector_http_status_code;
-                                    // Add up multiple external latencies in case of multiple external calls within the same request.
-                                    data.external_latency = Some(
-                                        data.external_latency
-                                            .map_or(external_latency, |val| val + external_latency),
-                                    );
-                                    data
+                                        });
+                                    match handle_response_result {
+                                        Ok(mut data) => {
+                                            state.event_handler().log_event(&connector_event);
+                                            data.connector_http_status_code =
+                                                connector_http_status_code;
+                                            // Add up multiple external latencies in case of multiple external calls within the same request.
+                                            data.external_latency = Some(
+                                                data.external_latency
+                                                    .map_or(external_latency, |val| {
+                                                        val + external_latency
+                                                    }),
+                                            );
+                                            Ok(data)
+                                        }
+                                        Err(err) => {
+                                            connector_event
+                                                .set_error(json!({"error": err.to_string()}));
+
+                                            state.event_handler().log_event(&connector_event);
+                                            Err(err)
+                                        }
+                                    }?
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
@@ -443,21 +354,29 @@ where
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
-                                        &[metrics::request::add_attributes(
-                                            "connector",
-                                            req.connector.clone(),
-                                        )],
+                                        &add_attributes([("connector", req.connector.clone())]),
                                     );
+
                                     let error = match body.status_code {
                                         500..=511 => {
-                                            connector_integration.get_5xx_error_response(body)?
+                                            let error_res = connector_integration
+                                                .get_5xx_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
+                                            state.event_handler().log_event(&connector_event);
+                                            error_res
                                         }
                                         _ => {
-                                            let error_res =
-                                                connector_integration.get_error_response(body)?;
+                                            let error_res = connector_integration
+                                                .get_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
@@ -470,6 +389,8 @@ where
                             Ok(response)
                         }
                         Err(error) => {
+                            connector_event.set_error(json!({"error": error.to_string()}));
+                            state.event_handler().log_event(&connector_event);
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -503,41 +424,61 @@ where
 
 #[instrument(skip_all)]
 pub async fn call_connector_api(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
+    flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
-
+    let headers = request.headers.clone();
+    let url = request.url.clone();
     let response = state
         .api_client
         .send_request(state, request, None, true)
         .await;
 
-    let elapsed_time = current_time.elapsed();
-    logger::info!(request_time=?elapsed_time);
+    match response.as_ref() {
+        Ok(resp) => {
+            let status_code = resp.status().as_u16();
+            let elapsed_time = current_time.elapsed();
+            logger::info!(
+                headers=?headers,
+                url=?url,
+                status_code=?status_code,
+                flow=?flow_name,
+                elapsed_time=?elapsed_time
+            );
+        }
+        Err(err) => {
+            logger::info!(
+                call_connector_api_error=?err
+            );
+        }
+    }
 
     handle_response(response).await
 }
 
 #[instrument(skip_all)]
 pub async fn send_request(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
+    logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
-        .into_report()
         .change_context(errors::ApiClientError::UrlEncodingFailed)?;
 
     #[cfg(feature = "dummy_connector")]
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+    let should_bypass_proxy =
+        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -550,8 +491,7 @@ pub async fn send_request(
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
     };
-
-    let send_request = async {
+    let request = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -562,10 +502,10 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -577,10 +517,10 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -592,10 +532,10 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -603,34 +543,94 @@ pub async fn send_request(
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
         ))
-        .send()
-        .await
-        .map_err(|error| match error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::RequestTimeoutReceived
-            }
-            error if is_connection_closed(&error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::ConnectionClosed
-            }
-            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-        })
-        .into_report()
-        .attach_printable("Unable to send request to connector")
     };
 
-    metrics_request::record_operation_time(
+    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    let cloned_send_request = request.try_clone().map(|cloned_request| async {
+        cloned_request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .attach_printable("Unable to send request to connector")
+    });
+
+    let send_request = async {
+        request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .attach_printable("Unable to send request to connector")
+    };
+
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &[metrics_tag],
+        &metrics::CONTEXT,
+        &[metrics_tag.clone()],
     )
-    .await
+    .await;
+    // Retry once if the response is connection closed.
+    //
+    // This is just due to the racy nature of networking.
+    // hyper has a connection pool of idle connections, and it selected one to send your request.
+    // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
+    // But occasionally, a connection will be selected from the pool
+    // and written to at the same time the server is deciding to close the connection.
+    // Since hyper already wrote some of the request,
+    // it can’t really retry it automatically on a new connection, since the server may have acted already
+    match response {
+        Ok(response) => Ok(response),
+        Err(error)
+            if error.current_context()
+                == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
+        {
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+            match cloned_send_request {
+                Some(cloned_request) => {
+                    logger::info!(
+                        "Retrying request due to connection closed before message could complete"
+                    );
+                    common_utils::metrics::utils::record_operation_time(
+                        cloned_request,
+                        &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
+                        &[metrics_tag],
+                    )
+                    .await
+                }
+                None => {
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    Err(error)
+                }
+            }
+        }
+        err @ Err(_) => err,
+    }
 }
 
-fn is_connection_closed(error: &reqwest::Error) -> bool {
+fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
         if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
@@ -661,7 +661,6 @@ async fn handle_response(
                     let response = response
                         .bytes()
                         .await
-                        .into_report()
                         .change_context(errors::ApiClientError::ResponseDecodingFailed)
                         .attach_printable("Error while waiting for response")?;
                     Ok(Ok(types::Response {
@@ -725,81 +724,15 @@ async fn handle_response(
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ApplicationResponse<R> {
-    Json(R),
-    StatusOk,
-    TextPlain(String),
-    JsonForRedirection(api::RedirectionResponse),
-    Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkFormData>),
-    FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, String)>)),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct RedirectionFormData {
-    pub redirect_form: RedirectForm,
-    pub payment_method_data: Option<api::PaymentMethodData>,
-    pub amount: String,
-    pub currency: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
 pub enum PaymentAction {
     PSync,
     CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: Method,
-        form_fields: HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BlueSnap {
-        payment_fields_token: String, // payment-field-token
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-    },
-}
-
-impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = std::collections::HashMap::from_iter(
-            redirect_url
-                .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
-        );
-
-        // Do not include query params in the endpoint
-        redirect_url.set_query(None);
-
-        Self::Form {
-            endpoint: redirect_url.to_string(),
-            method,
-            form_fields,
-        }
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -808,72 +741,126 @@ pub enum AuthFlow {
     Merchant,
 }
 
-#[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+#[allow(clippy::too_many_arguments)]
+#[instrument(
+    skip(
+        request,
+        payload,
+        state,
+        func,
+        api_auth,
+        request_state,
+        incoming_request_header
+    ),
+    fields(merchant_id)
+)]
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
+    incoming_request_header: &HeaderMap,
+    mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
         .await
-        .into_report()
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let mut request_state = state.get_ref().clone();
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+    // request_state.event_context.record_info(request.clone());
 
-    request_state.add_request_id(request_id);
+    let mut app_state = state.get_ref().clone();
+
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
-        .into_report()
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
+    let tenants: HashSet<_> = state
+        .conf
+        .multitenancy
+        .get_tenant_names()
+        .into_iter()
+        .collect();
+    let tenant_id = if !state.conf.multitenancy.enabled {
+        DEFAULT_TENANT.to_string()
+    } else {
+        incoming_request_header
+            .get(TENANT_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .map(|req_tenant_id| {
+                if !tenants.contains(req_tenant_id) {
+                    Err(errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: req_tenant_id.to_string(),
+                    }
+                    .switch())
+                } else {
+                    Ok(req_tenant_id.to_string())
+                }
+            })??
+    };
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
+    // let tenant_id = "public".to_string();
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.clone(),
+            }
+            .switch()
+        })?;
+    session_state.add_request_id(request_id);
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &request_state)
+        .authenticate_and_fetch(request.headers(), &session_state)
         .await
         .switch()?;
+
+    request_state.event_context.record_info(auth_type.clone());
 
     let merchant_id = auth_type
         .get_merchant_id()
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
 
-    request_state.add_merchant_id(Some(merchant_id.clone()));
+    app_state.add_merchant_id(Some(merchant_id.clone()));
 
-    request_state.add_flow_name(flow.to_string());
+    app_state.add_flow_name(flow.to_string());
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .perform_locking_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(request_state.clone(), auth_out, payload)
+        let res = func(session_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&request_state, merchant_id.to_owned())
+            .free_lock_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -891,20 +878,18 @@ where
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
 
                 if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
-                    if let Ok(external_latency) = value.parse::<u128>() {
+                    if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
                         overhead_latency.replace(external_latency);
                     }
                 }
@@ -916,7 +901,6 @@ where
         Err(err) => {
             error.replace(
                 serde_json::to_value(err.current_context())
-                    .into_report()
                     .attach_printable("Failed to serialize json response")
                     .change_context(errors::ApiErrorResponse::InternalServerError.switch())
                     .ok()
@@ -939,56 +923,76 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
-        Some(request.method().to_string()),
+        request.method(),
     );
-    match api_event.clone().try_into() {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(err) => {
-            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
-        }
-    }
+    state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
+    metrics::request::status_code_metrics(
+        status_code.to_string(),
+        flow.to_string(),
+        merchant_id.to_string(),
+    );
 
     output
 }
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
-pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
+    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
+
+    let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
+
+    let incoming_request_header = request.headers();
+
+    let incoming_header_to_log: HashMap<String, HeaderValue> =
+        incoming_request_header
+            .iter()
+            .fold(HashMap::new(), |mut acc, (key, value)| {
+                let key = key.to_string();
+                if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                    acc.insert(key.clone(), value.clone());
+                } else {
+                    acc.insert(key.clone(), HeaderValue::from_static("**MASKED**"));
+                }
+                acc
+            });
+
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
-    let res = match metrics::request::record_request_time_metric(
+    logger::info!(
+        tag = ?Tag::BeginRequest, payload = ?payload,
+    headers = ?incoming_header_to_log);
+
+    let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
             &flow,
             state.clone(),
+            incoming_request_header,
+            req_state,
             request,
             payload,
             func,
@@ -1001,7 +1005,9 @@ where
     .map(|response| {
         logger::info!(api_response =? response);
         response
-    }) {
+    });
+
+    let res = match server_wrap_util_res {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -1042,16 +1048,42 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match build_payment_link_html(*payment_link_data) {
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).to_string();
+            match build_generic_link_html(*boxed_generic_link_data) {
                 Ok(rendered_html) => http_response_html_data(rendered_html),
-                Err(_) => http_response_err(
-                    r#"{
-                            "error": {
-                                "message": "Error while rendering payment link html page"
-                            }
-                        }"#,
-                ),
+                Err(_) => {
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
+        }
+
+        Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match get_payment_link_status(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
 
@@ -1078,14 +1110,14 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
         tag = ?Tag::EndRequest,
-        status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
-
     res
 }
 
@@ -1133,29 +1165,54 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
     }
 }
 
+impl EmbedError
+    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
+{
+}
+
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
 
+pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
+    response: T,
+) -> HttpResponse {
+    HttpResponse::InternalServerError()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    mut headers: Vec<(String, String)>,
+    headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-
-    for (name, value) in headers.iter_mut() {
-        if name == X_HS_LATENCY {
+    for (header_name, header_value) in headers {
+        let is_sensitive_header = header_value.is_masked();
+        let mut header_value = header_value.into_inner();
+        if header_name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
-                if let Ok(external_latency) = value.parse::<u128>() {
+                if let Ok(external_latency) = header_value.parse::<u128>() {
                     let updated_duration = request_duration.as_millis() - external_latency;
-                    *value = updated_duration.to_string();
+                    header_value = updated_duration.to_string();
                 }
             }
         }
-        response_builder.append_header((name.clone(), value.clone()));
+        let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
+            Ok(header_value) => header_value,
+            Err(error) => {
+                logger::error!(?error);
+                return http_server_error_json_response("Something Went Wrong");
+            }
+        };
+
+        if is_sensitive_header {
+            header_value.set_sensitive(true);
+        }
+        response_builder.append_header((header_name, header_value));
     }
 
     response_builder
@@ -1253,7 +1310,8 @@ pub fn build_redirection_form(
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
-
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
         RedirectForm::Form {
             endpoint,
@@ -1302,7 +1360,6 @@ pub fn build_redirection_form(
                 </script>
                 "#))
 
-
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
@@ -1310,11 +1367,15 @@ pub fn build_redirection_form(
                     }
                 }
 
-                (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
+                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{}</script>",
+            html_data, logging_template
+        )),
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -1356,11 +1417,11 @@ pub fn build_redirection_form(
                         </script>
                         "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
                 (PreEscaped(format!("<script>
+                    {logging_template}
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
@@ -1381,13 +1442,113 @@ pub fn build_redirection_form(
                 ")))
                 }}
         }
+        RedirectForm::CybersourceAuthSetup {
+            access_token,
+            ddc_url,
+            reference_id,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                (PreEscaped(r#"<iframe id="cardinal_collection_iframe" name="collectionIframe" height="10" width="10" style="display: none;"></iframe>"#))
+                (PreEscaped(format!("<form id=\"cardinal_collection_form\" method=\"POST\" target=\"collectionIframe\" action=\"{ddc_url}\">
+                <input id=\"cardinal_collection_form_input\" type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(r#"<script>
+              window.onload = function() {
+              var cardinalCollectionForm = document.querySelector('#cardinal_collection_form'); if(cardinalCollectionForm) cardinalCollectionForm.submit();
+              }
+              </script>"#))
+              (PreEscaped(format!("<script>
+                {logging_template}
+                window.addEventListener(\"message\", function(event) {{
+                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                    }}
+                  }}, false);
+                </script>
+                ")))
+            }}
+        }
+        RedirectForm::CybersourceConsumerAuth {
+            access_token,
+            step_up_url,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                // This is the iframe recommended by cybersource but the redirection happens inside this iframe once otp
+                // is received and we lose control of the redirection on user client browser, so to avoid that we have removed this iframe and directly consumed it.
+                // (PreEscaped(r#"<iframe id="step_up_iframe" style="border: none; margin-left: auto; margin-right: auto; display: block" height="800px" width="400px" name="stepUpIframe"></iframe>"#))
+                (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
+                <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(format!("<script>
+              {logging_template}
+              window.onload = function() {{
+              var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
+              }}
+              </script>")))
+            }}
+        }
         RedirectForm::Payme => {
             maud::html! {
                 (maud::DOCTYPE)
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
-                (PreEscaped("<script>
+                (PreEscaped(format!("<script>
+                    {logging_template}
                     var f = document.createElement('form');
                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
                     f.method='POST';
@@ -1405,7 +1566,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
             </script>
-                ".to_string()))
+                ")))
             }
         }
         RedirectForm::Braintree {
@@ -1441,11 +1602,11 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
-                    (PreEscaped(format!("<script>
+                (PreEscaped(format!("<script>
+                                {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
                                 braintree.threeDSecure.create({{
@@ -1504,33 +1665,241 @@ pub fn build_redirection_form(
                                     )))
                 }}
         }
-    }
-}
+        RedirectForm::Nmi {
+            amount,
+            currency,
+            public_key,
+            customer_vault_id,
+            order_id,
+        } => {
+            let public_key_val = public_key.peek();
+            maud::html! {
+                    (maud::DOCTYPE)
+                    head {
+                        (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
+                    }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_mime_essence() {
-        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
+                        div id="loader-wrapper" {
+                            div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                        }
+
+                        div id="threeds-wrapper" style="display: flex; width: 100%; height: 100vh; align-items: center; justify-content: center;" {""}
+                    }
+                    (PreEscaped(format!("<script>
+                    {logging_template}
+                    const gateway = Gateway.create('{public_key_val}');
+
+                    // Initialize the ThreeDSService
+                    const threeDS = gateway.get3DSecure();
+
+                    const options = {{
+                        customerVaultId: '{customer_vault_id}',
+                        currency: '{currency}',
+                        amount: '{amount}'
+                    }};
+
+                    const threeDSsecureInterface = threeDS.createUI(options);
+
+                    threeDSsecureInterface.on('challenge', function(e) {{
+                        document.getElementById('loader-wrapper').style.display = 'none';
+                    }});
+
+                    threeDSsecureInterface.on('complete', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
+
+                        var item1=document.createElement('input');
+                        item1.type='hidden';
+                        item1.name='cavv';
+                        item1.value=e.cavv;
+                        responseForm.appendChild(item1);
+
+                        var item2=document.createElement('input');
+                        item2.type='hidden';
+                        item2.name='xid';
+                        item2.value=e.xid;
+                        responseForm.appendChild(item2);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='eci';
+                        item6.value=e.eci;
+                        responseForm.appendChild(item6);
+
+                        var item7=document.createElement('input');
+                        item7.type='hidden';
+                        item7.name='directoryServerId';
+                        item7.value=e.directoryServerId;
+                        responseForm.appendChild(item7);
+
+                        var item3=document.createElement('input');
+                        item3.type='hidden';
+                        item3.name='cardHolderAuth';
+                        item3.value=e.cardHolderAuth;
+                        responseForm.appendChild(item3);
+
+                        var item4=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='threeDsVersion';
+                        item4.value=e.threeDsVersion;
+                        responseForm.appendChild(item4);
+
+                        var item5=document.createElement('input');
+                        item5.type='hidden';
+                        item5.name='orderId';
+                        item5.value='{order_id}';
+                        responseForm.appendChild(item5);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='customerVaultId';
+                        item6.value='{customer_vault_id}';
+                        responseForm.appendChild(item6);
+
+                        document.body.appendChild(responseForm);
+                        responseForm.submit();
+                    }});
+
+                    threeDSsecureInterface.on('failure', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
+
+                        var error_code=document.createElement('input');
+                        error_code.type='hidden';
+                        error_code.name='code';
+                        error_code.value= e.code;
+                        responseForm.appendChild(error_code);
+
+                        var error_message=document.createElement('input');
+                        error_message.type='hidden';
+                        error_message.name='message';
+                        error_message.value= e.message;
+                        responseForm.appendChild(error_message);
+
+                        document.body.appendChild(responseForm);
+                        responseForm.submit();
+                    }});
+
+                    threeDSsecureInterface.start('#threeds-wrapper');
+            </script>"
+            )))
+                }
+        }
+        RedirectForm::Mifinity {
+            initialization_token,
+        } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
+            maud::html! {
+                        (maud::DOCTYPE)
+                        head {
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
+                        }
+
+                        (PreEscaped(format!("<div id='widget-container'></div>
+	  <script>
+		  var widget = showPaymentIframe('widget-container', {{
+			  token: '{initialization_token}',
+			  complete: function() {{
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
+			  }}
+		   }});
+	   </script>")))
+
+            }
+        }
     }
 }
 
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
-
     let mut tera = Tera::default();
+
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
+
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
 
-    let mut context = Context::new();
+    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
+
+    context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
+
+    context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
+
     context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
+    context.insert("rendered_css", &rendered_css);
+    context.insert("rendered_js", &rendered_js);
+
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -1542,5 +1911,78 @@ pub fn build_payment_link_html(
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
-    format!("<script src=\"{sdk_url}\"></script>")
+    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+fn get_preload_link_html_template(sdk_url: &str) -> String {
+    format!(
+        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
+            <link rel="preload" href="{sdk_url}" as="script">"#,
+        sdk_url = sdk_url
+    )
+}
+
+pub fn get_payment_link_status(
+    payment_link_data: PaymentLinkStatusData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let mut tera = Tera::default();
+
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_status/status.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_status/status.js").to_string();
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_status/status.html").to_string();
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
+
+    context.insert("rendered_css", &rendered_css);
+
+    context.insert("rendered_js", &rendered_js);
+    context.insert("logging_template", &logging_template);
+
+    match tera.render("payment_link_status", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mime_essence() {
+        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
+    }
 }

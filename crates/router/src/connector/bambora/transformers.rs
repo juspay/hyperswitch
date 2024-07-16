@@ -1,16 +1,38 @@
 use base64::Engine;
-use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use common_utils::{ext_traits::ValueExt, pii::IpAddress};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{
+        self, AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
+
+pub struct BamboraRouterData<T> {
+    pub amount: f64,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BamboraRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraCard {
@@ -46,14 +68,19 @@ pub struct BamboraBrowserInfo {
     javascript_enabled: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct BamboraPaymentsRequest {
     order_number: String,
-    amount: i64,
+    amount: f64,
     payment_method: PaymentMethod,
-    customer_ip: Option<std::net::IpAddr>,
+    customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
     card: BamboraCard,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct BamboraVoidRequest {
+    amount: f64,
 }
 
 fn get_browser_info(
@@ -102,52 +129,79 @@ impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let three_ds = match item.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
-                        enabled: true,
-                        browser: get_browser_info(item)?,
-                        version: Some(2),
-                        auth_required: Some(true),
-                    }),
-                    enums::AuthenticationType::NoThreeDs => None,
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(req_card) => {
+                let (three_ds, customer_ip) = match item.router_data.auth_type {
+                    enums::AuthenticationType::ThreeDs => (
+                        Some(ThreeDSecure {
+                            enabled: true,
+                            browser: get_browser_info(item.router_data)?,
+                            version: Some(2),
+                            auth_required: Some(true),
+                        }),
+                        Some(
+                            item.router_data
+                                .request
+                                .get_browser_info()?
+                                .get_ip_address()?,
+                        ),
+                    ),
+                    enums::AuthenticationType::NoThreeDs => (None, None),
                 };
-                let bambora_card = BamboraCard {
-                    name: req_card
-                        .card_holder_name
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                let card = BamboraCard {
+                    name: item.router_data.get_billing_address()?.get_full_name()?,
+                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
                     cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
-                    complete: item.request.is_auto_capture()?,
+                    complete: item.router_data.request.is_auto_capture()?,
                 };
-                let browser_info = item.request.get_browser_info()?;
+
                 Ok(Self {
-                    order_number: item.connector_request_reference_id.clone(),
-                    amount: item.request.amount,
+                    order_number: item.router_data.connector_request_reference_id.clone(),
+                    amount: item.amount,
                     payment_method: PaymentMethod::Card,
-                    card: bambora_card,
-                    customer_ip: browser_info.ip_address,
-                    term_url: item.request.complete_authorize_url.clone(),
+                    card,
+                    customer_ip,
+                    term_url: item.router_data.request.complete_authorize_url.clone(),
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
+            }
         }
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for BamboraPaymentsRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsCancelRouterData>> for BamboraVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsCancelRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: 0,
-            ..Default::default()
+            amount: item.amount,
         })
     }
 }
@@ -171,88 +225,6 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     }
 }
 
-pub enum PaymentFlow {
-    Authorize,
-    Capture,
-    Void,
-}
-
-// PaymentsResponse
-impl<F, T>
-    TryFrom<(
-        types::ResponseRouterData<F, BamboraResponse, T, types::PaymentsResponseData>,
-        PaymentFlow,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        data: (
-            types::ResponseRouterData<F, BamboraResponse, T, types::PaymentsResponseData>,
-            PaymentFlow,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let flow = data.1;
-        let item = data.0;
-        match item.response {
-            BamboraResponse::NormalTransaction(pg_response) => Ok(Self {
-                status: match pg_response.approved.as_str() {
-                    "0" => match flow {
-                        PaymentFlow::Authorize => enums::AttemptStatus::AuthorizationFailed,
-                        PaymentFlow::Capture => enums::AttemptStatus::Failure,
-                        PaymentFlow::Void => enums::AttemptStatus::VoidFailed,
-                    },
-                    "1" => match flow {
-                        PaymentFlow::Authorize => enums::AttemptStatus::Authorized,
-                        PaymentFlow::Capture => enums::AttemptStatus::Charged,
-                        PaymentFlow::Void => enums::AttemptStatus::Voided,
-                    },
-                    &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-                },
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        pg_response.id.to_string(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(pg_response.order_number.to_string()),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
-
-            BamboraResponse::ThreeDsResponse(response) => {
-                let value = url::form_urlencoded::parse(response.contents.as_bytes())
-                    .map(|(key, val)| [key, val].concat())
-                    .collect();
-                let redirection_data = Some(services::RedirectForm::Html { html_data: value });
-                Ok(Self {
-                    status: enums::AttemptStatus::AuthenticationPending,
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::NoResponseId,
-                        redirection_data,
-                        mandate_reference: None,
-                        connector_metadata: Some(
-                            serde_json::to_value(BamboraMeta {
-                                three_d_session_data: response.three_d_session_data,
-                            })
-                            .into_report()
-                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                        ),
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(
-                            item.data.connector_request_reference_id.to_string(),
-                        ),
-                        incremental_authorization_allowed: None,
-                    }),
-                    ..item.data
-                })
-            }
-        }
-    }
-}
-
 fn str_or_i32<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -272,14 +244,14 @@ where
     Ok(res)
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BamboraResponse {
     NormalTransaction(Box<BamboraPaymentsResponse>),
     ThreeDsResponse(Box<Bambora3DsResponse>),
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct BamboraPaymentsResponse {
     #[serde(deserialize_with = "str_or_i32")]
     id: String,
@@ -309,10 +281,10 @@ pub struct BamboraPaymentsResponse {
     risk_score: Option<f32>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Bambora3DsResponse {
     #[serde(rename = "3d_session_data")]
-    three_d_session_data: String,
+    three_d_session_data: Secret<String>,
     contents: String,
 }
 
@@ -332,14 +304,14 @@ pub struct CardResponse {
     pub(crate) cres: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct CardData {
-    name: Option<String>,
-    expiry_month: Option<String>,
-    expiry_year: Option<String>,
+    name: Option<Secret<String>>,
+    expiry_month: Option<Secret<String>>,
+    expiry_year: Option<Secret<String>>,
     card_type: String,
-    last_four: String,
-    card_bin: Option<String>,
+    last_four: Secret<String>,
+    card_bin: Option<Secret<String>>,
     avs_result: String,
     cvd_result: String,
     cavv_result: Option<String>,
@@ -357,15 +329,15 @@ pub struct AvsObject {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AddressData {
-    name: String,
-    address_line1: String,
-    address_line2: String,
+    name: Secret<String>,
+    address_line1: Secret<String>,
+    address_line2: Secret<String>,
     city: String,
     province: String,
     country: String,
-    postal_code: String,
-    phone_number: String,
-    email_address: String,
+    postal_code: Secret<String>,
+    phone_number: Secret<String>,
+    email_address: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -416,32 +388,301 @@ pub enum PaymentMethod {
 // Capture
 #[derive(Default, Debug, Clone, Serialize, PartialEq)]
 pub struct BamboraPaymentsCaptureRequest {
-    amount: Option<i64>,
+    amount: f64,
     payment_method: PaymentMethod,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsCaptureRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsCaptureRouterData>>
+    for BamboraPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.request.amount_to_capture),
+            amount: item.amount,
             payment_method: PaymentMethod::Card,
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BamboraResponse::NormalTransaction(pg_response) => Ok(Self {
+                status: if pg_response.approved.as_str() == "1" {
+                    match item.data.request.is_auto_capture()? {
+                        true => enums::AttemptStatus::Charged,
+                        false => enums::AttemptStatus::Authorized,
+                    }
+                } else {
+                    match item.data.request.is_auto_capture()? {
+                        true => enums::AttemptStatus::Failure,
+                        false => enums::AttemptStatus::AuthorizationFailed,
+                    }
+                },
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        pg_response.id.to_string(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(pg_response.order_number.to_string()),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            }),
+
+            BamboraResponse::ThreeDsResponse(response) => {
+                let value = url::form_urlencoded::parse(response.contents.as_bytes())
+                    .map(|(key, val)| [key, val].concat())
+                    .collect();
+                let redirection_data = Some(services::RedirectForm::Html { html_data: value });
+                Ok(Self {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::NoResponseId,
+                        redirection_data,
+                        mandate_reference: None,
+                        connector_metadata: Some(
+                            serde_json::to_value(BamboraMeta {
+                                three_d_session_data: response.three_d_session_data.expose(),
+                            })
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        ),
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(
+                            item.data.connector_request_reference_id.to_string(),
+                        ),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.approved.as_str() == "1" {
+                match item.data.request.is_auto_capture()? {
+                    true => enums::AttemptStatus::Charged,
+                    false => enums::AttemptStatus::Authorized,
+                }
+            } else {
+                match item.data.request.is_auto_capture()? {
+                    true => enums::AttemptStatus::Failure,
+                    false => enums::AttemptStatus::AuthorizationFailed,
+                }
+            },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order_number.to_string()),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: match item.data.request.is_auto_capture()? {
+                true => {
+                    if item.response.approved.as_str() == "1" {
+                        enums::AttemptStatus::Charged
+                    } else {
+                        enums::AttemptStatus::Failure
+                    }
+                }
+                false => {
+                    if item.response.approved.as_str() == "1" {
+                        enums::AttemptStatus::Authorized
+                    } else {
+                        enums::AttemptStatus::AuthorizationFailed
+                    }
+                }
+            },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order_number.to_string()),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.approved.as_str() == "1" {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::Failure
+            },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order_number.to_string()),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.approved.as_str() == "1" {
+                enums::AttemptStatus::Voided
+            } else {
+                enums::AttemptStatus::VoidFailed
+            },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order_number.to_string()),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
         })
     }
 }
 
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct BamboraRefundRequest {
-    amount: i64,
+    amount: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
+impl<F> TryFrom<BamboraRouterData<&types::RefundsRouterData<F>>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount,
         })
     }
 }
@@ -466,7 +707,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     #[serde(deserialize_with = "str_or_i32")]
     pub id: String,
@@ -503,10 +744,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.approved.as_str() {
-            "0" => enums::RefundStatus::Failure,
-            "1" => enums::RefundStatus::Success,
-            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        let refund_status = if item.response.approved.as_str() == "1" {
+            enums::RefundStatus::Success
+        } else {
+            enums::RefundStatus::Failure
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -525,10 +766,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.approved.as_str() {
-            "0" => enums::RefundStatus::Failure,
-            "1" => enums::RefundStatus::Success,
-            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        let refund_status = if item.response.approved.as_str() == "1" {
+            enums::RefundStatus::Success
+        } else {
+            enums::RefundStatus::Failure
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {

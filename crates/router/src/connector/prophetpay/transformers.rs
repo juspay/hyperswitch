@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use common_utils::{consts, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -11,7 +11,7 @@ use crate::{
     consts as const_val,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 pub struct ProphetpayRouterData<T> {
@@ -19,22 +19,10 @@ pub struct ProphetpayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ProphetpayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ProphetpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -136,8 +124,8 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency == api_models::enums::Currency::USD {
             match item.router_data.request.payment_method_data.clone() {
-                api::PaymentMethodData::CardRedirect(
-                    api_models::payments::CardRedirectData::CardRedirect {},
+                domain::PaymentMethodData::CardRedirect(
+                    domain::payments::CardRedirectData::CardRedirect {},
                 ) => {
                     let auth_data =
                         ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -169,10 +157,10 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayTokenResponse {
-    hosted_tokenize_id: String,
+    hosted_tokenize_id: Secret<String>,
 }
 
 impl<F>
@@ -197,11 +185,10 @@ impl<F>
         let url_data = format!(
             "{}{}",
             consts::PROPHETPAY_REDIRECT_URL,
-            item.response.hosted_tokenize_id
+            item.response.hosted_tokenize_id.expose()
         );
 
         let redirect_url = Url::parse(url_data.as_str())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let redirection_data = get_redirect_url_form(
@@ -220,6 +207,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -230,7 +218,7 @@ fn get_redirect_url_form(
     mut redirect_url: Url,
     complete_auth_url: Option<String>,
 ) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
-    let mut form_fields = std::collections::HashMap::<String, String>::new();
+    let mut form_fields = HashMap::<String, String>::new();
 
     form_fields.insert(
         String::from("redirectUrl"),
@@ -257,7 +245,7 @@ pub struct ProphetpayCompleteRequest {
     inquiry_reference: String,
     profile: Secret<String>,
     action_type: i8,
-    card_token: String,
+    card_token: Secret<String>,
 }
 
 impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -268,7 +256,9 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         item: &ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let card_token = get_card_token(item.router_data.request.redirect_response.clone())?;
+        let card_token = Secret::new(get_card_token(
+            item.router_data.request.redirect_response.clone(),
+        )?);
         Ok(Self {
             amount: item.amount.to_owned(),
             ref_info: item.router_data.connector_request_reference_id.to_owned(),
@@ -293,10 +283,18 @@ fn get_card_token(
             let values = param.peek().split('&').collect::<Vec<&str>>();
             for value in values {
                 let pair = value.split('=').collect::<Vec<&str>>();
-                queries.insert(pair[0].to_string(), pair[1].to_string());
+                queries.insert(
+                    pair.first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                    pair.get(1)
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                );
             }
-            queries
+            Ok::<_, errors::ConnectorError>(queries)
         })
+        .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
@@ -307,8 +305,8 @@ fn get_card_token(
 
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "card_token",
-    })
-    .into_report()
+    }
+    .into())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -357,7 +355,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayCompleteAuthResponse {
     pub success: bool,
@@ -409,6 +407,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             })
@@ -429,7 +428,7 @@ impl<F>
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpaySyncResponse {
     success: bool,
@@ -459,6 +458,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             })
@@ -509,6 +509,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             })
@@ -592,7 +593,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundResponse {
     pub success: bool,
@@ -637,7 +638,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundSyncResponse {
     pub success: bool,

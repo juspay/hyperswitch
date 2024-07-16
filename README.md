@@ -10,14 +10,16 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
+  <a href="/docs/try_local_system.md">Local Setup Guide</a> •
   <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
   <a href="#-supported-features">Supported Features</a> •
-  <a href="#-FAQs">FAQs</a>
   <br>
   <a href="#whats-included">What's Included</a> •
   <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
   <a href="#-community">Community</a> •
   <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#-FAQs">FAQs</a> •
   <a href="#-versioning">Versioning</a> •
   <a href="#%EF%B8%8F-copyright-and-license">Copyright and License</a>
 </p>
@@ -68,17 +70,17 @@ The fastest and easiest way to try Hyperswitch is via our CDK scripts
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
 
-For an early access to the production-ready setup fill this <a href="https://forms.gle/v6ru55XDZFufVPnu9">Early Access Form</a>
-
 ### Run it on your system
 
 You can run Hyperswitch on your system using Docker Compose after cloning this repository:
 
 ```shell
+git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+cd hyperswitch
 docker compose up -d
 ```
 
-This will start the payments router, the primary component within Hyperswitch.
+This will start the app server, web client and control center.
 
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
@@ -197,7 +199,7 @@ should be introduced, checking it agrees with the actual structure -->
 │   ├── data_models                    : Represents the data/domain models used by the business/domain layer
 │   ├── diesel_models                  : Database models shared across `router` and other crates
 │   ├── drainer                        : Application that reads Redis streams and executes queries in database
-│   ├── external_services              : Interactions with external systems like emails, KMS, etc.
+│   ├── external_services              : Interactions with external systems like emails, AWS KMS, etc.
 │   ├── masking                        : Personal Identifiable Information protection
 │   ├── redis_interface                : A user-friendly interface to Redis
 │   ├── router                         : Main crate of the project
@@ -280,7 +282,7 @@ Get updates on Hyperswitch development and chat with the community:
 - [GitHub Discussions][github-discussions] to drop feature requests or suggest anything payments-related you need for your stack.
 
 [discord]: https://discord.gg/wJZ7DVW8mm
-[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
+[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg
 [github-discussions]: https://github.com/juspay/hyperswitch/discussions
 
 <div style="display: flex;  justify-content: center;">

@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel::{Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -12,23 +13,23 @@ pub struct PaymentLink {
     pub payment_id: String,
     pub link_to_pay: String,
     pub merchant_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -42,15 +43,16 @@ pub struct PaymentLinkNew {
     pub payment_id: String,
     pub link_to_pay: String,
     pub merchant_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
+    pub profile_id: Option<String>,
 }

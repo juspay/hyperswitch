@@ -18,7 +18,7 @@ use crate::{
         storage::enums as storage_enums,
         ConnectorAuthType, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
@@ -31,7 +31,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -69,19 +69,21 @@ impl
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
-            payment_method_id: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
+            minor_amount_captured: None,
             request: FraudCheckTransactionData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency,
                 payment_method,
                 error_code: self.payment_attempt.error_code.clone(),
                 error_message: self.payment_attempt.error_message.clone(),
                 connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
+                connector: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -107,8 +109,13 @@ impl
             connector_http_status_code: None,
             external_latency: None,
             connector_api_version: None,
+            payment_method_status: None,
             apple_pay_flow: None,
-            frm_metadata: None,
+            frm_metadata: self.frm_metadata.clone(),
+            refund_id: None,
+            dispute_id: None,
+            connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
@@ -119,7 +126,7 @@ impl
 impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransactionRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &frm_api::FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -137,13 +144,12 @@ impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransact
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmTransactionRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &frm_api::FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmTransactionRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Transaction,
         FraudCheckTransactionData,
         FraudCheckResponseData,

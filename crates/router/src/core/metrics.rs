@@ -22,7 +22,7 @@ counter_metric!(
 counter_metric!(
     ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
-); //No. of status validation failures while accpeting a dispute
+); //No. of status validation failures while accepting a dispute
 counter_metric!(
     EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
@@ -32,6 +32,12 @@ counter_metric!(
     ATTACH_EVIDENCE_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
 );
+
+counter_metric!(INCOMING_PAYOUT_WEBHOOK_METRIC, GLOBAL_METER); // No. of incoming payout webhooks
+counter_metric!(
+    INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC,
+    GLOBAL_METER
+); // No. of incoming payout webhooks for which signature verification failed
 
 counter_metric!(WEBHOOK_INCOMING_COUNT, GLOBAL_METER);
 counter_metric!(WEBHOOK_INCOMING_FILTERED_COUNT, GLOBAL_METER);
@@ -77,3 +83,6 @@ counter_metric!(
     ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE,
     GLOBAL_METER
 );
+
+counter_metric!(API_KEY_REQUEST_INITIATED, GLOBAL_METER);
+counter_metric!(API_KEY_REQUEST_COMPLETED, GLOBAL_METER);

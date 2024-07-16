@@ -1,0 +1,42 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 6540,
+      "currency": "USD",
+      "confirm": true,
+      "payment_method": "card",
+      "payment_method_data": {
+        "card": {
+          "card_number": "4242424242424242",
+          "card_exp_month": "10",
+          "card_exp_year": "25",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "123"
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
+  },
+  "description": "Create a Payment to ensure api contract is intact"
+}

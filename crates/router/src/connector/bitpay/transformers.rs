@@ -15,20 +15,13 @@ pub struct BitpayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BitpayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BitpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -81,7 +74,7 @@ impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -140,8 +133,8 @@ pub struct BitpayPaymentResponseData {
     pub exception_status: ExceptionStatus,
     pub redirect_url: Option<String>,
     pub refund_address_request_pending: Option<bool>,
-    pub merchant_name: Option<String>,
-    pub token: Option<String>,
+    pub merchant_name: Option<Secret<String>>,
+    pub token: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -179,6 +172,7 @@ impl<F, T>
                     .order_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -266,7 +260,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BitpayErrorResponse {
     pub error: String,
     pub code: Option<String>,

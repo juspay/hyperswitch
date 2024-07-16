@@ -1,38 +1,53 @@
 pub mod helpers;
 pub mod transformers;
 
-use api_models::routing::{self as routing_types, RoutingAlgorithmId};
-use diesel_models::routing_algorithm::RoutingAlgorithm;
-use error_stack::{IntoReport, ResultExt};
-use rustc_hash::FxHashSet;
-
+use super::payments;
+#[cfg(feature = "payouts")]
+use super::payouts;
+use crate::types::transformers::{ForeignInto, ForeignTryFrom};
 use crate::{
     consts,
     core::{
-        errors::{RouterResponse, StorageErrorExt},
+        errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
     },
-    errors,
-    routes::AppState,
+    routes::SessionState,
     services::api as service_api,
-    types::{
-        domain,
-        transformers::{ForeignInto, ForeignTryInto},
-    },
+    types::domain,
     utils::{self, OptionExt, ValueExt},
 };
+use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingAlgorithmId},
+};
+use diesel_models::routing_algorithm::RoutingAlgorithm;
+
+use error_stack::ResultExt;
+use rustc_hash::FxHashSet;
+
+pub enum TransactionData<'a, F>
+where
+    F: Clone,
+{
+    Payment(&'a mut payments::PaymentData<F>),
+    #[cfg(feature = "payouts")]
+    Payout(&'a payouts::PayoutData),
+}
 
 pub async fn retrieve_merchant_routing_dictionary(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
-    query_params: routing_types::RoutingRetrieveQuery,
+    query_params: RoutingRetrieveQuery,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
 
     let routing_metadata = state
         .store
-        .list_routing_algorithm_metadata_by_merchant_id(
+        .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
             &merchant_account.merchant_id,
+            transaction_type,
             i64::from(query_params.limit.unwrap_or_default()),
             i64::from(query_params.offset.unwrap_or_default()),
         )
@@ -50,10 +65,11 @@ pub async fn retrieve_merchant_routing_dictionary(
 }
 
 pub async fn create_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -120,6 +136,7 @@ pub async fn create_routing_config(
         algorithm_data: serde_json::json!(algorithm),
         created_at: timestamp,
         modified_at: timestamp,
+        algorithm_for: transaction_type.to_owned(),
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -133,9 +150,10 @@ pub async fn create_routing_config(
 }
 
 pub async fn link_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     algorithm_id: String,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -168,19 +186,31 @@ pub async fn link_routing_config(
         .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
         .unwrap_or_default();
 
+    utils::when(routing_algorithm.algorithm_for != *transaction_type, || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "Cannot use {}'s routing algorithm for {} operation",
+                routing_algorithm.algorithm_for, transaction_type
+            ),
+        })
+    })?;
+
     utils::when(
         routing_ref.algorithm_id == Some(algorithm_id.clone()),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Algorithm is already active".to_string(),
             })
-            .into_report()
         },
     )?;
-
     routing_ref.update_algorithm_id(algorithm_id);
-    helpers::update_business_profile_active_algorithm_ref(db, business_profile, routing_ref)
-        .await?;
+    helpers::update_business_profile_active_algorithm_ref(
+        db,
+        business_profile,
+        routing_ref,
+        transaction_type,
+    )
+    .await?;
 
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -189,7 +219,7 @@ pub async fn link_routing_config(
 }
 
 pub async fn retrieve_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     algorithm_id: RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
@@ -213,8 +243,7 @@ pub async fn retrieve_routing_config(
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    let response = routing_algorithm
-        .foreign_try_into()
+    let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse routing algorithm")?;
 
@@ -222,14 +251,13 @@ pub async fn retrieve_routing_config(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 pub async fn unlink_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
-
     request: routing_types::RoutingConfigRequest,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
-
     let profile_id = request
         .profile_id
         .get_required_value("profile_id")
@@ -245,16 +273,16 @@ pub async fn unlink_routing_config(
     .await?;
     match business_profile {
         Some(business_profile) => {
-            let routing_algo_ref: routing_types::RoutingAlgorithmRef = business_profile
-                .routing_algorithm
-                .clone()
-                .map(|val| val.parse_value("RoutingAlgorithmRef"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to deserialize routing algorithm ref from merchant account",
-                )?
-                .unwrap_or_default();
+            let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+                enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
+                #[cfg(feature = "payouts")]
+                enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+            }
+            .map(|val| val.parse_value("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default();
 
             let timestamp = common_utils::date_time::now_unix_timestamp();
 
@@ -280,6 +308,7 @@ pub async fn unlink_routing_config(
                         db,
                         business_profile,
                         routing_algorithm,
+                        transaction_type,
                     )
                     .await?;
 
@@ -288,8 +317,7 @@ pub async fn unlink_routing_config(
                 }
                 None => Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Algorithm is already inactive".to_string(),
-                })
-                .into_report()?,
+                })?,
             }
         }
         None => Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -300,20 +328,21 @@ pub async fn unlink_routing_config(
 }
 
 pub async fn update_default_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let default_config =
-        helpers::get_merchant_default_config(db, &merchant_account.merchant_id).await?;
+        helpers::get_merchant_default_config(db, &merchant_account.merchant_id, transaction_type)
+            .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "current config and updated config have different lengths".to_string(),
         })
-        .into_report()
     })?;
 
     let existing_set: FxHashSet<String> =
@@ -333,13 +362,13 @@ pub async fn update_default_routing_config(
                 symmetric_diff.join(", ")
             ),
         })
-        .into_report()
     })?;
 
     helpers::update_merchant_default_config(
         db,
         &merchant_account.merchant_id,
         updated_config.clone(),
+        transaction_type,
     )
     .await?;
 
@@ -348,13 +377,14 @@ pub async fn update_default_routing_config(
 }
 
 pub async fn retrieve_default_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
-    helpers::get_merchant_default_config(db, &merchant_account.merchant_id)
+    helpers::get_merchant_default_config(db, &merchant_account.merchant_id, transaction_type)
         .await
         .map(|conn_choice| {
             metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
@@ -367,9 +397,10 @@ pub async fn retrieve_default_routing_config(
 }
 
 pub async fn retrieve_linked_routing_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
-    query_params: routing_types::RoutingRetrieveLinkQuery,
+    query_params: RoutingRetrieveLinkQuery,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -393,14 +424,17 @@ pub async fn retrieve_linked_routing_config(
     let mut active_algorithms = Vec::new();
 
     for business_profile in business_profiles {
-        let routing_ref: routing_types::RoutingAlgorithmRef = business_profile
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            enums::TransactionType::Payment => business_profile.routing_algorithm,
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
+        }
+        .clone()
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
 
         if let Some(algorithm_id) = routing_ref.algorithm_id {
             let record = db
@@ -422,8 +456,9 @@ pub async fn retrieve_linked_routing_config(
 }
 
 pub async fn retrieve_default_routing_config_for_profiles(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
     metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -436,7 +471,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
 
     let retrieve_config_futures = all_profiles
         .iter()
-        .map(|prof| helpers::get_merchant_default_config(db, &prof.profile_id))
+        .map(|prof| helpers::get_merchant_default_config(db, &prof.profile_id, transaction_type))
         .collect::<Vec<_>>();
 
     let configs = futures::future::join_all(retrieve_config_futures)
@@ -460,10 +495,11 @@ pub async fn retrieve_default_routing_config_for_profiles(
 }
 
 pub async fn update_default_routing_config_for_profile(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -477,13 +513,13 @@ pub async fn update_default_routing_config_for_profile(
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?;
     let default_config =
-        helpers::get_merchant_default_config(db, &business_profile.profile_id).await?;
+        helpers::get_merchant_default_config(db, &business_profile.profile_id, transaction_type)
+            .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "current config and updated config have different lengths".to_string(),
         })
-        .into_report()
     })?;
 
     let existing_set = FxHashSet::from_iter(
@@ -513,13 +549,13 @@ pub async fn update_default_routing_config_for_profile(
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("connector mismatch between old and new configs ({error_str})"),
         })
-        .into_report()
     })?;
 
     helpers::update_merchant_default_config(
         db,
         &business_profile.profile_id,
         updated_config.clone(),
+        transaction_type,
     )
     .await?;
 

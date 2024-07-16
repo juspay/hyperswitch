@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, SessionState},
     types::{domain, fraud_check::FrmRouterData},
 };
 
@@ -40,17 +40,19 @@ pub trait FraudCheckOperation<F>: Send + std::fmt::Debug {
 pub trait GetTracker<D>: Send {
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: D,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>>;
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait Domain<F>: Send + Sync {
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
+        req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -62,7 +64,7 @@ pub trait Domain<F>: Send + Sync {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -77,7 +79,8 @@ pub trait Domain<F>: Send + Sync {
     #[allow(clippy::too_many_arguments)]
     async fn execute_post_tasks(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
+        _req_state: ReqState,
         frm_data: &mut FrmData,
         _merchant_account: &domain::MerchantAccount,
         _frm_configs: FrmConfigsObject,
@@ -85,6 +88,7 @@ pub trait Domain<F>: Send + Sync {
         _key_store: domain::MerchantKeyStore,
         _payment_data: &mut payments::PaymentData<F>,
         _customer: &Option<domain::Customer>,
+        _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>>
     where
         F: Send + Clone,
@@ -98,6 +102,7 @@ pub trait UpdateTracker<D, F: Clone>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         frm_data: D,
         payment_data: &mut payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,

@@ -2,22 +2,22 @@ use std::{net::IpAddr, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
-    GetMetaDataRequest, GetMultipleMetaDataPayload, SetMetaDataRequest,
+    GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
-    headers, AppState,
+    headers, SessionState,
 };
 
 pub async fn insert_merchant_scoped_metadata_to_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -26,7 +26,6 @@ pub async fn insert_merchant_scoped_metadata_to_db(
 ) -> UserResult<DashboardMetadata> {
     let now = common_utils::date_time::now();
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
@@ -51,7 +50,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
         })
 }
 pub async fn insert_user_scoped_metadata_to_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -60,7 +59,6 @@ pub async fn insert_user_scoped_metadata_to_db(
 ) -> UserResult<DashboardMetadata> {
     let now = common_utils::date_time::now();
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
@@ -86,29 +84,20 @@ pub async fn insert_user_scoped_metadata_to_db(
 }
 
 pub async fn get_merchant_scoped_metadata_from_db(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     org_id: String,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
-    match state
+    state
         .store
         .find_merchant_scoped_dashboard_metadata(&merchant_id, &org_id, metadata_keys)
         .await
-    {
-        Ok(data) => Ok(data),
-        Err(e) => {
-            if e.current_context().is_db_not_found() {
-                return Ok(Vec::with_capacity(0));
-            }
-            Err(e
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("DB Error Fetching DashboardMetaData"))
-        }
-    }
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("DB Error Fetching DashboardMetaData")
 }
 pub async fn get_user_scoped_metadata_from_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -132,7 +121,7 @@ pub async fn get_user_scoped_metadata_from_db(
 }
 
 pub async fn update_merchant_scoped_metadata(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -140,7 +129,6 @@ pub async fn update_merchant_scoped_metadata(
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
 
@@ -161,7 +149,7 @@ pub async fn update_merchant_scoped_metadata(
         .change_context(UserErrors::InternalServerError)
 }
 pub async fn update_user_scoped_metadata(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -169,7 +157,6 @@ pub async fn update_user_scoped_metadata(
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
 
@@ -196,7 +183,7 @@ where
 {
     data.map(|metadata| serde_json::from_value(metadata.data_value.clone()))
         .transpose()
-        .map_err(|_| UserErrors::InternalServerError.into())
+        .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Serializing Metadata from DB")
 }
 
@@ -227,8 +214,11 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::DownloadWoocom
             | DBEnum::ConfigureWoocom
             | DBEnum::SetupWoocomWebhook
+            | DBEnum::OnboardingSurvey
             | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
-            DBEnum::Feedback | DBEnum::ProdIntent => user_scoped.push(key),
+            DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired => {
+                user_scoped.push(key)
+            }
         }
     }
     (merchant_scoped, user_scoped)
@@ -255,10 +245,10 @@ pub fn set_ip_address_if_required(
     if let SetMetaDataRequest::ProductionAgreement(req) = request {
         let ip_address_from_request: Secret<String, common_utils::pii::IpAddress> = headers
             .get(headers::X_FORWARDED_FOR)
-            .ok_or(UserErrors::IpAddressParsingFailed.into())
+            .ok_or(report!(UserErrors::IpAddressParsingFailed))
             .attach_printable("X-Forwarded-For header not found")?
             .to_str()
-            .map_err(|_| UserErrors::IpAddressParsingFailed.into())
+            .change_context(UserErrors::IpAddressParsingFailed)
             .attach_printable("Error converting Header Value to Str")?
             .split(',')
             .next()
@@ -266,7 +256,7 @@ pub fn set_ip_address_if_required(
                 let ip_addr: Result<IpAddr, _> = ip.parse();
                 ip_addr.ok()
             })
-            .ok_or(UserErrors::IpAddressParsingFailed.into())
+            .ok_or(report!(UserErrors::IpAddressParsingFailed))
             .attach_printable("Error Parsing header value to ip")?
             .to_string()
             .into();
@@ -281,7 +271,20 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
             .split(',')
             .map(GetMetaDataRequest::from_str)
             .collect::<Result<Vec<GetMetaDataRequest>, _>>()
-            .map_err(|_| UserErrors::InvalidMetadataRequest.into())
+            .change_context(UserErrors::InvalidMetadataRequest)
             .attach_printable("Error Parsing to DashboardMetadata enums")?,
     })
+}
+
+fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
+    value
+        .as_ref()
+        .map_or(false, |mail| !mail.contains(value_to_be_checked))
+}
+
+pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
+    not_contains_string(&data.poc_email, "juspay")
+        && not_contains_string(&data.business_website, "juspay")
+        && not_contains_string(&data.business_website, "hyperswitch")
+        && not_contains_string(&Some(user_email), "juspay")
 }

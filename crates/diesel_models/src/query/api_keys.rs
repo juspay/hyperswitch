@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl ApiKeyNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ApiKey> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl ApiKey {
-    #[instrument(skip(conn))]
     pub async fn update_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: String,
@@ -57,7 +54,6 @@ impl ApiKey {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn revoke_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -72,7 +68,6 @@ impl ApiKey {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -87,7 +82,6 @@ impl ApiKey {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_hashed_api_key(
         conn: &PgPooledConn,
         hashed_api_key: HashedApiKey,
@@ -99,7 +93,6 @@ impl ApiKey {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,

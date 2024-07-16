@@ -1,0 +1,9 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Payments - Retrieve",
+    "Recurring Payments - Create",
+    "Payments - Capture",
+    "Payments - Retrieve-copy"
+  ]
+}

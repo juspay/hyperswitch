@@ -678,7 +678,9 @@ mod tests {
                 .collect::<Vec<&dir::DirValue>>();
             assert_eq!(
                 values,
-                expected_contexts[expected_idx]
+                expected_contexts
+                    .get(expected_idx)
+                    .expect("Error deriving contexts")
                     .iter()
                     .collect::<Vec<&dir::DirValue>>()
             );
@@ -702,7 +704,9 @@ mod tests {
                 .collect::<Vec<&dir::DirValue>>();
             assert_eq!(
                 values,
-                expected_contexts[expected_idx]
+                expected_contexts
+                    .get(expected_idx)
+                    .expect("Error deriving contexts")
                     .iter()
                     .collect::<Vec<&dir::DirValue>>()
             );

@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
@@ -12,9 +13,9 @@ pub struct KafkaRefund<'a> {
     pub connector_refund_id: Option<&'a String>,
     pub external_reference_id: Option<&'a String>,
     pub refund_type: &'a storage_enums::RefundType,
-    pub total_amount: &'a i64,
+    pub total_amount: &'a MinorUnit,
     pub currency: &'a storage_enums::Currency,
-    pub refund_amount: &'a i64,
+    pub refund_amount: &'a MinorUnit,
     pub refund_status: &'a storage_enums::RefundStatus,
     pub sent_to_gateway: &'a bool,
     pub refund_error_message: Option<&'a String>,
@@ -64,5 +65,9 @@ impl<'a> super::KafkaMessage for KafkaRefund<'a> {
             "{}_{}_{}_{}",
             self.merchant_id, self.payment_id, self.attempt_id, self.refund_id
         )
+    }
+
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::Refund
     }
 }

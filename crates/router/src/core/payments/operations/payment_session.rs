@@ -11,11 +11,10 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -30,20 +29,20 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
+    for PaymentSession
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, Ctx>> {
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest>> {
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -53,7 +52,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let storage_scheme = merchant_account.storage_scheme;
 
         let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -66,18 +70,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "create a session token for",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            &payment_intent,
-            intent_fulfillment_time,
-        )?;
+        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -95,26 +88,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let amount = payment_attempt.get_total_amount().into();
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        let billing_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
@@ -171,14 +170,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             email: None,
             mandate_id: None,
             mandate_connector: None,
+            customer_acceptance: None,
             token: None,
+            token_data: None,
             setup_mandate: None,
-            address: payments::PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
+            address: payments::PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
+            ),
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -197,7 +201,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
-            frm_metadata: None,
+            authentication: None,
+            recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -205,6 +211,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details: Some(customer_details),
             payment_data,
             business_profile,
+            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -212,22 +219,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: PaymentMethodRetrieve>
-    UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b AppState,
+        state: &'b SessionState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _mechant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
     )>
     where
@@ -243,6 +249,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata,
                         updated_by: storage_scheme.to_string(),
                     },
+                    key_store,
                     storage_scheme,
                 )
                 .await
@@ -254,16 +261,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
-{
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
@@ -274,7 +279,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },
@@ -283,13 +287,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<
-        F: Clone + Send,
-        Ctx: PaymentMethodRetrieve,
-        Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>,
-    > Domain<F, api::PaymentsSessionRequest, Ctx> for Op
+impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
+    Domain<F, api::PaymentsSessionRequest> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Ctx>,
+    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -298,9 +299,10 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
+            BoxedOperation<'a, F, api::PaymentsSessionRequest>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -312,6 +314,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }
@@ -319,16 +322,19 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'b>(
         &'b self,
-        _state: &'b AppState,
+        _state: &'b SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     /// Returns `Vec<SessionConnectorData>`
@@ -343,7 +349,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
@@ -455,6 +461,17 @@ where
             session_connector_data,
         ))
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _payment_data: &mut PaymentData<F>,
+    ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
 }
 
 impl From<api_models::enums::PaymentMethodType> for api::GetToken {
@@ -462,6 +479,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             _ => Self::Connector,
         }
     }

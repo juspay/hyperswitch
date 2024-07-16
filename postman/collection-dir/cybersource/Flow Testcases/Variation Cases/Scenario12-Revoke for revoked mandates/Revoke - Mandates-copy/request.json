@@ -1,0 +1,27 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/mandates/revoke/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "mandates",
+      "revoke",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{mandate_id}}"
+      }
+    ]
+  },
+  "description": "To revoke a mandate registered against a customer"
+}

@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -69,7 +69,6 @@ impl DisputeDbExt for Dispute {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }

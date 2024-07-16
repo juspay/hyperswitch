@@ -1,14 +1,14 @@
 use actix_multipart::Field;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::TryStreamExt;
 
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
-        files, payments, utils,
+        payments, utils,
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
@@ -30,39 +30,8 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
     }
 }
 
-pub async fn upload_file(
-    #[cfg(feature = "s3")] state: &AppState,
-    file_key: String,
-    file: Vec<u8>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
-    return files::s3_utils::upload_file_to_s3(state, file_key, file).await;
-    #[cfg(not(feature = "s3"))]
-    return files::fs_utils::save_file_to_fs(file_key, file);
-}
-
-pub async fn delete_file(
-    #[cfg(feature = "s3")] state: &AppState,
-    file_key: String,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
-    return files::s3_utils::delete_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
-    return files::fs_utils::delete_file_from_fs(file_key);
-}
-
-pub async fn retrieve_file(
-    #[cfg(feature = "s3")] state: &AppState,
-    file_key: String,
-) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
-    return files::s3_utils::retrieve_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
-    return files::fs_utils::retrieve_file_from_fs(file_key);
-}
-
 pub async fn validate_file_upload(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -112,7 +81,7 @@ pub async fn validate_file_upload(
 }
 
 pub async fn delete_file_using_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_key: String,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -128,18 +97,14 @@ pub async fn delete_file_using_file_id(
     ) {
         (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
         _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File not available")?,
     };
     match provider {
-        diesel_models::enums::FileUploadProvider::Router => {
-            delete_file(
-                #[cfg(feature = "s3")]
-                state,
-                provider_file_id,
-            )
+        diesel_models::enums::FileUploadProvider::Router => state
+            .file_storage_client
+            .delete_file(&provider_file_id)
             .await
-        }
+            .change_context(errors::ApiErrorResponse::InternalServerError),
         _ => Err(errors::ApiErrorResponse::FileProviderNotSupported {
             message: "Not Supported because provider is not Router".to_string(),
         }
@@ -148,7 +113,7 @@ pub async fn delete_file_using_file_id(
 }
 
 pub async fn retrieve_file_from_connector(
-    state: &AppState,
+    state: &SessionState,
     file_metadata: diesel_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -157,7 +122,6 @@ pub async fn retrieve_file_from_connector(
         file_metadata
             .file_upload_provider
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Missing file upload provider")?,
     )?
     .to_string();
@@ -167,8 +131,7 @@ pub async fn retrieve_file_from_connector(
         api::GetToken::Connector,
         file_metadata.merchant_connector_id.clone(),
     )?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
         types::RetrieveFileResponse,
@@ -207,7 +170,7 @@ pub async fn retrieve_file_from_connector(
 }
 
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -228,18 +191,16 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
             ) {
                 (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
                 _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-                    .into_report()
                     .attach_printable("File not available")?,
             };
             match provider {
                 diesel_models::enums::FileUploadProvider::Router => Ok((
                     Some(
-                        retrieve_file(
-                            #[cfg(feature = "s3")]
-                            state,
-                            provider_file_id.clone(),
-                        )
-                        .await?,
+                        state
+                            .file_storage_client
+                            .retrieve_file(&provider_file_id)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
                     ),
                     Some(provider_file_id),
                 )),
@@ -265,7 +226,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     create_file_request: &api::CreateFileRequest,
@@ -302,6 +263,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &dispute.payment_id,
                         &merchant_account.merchant_id,
+                        key_store,
                         merchant_account.storage_scheme,
                     )
                     .await
@@ -316,8 +278,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
                     api::Upload,
                     types::UploadFileRequestData,
                     types::UploadFileResponse,
@@ -364,13 +325,11 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     payment_attempt.merchant_connector_id,
                 ))
             } else {
-                upload_file(
-                    #[cfg(feature = "s3")]
-                    state,
-                    file_key.clone(),
-                    create_file_request.file.clone(),
-                )
-                .await?;
+                state
+                    .file_storage_client
+                    .upload_file(&file_key, create_file_request.file.clone())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 Ok((
                     file_key,
                     api_models::enums::FileUploadProvider::Router,

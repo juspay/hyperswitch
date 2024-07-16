@@ -7,7 +7,7 @@ use crate::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -54,10 +54,9 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: issuer.to_string(),
-                connector: "Forte",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Forte"),
+            )
             .into()),
         }
     }
@@ -67,13 +66,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         if item.request.currency != enums::Currency::USD {
-            Err(errors::ConnectorError::NotSupported {
-                message: item.request.currency.to_string(),
-                connector: "Forte",
-            })?
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Forte"),
+            ))?
         }
         match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
@@ -82,18 +80,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                 let address = item.get_billing_address()?;
                 let card = Card {
                     card_type,
-                    name_on_card: ccard
-                        .card_holder_name
-                        .clone()
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                    name_on_card: item
+                        .get_optional_billing_full_name()
+                        .unwrap_or(Secret::new("".to_string())),
                     account_number: ccard.card_number.clone(),
                     expire_month: ccard.card_exp_month.clone(),
                     expire_year: ccard.card_exp_year.clone(),
                     card_verification_value: ccard.card_cvc.clone(),
                 };
+                let first_name = address.get_first_name()?;
                 let billing_address = BillingAddress {
-                    first_name: address.get_first_name()?.to_owned(),
-                    last_name: address.get_last_name()?.to_owned(),
+                    first_name: first_name.clone(),
+                    last_name: address.get_last_name().unwrap_or(first_name).clone(),
                 };
                 let authorization_amount =
                     utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
@@ -104,23 +102,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     card,
                 })
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment {}
-            | api_models::payments::PaymentMethodData::Reward {}
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Forte",
-                })?
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment {}
+            | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Forte"),
+                ))?
             }
         }
     }
@@ -154,7 +152,7 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
     Complete,
@@ -191,7 +189,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CardResponse {
     pub name_on_card: Secret<String>,
     pub last_4_account_number: String,
@@ -199,7 +197,7 @@ pub struct CardResponse {
     pub card_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum ForteResponseCode {
     A01,
     A05,
@@ -221,7 +219,7 @@ impl From<ForteResponseCode> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ResponseStatus {
     pub environment: String,
     pub response_type: String,
@@ -240,10 +238,10 @@ pub enum ForteAction {
     Verify,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub action: ForteAction,
     pub authorization_amount: Option<f64>,
     pub authorization_code: String,
@@ -281,6 +279,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -289,10 +288,10 @@ impl<F, T>
 
 //PsyncResponse
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsSyncResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub status: FortePaymentStatus,
     pub action: ForteAction,
     pub authorization_amount: Option<f64>,
@@ -329,6 +328,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -359,7 +359,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCaptureRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureResponseStatus {
     pub environment: String,
     pub response_type: String,
@@ -368,7 +368,7 @@ pub struct CaptureResponseStatus {
     pub authorization_code: String,
 }
 // Capture Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteCaptureResponse {
     pub transaction_id: String,
     pub original_transaction_id: String,
@@ -397,6 +397,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -426,7 +427,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ForteCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CancelResponseStatus {
     pub response_type: String,
     pub response_code: ForteResponseCode,
@@ -434,10 +435,10 @@ pub struct CancelResponseStatus {
     pub authorization_code: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteCancelResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub action: String,
     pub authorization_code: String,
     pub entered_by: String,
@@ -465,6 +466,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -498,7 +500,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Complete,
@@ -526,7 +528,7 @@ impl From<ForteResponseCode> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     pub transaction_id: String,
     pub original_transaction_id: String,
@@ -553,7 +555,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     status: RefundStatus,
     transaction_id: String,
@@ -576,7 +578,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponseStatus {
     pub environment: String,
     pub response_type: Option<String>,
@@ -584,7 +586,7 @@ pub struct ErrorResponseStatus {
     pub response_desc: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteErrorResponse {
     pub response: ErrorResponseStatus,
 }

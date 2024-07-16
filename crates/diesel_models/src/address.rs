@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -19,12 +20,13 @@ pub struct AddressNew {
     pub last_name: Option<Encryption>,
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
@@ -45,10 +47,11 @@ pub struct Address {
     pub country_code: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -67,6 +70,7 @@ pub struct AddressUpdateInternal {
     pub country_code: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 impl AddressUpdateInternal {

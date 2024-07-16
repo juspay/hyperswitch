@@ -9,7 +9,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
-RUST_MSRV=1.65.0
+RUST_MSRV=1.70.0
 _DB_NAME="hyperswitch_db"
 _DB_USER="db_user"
 _DB_PASS="db_password"
@@ -67,8 +67,8 @@ need_cmd () {
 }
 
 prompt () {
-    read -p "$*? [y/N] :" ANS
-    case $ANS in
+    read -p "$*? [y/N] :" ANSWER
+    case $ANSWER in
         [Yy]*) return 1;;
         *) return 0;;
     esac
@@ -252,7 +252,7 @@ fi
 
 # run migrations
 print_info "Running migrations"
-MIGRATION_CMD="diesel migration --database-url postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME} run"
+MIGRATION_CMD="make migrate database-url=postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
 
 if [[ -d "migrations" ]]; then
     $MIGRATION_CMD
