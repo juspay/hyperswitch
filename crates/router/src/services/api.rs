@@ -1042,12 +1042,14 @@ where
             let link_type = boxed_generic_link_data.data.to_string();
             match build_generic_link_html(boxed_generic_link_data.data) {
                 Ok(rendered_html) => {
-                    let headers = boxed_generic_link_data.allowed_domains.map(|domains| {
-                        let domains_str = domains.into_iter().collect::<Vec<String>>().join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
-                        HashSet::from([("content-security-policy", csp_header)])
-                    });
-                    http_response_html_data(rendered_html, headers)
+                    let domains_str = boxed_generic_link_data
+                        .allowed_domains
+                        .into_iter()
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                    let headers = HashSet::from([("content-security-policy", csp_header)]);
+                    http_response_html_data(rendered_html, Some(headers))
                 }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))

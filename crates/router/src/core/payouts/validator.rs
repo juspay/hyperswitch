@@ -1,37 +1,24 @@
 use std::collections::HashSet;
 
 use actix_web::http::header;
-use api_models::admin;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::{
-    ext_traits::ValueExt,
-    id_type::CustomerId,
-    link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
-    types::MinorUnit,
-};
-use diesel_models::{
-    business_profile::BusinessProfile,
-    generic_link::{GenericLinkNew, PayoutLink},
-};
+use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
+use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
-use masking::Secret;
-use regex::Regex;
 use router_env::{instrument, logger, tracing};
-use time::Duration;
 
 use super::helpers;
 use crate::{
-    consts,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, RouterResult},
         utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
     types::{api::payouts, domain, storage},
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[instrument(skip(db))]
@@ -196,142 +183,6 @@ pub(super) fn validate_payout_list_request_for_joins(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn create_payout_link(
-    state: &SessionState,
-    business_profile: &BusinessProfile,
-    customer_id: &CustomerId,
-    merchant_id: &String,
-    req: &payouts::PayoutCreateRequest,
-    payout_id: &String,
-) -> RouterResult<PayoutLink> {
-    let payout_link_config_req = req.payout_link_config.to_owned();
-
-    // Fetch all configs
-    let default_config = &state.conf.generic_link.payout_link;
-    let profile_config = business_profile
-        .payout_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessPayoutLinkConfig>("BusinessPayoutLinkConfig")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payout_link_config in business_profile",
-        })?;
-    let profile_ui_config = profile_config.as_ref().map(|c| c.config.ui_config.clone());
-    let ui_config = payout_link_config_req
-        .as_ref()
-        .and_then(|config| config.ui_config.clone())
-        .or(profile_ui_config);
-
-    // Validate allowed_domains presence
-    let allowed_domains = profile_config
-        .as_ref()
-        .map(|config| config.config.allowed_domains.to_owned())
-        .get_required_value("allowed_domains")
-        .change_context(errors::ApiErrorResponse::GenericConfigurationError {
-            message: "Payout links cannot be used without setting allowed_domains in profile"
-                .to_string(),
-        })?;
-
-    // Form data to be injected in the link
-    let (logo, merchant_name, theme) = match ui_config {
-        Some(config) => (config.logo, config.merchant_name, config.theme),
-        _ => (None, None, None),
-    };
-    let payout_link_config = GenericLinkUiConfig {
-        logo,
-        merchant_name,
-        theme,
-    };
-    let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
-    let base_url = profile_config
-        .as_ref()
-        .and_then(|c| c.config.domain_name.as_ref())
-        .map(|domain| format!("https://{}", domain))
-        .unwrap_or(state.base_url.clone());
-    let session_expiry = req
-        .session_expiry
-        .as_ref()
-        .map_or(default_config.expiry, |expiry| *expiry);
-    let url = format!("{base_url}/payout_link/{merchant_id}/{payout_id}");
-    let link = url::Url::parse(&url)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;
-    let req_enabled_payment_methods = payout_link_config_req
-        .as_ref()
-        .and_then(|req| req.enabled_payment_methods.to_owned());
-    let amount = req
-        .amount
-        .as_ref()
-        .get_required_value("amount")
-        .attach_printable("amount is a required value when creating payout links")?;
-    let currency = req
-        .currency
-        .as_ref()
-        .get_required_value("currency")
-        .attach_printable("currency is a required value when creating payout links")?;
-    let payout_link_id = core_utils::get_or_generate_id(
-        "payout_link_id",
-        &payout_link_config_req
-            .as_ref()
-            .and_then(|config| config.payout_link_id.clone()),
-        "payout_link",
-    )?;
-
-    let data = PayoutLinkData {
-        payout_link_id: payout_link_id.clone(),
-        customer_id: customer_id.clone(),
-        payout_id: payout_id.to_string(),
-        link,
-        client_secret: Secret::new(client_secret),
-        session_expiry,
-        ui_config: payout_link_config,
-        enabled_payment_methods: req_enabled_payment_methods,
-        amount: MinorUnit::from(*amount),
-        currency: *currency,
-        allowed_domains,
-    };
-
-    create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
-}
-
-pub async fn create_payout_link_db_entry(
-    state: &SessionState,
-    merchant_id: &String,
-    payout_link_data: &PayoutLinkData,
-    return_url: Option<String>,
-) -> RouterResult<PayoutLink> {
-    let db: &dyn StorageInterface = &*state.store;
-
-    let link_data = serde_json::to_value(payout_link_data)
-        .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
-        .attach_printable("Failed to convert PayoutLinkData to Value")?;
-
-    let payout_link = GenericLinkNew {
-        link_id: payout_link_data.payout_link_id.to_string(),
-        primary_reference: payout_link_data.payout_id.to_string(),
-        merchant_id: merchant_id.to_string(),
-        link_type: common_enums::GenericLinkType::PayoutLink,
-        link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
-        link_data,
-        url: payout_link_data.link.to_string().into(),
-        return_url,
-        expiry: common_utils::date_time::now()
-            + Duration::seconds(payout_link_data.session_expiry.into()),
-        ..Default::default()
-    };
-
-    db.insert_payout_link(payout_link)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
-            message: "payout link already exists".to_string(),
-        })
-}
-
 pub fn validate_payout_link_render_request(
     request_headers: &header::HeaderMap,
     payout_link: &PayoutLink,
@@ -393,9 +244,9 @@ pub fn validate_payout_link_render_request(
 
 fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
     allowed_domains.iter().any(|allowed_domain| {
-        Regex::new(allowed_domain)
-            .map(|regex| regex.is_match(domain))
-            .map_err(|err| logger::error!("Invalid regex! - {:?}", err))
+        Glob::new(allowed_domain)
+            .map(|glob| glob.compile_matcher().is_match(domain))
+            .map_err(|err| logger::error!("Invalid glob pattern! - {:?}", err))
             .unwrap_or(false)
     })
 }

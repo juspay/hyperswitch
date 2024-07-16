@@ -231,7 +231,7 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "{message}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "{message}")]
     GenericConfigurationError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
     GenericNotFoundError { message: String },
@@ -526,7 +526,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
             },
             Self::GenericConfigurationError { message } => {
-                AER::BadRequest(ApiError::new("IR", 4, message, None))
+                AER::BadRequest(ApiError::new("IR", 28, message, None))
             },
             Self::GenericNotFoundError { message } => {
                 AER::NotFound(ApiError::new("HE", 5, message, None))

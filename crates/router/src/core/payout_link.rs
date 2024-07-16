@@ -106,7 +106,7 @@ pub async fn initiate_payout_link(
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: Some(link_data.allowed_domains),
+                    allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::ExpiredLink(expired_link_data),
                 },
             )))
@@ -206,7 +206,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: Some(link_data.allowed_domains),
+                    allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLink(generic_form_data),
                 },
             )))
@@ -248,7 +248,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: Some(link_data.allowed_domains),
+                    allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
                 },
             )))

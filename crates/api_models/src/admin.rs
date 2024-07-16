@@ -1332,7 +1332,7 @@ pub struct BusinessGenericLinkConfig {
     /// Custom domain name to be used for hosting the link
     pub domain_name: Option<String>,
 
-    /// A list of allowed domains regexes where this link can be embedded / opened from
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: HashSet<String>,
 
     #[serde(flatten)]
@@ -1356,7 +1356,7 @@ impl BusinessGenericLinkConfig {
             .allowed_domains
             .clone()
             .iter()
-            .any(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
+            .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
         if !are_allowed_domains_valid {
             return Err("Invalid allowed domain names received");
         }

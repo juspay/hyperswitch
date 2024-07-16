@@ -1983,7 +1983,7 @@ pub async fn update_business_profile(
         .payout_link_config
         .as_ref()
         .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => Encode::encode_to_value(payout_conf).change_context(
+            Ok(_) => payout_conf.encode_to_value().change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payout_link_config",
                 },

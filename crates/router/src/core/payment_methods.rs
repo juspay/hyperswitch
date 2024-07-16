@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
@@ -248,7 +249,7 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: None,
+                        allowed_domains: HashSet::from([]),
                         data: GenericLinksData::ExpiredLink(expired_link_data),
                     },
                 )))
@@ -309,7 +310,8 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: None,
+                        allowed_domains: HashSet::from([]),
+
                         data: GenericLinksData::PaymentMethodCollect(generic_form_data),
                     },
                 )))
@@ -353,7 +355,8 @@ pub async fn render_pm_collect_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: None,
+                    allowed_domains: HashSet::from([]),
+
                     data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
                 },
             )))

@@ -165,7 +165,7 @@ pub struct PayoutLinkData {
     pub amount: MinorUnit,
     /// Payout currency
     pub currency: enums::Currency,
-    /// A list of allowed domains regexes where the payout link can be embedded / opened from
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: HashSet<String>,
 }
 
@@ -220,10 +220,7 @@ pub fn validate_strict_domain(domain: &str) -> bool {
     Regex::new(consts::STRICT_DOMAIN_REGEX)
         .map(|regex| regex.is_match(domain))
         .map_err(|err| {
-            let err_msg = format!(
-                "Invalid regex found while checking host domain \"{}\" - {:?}",
-                domain, err
-            );
+            let err_msg = format!("Invalid strict domain regex: {err:?}");
             #[cfg(feature = "logs")]
             logger::error!(err_msg);
             err_msg
@@ -236,10 +233,7 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
     Regex::new(consts::WILDCARD_DOMAIN_REGEX)
         .map(|regex| regex.is_match(domain))
         .map_err(|err| {
-            let err_msg = format!(
-                "Invalid regex found while checking allowed domain \"{}\" - {:?}",
-                domain, err
-            );
+            let err_msg = format!("Invalid strict domain regex: {err:?}");
             #[cfg(feature = "logs")]
             logger::error!(err_msg);
             err_msg
