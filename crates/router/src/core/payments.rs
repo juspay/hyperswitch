@@ -202,9 +202,6 @@ where
     )
     .await?;
 
-    let op_ref = &operation;
-    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
-
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     if let Some(connector_details) = connector {
@@ -310,6 +307,9 @@ where
                         false,
                     )
                     .await?;
+
+                    let op_ref = &operation;
+                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     let operation = Box::new(PaymentResponse);
 
@@ -433,6 +433,9 @@ where
                             .await?;
                         };
                     }
+
+                    let op_ref = &operation;
+                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
