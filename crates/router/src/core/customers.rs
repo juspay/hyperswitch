@@ -6,7 +6,7 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -286,16 +286,13 @@ pub async fn delete_customer(
     .await
     .switch()?;
 
-    let redacted_encrypted_email: Encryptable<Secret<_, common_utils::pii::EmailStrategy>> =
-        Encryptable::encrypt_via_api(
-            &key_manager_state,
-            REDACTED.to_string().into(),
-            identifier.clone(),
-            key,
-            GcmAes256,
-        )
-        .await
-        .switch()?;
+    let redacted_encrypted_email = Encryptable::new(
+        redacted_encrypted_value
+            .clone()
+            .into_inner()
+            .switch_strategy(),
+        redacted_encrypted_value.clone().into_encrypted(),
+    );
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),

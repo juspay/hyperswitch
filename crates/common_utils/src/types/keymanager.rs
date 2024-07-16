@@ -4,6 +4,8 @@ use core::fmt;
 
 use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
+use regex::Regex;
+#[cfg(feature = "encryption_service")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde::{
@@ -18,6 +20,8 @@ use crate::{
     errors::{self, CustomResult},
     transformers::{ForeignFrom, ForeignTryFrom},
 };
+
+static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
 
 #[derive(Debug)]
 pub struct KeyManagerState {
@@ -248,8 +252,9 @@ impl<S: Strategy<String> + Send> DecryptedDataConversion<String, S>
         value: &DecryptedData,
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
-        let string = String::from_utf8(value.clone().inner().peek().clone()).map_err(|err| {
-            logger::error!("Decryption error {:?}", err);
+        let string = String::from_utf8(value.clone().inner().peek().clone()).map_err(|_err| {
+            #[cfg(feature = "encryption_service")]
+            logger::error!("Decryption error {:?}", _err);
             errors::CryptoError::DecodingFailed
         })?;
         Ok(Self::new(Secret::new(string), encryption.into_inner()))
@@ -263,8 +268,9 @@ impl<S: Strategy<serde_json::Value> + Send> DecryptedDataConversion<serde_json::
         value: &DecryptedData,
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
-        let val = serde_json::from_slice(value.clone().inner().peek()).map_err(|err| {
-            logger::error!("Decryption error {:?}", err);
+        let val = serde_json::from_slice(value.clone().inner().peek()).map_err(|_err| {
+            #[cfg(feature = "encryption_service")]
+            logger::error!("Decryption error {:?}", _err);
             errors::CryptoError::DecodingFailed
         })?;
         Ok(Self::new(Secret::new(val), encryption.clone().into_inner()))
@@ -427,7 +433,12 @@ impl Serialize for EncryptedData {
     where
         S: serde::Serializer,
     {
-        let data = String::from_utf8(self.data.peek().clone()).map_err(ser::Error::custom)?;
+        let mut data = String::from_utf8(self.data.peek().clone()).map_err(ser::Error::custom)?;
+        let regex: Regex = Regex::new(r"v([0-9]+):(.+)$").map_err(ser::Error::custom)?;
+        // To handle older data which does not have version
+        if !regex.is_match(data.as_str()) {
+            data = format!("{DEFAULT_ENCRYPTION_VERSION}:{data}");
+        }
         serializer.serialize_str(data.as_str())
     }
 }

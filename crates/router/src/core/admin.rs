@@ -140,21 +140,10 @@ pub async fn create_merchant_account(
     #[cfg(feature = "keymanager_create")]
     {
         keymanager::create_key_in_key_manager(
-            &(&state).into(),
+            key_manager_state,
             km_types::EncryptionCreateRequest {
                 identifier: identifier.clone(),
             },
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        .attach_printable("Failed to insert key to KeyManager")?;
-    }
-
-    #[cfg(feature = "keymanager_create")]
-    {
-        keymanager::create_key_in_key_manager(
-            key_manager_state,
-            km_types::EncryptionCreateRequest { identifier },
         )
         .await
         .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)

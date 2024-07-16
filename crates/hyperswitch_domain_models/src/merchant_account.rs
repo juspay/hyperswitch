@@ -224,7 +224,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| decrypt(state, inner, identifier, key.peek()))
+                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
