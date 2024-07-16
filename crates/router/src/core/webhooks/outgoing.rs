@@ -94,7 +94,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     )
     .await
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-    .attach_printable("Failed to construct request content")?;
+    .attach_printable("Failed to construct outgoing webhook request content")?;
 
     let event_metadata = storage::EventMetadata::foreign_from((&content, &primary_object_id));
 
