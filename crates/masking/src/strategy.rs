@@ -7,8 +7,8 @@ pub trait Strategy<T> {
     fn fmt(value: &T, fmt: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
-#[derive(Debug, Copy, Clone, Deserialize)]
 /// Debug with type
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub enum WithType {}
 
 impl<T> Strategy<T> for WithType {
