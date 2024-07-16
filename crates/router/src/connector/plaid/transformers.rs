@@ -177,6 +177,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for Pla
                             .request
                             .customer_id
                             .clone()
+                            .map(|id| id.get_string_repr().to_string())
                             .unwrap_or("default cust".to_string()),
                     },
                     payment_initiation: PlaidPaymentInitiation {
