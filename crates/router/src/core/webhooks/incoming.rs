@@ -612,7 +612,7 @@ async fn payments_incoming_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
-                super::create_event_and_trigger_outgoing_webhook(
+                Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
                     business_profile,
@@ -623,7 +623,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
-                )
+                ))
                 .await?;
             };
 
@@ -735,7 +735,7 @@ async fn payouts_incoming_webhook_flow(
                     .attach_printable("Failed to fetch the payout create response")?,
             };
 
-            super::create_event_and_trigger_outgoing_webhook(
+            Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
                 merchant_account,
                 business_profile,
@@ -746,7 +746,7 @@ async fn payouts_incoming_webhook_flow(
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(payout_create_response),
                 Some(updated_payout_attempt.created_at),
-            )
+            ))
             .await?;
         }
 
@@ -840,7 +840,7 @@ async fn refunds_incoming_webhook_flow(
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
-        super::create_event_and_trigger_outgoing_webhook(
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
             merchant_account,
             business_profile,
@@ -851,7 +851,7 @@ async fn refunds_incoming_webhook_flow(
             enums::EventObjectType::RefundDetails,
             api::OutgoingWebhookContent::RefundDetails(refund_response),
             Some(updated_refund.created_at),
-        )
+        ))
         .await?;
     }
 
@@ -1116,7 +1116,7 @@ async fn external_authentication_incoming_webhook_flow(
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
-                            super::create_event_and_trigger_outgoing_webhook(
+                            Box::pin(super::create_event_and_trigger_outgoing_webhook(
                                 state,
                                 merchant_account,
                                 business_profile,
@@ -1127,7 +1127,7 @@ async fn external_authentication_incoming_webhook_flow(
                                 enums::EventObjectType::PaymentDetails,
                                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
                                 primary_object_created_at,
-                            )
+                            ))
                             .await?;
                         };
                         let response = WebhookResponseTracker::Payment { payment_id, status };
@@ -1214,7 +1214,7 @@ async fn mandates_incoming_webhook_flow(
         );
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
         if let Some(outgoing_event_type) = event_type {
-            super::create_event_and_trigger_outgoing_webhook(
+            Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
                 merchant_account,
                 business_profile,
@@ -1225,7 +1225,7 @@ async fn mandates_incoming_webhook_flow(
                 enums::EventObjectType::MandateDetails,
                 api::OutgoingWebhookContent::MandateDetails(mandates_response),
                 Some(updated_mandate.created_at),
-            )
+            ))
             .await?;
         }
         Ok(WebhookResponseTracker::Mandate {
@@ -1323,7 +1323,7 @@ async fn frm_incoming_webhook_flow(
                 let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
-                    super::create_event_and_trigger_outgoing_webhook(
+                    Box::pin(super::create_event_and_trigger_outgoing_webhook(
                         state,
                         merchant_account,
                         business_profile,
@@ -1334,7 +1334,7 @@ async fn frm_incoming_webhook_flow(
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(payments_response),
                         primary_object_created_at,
-                    )
+                    ))
                     .await?;
                 };
                 let response = WebhookResponseTracker::Payment { payment_id, status };
@@ -1397,7 +1397,7 @@ async fn disputes_incoming_webhook_flow(
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
 
-        super::create_event_and_trigger_outgoing_webhook(
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
             merchant_account,
             business_profile,
@@ -1408,7 +1408,7 @@ async fn disputes_incoming_webhook_flow(
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
             Some(dispute_object.created_at),
-        )
+        ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Ok(WebhookResponseTracker::Dispute {
@@ -1489,7 +1489,7 @@ async fn bank_transfer_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
-                super::create_event_and_trigger_outgoing_webhook(
+                Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
                     business_profile,
@@ -1500,7 +1500,7 @@ async fn bank_transfer_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
-                )
+                ))
                 .await?;
             }
 
