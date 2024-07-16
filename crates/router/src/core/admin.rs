@@ -2009,6 +2009,13 @@ pub async fn update_business_profile(
         })
         .transpose()?
         .map(Secret::new);
+    let outgoing_webhook_custom_http_headers = request
+        .outgoing_webhook_custom_http_headers
+        .async_map(|headers| create_encrypted_data(&key_store, headers))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
@@ -2053,13 +2060,7 @@ pub async fn update_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers: Some(
-            create_encrypted_data(&key_store, request.outgoing_webhook_custom_http_headers)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?
-                .into(),
-        ),
+        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
     };
 
     let updated_business_profile = db

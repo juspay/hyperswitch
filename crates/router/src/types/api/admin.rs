@@ -8,7 +8,7 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -186,6 +186,13 @@ pub async fn create_business_profile(
                 })
         })
         .transpose()?;
+    let outgoing_webhook_custom_http_headers = request
+        .outgoing_webhook_custom_http_headers
+        .async_map(|headers| create_encrypted_data(key_store, headers))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
@@ -259,12 +266,6 @@ pub async fn create_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
-        outgoing_webhook_custom_http_headers: Some(
-            create_encrypted_data(key_store, request.outgoing_webhook_custom_http_headers)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?
-                .into(),
-        ),
+        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
     })
 }
