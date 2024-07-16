@@ -708,6 +708,7 @@ diesel::table! {
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
         connector_wallets_details -> Nullable<Bytea>,
+        additional_merchant_data -> Nullable<Bytea>,
     }
 }
 
@@ -739,6 +740,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_attempt (attempt_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -829,6 +831,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_intent (payment_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
