@@ -131,6 +131,7 @@ async fn should_sync_authorized_payment() {
                 integrity_object: None,
                 amount: MinorUnit::new(100),
                 captured_amount: None,
+                browser_info: None,
             }),
             None,
         )

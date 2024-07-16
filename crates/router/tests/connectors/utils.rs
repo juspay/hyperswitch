@@ -1001,6 +1001,7 @@ impl Default for PaymentSyncType {
             amount: MinorUnit::new(100),
             integrity_object: None,
             captured_amount: None,
+            browser_info: None,
         };
         Self(data)
     }

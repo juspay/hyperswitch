@@ -6,7 +6,10 @@ use hyperswitch_interfaces::consts;
 use masking::PeekInterface;
 use transformers as itaubank;
 
-use super::utils::{self as connector_utils, BrowserInformationData, PaymentsAuthorizeRequestData};
+use super::utils::{
+    self as connector_utils, BrowserInformationData, PaymentsAuthorizeRequestData,
+    PaymentsSyncRequestData,
+};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -367,7 +370,26 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = self.build_headers(req, connectors)?;
+        let browser_info = req.request.get_browser_info()?;
+        let mut flow_header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                browser_info.get_accept_header()?.into(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                browser_info.get_user_agent()?.into(),
+            ),
+        ];
+        header.append(&mut flow_header);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -376,10 +398,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob/{}",
+            self.base_url(connectors),
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
@@ -403,7 +432,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: itaubank::ItaubankPaymentsResponse = res
+        let response: itaubank::ItaubankPaymentsSyncResponse = res
             .response
             .parse_struct("itaubank PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

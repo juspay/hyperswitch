@@ -109,6 +109,7 @@ async fn should_sync_authorized_payment() {
                 amount: MinorUnit::new(100),
                 integrity_object: None,
                 captured_amount: None,
+                browser_info: None,
             }),
             None,
         )
@@ -229,6 +230,7 @@ async fn should_sync_auto_captured_payment() {
                 amount: MinorUnit::new(100),
                 integrity_object: None,
                 captured_amount: None,
+                browser_info: None,
             }),
             None,
         )

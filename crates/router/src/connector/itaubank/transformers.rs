@@ -264,6 +264,46 @@ fn get_qr_code_data(
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItaubankPaymentsSyncResponse {
+    status: ItaubankPaymentStatus,
+    txid: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            ItaubankPaymentsSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.txid.to_owned(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.txid),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankRefundRequest {
     pub amount: StringMajorUnit,
