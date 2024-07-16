@@ -25,7 +25,7 @@ use crate::{
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, cards::create_encrypted_data, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing::helpers as routing_helpers,
@@ -35,7 +35,8 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
     types::{
-        self, api,
+        self,
+        api::{self, admin},
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
@@ -239,7 +240,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let key = key_store.key.into_inner();
+        let key = key_store.key.clone().into_inner();
 
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
@@ -292,7 +293,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         CreateBusinessProfile::new(self.primary_business_details.clone())
-            .create_business_profiles(db, &mut merchant_account)
+            .create_business_profiles(db, &mut merchant_account, &key_store)
             .await?;
 
         Ok(merchant_account)
@@ -386,6 +387,7 @@ impl CreateBusinessProfile {
         &self,
         db: &dyn StorageInterface,
         merchant_account: &mut domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()> {
         match self {
             Self::CreateFromPrimaryBusinessDetails {
@@ -395,6 +397,7 @@ impl CreateBusinessProfile {
                     db,
                     merchant_account.clone(),
                     primary_business_details,
+                    key_store,
                 )
                 .await?;
 
@@ -407,7 +410,7 @@ impl CreateBusinessProfile {
             }
             Self::CreateDefaultBusinessProfile => {
                 let business_profile = self
-                    .create_default_business_profile(db, merchant_account.clone())
+                    .create_default_business_profile(db, merchant_account.clone(), key_store)
                     .await?;
 
                 merchant_account.default_profile = Some(business_profile.profile_id);
@@ -422,11 +425,13 @@ impl CreateBusinessProfile {
         &self,
         db: &dyn StorageInterface,
         merchant_account: domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<diesel_models::business_profile::BusinessProfile> {
         let business_profile = create_and_insert_business_profile(
             db,
             api_models::admin::BusinessProfileCreate::default(),
             merchant_account.clone(),
+            key_store,
         )
         .await?;
 
@@ -440,6 +445,7 @@ impl CreateBusinessProfile {
         db: &dyn StorageInterface,
         merchant_account: domain::MerchantAccount,
         primary_business_details: &Vec<admin_types::PrimaryBusinessDetails>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Vec<diesel_models::business_profile::BusinessProfile>> {
         let mut business_profiles_vector = Vec::with_capacity(primary_business_details.len());
 
@@ -459,6 +465,7 @@ impl CreateBusinessProfile {
                 db,
                 business_profile_create_request,
                 merchant_account.clone(),
+                key_store,
             )
             .await
             .map_err(|business_profile_insert_error| {
@@ -653,6 +660,7 @@ pub async fn create_business_profile_from_business_labels(
             db,
             business_profile_create_request,
             merchant_account.clone(),
+            key_store,
         )
         .await
         .map_err(|business_profile_insert_error| {
@@ -723,6 +731,7 @@ pub async fn update_business_profile_cascade(
             collect_shipping_details_from_wallet_connector: None,
             collect_billing_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
+            outgoing_webhook_custom_http_headers: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1823,11 +1832,10 @@ pub async fn create_and_insert_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
     merchant_account: domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<storage::business_profile::BusinessProfile> {
-    let business_profile_new = storage::business_profile::BusinessProfileNew::foreign_try_from((
-        merchant_account,
-        request,
-    ))?;
+    let business_profile_new =
+        admin::create_business_profile(merchant_account, request, key_store).await?;
 
     let profile_name = business_profile_new.profile_name.clone();
 
@@ -1878,7 +1886,8 @@ pub async fn create_business_profile(
     }
 
     let business_profile =
-        create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
+        create_and_insert_business_profile(db, request, merchant_account.clone(), &key_store)
+            .await?;
 
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
@@ -1888,8 +1897,10 @@ pub async fn create_business_profile(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
+            .await?,
     ))
 }
 
@@ -1898,17 +1909,23 @@ pub async fn list_business_profile(
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
-    let business_profiles = db
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let profiles = db
         .list_business_profile_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
-        .into_iter()
-        .map(|business_profile| {
-            api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse business profile details")?;
+        .clone();
+    let mut business_profiles = Vec::new();
+    for profile in profiles {
+        let business_profile = admin::business_profile_response(profile, &key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")?;
+        business_profiles.push(business_profile);
+    }
 
     Ok(service_api::ApplicationResponse::Json(business_profiles))
 }
@@ -1916,8 +1933,13 @@ pub async fn list_business_profile(
 pub async fn retrieve_business_profile(
     state: SessionState,
     profile_id: String,
+    merchant_id: String,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     let db = state.store.as_ref();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
         .await
@@ -1926,8 +1948,10 @@ pub async fn retrieve_business_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
+            .await?,
     ))
 }
 
@@ -1960,6 +1984,14 @@ pub async fn update_business_profile(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
 
     if business_profile.merchant_id != merchant_id {
         Err(errors::ApiErrorResponse::AccessForbidden {
@@ -2021,6 +2053,13 @@ pub async fn update_business_profile(
         })
         .transpose()?
         .map(Secret::new);
+    let outgoing_webhook_custom_http_headers = request
+        .outgoing_webhook_custom_http_headers
+        .async_map(|headers| create_encrypted_data(&key_store, headers))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
@@ -2065,6 +2104,7 @@ pub async fn update_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
     };
 
     let updated_business_profile = db
@@ -2075,8 +2115,10 @@ pub async fn update_business_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        admin::business_profile_response(updated_business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
+            .await?,
     ))
 }
 
