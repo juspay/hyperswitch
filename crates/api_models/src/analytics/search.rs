@@ -1,6 +1,6 @@
 use common_utils::hashing::HashedString;
-use serde_json::Value;
 use masking::WithType;
+use serde_json::Value;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
