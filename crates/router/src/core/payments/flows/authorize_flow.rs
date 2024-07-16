@@ -16,7 +16,9 @@ use crate::{
     services,
     services::api::ConnectorValidation,
     types::{self, api, domain, storage, transformers::ForeignFrom},
+    utils::OptionExt,
 };
+use common_enums as enums;
 
 #[async_trait]
 impl
@@ -66,14 +68,25 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        payments::get_merchant_bank_data_for_open_banking_connectors(
-            merchant_connector_account,
-            key_store,
-            connector,
-            state,
-            merchant_account,
-        )
-        .await
+        let payment_method = &self
+            .payment_attempt
+            .payment_method
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
     }
 }
 #[async_trait]

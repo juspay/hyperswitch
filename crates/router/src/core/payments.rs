@@ -90,8 +90,8 @@ use crate::{
         BrowserInformation,
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, user::parse_value,
-        Encode, OptionExt, ValueExt,
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
+        ValueExt,
     },
     workflows::payment_sync,
 };
@@ -203,8 +203,7 @@ where
     .await?;
 
     let op_ref = &operation;
-    let should_trigger_post_processing_flows =
-        matches!(format!("{op_ref:?}").as_str(), "PaymentConfirm");
+    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
@@ -1501,24 +1500,15 @@ where
     )
     .await?;
 
-    let payment_method = payment_data
-        .payment_attempt
-        .payment_method
-        .get_required_value("PaymentMethod")?;
-
-    let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
-        payment_data
-            .get_merchant_recipient_data(
-                state,
-                merchant_account,
-                key_store,
-                &merchant_connector_account,
-                &connector,
-            )
-            .await?
-    } else {
-        None
-    };
+    let merchant_recipient_data = payment_data
+        .get_merchant_recipient_data(
+            state,
+            merchant_account,
+            key_store,
+            &merchant_connector_account,
+            &connector,
+        )
+        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -1712,12 +1702,10 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
         .peek()
         .clone();
 
-    let merchant_recipient_data = parse_value::<router_types::AdditionalMerchantData>(
-        merchant_data,
-        "AdditionalMerchantData",
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed to decode MerchantRecipientData")?;
+    let merchant_recipient_data = merchant_data
+        .parse_value::<router_types::AdditionalMerchantData>("AdditionalMerchantData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to decode MerchantRecipientData")?;
 
     let connector_name = enums::Connector::to_string(&connector.connector_name);
     let locker_based_connector_list = state.conf.locker_based_open_banking_connectors.clone();
