@@ -1303,8 +1303,10 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: self.capture_on,
             confirm: self.confirm,
             authentication_type: self.authentication_type,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
+            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
+            modified_at: self
+                .modified_at
+                .unwrap_or_else(common_utils::date_time::now),
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
             amount_to_capture: self
@@ -1367,8 +1369,8 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: storage_model.capture_on,
             confirm: storage_model.confirm,
             authentication_type: storage_model.authentication_type,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
+            created_at: Some(storage_model.created_at),
+            modified_at: Some(storage_model.modified_at),
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
             amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
