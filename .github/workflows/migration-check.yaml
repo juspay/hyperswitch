@@ -25,6 +25,9 @@ jobs:
     name: Verify consistency of migrations with `schema.rs` file
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
     services:
       postgres:
         image: postgres
@@ -59,24 +62,16 @@ jobs:
 
       - name: Verify `diesel migration run for v1`
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: just migrate run --locked-schema
 
       - name: Verify `diesel migration redo for v1`
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: just migrate redo --locked-schema --all
 
       - name: Verify `diesel migration run for v2`
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: just migrate_v2 run --locked-schema
 
       - name: Verify `diesel migration redo for v2`
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: just migrate_v2 redo --locked-schema --all
