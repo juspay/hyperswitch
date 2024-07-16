@@ -204,7 +204,6 @@ diesel::table! {
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
-        outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
     }
 }
 
@@ -741,7 +740,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_attempt (attempt_id, merchant_id) {
-        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -832,7 +830,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_intent (payment_id, merchant_id) {
-        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]

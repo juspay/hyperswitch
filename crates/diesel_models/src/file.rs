@@ -1,5 +1,5 @@
 use common_utils::custom_serde;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::{Deserialize, Serialize};
 
 use crate::schema::file_metadata;
@@ -21,8 +21,8 @@ pub struct FileMetadataNew {
     pub merchant_connector_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
-#[diesel(table_name = file_metadata, primary_key(file_id, merchant_id))]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = file_metadata, primary_key(file_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct FileMetadata {
     #[serde(skip_serializing)]
     pub file_id: String,

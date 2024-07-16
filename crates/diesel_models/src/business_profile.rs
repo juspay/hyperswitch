@@ -1,5 +1,5 @@
 use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::{encryption::Encryption, schema::business_profile};
 
@@ -10,9 +10,10 @@ use crate::{encryption::Encryption, schema::business_profile};
     serde::Serialize,
     Identifiable,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = business_profile, primary_key(profile_id))]
+#[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
     pub profile_id: String,
     pub merchant_id: String,

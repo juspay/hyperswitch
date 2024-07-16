@@ -252,7 +252,7 @@ fi
 
 # run migrations
 print_info "Running migrations"
-MIGRATION_CMD="make migrate database-url=postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
+MIGRATION_CMD="diesel migration --database-url=postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME} run"
 
 if [[ -d "migrations" ]]; then
     $MIGRATION_CMD

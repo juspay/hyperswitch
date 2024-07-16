@@ -1,13 +1,14 @@
 use common_utils::id_type;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payout_attempt};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payout_attempt)]
-#[diesel(primary_key(payout_attempt_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payout_attempt, primary_key(payout_attempt_id), check_for_backend(diesel::pg::Pg))]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
