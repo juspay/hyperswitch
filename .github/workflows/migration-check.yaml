@@ -61,7 +61,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: just migrate run --locked-schema --all
+        run: just migrate run --locked-schema
 
       - name: Verify `diesel migration redo for v1`
         shell: bash
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: just migrate_v2 run --locked-schema --all
+        run: just migrate_v2 run --locked-schema
 
       - name: Verify `diesel migration redo for v2`
         shell: bash
