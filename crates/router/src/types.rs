@@ -231,6 +231,9 @@ pub type PayoutRecipientAccountType =
 #[cfg(feature = "payouts")]
 pub type PayoutQuoteType =
     dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
+pub type PayoutSyncType =
+    dyn services::ConnectorIntegration<api::PoSync, PayoutsData, PayoutsResponseData>;
 
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;

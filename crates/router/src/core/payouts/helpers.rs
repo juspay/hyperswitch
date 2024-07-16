@@ -896,6 +896,7 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -922,7 +923,15 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
             // Initiated by the underlying connector
             | api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::Initiated
             | api_enums::PayoutStatus::RequiresFulfillment
+    )
+}
+
+pub fn should_call_retrieve(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::Initiated
     )
 }
 

@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -73,6 +74,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttempt {
@@ -156,6 +158,7 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptNew {
@@ -241,6 +244,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -411,6 +415,7 @@ pub struct PaymentAttemptUpdateInternal {
     charge_id: Option<String>,
     client_source: Option<String>,
     client_version: Option<String>,
+    customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -479,6 +484,7 @@ impl PaymentAttemptUpdate {
             charge_id,
             client_source,
             client_version,
+            customer_acceptance,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -530,6 +536,7 @@ impl PaymentAttemptUpdate {
             charge_id: charge_id.or(source.charge_id),
             client_source: client_source.or(source.client_source),
             client_version: client_version.or(source.client_version),
+            customer_acceptance: customer_acceptance.or(source.customer_acceptance),
             ..source
         }
     }
@@ -618,6 +625,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -649,6 +657,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 client_source,
                 client_version,
+                customer_acceptance,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

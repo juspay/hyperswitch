@@ -3712,6 +3712,7 @@ impl AttemptType {
             charge_id: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
+            customer_acceptance: old_payment_attempt.customer_acceptance,
         }
     }
 
