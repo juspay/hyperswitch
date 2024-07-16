@@ -16,10 +16,10 @@ payouts = ["hyperswitch_domain_models/payouts"]
 [dependencies]
 # First Party dependencies
 api_models = { version = "0.1.0", path = "../api_models" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 diesel_models = { version = "0.1.0", path = "../diesel_models" }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

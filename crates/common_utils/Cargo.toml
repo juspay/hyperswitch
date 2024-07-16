@@ -17,6 +17,7 @@ metrics = ["dep:router_env", "dep:futures"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
+blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"
@@ -25,6 +26,7 @@ hex = "0.4.3"
 http = "0.2.12"
 md5 = "0.7.0"
 nanoid = "0.4.0"
+nutype = { version = "0.4.2", features = ["serde"] }
 once_cell = "1.19.0"
 phonenumber = "0.3.3"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
@@ -46,14 +48,11 @@ tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
-blake3 = { version = "1.5.1", features = ["serde"] }
-
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true }
-nutype = { version = "0.4.2", features = ["serde"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
