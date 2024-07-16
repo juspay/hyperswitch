@@ -186,9 +186,9 @@ diesel::table! {
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        webhook_details -> Nullable<Json>,
-        metadata -> Nullable<Json>,
-        routing_algorithm -> Nullable<Json>,
+        webhook_details -> Nullable<Jsonb>,
+        metadata -> Nullable<Jsonb>,
+        routing_algorithm -> Nullable<Jsonb>,
         intent_fulfillment_time -> Nullable<Int8>,
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
@@ -295,7 +295,7 @@ diesel::table! {
         #[max_length = 255]
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
-        metadata -> Nullable<Json>,
+        metadata -> Nullable<Jsonb>,
         connector_customer -> Nullable<Jsonb>,
         modified_at -> Timestamp,
         #[max_length = 64]
@@ -320,7 +320,7 @@ diesel::table! {
         #[max_length = 64]
         org_id -> Varchar,
         data_key -> DashboardMetadata,
-        data_value -> Json,
+        data_value -> Jsonb,
         #[max_length = 64]
         created_by -> Varchar,
         created_at -> Timestamp,
@@ -643,7 +643,7 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         merchant_name -> Nullable<Bytea>,
         merchant_details -> Nullable<Bytea>,
-        webhook_details -> Nullable<Json>,
+        webhook_details -> Nullable<Jsonb>,
         sub_merchants_enabled -> Nullable<Bool>,
         #[max_length = 64]
         parent_merchant_id -> Nullable<Varchar>,
@@ -653,8 +653,8 @@ diesel::table! {
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
-        routing_algorithm -> Nullable<Json>,
-        primary_business_details -> Json,
+        routing_algorithm -> Nullable<Jsonb>,
+        primary_business_details -> Jsonb,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -796,7 +796,7 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
-        authentication_data -> Nullable<Json>,
+        authentication_data -> Nullable<Jsonb>,
         encoded_data -> Nullable<Text>,
         #[max_length = 255]
         unified_code -> Nullable<Varchar>,
@@ -865,9 +865,9 @@ diesel::table! {
         #[max_length = 64]
         business_label -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
-        allowed_payment_method_types -> Nullable<Json>,
-        connector_metadata -> Nullable<Json>,
-        feature_metadata -> Nullable<Json>,
+        allowed_payment_method_types -> Nullable<Jsonb>,
+        connector_metadata -> Nullable<Jsonb>,
+        feature_metadata -> Nullable<Jsonb>,
         attempt_count -> Int2,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
@@ -956,7 +956,7 @@ diesel::table! {
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
-        metadata -> Nullable<Json>,
+        metadata -> Nullable<Jsonb>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
@@ -1074,7 +1074,7 @@ diesel::table! {
         schedule_time -> Nullable<Timestamp>,
         #[max_length = 255]
         rule -> Varchar,
-        tracking_data -> Json,
+        tracking_data -> Jsonb,
         #[max_length = 255]
         business_status -> Varchar,
         status -> ProcessTrackerStatus,
@@ -1113,7 +1113,7 @@ diesel::table! {
         refund_status -> RefundStatus,
         sent_to_gateway -> Bool,
         refund_error_message -> Nullable<Text>,
-        metadata -> Nullable<Json>,
+        metadata -> Nullable<Jsonb>,
         #[max_length = 128]
         refund_arn -> Nullable<Varchar>,
         created_at -> Timestamp,
