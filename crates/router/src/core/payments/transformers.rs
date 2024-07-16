@@ -935,6 +935,7 @@ where
             })
             .unwrap_or(false);
 
+        // This condition to be triggered for open banking connectors, third party SDK session token will be provided
         let condition2 = payment_attempt
             .connector
             .as_ref()
@@ -1382,7 +1383,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
-            customer_id: customer_id.map(|cust_id| cust_id.get_string_repr().to_string()),
+            customer_id,
             surcharge_details: payment_data.surcharge_details,
             request_incremental_authorization: matches!(
                 payment_data

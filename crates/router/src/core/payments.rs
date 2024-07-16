@@ -90,8 +90,8 @@ use crate::{
         BrowserInformation,
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
-        ValueExt,
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, user::parse_value,
+        Encode, OptionExt, ValueExt,
     },
     workflows::payment_sync,
 };
@@ -1507,14 +1507,15 @@ where
         .get_required_value("PaymentMethod")?;
 
     let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
-        get_merchant_bank_data_for_open_banking_connectors(
-            &merchant_connector_account,
-            key_store,
-            &connector,
-            state,
-            merchant_account,
-        )
-        .await?
+        payment_data
+            .get_merchant_recipient_data(
+                state,
+                merchant_account,
+                key_store,
+                &merchant_connector_account,
+                &connector,
+            )
+            .await?
     } else {
         None
     };
@@ -1697,7 +1698,7 @@ where
     Ok((router_data, merchant_connector_account))
 }
 
-async fn get_merchant_bank_data_for_open_banking_connectors(
+pub async fn get_merchant_bank_data_for_open_banking_connectors(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     key_store: &domain::MerchantKeyStore,
     connector: &api::ConnectorData,
@@ -1711,10 +1712,12 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
         .peek()
         .clone();
 
-    let merchant_recipient_data =
-        serde_json::from_value::<router_types::AdditionalMerchantData>(merchant_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decode MerchantRecipientData")?;
+    let merchant_recipient_data = parse_value::<router_types::AdditionalMerchantData>(
+        merchant_data,
+        "AdditionalMerchantData",
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to decode MerchantRecipientData")?;
 
     let connector_name = enums::Connector::to_string(&connector.connector_name);
     let locker_based_connector_list = state.conf.locker_based_open_banking_connectors.clone();
@@ -1725,6 +1728,7 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     let recipient_id = helpers::get_recipient_id_for_open_banking(&merchant_recipient_data)?;
     let final_recipient_data = if let Some(id) = recipient_id {
         if contains {
+            // Customer Id for OpenBanking connectors will be merchant_id as the account data stored at locker belongs to the merchant
             let cust_id = id_type::CustomerId::from(merchant_account.merchant_id.clone().into())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert to CustomerId")?;

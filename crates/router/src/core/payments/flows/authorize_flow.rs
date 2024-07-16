@@ -57,6 +57,24 @@ impl
         ))
         .await
     }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        payments::get_merchant_bank_data_for_open_banking_connectors(
+            merchant_connector_account,
+            key_store,
+            connector,
+            state,
+            merchant_account,
+        )
+        .await
+    }
 }
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
