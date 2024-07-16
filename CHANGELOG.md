@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.12.0-hotfix2
+
+### Bug Fixes
+
+- **routing:** Do not update `perform_session_flow_routing` output if the `SessionRoutingChoice` is none ([#5338](https://github.com/juspay/hyperswitch/pull/5338)) ([`24633f3`](https://github.com/juspay/hyperswitch/commit/24633f32ea76d882c06b9735020e67c64510375f))
+
+- - -
+
 ## 2024.07.12.0-hotfix1
 
 ### Bug Fixes
