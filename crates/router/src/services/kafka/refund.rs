@@ -50,7 +50,7 @@ impl<'a> KafkaRefund<'a> {
             refund_error_message: refund.refund_error_message.as_ref(),
             refund_arn: refund.refund_arn.as_ref(),
             created_at: refund.created_at.assume_utc(),
-            modified_at: refund.updated_at.assume_utc(),
+            modified_at: refund.modified_at.assume_utc(),
             description: refund.description.as_ref(),
             attempt_id: &refund.attempt_id,
             refund_reason: refund.refund_reason.as_ref(),

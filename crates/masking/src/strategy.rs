@@ -1,4 +1,5 @@
 use core::fmt;
+
 use serde::Deserialize;
 
 /// Debugging trait which is specialized for handling secret values

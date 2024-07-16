@@ -9,12 +9,11 @@ use common_utils::{
     consts::default_payments_list_limit,
     crypto,
     ext_traits::{ConfigExt, Encode},
+    hashing::HashedString,
     id_type,
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
-    hashing::HashedString,
 };
-
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 use serde::{
@@ -4953,7 +4952,7 @@ pub struct PaymentsStartRequest {
     pub attempt_id: String,
 }
 
-/// additional data that might be required by hyperswitch 
+/// additional data that might be required by hyperswitch
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
