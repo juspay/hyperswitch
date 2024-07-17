@@ -11,7 +11,7 @@ license.workspace = true
 crate-type = ["cdylib"]
 
 [features]
-default = ["payouts", ]
+default = ["payouts"]
 release = ["payouts"]
 dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
 production = ["connector_configs/production"]
