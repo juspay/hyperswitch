@@ -231,8 +231,6 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "{message}")]
-    LinkConfigurationError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
     GenericNotFoundError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_01", message = "{message}")]
@@ -273,6 +271,8 @@ pub enum ApiErrorResponse {
     InvalidCookie,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "{message}")]
+    LinkConfigurationError { message: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
     IntegrityCheckFailed {
         reason: String,
@@ -525,9 +525,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::AddressNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
             },
-            Self::LinkConfigurationError { message } => {
-                AER::BadRequest(ApiError::new("IR", 28, message, None))
-            },
             Self::GenericNotFoundError { message } => {
                 AER::NotFound(ApiError::new("HE", 5, message, None))
             },
@@ -620,6 +617,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExtendedCardInfoNotFound => {
                 AER::NotFound(ApiError::new("IR", 27, "Extended card info does not exist", None))
             }
+            Self::LinkConfigurationError { message } => {
+                AER::BadRequest(ApiError::new("IR", 28, message, None))
+            },
             Self::IntegrityCheckFailed {
                 reason,
                 field_names,

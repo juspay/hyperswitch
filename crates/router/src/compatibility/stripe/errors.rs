@@ -99,9 +99,6 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "not_configured", message = "{message}")]
-    LinkConfigurationError { message: String },
-
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
 
@@ -267,6 +264,8 @@ pub enum StripeErrorCode {
     PaymentMethodDeleteFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "not_configured", message = "{message}")]
+    LinkConfigurationError { message: String },
     #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
         reason: String,
@@ -464,10 +463,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_names.clone().join(", "),
                 }
             }
-
-            errors::ApiErrorResponse::LinkConfigurationError { message } => {
-                Self::LinkConfigurationError { message }
-            }
             errors::ApiErrorResponse::GenericNotFoundError { message } => {
                 Self::GenericNotFoundError { message }
             }
@@ -663,6 +658,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidWalletToken { wallet_name }
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
+            errors::ApiErrorResponse::LinkConfigurationError { message } => {
+                Self::LinkConfigurationError { message }
+            }
             errors::ApiErrorResponse::IntegrityCheckFailed {
                 reason,
                 field_names,
