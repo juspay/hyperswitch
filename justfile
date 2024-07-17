@@ -17,6 +17,8 @@ check *FLAGS:
 alias c := check
 
 # Check compilation of Rust code and catch common mistakes
+# We cannot run --all-features because v1 and v2 are mutually exclusive features
+# Create a list of features by exlcuding certain features 
 clippy *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
