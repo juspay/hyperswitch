@@ -1,14 +1,14 @@
 pub mod transformers;
 
 use base64::Engine;
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as billwerk;
 
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
-
-
-use super::utils::RefundsRequestData;
+use super::utils::{
+    RefundsRequestData, {self as connector_utils},
+};
 use crate::{
     configs::settings,
     consts,
@@ -27,12 +27,10 @@ use crate::{
     },
     utils::BytesExt,
 };
-use super::utils::{self as connector_utils};
 #[derive(Clone)]
 pub struct Billwerk {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
-
 
 impl Billwerk {
     pub fn new() -> &'static Self {

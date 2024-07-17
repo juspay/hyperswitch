@@ -1,6 +1,7 @@
 use common_utils::{
     id_type,
     pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,6 @@ use crate::{
     core::errors,
     types::{self, api, domain, storage::enums},
 };
-use common_utils::types::MinorUnit;
 
 pub struct BillwerkRouterData<T> {
     pub amount: MinorUnit,
@@ -20,9 +20,7 @@ pub struct BillwerkRouterData<T> {
 
 impl<T> TryFrom<(MinorUnit, T)> for BillwerkRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (MinorUnit, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
