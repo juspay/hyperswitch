@@ -4,10 +4,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::enums::{self as storage_enums};
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 use crate::schema::payment_attempt;
-
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 use crate::schema_v2::payment_attempt;
 
