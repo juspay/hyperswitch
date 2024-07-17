@@ -9,10 +9,10 @@ struct ItaubankTest;
 impl ConnectorActions for ItaubankTest {}
 impl utils::Connector for ItaubankTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Adyen;
+        use router::connector::Itaubank;
         utils::construct_connector_data_old(
-            Box::new(&Adyen),
-            types::Connector::Adyen,
+            Box::new(Itaubank::new()),
+            types::Connector::Itaubank,
             api::GetToken::Connector,
             None,
         )
