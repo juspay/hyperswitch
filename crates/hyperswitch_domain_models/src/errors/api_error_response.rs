@@ -284,7 +284,7 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
         reason: String,
         field_names: String,
