@@ -319,6 +319,13 @@ pub enum DirKeyKind {
         props(Category = "Payment Method Types")
     )]
     RealTimePaymentType,
+    #[serde(rename = "open_banking")]
+    #[strum(
+        serialize = "open_banking",
+        detailed_message = "Supported types of open banking payment method",
+        props(Category = "Payment Method Types")
+    )]
+    OpenBankingType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -367,6 +374,7 @@ impl DirKeyKind {
             Self::SetupFutureUsage => types::DataType::EnumVariant,
             Self::CardRedirectType => types::DataType::EnumVariant,
             Self::RealTimePaymentType => types::DataType::EnumVariant,
+            Self::OpenBankingType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -498,6 +506,11 @@ impl DirKeyKind {
                     .map(DirValue::RealTimePaymentType)
                     .collect(),
             ),
+            Self::OpenBankingType => Some(
+                enums::OpenBankingType::iter()
+                    .map(DirValue::OpenBankingType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -565,6 +578,8 @@ pub enum DirValue {
     CardRedirectType(enums::CardRedirectType),
     #[serde(rename = "real_time_payment")]
     RealTimePaymentType(enums::RealTimePaymentType),
+    #[serde(rename = "open_banking")]
+    OpenBankingType(enums::OpenBankingType),
 }
 
 impl DirValue {
@@ -599,6 +614,7 @@ impl DirValue {
             Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
             Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
+            Self::OpenBankingType(_) => (DirKeyKind::OpenBankingType, None),
         };
 
         DirKey::new(kind, data)
@@ -634,6 +650,7 @@ impl DirValue {
             Self::SetupFutureUsage(_) => None,
             Self::CardRedirectType(_) => None,
             Self::RealTimePaymentType(_) => None,
+            Self::OpenBankingType(_) => None,
         }
     }
 

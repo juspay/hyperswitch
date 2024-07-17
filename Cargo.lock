@@ -6129,6 +6129,7 @@ dependencies = [
  "events",
  "external_services",
  "futures 0.3.30",
+ "globset",
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",

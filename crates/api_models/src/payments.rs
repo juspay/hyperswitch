@@ -9,11 +9,12 @@ use common_utils::{
     consts::default_payments_list_limit,
     crypto,
     ext_traits::{ConfigExt, Encode},
+    hashing::HashedString,
     id_type,
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -1600,6 +1601,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
                         payment_method_data_request.serialize(serializer)
                     }
@@ -1657,6 +1659,8 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
     #[schema(title = "CardToken")]
     CardToken(CardToken),
+    #[schema(title = "OpenBanking")]
+    OpenBanking(OpenBankingData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -1680,6 +1684,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
+            | Self::OpenBanking(_)
             | Self::MandatePayment => None,
         }
     }
@@ -1717,6 +1722,7 @@ impl PaymentMethodData {
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(api_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
+            Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -1781,6 +1787,14 @@ impl GetPaymentMethodType for PayLaterData {
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+        }
+    }
+}
+
+impl GetPaymentMethodType for OpenBankingData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
         }
     }
 }
@@ -1983,6 +1997,7 @@ pub enum AdditionalPaymentData {
     Voucher {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2685,6 +2700,12 @@ pub struct SamsungPayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum OpenBankingData {
+    #[serde(rename = "open_banking_pis")]
+    OpenBankingPIS {},
+}
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -2956,6 +2977,7 @@ where
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
+                | PaymentMethodDataResponse::OpenBanking {}
                 | PaymentMethodDataResponse::Voucher {} => {
                     payment_method_data_response.serialize(serializer)
                 }
@@ -2989,6 +3011,7 @@ pub enum PaymentMethodDataResponse {
     GiftCard {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4156,6 +4179,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
             AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
             AdditionalPaymentData::CardToken {} => Self::CardToken {},
+            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
         }
     }
 }
@@ -4541,6 +4565,8 @@ pub enum SessionToken {
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
+    /// Session token for OpenBanking PIS flow
+    OpenBanking(OpenBankingSessionToken),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -4615,6 +4641,13 @@ pub struct PaypalSessionTokenResponse {
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct OpenBankingSessionToken {
+    /// The session token for OpenBanking Connectors
+    pub open_banking_session_token: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4965,11 +4998,12 @@ pub struct PaymentsStartRequest {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
     // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
-    #[schema(value_type = Option<RedirectResponse>)]
-    pub search_tags: Option<Vec<Secret<String>>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
