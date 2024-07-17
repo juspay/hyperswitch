@@ -13,6 +13,7 @@ use hyperswitch_domain_models::{
         },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+            PoSync,
         },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
@@ -130,7 +131,9 @@ pub type PayoutRecipientAccountType =
 /// Type alias for `ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData>`
 #[cfg(feature = "payouts")]
 pub type PayoutQuoteType = dyn ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData>;
-
+/// Type alias for `ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>`
+#[cfg(feature = "payouts")]
+pub type PayoutSyncType = dyn ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>;
 /// Type alias for `ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>`
 pub type RefreshTokenType =
     dyn ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
