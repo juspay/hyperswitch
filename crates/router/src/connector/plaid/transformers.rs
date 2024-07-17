@@ -4,6 +4,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils,
     core::errors,
     types::{self, api, domain, storage::enums},
 };
@@ -14,10 +15,17 @@ pub struct PlaidRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(Option<f64>, T)> for PlaidRouterData<T> {
+impl<T> TryFrom<(Option<i64>, Option<Currency>, T)> for PlaidRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (Option<f64>, T)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (amount, currency, item): (Option<i64>, Option<Currency>, T),
+    ) -> Result<Self, Self::Error> {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+        let amount = if let (Some(amount), Some(currency)) = (amount, currency) {
+            Some(utils::to_currency_base_unit_asf64(amount, currency)?)
+        } else {
+            None
+        };
         Ok(Self {
             amount,
             router_data: item,
@@ -61,7 +69,7 @@ pub struct PlaidOptions {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PlaidBacs {
-    acount: Secret<String>,
+    account: Secret<String>,
     sort_code: Secret<String>,
 }
 
@@ -223,8 +231,8 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
 #[derive(strum::Display)]
 pub enum PlaidPaymentStatus {
     PaymentStatusInputNeeded,
-    PaymentStatusInitiatied,
-    PaymentStatusInsuficientFunds,
+    PaymentStatusInitiated,
+    PaymentStatusInsufficientFunds,
     PaymentStatusFailed,
     PaymentStatusBlcoked,
     PaymentStatusCancelled,
@@ -246,9 +254,9 @@ impl From<PlaidPaymentStatus> for enums::AttemptStatus {
             PlaidPaymentStatus::PaymentStatusEstablished => Self::Authorized,
             PlaidPaymentStatus::PaymentStatusExecuted => Self::Authorized,
             PlaidPaymentStatus::PaymentStatusFailed => Self::Failure,
-            PlaidPaymentStatus::PaymentStatusInitiatied => Self::AuthenticationPending,
+            PlaidPaymentStatus::PaymentStatusInitiated => Self::AuthenticationPending,
             PlaidPaymentStatus::PaymentStatusInputNeeded => Self::AuthenticationPending,
-            PlaidPaymentStatus::PaymentStatusInsuficientFunds => Self::AuthorizationFailed,
+            PlaidPaymentStatus::PaymentStatusInsufficientFunds => Self::AuthorizationFailed,
             PlaidPaymentStatus::PaymentStatusRejected => Self::AuthorizationFailed,
             PlaidPaymentStatus::PaymentStatusSettled => Self::Charged,
         }

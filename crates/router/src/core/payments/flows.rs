@@ -1424,7 +1424,8 @@ default_imp_for_payouts_retrieve!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]

@@ -180,8 +180,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data =
-            plaid::PlaidRouterData::try_from((Some(req.request.amount as f64), req))?;
+        let connector_router_data = plaid::PlaidRouterData::try_from((
+            Some(req.request.amount),
+            Some(req.request.currency),
+            req,
+        ))?;
         let connector_req = plaid::PlaidPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -256,7 +259,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = plaid::PlaidRouterData::try_from((None, req))?;
+        let connector_router_data = plaid::PlaidRouterData::try_from((None, None, req))?;
         let connector_req = plaid::PlaidSyncRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -355,7 +358,7 @@ impl
         req: &types::PaymentsPostProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = plaid::PlaidRouterData::try_from((None, req))?;
+        let connector_router_data = plaid::PlaidRouterData::try_from((None, None, req))?;
         let connector_req = plaid::PlaidLinkTokenRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -520,8 +523,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data =
-            plaid::PlaidRouterData::try_from((Some(req.request.refund_amount as f64), req))?;
+        let connector_router_data = plaid::PlaidRouterData::try_from((
+            Some(req.request.payment_amount),
+            Some(req.request.currency),
+            req,
+        ))?;
         let connector_req = plaid::PlaidRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
