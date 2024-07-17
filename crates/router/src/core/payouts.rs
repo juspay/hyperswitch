@@ -2352,7 +2352,7 @@ pub async fn create_payout_link(
         .as_ref()
         .map(|config| config.config.allowed_domains.to_owned())
         .get_required_value("allowed_domains")
-        .change_context(errors::ApiErrorResponse::GenericConfigurationError {
+        .change_context(errors::ApiErrorResponse::LinkConfigurationError {
             message: "Payout links cannot be used without setting allowed_domains in profile"
                 .to_string(),
         })?;

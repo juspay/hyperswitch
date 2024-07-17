@@ -240,3 +240,114 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
         })
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod domain_tests {
+    use regex::Regex;
+
+    use super::*;
+
+    #[test]
+    fn test_validate_strict_domain_regex() {
+        assert!(
+            Regex::new(consts::STRICT_DOMAIN_REGEX).is_ok(),
+            "Strict domain regex is invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_wildcard_domain_regex() {
+        assert!(
+            Regex::new(consts::WILDCARD_DOMAIN_REGEX).is_ok(),
+            "Wildcard domain regex is invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_strict_domain() {
+        let valid_domains = vec![
+            "example.com",
+            "example.subdomain.com",
+            "https://example.com:8080",
+            "http://example.com",
+            "example.com:8080",
+            "example.com:443",
+            "localhost:443",
+            "127.0.0.1:443",
+        ];
+
+        for domain in valid_domains {
+            assert!(
+                validate_strict_domain(domain),
+                "Could not validate strict domain: {}",
+                domain
+            );
+        }
+
+        let invalid_domains = vec![
+            "",
+            "invalid.domain.",
+            "not_a_domain",
+            "http://example.com/path?query=1#fragment",
+            "127.0.0.1.2:443",
+        ];
+
+        for domain in invalid_domains {
+            assert!(
+                !validate_strict_domain(domain),
+                "Could not validate invalid strict domain: {}",
+                domain
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_wildcard_domain() {
+        let valid_domains = vec![
+            "example.com",
+            "example.subdomain.com",
+            "https://example.com:8080",
+            "http://example.com",
+            "example.com:8080",
+            "example.com:443",
+            "localhost:443",
+            "127.0.0.1:443",
+            "*.com",
+            "example.*.com",
+            "example.com:*",
+            "*:443",
+            "localhost:*",
+            "127.0.0.*:*",
+            "*:*",
+        ];
+
+        for domain in valid_domains {
+            assert!(
+                validate_wildcard_domain(domain),
+                "Could not validate wildcard domain: {}",
+                domain
+            );
+        }
+
+        let invalid_domains = vec![
+            "",
+            "invalid.domain.",
+            "not_a_domain",
+            "http://example.com/path?query=1#fragment",
+            "*.",
+            ".*",
+            "example.com:*:",
+            "*:443:",
+            ":localhost:*",
+            "127.00.*:*",
+        ];
+
+        for domain in invalid_domains {
+            assert!(
+                !validate_wildcard_domain(domain),
+                "Could not validate invalid wildcard domain: {}",
+                domain
+            );
+        }
+    }
+}
