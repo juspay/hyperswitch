@@ -7,9 +7,14 @@ use time::PrimitiveDateTime;
 
 use crate::{
     enums::{MandateDataType, MandateDetails},
-    schema::payment_attempt,
     PaymentAttemptNew,
 };
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt;
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt;
 
 #[derive(
     Clone, Debug, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,

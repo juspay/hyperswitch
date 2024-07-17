@@ -1347,6 +1347,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 
@@ -1413,6 +1414,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
         }
     }
 }
