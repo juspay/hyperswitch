@@ -4,6 +4,8 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
+use std::collections::HashMap;
+
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
@@ -15,18 +17,18 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
+        errors::{self, CustomResult, RouterResult},
         payments::helpers,
         pm_auth as core_pm_auth,
     },
-    routes::{app::StorageInterface, SessionState},
+    routes::{app::StorageInterface, metrics, SessionState},
     services::{self, GenericLinks},
     types::{
         api::{self, payments},
@@ -37,6 +39,9 @@ mod validator;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+
+const PAYMENT_METHOD_MANDATE_DETAILS_REVOKE_TASK: &str = "PAYMENT_METHOD_MANDATE_DETAILS_REVOKE";
+const PAYMENT_METHOD_MANDATE_DETAILS_TAG: &str = "PAYMENT_METHOD_MANDATE_DETAILS_REVOKE";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
@@ -548,4 +553,86 @@ pub async fn retrieve_payment_method_with_token(
         },
     };
     Ok(token)
+}
+pub async fn delete_payment_method_task(
+    db: &dyn StorageInterface,
+    payment_method_id: &str,
+    filter_mca: HashMap<String, storage::UpdateMandate>,
+    merchant_id: String,
+    deleted_at: time::PrimitiveDateTime,
+    customer_id: CustomerId,
+) -> CustomResult<(), errors::ProcessTrackerError> {
+    for (mca_id, value) in filter_mca {
+        let schedule_time =
+            deleted_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+        let runner = storage::ProcessTrackerRunner::PaymentMethodMandateDetailsRevokeWorkflow;
+        let task = PAYMENT_METHOD_MANDATE_DETAILS_REVOKE_TASK;
+        let tag = [PAYMENT_METHOD_MANDATE_DETAILS_TAG];
+        let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+            &value.connector_mandate_id,
+            &runner,
+            task,
+        );
+        let tracking_data = storage::PaymentMethodMandateRevokeTrackingData {
+            merchant_id: merchant_id.clone(),
+            customer_id: customer_id.clone(),
+            merchant_connector_id: mca_id,
+            connector: value.connector,
+            connector_mandate_id: value.connector_mandate_id,
+            profile_id: value.profile_id,
+        };
+
+        insert_mandate_revocation_task_to_process_tracker(
+            db,
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data.clone(),
+            schedule_time,
+        )
+        .await
+        .map_err(|err| logger::error!(pm_id=?payment_method_id, tag=?tag ,error=?err,"Failed to set the PAYMENT METHOD REVOKE MANDATE task in Process tracker")).ok();
+    }
+    Ok(())
+}
+
+async fn insert_mandate_revocation_task_to_process_tracker(
+    db: &dyn StorageInterface,
+    process_tracker_id: String,
+    task: &str,
+    runner: diesel_models::ProcessTrackerRunner,
+    tag: [&str; 1],
+    tracking_data: storage::PaymentMethodMandateRevokeTrackingData,
+    schedule_time: time::PrimitiveDateTime,
+) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data.clone(),
+        schedule_time,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    match db.insert_process(process_tracker_entry).await {
+        Ok(process_tracker) => {
+            metrics::TASKS_ADDED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([("flow", "ConnectorMandateRevocation")]),
+            );
+            Ok(process_tracker)
+        }
+        Err(error) => {
+            metrics::TASK_ADDITION_FAILURES_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([("flow", "ConnectorMandateRevocation")]),
+            );
+            Err(error)
+        }
+    }
 }

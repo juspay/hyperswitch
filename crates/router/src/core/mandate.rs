@@ -112,7 +112,10 @@ pub async fn revoke_mandate(
             let router_data = utils::construct_mandate_revoke_router_data(
                 merchant_connector_account,
                 &merchant_account,
-                mandate.clone(),
+                mandate.customer_id.clone(),
+                &mandate.connector,
+                mandate.connector_mandate_id.clone(),
+                mandate.original_payment_id.clone(),
             )
             .await?;
 
