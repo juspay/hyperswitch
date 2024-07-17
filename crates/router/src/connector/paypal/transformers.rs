@@ -551,6 +551,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),

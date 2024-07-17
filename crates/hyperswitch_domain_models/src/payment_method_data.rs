@@ -22,6 +22,7 @@ pub enum PaymentMethodData {
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
+    OpenBanking(OpenBankingData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +47,7 @@ impl PaymentMethodData {
             Self::Upi(_) => Some(common_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(common_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
+            Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -320,6 +322,12 @@ pub enum BankRedirectData {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum OpenBankingData {
+    OpenBankingPIS {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
     pub network: Option<String>,
@@ -494,6 +502,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::CardToken(card_token) => {
                 Self::CardToken(From::from(card_token))
+            }
+            api_models::payments::PaymentMethodData::OpenBanking(ob_data) => {
+                Self::OpenBanking(From::from(ob_data))
             }
         }
     }
@@ -919,6 +930,14 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
             api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
+        }
+    }
+}
+
+impl From<api_models::payments::OpenBankingData> for OpenBankingData {
+    fn from(value: api_models::payments::OpenBankingData) -> Self {
+        match value {
+            api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
         }
     }
 }

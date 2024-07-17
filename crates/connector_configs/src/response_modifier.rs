@@ -19,6 +19,7 @@ impl ConnectorApiIntegrationPayload {
         let mut voucher_details: Vec<Provider> = Vec::new();
         let mut gift_card_details: Vec<Provider> = Vec::new();
         let mut card_redirect_details: Vec<Provider> = Vec::new();
+        let mut open_banking_details: Vec<Provider> = Vec::new();
 
         if let Some(payment_methods_enabled) = response.payment_methods_enabled.clone() {
             for methods in payment_methods_enabled {
@@ -152,6 +153,18 @@ impl ConnectorApiIntegrationPayload {
                         if let Some(payment_method_types) = methods.payment_method_types {
                             for method_type in payment_method_types {
                                 real_time_payment_details.push(Provider {
+                                    payment_method_type: method_type.payment_method_type,
+                                    accepted_currencies: method_type.accepted_currencies.clone(),
+                                    accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
+                                })
+                            }
+                        }
+                    }
+                    api_models::enums::PaymentMethod::OpenBanking => {
+                        if let Some(payment_method_types) = methods.payment_method_types {
+                            for method_type in payment_method_types {
+                                open_banking_details.push(Provider {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),

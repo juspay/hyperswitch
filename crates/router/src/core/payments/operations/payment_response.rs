@@ -1121,6 +1121,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => {
                             (None, None)
                         }
+                        types::PaymentsResponseData::PostProcessingResponse { .. } => (None, None),
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
@@ -1345,13 +1346,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
-    let (payment_intent, _, _) = futures::try_join!(
+    let (payment_intent, _, payment_attempt) = futures::try_join!(
         utils::flatten_join_error(payment_intent_fut),
         utils::flatten_join_error(mandate_update_fut),
         utils::flatten_join_error(payment_attempt_fut)
     )?;
 
     payment_data.payment_intent = payment_intent;
+    payment_data.payment_attempt = payment_attempt;
     router_data.payment_method_status.and_then(|status| {
         payment_data
             .payment_method_info
