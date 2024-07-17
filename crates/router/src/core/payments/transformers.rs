@@ -1016,11 +1016,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 match data.parse_value("PaymentMethodDataResponseWithBilling") {
                     Ok(parsed_data) => Some(parsed_data),
                     Err(e) => {
-                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
                         None
                     }
                 }
             }),
+            merchant_order_reference_id: pi.merchant_order_reference_id,
             ..Default::default()
         }
     }
@@ -1667,6 +1668,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             currency: payment_data.currency,
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
+            minor_amount: Some(amount),
             payment_method_data: From::from(
                 payment_data
                     .payment_method_data

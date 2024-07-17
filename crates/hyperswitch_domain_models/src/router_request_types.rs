@@ -756,4 +756,7 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    // MinorUnit for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }

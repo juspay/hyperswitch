@@ -1,9 +1,9 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::organization;
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = organization, primary_key(org_id))]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = organization, primary_key(org_id), check_for_backend(diesel::pg::Pg))]
 pub struct Organization {
     pub org_id: String,
     pub org_name: Option<String>,

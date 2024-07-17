@@ -2,7 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use common_utils::{ext_traits::Encode, id_type, pii};
+use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
@@ -35,27 +35,13 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct AdyenRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AdyenRouterData<T>
-{
+impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -142,11 +128,11 @@ pub struct Address {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LineItem {
-    amount_excluding_tax: Option<i64>,
-    amount_including_tax: Option<i64>,
+    amount_excluding_tax: Option<MinorUnit>,
+    amount_including_tax: Option<MinorUnit>,
     description: Option<String>,
     id: Option<String>,
-    tax_amount: Option<i64>,
+    tax_amount: Option<MinorUnit>,
     quantity: Option<u16>,
 }
 
@@ -498,7 +484,7 @@ pub enum ActionType {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: storage_enums::Currency,
-    pub value: i64,
+    pub value: MinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1757,8 +1743,8 @@ fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(data.amount),
-                amount_excluding_tax: Some(data.amount),
+                amount_including_tax: Some(MinorUnit::new(data.amount)),
+                amount_excluding_tax: Some(MinorUnit::new(data.amount)),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,
@@ -1973,9 +1959,6 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             storage_enums::PaymentMethodType::Credit
             | storage_enums::PaymentMethodType::Debit
             | storage_enums::PaymentMethodType::Klarna
-            | storage_enums::PaymentMethodType::Ach
-            | storage_enums::PaymentMethodType::Sepa
-            | storage_enums::PaymentMethodType::Bacs
             | storage_enums::PaymentMethodType::BancontactCard
             | storage_enums::PaymentMethodType::Blik
             | storage_enums::PaymentMethodType::Eps
@@ -1999,6 +1982,9 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             | storage_enums::PaymentMethodType::AfterpayClearpay
             | storage_enums::PaymentMethodType::PayBright
             | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
+            storage_enums::PaymentMethodType::Sepa => Ok(Self::SepaDirectDebit),
+            storage_enums::PaymentMethodType::Bacs => Ok(Self::BacsDirectDebit),
+            storage_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
             storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2695,7 +2681,8 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let recurring_processing_model = get_recurring_processing_model(item.router_data)?.0;
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
+            get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
@@ -2720,8 +2707,8 @@ impl<'a>
             delivery_address: None,
             country_code,
             line_items: None,
-            shopper_reference: None,
-            store_payment_method: None,
+            shopper_reference,
+            store_payment_method,
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
@@ -3248,8 +3235,8 @@ impl<F>
                 charge_id: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
-                amount: item.response.balance.value,
                 currency: item.response.balance.currency,
+                amount: item.response.balance.value,
             }),
             ..item.data
         })
@@ -3352,7 +3339,8 @@ pub fn get_webhook_response(
     };
 
     if is_multiple_capture_psync_flow {
-        let capture_sync_response_list = utils::construct_captures_response_hashmap(vec![response]);
+        let capture_sync_response_list =
+            utils::construct_captures_response_hashmap(vec![response])?;
         Ok((
             status,
             error,
@@ -4021,7 +4009,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::RefundsRouterData<F>>> for AdyenRefundR
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.refund_amount,
+                value: item.amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -4101,7 +4089,7 @@ pub struct AdyenAdditionalDataWH {
 
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
-    pub value: i64,
+    pub value: MinorUnit,
     pub currency: storage_enums::Currency,
 }
 
@@ -4384,10 +4372,8 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
         Some(self.merchant_reference_id.clone())
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount
-            .as_ref()
-            .map(|amount_struct| amount_struct.value)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount.clone().map(|amount| amount.value))
     }
 }
 
@@ -4848,6 +4834,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
                 connector_payout_id: Some(response.psp_reference),
                 payout_eligible,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })

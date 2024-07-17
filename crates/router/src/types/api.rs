@@ -341,10 +341,12 @@ impl ConnectorData {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(&connector::Aci))),
-                enums::Connector::Adyen => Ok(ConnectorEnum::Old(Box::new(&connector::Adyen))),
-                enums::Connector::Adyenplatform => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Adyenplatform)))
+                enums::Connector::Adyen => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
+                enums::Connector::Adyenplatform => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Adyenplatform::new(),
+                ))),
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
@@ -373,7 +375,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Checkout)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
                 enums::Connector::Coinbase => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
@@ -383,6 +385,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Cybersource)))
+                }
+                enums::Connector::Datatrans => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
                 }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
@@ -417,7 +422,7 @@ impl ConnectorData {
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Forte => Ok(ConnectorEnum::Old(Box::new(&connector::Forte))),
                 enums::Connector::Globalpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Globalpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
                 enums::Connector::Globepay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Globepay)))
@@ -535,6 +540,7 @@ pub trait Payouts:
     + PayoutQuote
     + PayoutRecipient
     + PayoutRecipientAccount
+    + PayoutSync
 {
 }
 #[cfg(not(feature = "payouts"))]

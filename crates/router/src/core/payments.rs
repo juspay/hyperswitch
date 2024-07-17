@@ -2172,9 +2172,9 @@ fn check_apple_pay_metadata(
                             )
                         })
                 })
-                .map_err(
-                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
-                );
+                .map_err(|error| {
+                    logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
+                });
 
             parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
@@ -2183,24 +2183,33 @@ fn check_apple_pay_metadata(
                     api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
                         domain::ApplePayFlow::Simplified(payments_api::PaymentProcessingDetails {
                             payment_processing_certificate: state
-                            .conf
-                            .applepay_decrypt_keys
-                            .get_inner()
-                            .apple_pay_ppc
-                            .clone(),
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc
+                                .clone(),
                             payment_processing_certificate_key: state
-                            .conf
-                            .applepay_decrypt_keys
-                            .get_inner()
-                            .apple_pay_ppc_key
-                            .clone(),
-                         })
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc_key
+                                .clone(),
+                        })
                     }
-                    api_models::payments::ApplePayCombinedMetadata::Manual { payment_request_data: _, session_token_data } => {
-                        if let Some(manual_payment_processing_details_at) = session_token_data.payment_processing_details_at {
+                    api_models::payments::ApplePayCombinedMetadata::Manual {
+                        payment_request_data: _,
+                        session_token_data,
+                    } => {
+                        if let Some(manual_payment_processing_details_at) =
+                            session_token_data.payment_processing_details_at
+                        {
                             match manual_payment_processing_details_at {
-                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(payment_processing_details) => domain::ApplePayFlow::Simplified(payment_processing_details),
-                                payments_api::PaymentProcessingDetailsAt::Connector => domain::ApplePayFlow::Manual,
+                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(
+                                    payment_processing_details,
+                                ) => domain::ApplePayFlow::Simplified(payment_processing_details),
+                                payments_api::PaymentProcessingDetailsAt::Connector => {
+                                    domain::ApplePayFlow::Manual
+                                }
                             }
                         } else {
                             domain::ApplePayFlow::Manual
@@ -3494,7 +3503,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 let merchant_connector_id = connector_data
                     .merchant_connector_id
                     .as_ref()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to find the merchant connector id")?;
 
                 if is_network_transaction_id_flow(
                     state,

@@ -715,22 +715,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let billing_details = payment_data
             .address
             .get_payment_billing()
-            .async_and_then(|_| async {
-                create_encrypted_data(
-                    key_store,
-                    payment_data.address.get_payment_billing().cloned(),
-                )
-                .await
-            })
-            .await;
+            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?;
 
         let shipping_details = payment_data
             .address
             .get_shipping()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, payment_data.address.get_shipping().cloned()).await
-            })
-            .await;
+            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
+
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();

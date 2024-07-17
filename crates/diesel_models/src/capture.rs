@@ -1,13 +1,14 @@
 use common_utils::types::MinorUnit;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::captures};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Hash)]
-#[diesel(table_name = captures)]
-#[diesel(primary_key(capture_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize, Hash,
+)]
+#[diesel(table_name = captures, primary_key(capture_id), check_for_backend(diesel::pg::Pg))]
 pub struct Capture {
     pub capture_id: String,
     pub payment_id: String,
