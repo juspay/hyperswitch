@@ -202,10 +202,6 @@ where
     )
     .await?;
 
-    let op_ref = &operation;
-    let should_trigger_post_processing_flows =
-        matches!(format!("{op_ref:?}").as_str(), "PaymentConfirm");
-
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     if let Some(connector_details) = connector {
@@ -311,6 +307,9 @@ where
                         false,
                     )
                     .await?;
+
+                    let op_ref = &operation;
+                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     let operation = Box::new(PaymentResponse);
 
@@ -434,6 +433,9 @@ where
                             .await?;
                         };
                     }
+
+                    let op_ref = &operation;
+                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
@@ -1501,23 +1503,15 @@ where
     )
     .await?;
 
-    let payment_method = payment_data
-        .payment_attempt
-        .payment_method
-        .get_required_value("PaymentMethod")?;
-
-    let merchant_recipient_data = if payment_method == enums::PaymentMethod::OpenBanking {
-        get_merchant_bank_data_for_open_banking_connectors(
-            &merchant_connector_account,
-            key_store,
-            &connector,
+    let merchant_recipient_data = payment_data
+        .get_merchant_recipient_data(
             state,
             merchant_account,
+            key_store,
+            &merchant_connector_account,
+            &connector,
         )
-        .await?
-    } else {
-        None
-    };
+        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -1697,7 +1691,7 @@ where
     Ok((router_data, merchant_connector_account))
 }
 
-async fn get_merchant_bank_data_for_open_banking_connectors(
+pub async fn get_merchant_bank_data_for_open_banking_connectors(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     key_store: &domain::MerchantKeyStore,
     connector: &api::ConnectorData,
@@ -1711,10 +1705,10 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
         .peek()
         .clone();
 
-    let merchant_recipient_data =
-        serde_json::from_value::<router_types::AdditionalMerchantData>(merchant_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decode MerchantRecipientData")?;
+    let merchant_recipient_data = merchant_data
+        .parse_value::<router_types::AdditionalMerchantData>("AdditionalMerchantData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to decode MerchantRecipientData")?;
 
     let connector_name = enums::Connector::to_string(&connector.connector_name);
     let locker_based_connector_list = state.conf.locker_based_open_banking_connectors.clone();
@@ -1725,6 +1719,7 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     let recipient_id = helpers::get_recipient_id_for_open_banking(&merchant_recipient_data)?;
     let final_recipient_data = if let Some(id) = recipient_id {
         if contains {
+            // Customer Id for OpenBanking connectors will be merchant_id as the account data stored at locker belongs to the merchant
             let cust_id = id_type::CustomerId::from(merchant_account.merchant_id.clone().into())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert to CustomerId")?;

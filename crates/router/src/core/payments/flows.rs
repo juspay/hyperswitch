@@ -37,6 +37,15 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>>;
 }
 
 #[allow(clippy::too_many_arguments)]

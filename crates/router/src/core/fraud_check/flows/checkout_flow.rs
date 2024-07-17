@@ -13,7 +13,10 @@ use crate::{
     },
     errors, services,
     types::{
-        api::fraud_check::{self as frm_api, FraudCheckConnectorData},
+        api::{
+            self,
+            fraud_check::{self as frm_api, FraudCheckConnectorData},
+        },
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         storage::enums as storage_enums,
@@ -135,6 +138,17 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         };
 
         Ok(router_data)
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<MerchantRecipientData>> {
+        Ok(None)
     }
 }
 

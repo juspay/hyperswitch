@@ -54,7 +54,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
@@ -340,18 +340,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
 #[derive(Debug, Clone)]
 pub struct PaymentsPostProcessingData {
     pub payment_method_data: PaymentMethodData,
-    pub amount: i64,
-    pub email: Option<pii::Email>,
-    pub customer_id: Option<String>,
-    pub currency: storage_enums::Currency,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub setup_mandate_details: Option<mandates::MandateData>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-    pub router_return_url: Option<String>,
-    pub webhook_url: Option<String>,
-    pub complete_authorize_url: Option<String>,
-    pub browser_info: Option<BrowserInformation>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub connector_transaction_id: Option<String>,
 }
 
@@ -365,17 +354,6 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.request.payment_method_data,
-            amount: data.request.amount,
-            email: data.request.email,
-            currency: data.request.currency,
-            payment_method_type: data.request.payment_method_type,
-            setup_mandate_details: data.request.setup_mandate_details,
-            capture_method: data.request.capture_method,
-            order_details: data.request.order_details,
-            router_return_url: data.request.router_return_url,
-            webhook_url: data.request.webhook_url,
-            complete_authorize_url: data.request.complete_authorize_url,
-            browser_info: data.request.browser_info,
             connector_transaction_id: match data.response {
                 Ok(response_types::PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(id),

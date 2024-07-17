@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_enums as enums;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
@@ -16,6 +17,7 @@ use crate::{
     services,
     services::api::ConnectorValidation,
     types::{self, api, domain, storage, transformers::ForeignFrom},
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -56,6 +58,35 @@ impl
             merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let payment_method = &self
+            .payment_attempt
+            .payment_method
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
     }
 }
 #[async_trait]
