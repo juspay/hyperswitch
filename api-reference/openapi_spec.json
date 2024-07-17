@@ -7006,6 +7006,11 @@
               }
             ],
             "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -7163,6 +7168,11 @@
                 "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
           }
         }

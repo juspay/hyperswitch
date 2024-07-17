@@ -13,6 +13,7 @@ use crate::{
 )]
 #[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentAttempt {
+    pub id: Option<i32>,
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,

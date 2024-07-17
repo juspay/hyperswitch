@@ -12,7 +12,7 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     date_time,
-    errors::ReportSwitchExt,
+    errors::{ParsingError, ReportSwitchExt},
     ext_traits::StringExt,
     id_type,
     pii::{self, Email, IpAddress},
@@ -2181,36 +2181,38 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
-    fn get_amount_captured(&self) -> Option<i64>;
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>>;
 }
 
 pub fn construct_captures_response_hashmap<T>(
     capture_sync_response_list: Vec<T>,
-) -> HashMap<String, types::CaptureSyncResponse>
+) -> CustomResult<HashMap<String, types::CaptureSyncResponse>, errors::ConnectorError>
 where
     T: MultipleCaptureSyncResponse,
 {
     let mut hashmap = HashMap::new();
-    capture_sync_response_list
-        .into_iter()
-        .for_each(|capture_sync_response| {
-            let connector_capture_id = capture_sync_response.get_connector_capture_id();
-            if capture_sync_response.is_capture_response() {
-                hashmap.insert(
-                    connector_capture_id.clone(),
-                    types::CaptureSyncResponse::Success {
-                        resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
-                        status: capture_sync_response.get_capture_attempt_status(),
-                        connector_response_reference_id: capture_sync_response
-                            .get_connector_reference_id(),
-                        amount: capture_sync_response
-                            .get_amount_captured()
-                            .map(MinorUnit::new),
-                    },
-                );
-            }
-        });
-    hashmap
+    for capture_sync_response in capture_sync_response_list {
+        let connector_capture_id = capture_sync_response.get_connector_capture_id();
+        if capture_sync_response.is_capture_response() {
+            hashmap.insert(
+                connector_capture_id.clone(),
+                types::CaptureSyncResponse::Success {
+                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                    status: capture_sync_response.get_capture_attempt_status(),
+                    connector_response_reference_id: capture_sync_response
+                        .get_connector_reference_id(),
+                    amount: capture_sync_response
+                        .get_amount_captured()
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
+                },
+            );
+        }
+    }
+
+    Ok(hashmap)
 }
 
 pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
