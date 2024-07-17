@@ -389,33 +389,38 @@ async fn create_applepay_session_token(
                 )
                 .await;
 
-                let updated_response = if let Err(error) = response.as_ref() {
-                    logger::debug!(
-                        "Retry apple pay session call with the merchant configured domain {error}"
-                    );
-                    let merchant_configured_domain = merchant_configured_domain_optional
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to get initiative_context for apple pay session call retry",
+                let updated_response = match (
+                    response.as_ref().ok(),
+                    header_payload.x_merchant_domain.clone(),
+                ) {
+                    (Some(Err(error)), Some(_)) => {
+                        logger::error!(
+                            "Retry apple pay session call with the merchant configured domain {error:?}"
+                        );
+                        let merchant_configured_domain = merchant_configured_domain_optional
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to get initiative_context for apple pay session call retry",
+                            )?;
+                        let apple_pay_retry_session_request =
+                            payment_types::ApplepaySessionRequest {
+                                initiative_context: merchant_configured_domain,
+                                ..apple_pay_session_request
+                            };
+                        let applepay_retry_session_request = build_apple_pay_session_request(
+                            state,
+                            apple_pay_retry_session_request,
+                            apple_pay_merchant_cert,
+                            apple_pay_merchant_cert_key,
                         )?;
-                    let apple_pay_retry_session_request = payment_types::ApplepaySessionRequest {
-                        initiative_context: merchant_configured_domain,
-                        ..apple_pay_session_request
-                    };
-                    let applepay_retry_session_request = build_apple_pay_session_request(
-                        state,
-                        apple_pay_retry_session_request,
-                        apple_pay_merchant_cert,
-                        apple_pay_merchant_cert_key,
-                    )?;
-                    services::call_connector_api(
-                        state,
-                        applepay_retry_session_request,
-                        "create_apple_pay_session_token",
-                    )
-                    .await
-                } else {
-                    response
+                        services::call_connector_api(
+                            state,
+                            applepay_retry_session_request,
+                            "create_apple_pay_session_token",
+                        )
+                        .await
+                    }
+                    _ => response,
                 };
 
                 // logging the error if present in session call response
