@@ -3744,6 +3744,11 @@ pub async fn list_customer_payment_method(
     )
     .await?;
 
+    let is_connector_agnostic_mit_enabled = business_profile
+        .as_ref()
+        .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
+        .unwrap_or(false);
+
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
@@ -3861,9 +3866,20 @@ pub async fn list_customer_payment_method(
             state,
             &key_store,
             &merchant_account.merchant_id,
+            is_connector_agnostic_mit_enabled,
             connector_mandate_details,
+            pm.network_transaction_id.as_ref(),
         )
         .await?;
+
+        let requires_cvv = if is_connector_agnostic_mit_enabled {
+            requires_cvv
+                && !(off_session_payment_flag
+                    && (pm.connector_mandate_details.is_some()
+                        || pm.network_transaction_id.is_some()))
+        } else {
+            requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
+        };
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -3883,8 +3899,7 @@ pub async fn list_customer_payment_method(
             bank_transfer: payment_method_retrieval_context.bank_transfer_details,
             bank: bank_details,
             surcharge_details: None,
-            requires_cvv: requires_cvv
-                && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
+            requires_cvv,
             last_used_at: Some(pm.last_used_at),
             default_payment_method_set: customer.default_payment_method_id.is_some()
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
@@ -3982,8 +3997,13 @@ pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
+    is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
+    network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
+    if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
+        return Ok(true);
+    }
     if let Some(connector_mandate_details) = connector_mandate_details {
         let mcas = state
             .store

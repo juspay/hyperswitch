@@ -193,6 +193,7 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message("Datatrans"),

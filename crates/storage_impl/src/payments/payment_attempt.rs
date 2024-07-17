@@ -418,6 +418,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charge_id: payment_attempt.charge_id.clone(),
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
+                    customer_acceptance: payment_attempt.customer_acceptance.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1203,6 +1204,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 
@@ -1269,6 +1271,7 @@ impl DataModelExt for PaymentAttempt {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
         }
     }
 }
@@ -1301,8 +1304,10 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: self.capture_on,
             confirm: self.confirm,
             authentication_type: self.authentication_type,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
+            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
+            modified_at: self
+                .modified_at
+                .unwrap_or_else(common_utils::date_time::now),
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
             amount_to_capture: self
@@ -1340,6 +1345,7 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 
@@ -1364,8 +1370,8 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: storage_model.capture_on,
             confirm: storage_model.confirm,
             authentication_type: storage_model.authentication_type,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
+            created_at: Some(storage_model.created_at),
+            modified_at: Some(storage_model.modified_at),
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
             amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
@@ -1405,6 +1411,7 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
         }
     }
 }
@@ -1529,6 +1536,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: amount.get_amount_as_i64(),
                 currency,
@@ -1561,6 +1569,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             },
             Self::VoidUpdate {
                 status,
@@ -1864,6 +1873,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             } => Self::ConfirmUpdate {
                 amount: MinorUnit::new(amount),
                 currency,
@@ -1894,6 +1904,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

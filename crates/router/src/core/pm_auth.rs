@@ -209,6 +209,7 @@ impl ForeignTryFrom<&types::ConnectorAuthType> for PlaidAuthType {
                 Ok::<Self, errors::ConnectorError>(Self {
                     client_id: api_key.to_owned(),
                     secret: key1.to_owned(),
+                    merchant_data: None,
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType),
