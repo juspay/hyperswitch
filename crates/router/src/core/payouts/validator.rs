@@ -8,6 +8,7 @@ use error_stack::{report, ResultExt};
 use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
 use router_env::{instrument, logger, tracing};
+use url::Url;
 
 use super::helpers;
 use crate::{
@@ -214,20 +215,47 @@ pub fn validate_payout_link_render_request(
     }?;
 
     // Validate origin / referer
-    let domain_in_req = request_headers.get("origin")
-    .or_else(|| request_headers.get("referer"))
-    .and_then(|v| v.to_str().ok())
-    .ok_or_else(|| report!(errors::ApiErrorResponse::AccessForbidden {
-        resource: "payout_link".to_string(),
-    }))
-    .attach_printable_lazy(|| {
-        format!(
-            "Access to payout_link [{}] is forbidden when both origin and referer headers are missing from the request headers",
-            link_id
-        )
-    })?;
+    let domain_in_req = {
+        let origin_or_referer = request_headers
+            .get("origin")
+            .or_else(|| request_headers.get("referer"))
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!(
+                    "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
+                    link_id
+                )
+            })?;
 
-    if is_domain_allowed(domain_in_req, link_data.allowed_domains) {
+        let url = Url::parse(origin_or_referer)
+            .map_err(|_| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!("Invalid URL found in request headers {}", origin_or_referer)
+            })?;
+
+        url.host_str()
+            .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+            .or_else(|| url.host_str().map(String::from))
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!("host or port not found in request headers {:?}", url)
+            })?
+    };
+
+    if is_domain_allowed(&domain_in_req, link_data.allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {
