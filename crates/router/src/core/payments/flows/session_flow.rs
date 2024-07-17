@@ -39,6 +39,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -51,8 +52,20 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &routes::SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -425,8 +438,7 @@ async fn create_applepay_session_token(
 
                 // logging the error if present in session call response
                 log_session_response_if_error(&updated_response);
-
-                let apple_pay_session_call_response = updated_response
+                updated_response
                     .ok()
                     .and_then(|apple_pay_res| {
                         apple_pay_res
@@ -445,9 +457,7 @@ async fn create_applepay_session_token(
                             })
                             .ok()
                     })
-                    .flatten();
-
-                apple_pay_session_call_response
+                    .flatten()
             }
             _ => {
                 logger::debug!("Skipping apple pay session call based on the browser name");

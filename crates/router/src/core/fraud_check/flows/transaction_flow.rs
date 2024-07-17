@@ -10,13 +10,13 @@ use crate::{
     },
     errors, services,
     types::{
-        api::fraud_check as frm_api,
+        api::{self, fraud_check as frm_api},
         domain,
         fraud_check::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
         },
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId, RouterData,
+        ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
     },
     SessionState,
 };
@@ -37,6 +37,7 @@ impl
         _key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {
@@ -119,6 +120,17 @@ impl
         };
 
         Ok(router_data)
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<MerchantRecipientData>> {
+        Ok(None)
     }
 }
 

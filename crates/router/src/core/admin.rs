@@ -2061,6 +2061,21 @@ pub async fn update_business_profile(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
+    let payout_link_config = request
+        .payout_link_config
+        .as_ref()
+        .map(|payout_conf| match payout_conf.config.validate() {
+            Ok(_) => payout_conf.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                },
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
+        })
+        .transpose()?;
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -2089,14 +2104,7 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
-        payout_link_config: request
-            .payout_link_config
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payout_link_config",
-            })?,
+        payout_link_config,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
         collect_shipping_details_from_wallet_connector: request

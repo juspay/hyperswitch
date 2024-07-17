@@ -1569,6 +1569,8 @@ pub enum PaymentMethodType {
     PayEasy,
     LocalBankTransfer,
     Mifinity,
+    #[serde(rename = "open_banking_pis")]
+    OpenBankingPIS,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -1606,6 +1608,7 @@ pub enum PaymentMethod {
     Upi,
     Voucher,
     GiftCard,
+    OpenBanking,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
