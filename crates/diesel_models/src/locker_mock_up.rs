@@ -1,10 +1,10 @@
 use common_utils::id_type;
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::locker_mock_up;
 
-#[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
-#[diesel(table_name = locker_mock_up)]
+#[derive(Clone, Debug, Eq, Identifiable, Queryable, Selectable, PartialEq)]
+#[diesel(table_name = locker_mock_up, check_for_backend(diesel::pg::Pg))]
 pub struct LockerMockUp {
     pub id: i32,
     pub card_id: String,

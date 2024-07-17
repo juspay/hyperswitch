@@ -40,6 +40,7 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug)]
@@ -101,6 +102,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             },
         )
     }
@@ -148,6 +150,17 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),
                 })?,
+            additional_merchant_data: if let Some(data) = other.additional_merchant_data {
+                Some(
+                    Encryptable::decrypt(data, key.peek(), GcmAes256)
+                        .await
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed while decrypting additional_merchant_data".to_string(),
+                        })?,
+                )
+            } else {
+                None
+            },
         })
     }
 
@@ -177,6 +190,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             pm_auth_config: self.pm_auth_config,
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+            additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
         })
     }
 }

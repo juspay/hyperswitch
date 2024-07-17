@@ -474,9 +474,12 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+    let should_bypass_proxy =
+        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -741,7 +744,15 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(request, payload, state, func, api_auth, request_state),
+    skip(
+        request,
+        payload,
+        state,
+        func,
+        api_auth,
+        request_state,
+        incoming_request_header
+    ),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(

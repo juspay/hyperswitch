@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 pub mod cards;
+pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;

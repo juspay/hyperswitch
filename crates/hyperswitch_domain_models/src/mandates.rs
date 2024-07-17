@@ -43,7 +43,7 @@ pub struct MandateData {
     pub mandate_type: Option<MandateDataType>,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
     pub acceptance_type: AcceptanceType,
@@ -54,7 +54,7 @@ pub struct CustomerAcceptance {
     pub online: Option<OnlineMandate>,
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AcceptanceType {
     Online,
@@ -62,7 +62,7 @@ pub enum AcceptanceType {
     Offline,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[serde(skip_deserializing)]

@@ -1,10 +1,10 @@
-use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::dashboard_metadata};
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = dashboard_metadata)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = dashboard_metadata, check_for_backend(diesel::pg::Pg))]
 pub struct DashboardMetadata {
     pub id: i32,
     pub user_id: Option<String>,
