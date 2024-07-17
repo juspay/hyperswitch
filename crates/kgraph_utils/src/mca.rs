@@ -143,6 +143,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
         api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
         api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
+        api_enums::PaymentMethodType::OpenBankingPIS => {
+            Ok(dirval!(OpenBankingType = OpenBankingPIS))
+        }
     }
 }
 
@@ -416,9 +419,11 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(GiftCardType));
     global_vector.append(collect_global_variants!(BankTransferType));
     global_vector.append(collect_global_variants!(CardRedirectType));
+    global_vector.append(collect_global_variants!(OpenBankingType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));
+
     let global_vector = global_vector
         .into_iter()
         .filter(|global_value| !enabled_pmt.contains(global_value))
@@ -759,6 +764,7 @@ mod tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
+            additional_merchant_data: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

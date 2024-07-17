@@ -46,3 +46,6 @@ pub struct PreProcessing;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
+
+#[derive(Debug, Clone)]
+pub struct PostProcessing;

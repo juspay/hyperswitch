@@ -16,7 +16,7 @@ impl utils::Connector for AdyenTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Adyen;
         utils::construct_connector_data_old(
-            Box::new(&Adyen),
+            Box::new(Adyen::new()),
             types::Connector::Adyen,
             types::api::GetToken::Connector,
             None,
@@ -27,7 +27,7 @@ impl utils::Connector for AdyenTest {
     fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Adyen;
         Some(utils::construct_connector_data_old(
-            Box::new(&Adyen),
+            Box::new(Adyen::new()),
             types::Connector::Adyen,
             types::api::GetToken::Connector,
             None,

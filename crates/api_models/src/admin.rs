@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "v2")]
 use common_utils::new_type;
@@ -652,6 +652,49 @@ pub struct MerchantConnectorCreate {
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+
+    /// In case the merchant needs to store any additional sensitive data
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdditionalMerchantData {
+    OpenBankingRecipientData(MerchantRecipientData),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantAccountData {
+    Iban {
+        #[schema(value_type= String)]
+        iban: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    Bacs {
+        #[schema(value_type= String)]
+        account_number: Secret<String>,
+        #[schema(value_type= String)]
+        sort_code: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantRecipientData {
+    #[schema(value_type= Option<String>)]
+    ConnectorRecipientId(Secret<String>),
+    #[schema(value_type= Option<String>)]
+    WalletId(Secret<String>),
+    AccountData(MerchantAccountData),
 }
 
 // Different patterns of authentication.
@@ -805,6 +848,9 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
+
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1134,6 +1180,10 @@ pub struct BusinessProfileCreate {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.  
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1226,6 +1276,10 @@ pub struct BusinessProfileResponse {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1310,6 +1364,10 @@ pub struct BusinessProfileUpdate {
     /// Default payout link config
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BusinessCollectLinkConfig {
@@ -1332,9 +1390,37 @@ pub struct BusinessGenericLinkConfig {
     /// Custom domain name to be used for hosting the link
     pub domain_name: Option<String>,
 
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    pub allowed_domains: HashSet<String>,
+
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
+}
+
+impl BusinessGenericLinkConfig {
+    pub fn validate(&self) -> Result<(), &str> {
+        // Validate host domain name
+        let host_domain_valid = self
+            .domain_name
+            .clone()
+            .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
+            .unwrap_or(true);
+        if !host_domain_valid {
+            return Err("Invalid host domain name received");
+        }
+
+        let are_allowed_domains_valid = self
+            .allowed_domains
+            .clone()
+            .iter()
+            .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
+        if !are_allowed_domains_valid {
+            return Err("Invalid allowed domain names received");
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

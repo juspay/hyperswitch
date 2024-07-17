@@ -129,6 +129,7 @@ pub struct Settings<S: SecretState> {
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
+    pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -582,6 +583,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -692,6 +694,13 @@ pub struct ApplePayDecryptConifg {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerBasedRecipientConnectorList {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
@@ -734,6 +743,7 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
+                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
