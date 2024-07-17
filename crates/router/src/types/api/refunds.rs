@@ -5,7 +5,6 @@ pub use api_models::refunds::{
 pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 pub use hyperswitch_interfaces::api::refunds::{Refund, RefundExecute, RefundSync};
 
-use super::ConnectorCommon;
 use crate::types::{storage::enums as storage_enums, transformers::ForeignFrom};
 
 impl ForeignFrom<storage_enums::RefundStatus> for RefundStatus {

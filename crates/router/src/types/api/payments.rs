@@ -33,11 +33,7 @@ pub use super::payments_v2::{
     PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
     PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
 };
-use crate::{
-    core::errors,
-    services::api,
-    types::{self, api as api_types},
-};
+use crate::core::errors;
 
 impl super::Router for PaymentsRequest {}
 

@@ -54,7 +54,8 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
+    webhooks::*,
 };
 use crate::{
     configs::settings::Connectors,
