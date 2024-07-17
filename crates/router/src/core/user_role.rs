@@ -358,7 +358,7 @@ pub async fn delete_user_role(
             return Err(report!(UserErrors::InvalidDeleteOperation))
                 .attach_printable("User is not associated with the merchant");
         }
-    };
+    }
 
     let deleted_user_role = if user_roles.len() > 1 {
         state
