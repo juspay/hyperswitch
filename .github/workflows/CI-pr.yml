@@ -186,7 +186,7 @@ jobs:
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2' 
+            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2' --exclude-no-default-features
             echo '::endgroup::'
           done
 
@@ -455,7 +455,7 @@ jobs:
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2'
+            cargo hack check --each-feature --all-targets --package "${package}" --exclude-features 'v2 merchant_account_v2 payment_v2' --exclude-no-default-features
             echo '::endgroup::'
           done
 
