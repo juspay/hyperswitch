@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(
-    Clone, Debug, Default, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+    Clone, Debug, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptBatchNew {
@@ -35,10 +35,10 @@ pub struct PaymentAttemptBatchNew {
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<AuthenticationType>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
@@ -76,6 +76,7 @@ pub struct PaymentAttemptBatchNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[allow(dead_code)]
@@ -139,6 +140,7 @@ impl PaymentAttemptBatchNew {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
         }
     }
 }

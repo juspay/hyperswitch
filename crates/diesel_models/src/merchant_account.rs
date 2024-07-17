@@ -1,5 +1,5 @@
 use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::{encryption::Encryption, enums as storage_enums};
 
@@ -23,9 +23,10 @@ use crate::schema_v2::merchant_account;
     Identifiable,
     serde::Serialize,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_account, primary_key(merchant_id))]
+#[diesel(table_name = merchant_account, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
     pub id: Option<i32>,
     pub merchant_id: String,
@@ -67,7 +68,7 @@ pub struct MerchantAccount {
     Queryable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_account, primary_key(merchant_id))]
+#[diesel(table_name = merchant_account, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
     pub merchant_id: String,
     pub return_url: Option<String>,

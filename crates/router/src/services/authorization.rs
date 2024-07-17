@@ -31,7 +31,7 @@ where
 
     if let Ok(permissions) = get_permissions_from_cache(state, &token.role_id)
         .await
-        .map_err(|e| logger::error!("Failed to get permissions from cache {}", e))
+        .map_err(|e| logger::error!("Failed to get permissions from cache {e:?}"))
     {
         return Ok(permissions);
     }
@@ -45,7 +45,7 @@ where
 
     set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl)
         .await
-        .map_err(|e| logger::error!("Failed to set permissions in cache {}", e))
+        .map_err(|e| logger::error!("Failed to set permissions in cache {e:?}"))
         .ok();
     Ok(permissions)
 }

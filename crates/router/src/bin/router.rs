@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{ApplicationError, ApplicationResult},
@@ -24,7 +25,8 @@ async fn main() -> ApplicationResult<()> {
         &conf.log,
         router_env::service_name!(),
         [router_env::service_name!(), "actix_server"],
-    );
+    )
+    .change_context(ApplicationError::ConfigurationError)?;
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
@@ -39,8 +41,7 @@ async fn main() -> ApplicationResult<()> {
         .expect("Failed to create the server");
     let _ = server.await;
 
-    Err(ApplicationError::from(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "Server shut down",
+    Err(error_stack::Report::from(ApplicationError::from(
+        std::io::Error::new(std::io::ErrorKind::Other, "Server shut down"),
     )))
 }

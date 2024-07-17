@@ -21,6 +21,7 @@ payment_v2 = ["hyperswitch_domain_models/payment_v2"]
 # First Party dependencies
 api_models = { version = "0.1.0", path = "../api_models" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models" }
 masking = { version = "0.1.0", path = "../masking" }

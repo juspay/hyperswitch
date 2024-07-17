@@ -151,7 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             key_store,
             None,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -715,22 +715,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let billing_details = payment_data
             .address
             .get_payment_billing()
-            .async_and_then(|_| async {
-                create_encrypted_data(
-                    key_store,
-                    payment_data.address.get_payment_billing().cloned(),
-                )
-                .await
-            })
-            .await;
+            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?;
 
         let shipping_details = payment_data
             .address
             .get_shipping()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, payment_data.address.get_shipping().cloned()).await
-            })
-            .await;
+            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
+
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
@@ -807,7 +806,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        helpers::validate_customer_details_in_request(request)?;
+        helpers::validate_customer_information(request)?;
+
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
         }
