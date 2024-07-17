@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.12.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [AUTHORIZEDOTNET] Populate error reason for failure transactions ([#5346](https://github.com/juspay/hyperswitch/pull/5346)) ([`0b061e7`](https://github.com/juspay/hyperswitch/commit/0b061e7fc5ff251aa2383228a3374cfab92b69d8))
+
+- - -
+
 ## 2024.07.12.0-hotfix2
 
 ### Bug Fixes
