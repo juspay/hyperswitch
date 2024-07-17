@@ -305,7 +305,7 @@ impl UserRoleInterface for MockDb {
             last_modified_by: user_role.last_modified_by,
             org_id: user_role.org_id,
             profile_id: None,
-            entiity_id: None,
+            entity_id: None,
             entity_type: None,
             version: None,
         };

@@ -1274,8 +1274,7 @@ diesel::table! {
         entity_id -> Nullable<Varchar>,
         #[max_length = 64]
         entity_type -> Nullable<Varchar>,
-        #[max_length = 8]
-        version -> Nullable<Varchar>,
+        version -> Nullable<UserRoleVersion>,
     }
 }
 

@@ -17,9 +17,9 @@ pub struct UserRole {
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub profile_id: Option<String>,
-    pub entiity_id: Option<String>,
+    pub entity_id: Option<String>,
     pub entity_type: Option<String>,
-    pub version: Option<String>,
+    pub version: Option<enums::UserRoleVersion>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -37,7 +37,7 @@ pub struct UserRoleNew {
     pub profile_id: Option<String>,
     pub entity_id: Option<String>,
     pub entity_type: Option<String>,
-    pub version: Option<String>,
+    pub version: Option<enums::UserRoleVersion>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
