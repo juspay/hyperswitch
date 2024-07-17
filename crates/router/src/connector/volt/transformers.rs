@@ -435,7 +435,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VoltRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.amount,
             external_reference: item.router_data.request.refund_id.clone(),
         })
     }
