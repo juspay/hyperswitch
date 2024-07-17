@@ -12,7 +12,6 @@ use common_utils::{
     not(feature = "merchant_account_v2")
 ))]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use masking::ExposeInterface;
 use masking::Secret;
