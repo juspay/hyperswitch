@@ -12,7 +12,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     types::keymanager::Identifier,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -202,6 +202,21 @@ pub async fn create_business_profile(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
+    let payout_link_config = request
+        .payout_link_config
+        .as_ref()
+        .map(|payout_conf| match payout_conf.config.validate() {
+            Ok(_) => payout_conf.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                },
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
+        })
+        .transpose()?;
+
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
         merchant_id: merchant_account.merchant_id,
@@ -254,14 +269,7 @@ pub async fn create_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
-        payout_link_config: request
-            .payout_link_config
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payout_link_config",
-            })?,
+        payout_link_config,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         is_extended_card_info_enabled: None,
         extended_card_info_config: None,
