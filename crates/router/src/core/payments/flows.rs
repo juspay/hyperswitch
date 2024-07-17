@@ -166,6 +166,7 @@ default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
     connector::Bamboraapac,
+    connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
     connector::Boku,
@@ -987,6 +988,7 @@ default_imp_for_pre_processing_steps!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
+    connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
@@ -1193,6 +1195,101 @@ default_imp_for_payouts_create!(
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_payouts_retrieve {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutSync for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PoSync,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PayoutSync for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
+    for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_payouts_retrieve!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Square,
+    connector::Stax,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,

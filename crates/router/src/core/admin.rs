@@ -7,29 +7,33 @@ use api_models::{
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
-    pii,
+    id_type, pii,
 };
+#[cfg(all(feature = "keymanager_create", feature = "olap"))]
+use common_utils::{keymanager, types::keymanager as km_types};
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
-use pm_auth::connector::plaid::transformers::PlaidAuthType;
+use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
+use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(any(feature = "olap", feature = "v1", feature = "v2"))]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payment_methods::{cards, transformers},
         payments::helpers,
+        pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing::helpers as routing_helpers,
         utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api, authentication},
+    services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
     types::{
         self, api,
         domain::{
@@ -37,10 +41,14 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
+
+const IBAN_MAX_LENGTH: usize = 34;
+const BACS_SORT_CODE_LENGTH: usize = 6;
+const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -124,6 +132,19 @@ pub async fn create_merchant_account(
     let domain_merchant_account = req
         .create_domain_model_from_request(db, key_store.clone())
         .await?;
+
+    #[cfg(feature = "keymanager_create")]
+    {
+        keymanager::create_key_in_key_manager(
+            &(&state).into(),
+            km_types::EncryptionCreateRequest {
+                identifier: km_types::Identifier::Merchant(merchant_id.clone()),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        .attach_printable("Failed to insert key to KeyManager")?;
+    }
 
     db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
         .await
@@ -292,7 +313,11 @@ enum CreateOrValidateOrganization {
 
 #[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
-    #[cfg(all(not(feature = "v2"), feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2"),
+        feature = "olap"
+    ))]
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
@@ -304,7 +329,7 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
     fn new(organization_id: String) -> Self {
         Self::Validate { organization_id }
@@ -337,7 +362,10 @@ impl CreateOrValidateOrganization {
     }
 }
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -348,7 +376,10 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl CreateBusinessProfile {
     /// Create a new business profile action from the given information
     /// If primary business details exist, then create business profiles from them
@@ -1095,7 +1126,9 @@ pub async fn create_payment_connector(
         api_enums::convert_authentication_connector(req.connector_name.to_string().as_str());
 
     if pm_auth_connector.is_some() {
-        if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+        if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth
+            && req.connector_type != api_enums::ConnectorType::PaymentProcessor
+        {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
             }
@@ -1160,6 +1193,30 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
+    let merchant_recipient_data = if let Some(data) = &req.additional_merchant_data {
+        Some(
+            process_open_banking_connectors(
+                &state,
+                merchant_id.as_str(),
+                &auth,
+                &req.connector_type,
+                &req.connector_name,
+                types::AdditionalMerchantData::foreign_from(data.clone()),
+            )
+            .await?,
+        )
+    } else {
+        None
+    }
+    .map(|data| {
+        serde_json::to_value(types::AdditionalMerchantData::OpenBankingRecipientData(
+            data,
+        ))
+    })
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get MerchantRecipientData")?;
+
     validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata)?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
@@ -1180,7 +1237,7 @@ pub async fn create_payment_connector(
     let (connector_status, disabled) = validate_status_and_disabled(
         req.status,
         req.disabled,
-        auth,
+        auth.clone(),
         // The validate_status_and_disabled function will use this value only
         // when the status can be active. So we are passing this as fallback.
         api_enums::ConnectorStatus::Active,
@@ -1200,17 +1257,18 @@ pub async fn create_payment_connector(
         }
     }
 
+    let connector_auth = serde_json::to_value(auth)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encoding ConnectorAuthType to serde_json::Value")?;
+    let conn_auth = Secret::new(connector_auth);
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
         connector_name: req.connector_name.to_string(),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: domain_types::encrypt(
-            req.connector_account_details.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "connector_account_details",
-                },
-            )?,
+            conn_auth,
             key_store.key.peek(),
         )
         .await
@@ -1244,6 +1302,17 @@ pub async fn create_payment_connector(
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
         connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(&key_store, &req.metadata).await?,
+        additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
+            Some(domain_types::encrypt(
+                Secret::new(mcd),
+                key_store.key.peek(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt additional_merchant_data")?)
+        } else {
+            None
+        },
     };
 
     let transaction_type = match req.connector_type {
@@ -2225,11 +2294,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             cybersource::transformers::CybersourceAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Datatrans => {
-        //     datatrans::transformers::DatatransAuthType::try_from(val)?;
-        //     Ok(())
-        // }
-        // added for future use
+        api_enums::Connector::Datatrans => {
+            datatrans::transformers::DatatransAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Dlocal => {
             dlocal::transformers::DlocalAuthType::try_from(val)?;
             Ok(())
@@ -2496,6 +2564,18 @@ pub(crate) fn validate_connector_auth_type(
     }
 }
 
+pub async fn transfer_key_store_to_key_manager(
+    state: SessionState,
+) -> RouterResponse<admin_types::TransferKeyResponse> {
+    let resp = transfer_encryption_key(&state).await?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        admin_types::TransferKeyResponse {
+            total_transferred: resp,
+        },
+    ))
+}
+
 #[cfg(feature = "dummy_connector")]
 pub async fn validate_dummy_connector_enabled(
     state: &SessionState,
@@ -2553,4 +2633,286 @@ pub fn validate_status_and_disabled(
     };
 
     Ok((connector_status, disabled))
+}
+
+async fn process_open_banking_connectors(
+    state: &SessionState,
+    merchant_id: &str,
+    auth: &types::ConnectorAuthType,
+    connector_type: &api_enums::ConnectorType,
+    connector: &api_enums::Connector,
+    additional_merchant_data: types::AdditionalMerchantData,
+) -> RouterResult<types::MerchantRecipientData> {
+    let new_merchant_data = match additional_merchant_data {
+        types::AdditionalMerchantData::OpenBankingRecipientData(merchant_data) => {
+            if connector_type != &api_enums::ConnectorType::PaymentProcessor {
+                return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                    config:
+                        "OpenBanking connector for Payment Initiation should be a payment processor"
+                            .to_string(),
+                }
+                .into());
+            }
+            match &merchant_data {
+                types::MerchantRecipientData::AccountData(acc_data) => {
+                    validate_bank_account_data(acc_data)?;
+
+                    let connector_name = api_enums::Connector::to_string(connector);
+
+                    let recipient_creation_not_supported = state
+                        .conf
+                        .locker_based_open_banking_connectors
+                        .connector_list
+                        .contains(connector_name.as_str());
+
+                    let recipient_id = if recipient_creation_not_supported {
+                        locker_recipient_create_call(state, merchant_id, acc_data).await
+                    } else {
+                        connector_recipient_create_call(
+                            state,
+                            merchant_id,
+                            connector_name,
+                            auth,
+                            acc_data,
+                        )
+                        .await
+                    }
+                    .attach_printable("failed to get recipient_id")?;
+
+                    let conn_recipient_id = if recipient_creation_not_supported {
+                        Some(types::RecipientIdType::LockerId(Secret::new(recipient_id)))
+                    } else {
+                        Some(types::RecipientIdType::ConnectorId(Secret::new(
+                            recipient_id,
+                        )))
+                    };
+
+                    let account_data = match &acc_data {
+                        types::MerchantAccountData::Iban { iban, name, .. } => {
+                            types::MerchantAccountData::Iban {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Bacs {
+                            account_number,
+                            sort_code,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::Bacs {
+                            account_number: account_number.clone(),
+                            sort_code: sort_code.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                    };
+
+                    types::MerchantRecipientData::AccountData(account_data)
+                }
+                _ => merchant_data.clone(),
+            }
+        }
+    };
+
+    Ok(new_merchant_data)
+}
+
+fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
+    match data {
+        types::MerchantAccountData::Iban { iban, .. } => {
+            // IBAN check algorithm
+            if iban.peek().len() > IBAN_MAX_LENGTH {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "IBAN length must be up to 34 characters".to_string(),
+                }
+                .into());
+            }
+            let pattern = Regex::new(r"^[A-Z0-9]*$")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to create regex pattern")?;
+
+            let mut iban = iban.peek().to_string();
+
+            if !pattern.is_match(iban.as_str()) {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "IBAN data must be alphanumeric".to_string(),
+                }
+                .into());
+            }
+
+            // MOD check
+            let first_4 = iban.chars().take(4).collect::<String>();
+            iban.push_str(first_4.as_str());
+            let len = iban.len();
+
+            let rearranged_iban = iban
+                .chars()
+                .rev()
+                .take(len - 4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>();
+
+            let mut result = String::new();
+
+            rearranged_iban.chars().for_each(|c| {
+                if c.is_ascii_uppercase() {
+                    let digit = (u32::from(c) - u32::from('A')) + 10;
+                    result.push_str(&format!("{:02}", digit));
+                } else {
+                    result.push(c);
+                }
+            });
+
+            let num = result
+                .parse::<u128>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to validate IBAN")?;
+
+            if num % 97 != 1 {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid IBAN".to_string(),
+                }
+                .into());
+            }
+
+            Ok(())
+        }
+        types::MerchantAccountData::Bacs {
+            account_number,
+            sort_code,
+            ..
+        } => {
+            if account_number.peek().len() > BACS_MAX_ACCOUNT_NUMBER_LENGTH
+                || sort_code.peek().len() != BACS_SORT_CODE_LENGTH
+            {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid BACS numbers".to_string(),
+                }
+                .into());
+            }
+
+            Ok(())
+        }
+    }
+}
+
+async fn connector_recipient_create_call(
+    state: &SessionState,
+    merchant_id: &str,
+    connector_name: String,
+    auth: &types::ConnectorAuthType,
+    data: &types::MerchantAccountData,
+) -> RouterResult<String> {
+    let connector = pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(
+        connector_name.as_str(),
+    )?;
+
+    let auth = pm_auth_types::ConnectorAuthType::foreign_try_from(auth.clone())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while converting ConnectorAuthType")?;
+
+    let connector_integration: pm_auth_types::api::BoxedConnectorIntegration<
+        '_,
+        pm_auth_types::api::auth_service::RecipientCreate,
+        pm_auth_types::RecipientCreateRequest,
+        pm_auth_types::RecipientCreateResponse,
+    > = connector.connector.get_connector_integration();
+
+    let req = match data {
+        types::MerchantAccountData::Iban { iban, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::Iban(iban.clone()),
+                address: None,
+            }
+        }
+        types::MerchantAccountData::Bacs {
+            account_number,
+            sort_code,
+            name,
+            ..
+        } => pm_auth_types::RecipientCreateRequest {
+            name: name.clone(),
+            account_data: pm_auth_types::RecipientAccountData::Bacs {
+                sort_code: sort_code.clone(),
+                account_number: account_number.clone(),
+            },
+            address: None,
+        },
+    };
+
+    let router_data = pm_auth_types::RecipientCreateRouterData {
+        flow: std::marker::PhantomData,
+        merchant_id: Some(merchant_id.to_owned()),
+        connector: Some(connector_name),
+        request: req,
+        response: Err(pm_auth_types::ErrorResponse {
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+            reason: None,
+        }),
+        connector_http_status_code: None,
+        connector_auth_type: auth,
+    };
+
+    let resp = payment_initiation_service::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        &connector.connector_name,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while calling recipient create connector api")?;
+
+    let recipient_create_resp =
+        resp.response
+            .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: connector.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            })?;
+
+    let recipient_id = recipient_create_resp.recipient_id;
+
+    Ok(recipient_id)
+}
+
+async fn locker_recipient_create_call(
+    state: &SessionState,
+    merchant_id: &str,
+    data: &types::MerchantAccountData,
+) -> RouterResult<String> {
+    let enc_data = serde_json::to_string(data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert to MerchantAccountData json to String")?;
+
+    let cust_id = id_type::CustomerId::from(merchant_id.to_string().into())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert to CustomerId")?;
+
+    let payload = transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
+        merchant_id,
+        merchant_customer_id: cust_id.clone(),
+        enc_data,
+        ttl: state.conf.locker.ttl_for_storage_in_secs,
+    });
+
+    let store_resp = cards::call_to_locker_hs(
+        state,
+        &payload,
+        &cust_id,
+        api_enums::LockerChoice::HyperswitchCardVault,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt merchant bank account data")?;
+
+    Ok(store_resp.card_reference)
 }

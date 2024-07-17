@@ -11,10 +11,12 @@ license.workspace = true
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls", "v1"]
 tls = ["actix-web/rustls-0_22"]
+keymanager_mtls = ["reqwest/rustls-tls","common_utils/keymanager_mtls"]
 email = ["external_services/email", "scheduler/email", "olap"]
+keymanager_create = []
 frm = ["api_models/frm", "hyperswitch_domain_models/frm"]
 stripe = ["dep:serde_qs"]
-release = ["stripe", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3"]
+release = ["stripe", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3","keymanager_mtls","keymanager_create"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
@@ -51,6 +53,7 @@ bytes = "1.6.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.0", features = ["toml"] }
 cookie = "0.18.1"
+csv = "1.3.0"
 diesel = { version = "2.1.5", features = ["postgres"] }
 digest = "0.10.7"
 dyn-clone = "1.0.17"
@@ -109,7 +112,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 analytics = { version = "0.1.0", path = "../analytics", optional = true }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics","keymanager"] }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

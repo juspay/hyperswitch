@@ -23,9 +23,7 @@ use hyperswitch_domain_models::errors::StorageError;
 use masking::PeekInterface;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-#[cfg(feature = "olap")]
-use router_env::logger;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use scheduler::utils as pt_utils;
 use serde_json;
 
@@ -368,8 +366,6 @@ pub async fn payouts_confirm_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
-    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
-        .await?;
     helpers::validate_payout_status_against_not_allowed_statuses(
         &status,
         &[
@@ -384,10 +380,11 @@ pub async fn payouts_confirm_core(
         "confirm",
     )?;
 
-    // Update payout link's status
+    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
+        .await?;
+
     let db = &*state.store;
 
-    // payout_data.payout_link
     payout_data.payout_link = payout_data
         .payout_link
         .clone()
@@ -467,15 +464,17 @@ pub async fn payouts_update_core(
     )
     .await?;
 
-    payouts_core(
-        &state,
-        &merchant_account,
-        &key_store,
-        &mut payout_data,
-        req.routing.clone(),
-        req.connector.clone(),
-    )
-    .await?;
+    if let Some(true) = payout_data.payouts.confirm {
+        payouts_core(
+            &state,
+            &merchant_account,
+            &key_store,
+            &mut payout_data,
+            req.routing.clone(),
+            req.connector.clone(),
+        )
+        .await?;
+    }
 
     response_handler(&merchant_account, &payout_data).await
 }
@@ -487,13 +486,39 @@ pub async fn payouts_retrieve_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let payout_data = make_payout_data(
+    let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
     )
     .await?;
+
+    let payout_attempt = payout_data.payout_attempt.to_owned();
+    let status = payout_attempt.status;
+
+    if matches!(req.force_sync, Some(true)) && helpers::should_call_retrieve(status) {
+        // Form connector data
+        let connector_call_type = get_connector_choice(
+            &state,
+            &merchant_account,
+            &key_store,
+            payout_attempt.connector.clone(),
+            None,
+            &mut payout_data,
+            None,
+        )
+        .await?;
+
+        complete_payout_retrieve(
+            &state,
+            &merchant_account,
+            &key_store,
+            connector_call_type,
+            &mut payout_data,
+        )
+        .await?;
+    }
 
     response_handler(&merchant_account, &payout_data).await
 }
@@ -1521,6 +1546,149 @@ async fn complete_payout_quote_steps_if_required<F>(
     Ok(())
 }
 
+pub async fn complete_payout_retrieve(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connector_call_type: api::ConnectorCallType,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    match connector_call_type {
+        api::ConnectorCallType::PreDetermined(connector_data) => {
+            create_payout_retrieve(
+                state,
+                merchant_account,
+                key_store,
+                &connector_data,
+                payout_data,
+            )
+            .await
+            .attach_printable("Payout retrieval failed for given Payout request")?;
+        }
+        api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payout retrieval not supported for given ConnectorCallType")?
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn create_payout_retrieve(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    // 1. Form Router data
+    let mut router_data = core_utils::construct_payout_router_data(
+        state,
+        &connector_data.connector_name,
+        merchant_account,
+        key_store,
+        payout_data,
+    )
+    .await?;
+
+    // 2. Get/Create access token
+    access_token::create_access_token(
+        state,
+        connector_data,
+        merchant_account,
+        &mut router_data,
+        payout_data.payouts.payout_type.to_owned(),
+    )
+    .await?;
+
+    // 3. Fetch connector integration details
+    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
+        api::PoSync,
+        types::PayoutsData,
+        types::PayoutsResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    // 4. Call connector service
+    let router_data_resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_payout_failed_response()?;
+
+    // 5. Process data returned by the connector
+    update_retrieve_payout_tracker(state, merchant_account, payout_data, &router_data_resp).await?;
+
+    Ok(())
+}
+
+pub async fn update_retrieve_payout_tracker<F, T>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payout_data: &mut PayoutData,
+    payout_router_data: &types::RouterData<F, T, types::PayoutsResponseData>,
+) -> RouterResult<()> {
+    let db = &*state.store;
+    match payout_router_data.response.as_ref() {
+        Ok(payout_response_data) => {
+            let payout_attempt = &payout_data.payout_attempt;
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_attempt.status.to_owned());
+
+            let updated_payout_attempt = if helpers::is_payout_err_state(status) {
+                storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_payout_id: payout_response_data.connector_payout_id.clone(),
+                    status,
+                    error_code: payout_response_data.error_code.clone(),
+                    error_message: payout_response_data.error_message.clone(),
+                    is_eligible: payout_response_data.payout_eligible,
+                }
+            } else {
+                storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_payout_id: payout_response_data.connector_payout_id.clone(),
+                    status,
+                    error_code: None,
+                    error_message: None,
+                    is_eligible: payout_response_data.payout_eligible,
+                }
+            };
+
+            payout_data.payout_attempt = db
+                .update_payout_attempt(
+                    payout_attempt,
+                    updated_payout_attempt,
+                    &payout_data.payouts,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payout_attempt in db")?;
+            payout_data.payouts = db
+                .update_payout(
+                    &payout_data.payouts,
+                    storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payouts in db")?;
+        }
+        Err(err) => {
+            // log in case of error in retrieval
+            logger::error!("Error in payout retrieval");
+            // show error in the response of sync
+            payout_data.payout_attempt.error_code = Some(err.code.to_owned());
+            payout_data.payout_attempt.error_message = Some(err.message.to_owned());
+        }
+    };
+    Ok(())
+}
+
 pub async fn complete_create_recipient_disburse_account(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -2052,6 +2220,18 @@ pub async fn payout_create_db_entries(
         format!("payout_{payout_id}_secret").as_str(),
     );
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
+    let status = if req.payout_method_data.is_some()
+        || req.payout_token.is_some()
+        || stored_payout_method_data.is_some()
+    {
+        match req.confirm {
+            Some(true) => storage_enums::PayoutStatus::RequiresCreation,
+            _ => storage_enums::PayoutStatus::RequiresConfirmation,
+        }
+    } else {
+        storage_enums::PayoutStatus::RequiresPayoutMethodData
+    };
+
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),
@@ -2076,6 +2256,7 @@ pub async fn payout_create_db_entries(
             .map(|link_data| link_data.link_id.clone()),
         client_secret: Some(client_secret),
         priority: req.priority,
+        status,
         ..Default::default()
     };
     let payouts = db
@@ -2086,17 +2267,6 @@ pub async fn payout_create_db_entries(
         })
         .attach_printable("Error inserting payouts in db")?;
     // Make payout_attempt entry
-    let status = if req.payout_method_data.is_some()
-        || req.payout_token.is_some()
-        || stored_payout_method_data.is_some()
-    {
-        match req.confirm {
-            Some(true) => storage_enums::PayoutStatus::RequiresCreation,
-            _ => storage_enums::PayoutStatus::RequiresConfirmation,
-        }
-    } else {
-        storage_enums::PayoutStatus::RequiresPayoutMethodData
-    };
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
 
     let payout_attempt_req = storage::PayoutAttemptNew {

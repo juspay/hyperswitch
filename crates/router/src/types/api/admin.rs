@@ -19,6 +19,15 @@ use crate::{
 };
 
 #[cfg(any(feature = "v1", feature = "v2"))]
+use common_utils::ext_traits::Encode;
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+use error_stack::ResultExt;
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -59,7 +68,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {

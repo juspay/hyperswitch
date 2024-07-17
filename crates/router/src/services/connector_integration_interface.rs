@@ -1,13 +1,14 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
-use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
+use hyperswitch_interfaces::{
+    authentication::ExternalAuthenticationPayload, connector_integration_v2::ConnectorIntegrationV2,
+};
 
 use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
 use crate::{
     core::payments,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    routes::app::StorageInterface,
     services::{
         api as services_api, BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
         ConnectorRedirectResponse, PaymentAction,
@@ -16,8 +17,8 @@ use crate::{
     types::{
         self,
         api::{
-            self, disputes, Connector, ConnectorV2, CurrencyUnit, ExternalAuthenticationPayload,
-            IncomingWebhookEvent, IncomingWebhookRequestDetails, ObjectReferenceId,
+            self, disputes, Connector, ConnectorV2, CurrencyUnit, IncomingWebhookEvent,
+            IncomingWebhookRequestDetails, ObjectReferenceId,
         },
         domain,
     },
@@ -99,25 +100,6 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
 
-    async fn get_webhook_body_decoding_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector
-                    .get_webhook_body_decoding_merchant_secret(db, merchant_id)
-                    .await
-            }
-            Self::New(connector) => {
-                connector
-                    .get_webhook_body_decoding_merchant_secret(db, merchant_id)
-                    .await
-            }
-        }
-    }
-
     fn get_webhook_body_decoding_message(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -130,19 +112,30 @@ impl api::IncomingWebhook for ConnectorEnum {
 
     async fn decode_webhook_body(
         &self,
-        db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_name: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => {
                 connector
-                    .decode_webhook_body(db, request, merchant_id)
+                    .decode_webhook_body(
+                        request,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_name,
+                    )
                     .await
             }
             Self::New(connector) => {
                 connector
-                    .decode_webhook_body(db, request, merchant_id)
+                    .decode_webhook_body(
+                        request,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_name,
+                    )
                     .await
             }
         }
@@ -160,26 +153,26 @@ impl api::IncomingWebhook for ConnectorEnum {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_id: &str,
         connector_name: &str,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         match self {
             Self::Old(connector) => {
                 connector
                     .get_webhook_source_verification_merchant_secret(
-                        merchant_account,
+                        merchant_id,
                         connector_name,
-                        merchant_connector_account,
+                        connector_webhook_details,
                     )
                     .await
             }
             Self::New(connector) => {
                 connector
                     .get_webhook_source_verification_merchant_secret(
-                        merchant_account,
+                        merchant_id,
                         connector_name,
-                        merchant_connector_account,
+                        connector_webhook_details,
                     )
                     .await
             }
@@ -219,45 +212,12 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
 
-    async fn verify_webhook_source_verification_call(
-        &self,
-        state: &crate::routes::SessionState,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
-        connector_name: &str,
-        request_details: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector
-                    .verify_webhook_source_verification_call(
-                        state,
-                        merchant_account,
-                        merchant_connector_account,
-                        connector_name,
-                        request_details,
-                    )
-                    .await
-            }
-            Self::New(connector) => {
-                connector
-                    .verify_webhook_source_verification_call(
-                        state,
-                        merchant_account,
-                        merchant_connector_account,
-                        connector_name,
-                        request_details,
-                    )
-                    .await
-            }
-        }
-    }
-
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         match self {
@@ -265,8 +225,9 @@ impl api::IncomingWebhook for ConnectorEnum {
                 connector
                     .verify_webhook_source(
                         request,
-                        merchant_account,
-                        merchant_connector_account,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_account_details,
                         connector_name,
                     )
                     .await
@@ -275,8 +236,9 @@ impl api::IncomingWebhook for ConnectorEnum {
                 connector
                     .verify_webhook_source(
                         request,
-                        merchant_account,
-                        merchant_connector_account,
+                        merchant_id,
+                        connector_webhook_details,
+                        connector_account_details,
                         connector_name,
                     )
                     .await

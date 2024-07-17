@@ -72,7 +72,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
-                let resp = self
+                let mut new_router_data = self
                     .execute_connector_processing_step_for_each_capture(
                         state,
                         pending_connector_capture_id_list,
@@ -80,7 +80,15 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         connector_integration,
                     )
                     .await?;
-                Ok(resp)
+                // Initiating Integrity checks
+                let integrity_result = helpers::check_integrity_based_on_flow(
+                    &new_router_data.request,
+                    &new_router_data.response,
+                );
+
+                new_router_data.integrity_check = integrity_result;
+
+                Ok(new_router_data)
             }
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {

@@ -1,8 +1,8 @@
 //! Configs interface
+use common_enums::ApplicationError;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
-use storage_impl::errors::ApplicationError;
 
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]

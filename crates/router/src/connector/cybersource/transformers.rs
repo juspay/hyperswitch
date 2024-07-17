@@ -1413,7 +1413,11 @@ impl
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let order_information = OrderInformationWithBill::from((item, None));
+        let bill_to =
+            item.router_data.request.get_email().ok().and_then(|email| {
+                build_bill_to(item.router_data.get_optional_billing(), email).ok()
+            });
+        let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
@@ -3250,6 +3254,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, CybersourceFulfillResponse>>
                 connector_payout_id: Some(item.response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
