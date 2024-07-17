@@ -15,10 +15,11 @@ pub async fn check_existence_and_add_domain_to_db(
     merchant_connector_id: String,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            state,
+            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -28,7 +29,7 @@ pub async fn check_existence_and_add_domain_to_db(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            state,
+            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -68,7 +69,7 @@ pub async fn check_existence_and_add_domain_to_db(
     state
         .store
         .update_merchant_connector_account(
-            state,
+            key_manager_state,
             merchant_connector_account,
             updated_mca.into(),
             &key_store,

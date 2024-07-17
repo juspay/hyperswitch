@@ -158,7 +158,7 @@ where
 
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
-                    state,
+                    &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     &key_store,

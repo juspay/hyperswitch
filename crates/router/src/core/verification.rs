@@ -91,9 +91,10 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     errors::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -102,7 +103,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
 
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            key_manager_state,
             merchant_id.as_str(),
             merchant_connector_id.as_str(),
             &key_store,

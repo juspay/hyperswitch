@@ -121,7 +121,7 @@ pub async fn create_merchant_account(
 
     let master_key = db.get_master_key();
 
-    let key_manager_state: &KeyManagerState = &(&state).into();
+    let key_manager_state = &(&state).into();
     let merchant_id = req.get_merchant_reference_id().get_string_repr().to_owned();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
 
@@ -155,13 +155,17 @@ pub async fn create_merchant_account(
     let domain_merchant_account = req
         .create_domain_model_from_request(&state, key_store.clone())
         .await?;
-
-    db.insert_merchant_key_store(&state, key_store.clone(), &master_key.to_vec().into())
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+    let key_manager_state = &(&state).into();
+    db.insert_merchant_key_store(
+        key_manager_state,
+        key_store.clone(),
+        &master_key.to_vec().into(),
+    )
+    .await
+    .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
     let merchant_account = db
-        .insert_merchant(&state, domain_merchant_account, &key_store)
+        .insert_merchant(key_manager_state, domain_merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
@@ -615,7 +619,7 @@ pub async fn list_merchant_account(
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
     let merchant_accounts = state
         .store
-        .list_merchant_accounts_by_organization_id(&state, &req.organization_id)
+        .list_merchant_accounts_by_organization_id(&(&state).into(), &req.organization_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -638,9 +642,10 @@ pub async fn get_merchant_account(
     req: api::MerchantId,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &req.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -648,7 +653,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, &req.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &req.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -668,8 +673,9 @@ pub async fn create_business_profile_from_business_labels(
     merchant_id: &str,
     new_business_details: Vec<admin_types::PrimaryBusinessDetails>,
 ) -> RouterResult<()> {
+    let key_manager_state = &state.into();
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(state, merchant_id, key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -714,7 +720,7 @@ pub async fn create_business_profile_from_business_labels(
         if business_profile_create_result.is_ok() && merchant_account.default_profile.is_some() {
             let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
             db.update_merchant(
-                state,
+                key_manager_state,
                 merchant_account.clone(),
                 unset_default_profile,
                 key_store,
@@ -803,9 +809,10 @@ pub async fn merchant_account_update(
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &req.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -893,13 +900,12 @@ pub async fn merchant_account_update(
     update_business_profile_cascade(state.clone(), req.clone(), merchant_id.to_string()).await?;
 
     let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
-    let key_manager_state = (&state).into();
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
             .map(Secret::new)
             .async_lift(|inner| {
-                domain_types::encrypt_optional(&key_manager_state, inner, identifier.clone(), key)
+                domain_types::encrypt_optional(key_manager_state, inner, identifier.clone(), key)
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -914,7 +920,7 @@ pub async fn merchant_account_update(
             .attach_printable("Unable to convert merchant_details to a value")?
             .map(Secret::new)
             .async_lift(|inner| {
-                domain_types::encrypt_optional(&key_manager_state, inner, identifier.clone(), key)
+                domain_types::encrypt_optional(key_manager_state, inner, identifier.clone(), key)
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -959,7 +965,7 @@ pub async fn merchant_account_update(
 
     let response = db
         .update_specific_fields_in_merchant(
-            &state,
+            key_manager_state,
             merchant_id,
             updated_merchant_account,
             &key_store,
@@ -982,10 +988,10 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
-
+    let key_manager_state = &(&state).into();
     let merchant_key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -993,7 +999,7 @@ pub async fn merchant_account_delete(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &merchant_key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1080,7 +1086,7 @@ async fn validate_merchant_id<S: Into<String>>(
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::MerchantAccount> {
     let db = &*state.store;
-    db.find_merchant_account_by_merchant_id(state, &merchant_id.into(), key_store)
+    db.find_merchant_account_by_merchant_id(&state.into(), &merchant_id.into(), key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
@@ -1126,11 +1132,12 @@ pub async fn create_payment_connector(
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     validate_dummy_connector_enabled(&state, &req.connector_name).await?;
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1144,7 +1151,7 @@ pub async fn create_payment_connector(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1282,7 +1289,7 @@ pub async fn create_payment_connector(
     state
         .store
         .update_specific_fields_in_merchant(
-            &state,
+            key_manager_state,
             merchant_id,
             storage::MerchantAccountUpdate::ModifiedAtUpdate,
             &key_store,
@@ -1318,7 +1325,6 @@ pub async fn create_payment_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encoding ConnectorAuthType to serde_json::Value")?;
     let conn_auth = Secret::new(connector_auth);
-    let key_manager_state: &KeyManagerState = &(&state).into();
     let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -1394,7 +1400,11 @@ pub async fn create_payment_connector(
 
     let mca = state
         .store
-        .insert_merchant_connector_account(&state, merchant_connector_account, &key_store)
+        .insert_merchant_connector_account(
+            key_manager_state,
+            merchant_connector_account,
+            &key_store,
+        )
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -1466,7 +1476,7 @@ async fn validate_pm_auth(
     let all_mcas = &*state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            state,
+            &state.into(),
             merchant_id,
             true,
             key_store,
@@ -1502,9 +1512,10 @@ pub async fn retrieve_payment_connector(
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
@@ -1512,13 +1523,13 @@ pub async fn retrieve_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _merchant_account = store
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -1536,9 +1547,10 @@ pub async fn list_payment_connectors(
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
     let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
@@ -1547,13 +1559,13 @@ pub async fn list_payment_connectors(
 
     // Validate merchant account
     store
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state,
+            key_manager_state,
             &merchant_id,
             true,
             &key_store,
@@ -1577,9 +1589,10 @@ pub async fn update_payment_connector(
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -1587,13 +1600,13 @@ pub async fn update_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            key_manager_state,
             merchant_id,
             merchant_connector_id,
             &key_store,
@@ -1647,8 +1660,6 @@ pub async fn update_payment_connector(
             .await?;
         }
     }
-
-    let key_manager_state: KeyManagerState = (&state).into();
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1659,7 +1670,7 @@ pub async fn update_payment_connector(
             .connector_account_details
             .async_lift(|inner| {
                 domain_types::encrypt_optional(
-                    &key_manager_state,
+                    key_manager_state,
                     inner,
                     km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                     key_store.key.get_inner().peek(),
@@ -1700,7 +1711,12 @@ pub async fn update_payment_connector(
     let request_connector_label = req.connector_label;
 
     let updated_mca = db
-        .update_merchant_connector_account(&state, mca, payment_connector.into(), &key_store)
+        .update_merchant_connector_account(
+            key_manager_state,
+            mca,
+            payment_connector.into(),
+            &key_store,
+        )
         .await
         .change_context(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -1723,9 +1739,10 @@ pub async fn delete_payment_connector(
     merchant_connector_id: String,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -1733,13 +1750,13 @@ pub async fn delete_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -1773,9 +1790,10 @@ pub async fn kv_for_merchant(
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -1784,7 +1802,7 @@ pub async fn kv_for_merchant(
 
     // check if the merchant account exists
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1801,7 +1819,7 @@ pub async fn kv_for_merchant(
             }
 
             db.update_merchant(
-                &state,
+                key_manager_state,
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: MerchantStorageScheme::RedisKv,
@@ -1812,7 +1830,7 @@ pub async fn kv_for_merchant(
         }
         (false, MerchantStorageScheme::RedisKv) => {
             db.update_merchant(
-                &state,
+                key_manager_state,
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
@@ -1875,9 +1893,10 @@ pub async fn check_merchant_account_kv_status(
     merchant_id: String,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -1886,7 +1905,7 @@ pub async fn check_merchant_account_kv_status(
 
     // check if the merchant account exists
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1961,9 +1980,10 @@ pub async fn create_business_profile(
     }
 
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -1973,7 +1993,7 @@ pub async fn create_business_profile(
     // Get the merchant account, if few fields are not passed, then they will be inherited from
     // merchant account
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1993,9 +2013,14 @@ pub async fn create_business_profile(
 
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-        db.update_merchant(&state, merchant_account, unset_default_profile, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        db.update_merchant(
+            key_manager_state,
+            merchant_account,
+            unset_default_profile,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     }
 
     Ok(service_api::ApplicationResponse::Json(
@@ -2013,7 +2038,7 @@ pub async fn list_business_profile(
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            &(&state).into(),
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -2044,7 +2069,7 @@ pub async fn retrieve_business_profile(
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            &(&state).into(),
             &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -2096,7 +2121,7 @@ pub async fn update_business_profile(
         })?;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            &(&state).into(),
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )

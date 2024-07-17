@@ -1105,10 +1105,11 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &state,
+            key_manager_state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1124,7 +1125,7 @@ pub async fn create_internal_user(
     let internal_merchant = state
         .store
         .find_merchant_account_by_merchant_id(
-            &state,
+            key_manager_state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &key_store,
         )
@@ -1179,7 +1180,7 @@ pub async fn switch_merchant_id(
     }
 
     let user = user_from_token.get_user_from_db(&state).await?;
-
+    let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
@@ -1193,7 +1194,7 @@ pub async fn switch_merchant_id(
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &state,
+                key_manager_state,
                 request.merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -1208,7 +1209,11 @@ pub async fn switch_merchant_id(
 
         let org_id = state
             .store
-            .find_merchant_account_by_merchant_id(&state, request.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                request.merchant_id.as_str(),
+                &key_store,
+            )
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -1310,7 +1315,7 @@ pub async fn list_merchants_for_user(
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(
-            &state,
+            &(&state).into(),
             user_roles
                 .iter()
                 .map(|role| role.merchant_id.clone())
@@ -1925,7 +1930,10 @@ pub async fn transfer_user_key_store_keymanager(
     let db = &state.global_store;
 
     let key_stores = db
-        .get_all_user_key_store(&state, &state.store.get_master_key().to_vec().into())
+        .get_all_user_key_store(
+            &(&state).into(),
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 

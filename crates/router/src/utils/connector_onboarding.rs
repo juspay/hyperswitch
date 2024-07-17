@@ -45,10 +45,11 @@ pub async fn check_if_connector_exists(
     connector_id: &str,
     merchant_id: &str,
 ) -> RouterResult<()> {
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            state,
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -58,7 +59,7 @@ pub async fn check_if_connector_exists(
     let _connector = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            state,
+            key_manager_state,
             merchant_id,
             connector_id,
             &key_store,

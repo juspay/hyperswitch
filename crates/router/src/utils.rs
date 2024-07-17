@@ -363,7 +363,7 @@ pub async fn find_mca_from_authentication_id_type(
         }
     };
     db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-        state,
+        &state.into(),
         &merchant_account.merchant_id,
         &authentication.merchant_connector_id,
         key_store,
@@ -390,11 +390,11 @@ pub async fn get_mca_from_payment_intent(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+    let key_manager_state = &state.into();
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                state,
+                key_manager_state,
                 &merchant_account.merchant_id,
                 &merchant_connector_id,
                 key_store,
@@ -420,7 +420,7 @@ pub async fn get_mca_from_payment_intent(
             };
 
             db.find_merchant_connector_account_by_profile_id_connector_name(
-                state,
+                key_manager_state,
                 &profile_id,
                 connector_name,
                 key_store,
@@ -462,11 +462,11 @@ pub async fn get_mca_from_payout_attempt(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
     };
-
+    let key_manager_state = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                state,
+                key_manager_state,
                 &merchant_account.merchant_id,
                 &merchant_connector_id,
                 key_store,
@@ -477,7 +477,7 @@ pub async fn get_mca_from_payout_attempt(
             }),
         None => db
             .find_merchant_connector_account_by_profile_id_connector_name(
-                state,
+                key_manager_state,
                 &payout.profile_id,
                 connector_name,
                 key_store,
@@ -503,7 +503,7 @@ pub async fn get_mca_from_object_reference_id(
     match merchant_account.default_profile.as_ref() {
         Some(profile_id) => db
             .find_merchant_connector_account_by_profile_id_connector_name(
-                state,
+                &state.into(),
                 profile_id,
                 connector_name,
                 key_store,

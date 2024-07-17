@@ -103,7 +103,7 @@ pub async fn create_payment_method(
     let db = &*state.store;
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            state,
+            &state.into(),
             customer_id,
             merchant_id,
             key_store,
@@ -355,7 +355,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state,
+            &(&state).into(),
             &customer_id,
             &merchant_id,
             key_store,
@@ -717,7 +717,7 @@ pub async fn add_payment_method_data(
     let customer_id = payment_method.customer_id.clone();
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state,
+            &(&state).into(),
             &customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -2214,7 +2214,7 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-
+    let key_manager_state = &(&state).into();
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &merchant_account).await?;
@@ -2273,7 +2273,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .async_and_then(|cust| async {
                     db.find_customer_by_customer_id_merchant_id(
-                        &state,
+                        key_manager_state,
                         cust,
                         &pi.merchant_id,
                         &key_store,
@@ -2321,7 +2321,7 @@ pub async fn list_payment_methods(
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state,
+            key_manager_state,
             &merchant_account.merchant_id,
             false,
             &key_store,
@@ -3714,7 +3714,7 @@ pub async fn list_customer_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            state,
+            &state.into(),
             customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -4038,7 +4038,7 @@ pub async fn get_mca_status(
         let mcas = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                state,
+                &state.into(),
                 merchant_id,
                 true,
                 key_store,
@@ -4313,11 +4313,12 @@ pub async fn set_default_payment_method(
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
     let db = &*state.store;
+    let key_manager_state = &state.into();
     // check for the customer
     // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            state,
+            key_manager_state,
             customer_id,
             &merchant_id,
             &key_store,
@@ -4361,7 +4362,7 @@ pub async fn set_default_payment_method(
     // update the db with the default payment method id
     let updated_customer_details = db
         .update_customer_by_customer_id_merchant_id(
-            state,
+            key_manager_state,
             customer_id.to_owned(),
             merchant_id.to_owned(),
             customer,
@@ -4599,6 +4600,7 @@ pub async fn delete_payment_method(
     key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key = db
         .find_payment_method(
             pm_id.payment_method_id.as_str(),
@@ -4609,7 +4611,7 @@ pub async fn delete_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state,
+            key_manager_state,
             &key.customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -4649,7 +4651,7 @@ pub async fn delete_payment_method(
         };
 
         db.update_customer_by_customer_id_merchant_id(
-            &state,
+            key_manager_state,
             key.customer_id,
             key.merchant_id,
             customer,

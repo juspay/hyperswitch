@@ -43,9 +43,10 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .parse_value("OutgoingWebhookTrackingData")?;
 
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                state,
+                key_manager_state,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -64,7 +65,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let initial_event = match &tracking_data.initial_attempt_id {
             Some(initial_attempt_id) => {
                 db.find_event_by_merchant_id_event_id(
-                    state,
+                    key_manager_state,
                     &business_profile.merchant_id,
                     initial_attempt_id,
                     &key_store,
@@ -79,7 +80,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     tracking_data.primary_object_id, tracking_data.event_type
                 );
                 db.find_event_by_merchant_id_event_id(
-                    state,
+                    key_manager_state,
                     &business_profile.merchant_id,
                     &old_event_id,
                     &key_store,
@@ -109,7 +110,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         };
 
         let event = db
-            .insert_event(state, new_event, &key_store)
+            .insert_event(key_manager_state, new_event, &key_store)
             .await
             .map_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
@@ -141,7 +142,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             None => {
                 let merchant_account = db
                     .find_merchant_account_by_merchant_id(
-                        state,
+                        key_manager_state,
                         &tracking_data.merchant_id,
                         &key_store,
                     )

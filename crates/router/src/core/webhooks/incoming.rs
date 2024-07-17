@@ -1675,7 +1675,7 @@ async fn fetch_optional_mca_and_connector(
     if connector_name_or_mca_id.starts_with("mca_") {
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                state,
+                &state.into(),
                 &merchant_account.merchant_id,
                 connector_name_or_mca_id,
                 key_store,

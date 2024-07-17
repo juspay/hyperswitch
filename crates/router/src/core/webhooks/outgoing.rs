@@ -98,7 +98,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     .attach_printable("Failed to construct outgoing webhook request content")?;
 
     let event_metadata = storage::EventMetadata::foreign_from((&content, &primary_object_id));
-
+    let key_manager_state = &(&state).into();
     let new_event = domain::Event {
         event_id: event_id.clone(),
         event_type,
@@ -114,7 +114,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         initial_attempt_id: Some(event_id.clone()),
         request: Some(
             domain_types::encrypt(
-                &(&state).into(),
+                key_manager_state,
                 request_content
                     .encode_to_string_of_json()
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -134,7 +134,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(&state, new_event, merchant_key_store)
+        .insert_event(key_manager_state, new_event, merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -654,7 +654,7 @@ async fn update_event_if_client_error(
     error_message: String,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
     let is_webhook_notified = false;
-
+    let key_manager_state = &(&state).into();
     let response_to_store = OutgoingWebhookResponseContent {
         body: None,
         headers: None,
@@ -666,7 +666,7 @@ async fn update_event_if_client_error(
         is_webhook_notified,
         response: Some(
             domain_types::encrypt(
-                &(&state).into(),
+                key_manager_state,
                 response_to_store
                     .encode_to_string_of_json()
                     .change_context(
@@ -685,7 +685,7 @@ async fn update_event_if_client_error(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            &state,
+            key_manager_state,
             merchant_id,
             event_id,
             event_update,
@@ -745,7 +745,7 @@ async fn update_event_in_storage(
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
     let status_code = response.status();
     let is_webhook_notified = status_code.is_success();
-
+    let key_manager_state = &(&state).into();
     let response_headers = response
         .headers()
         .iter()
@@ -784,7 +784,7 @@ async fn update_event_in_storage(
         is_webhook_notified,
         response: Some(
             domain_types::encrypt(
-                &(&state).into(),
+                key_manager_state,
                 response_to_store
                     .encode_to_string_of_json()
                     .change_context(
@@ -802,7 +802,7 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            &state,
+            key_manager_state,
             merchant_id,
             event_id,
             event_update,

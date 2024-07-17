@@ -735,7 +735,7 @@ pub async fn payouts_list_core(
             Ok(payout_attempt) => {
                 match db
                     .find_customer_by_customer_id_merchant_id(
-                        &state,
+                        &(&state).into(),
                         &payouts.customer_id,
                         merchant_id,
                         &key_store,
@@ -1095,7 +1095,7 @@ pub async fn create_recipient(
                     {
                         payout_data.customer_details = Some(
                             db.update_customer_by_customer_id_merchant_id(
-                                state,
+                                &state.into(),
                                 customer_id,
                                 merchant_id,
                                 customer,
@@ -2370,7 +2370,7 @@ pub async fn make_payout_data(
 
     let customer_details = db
         .find_customer_optional_by_customer_id_merchant_id(
-            state,
+            &state.into(),
             &payouts.customer_id.to_owned(),
             merchant_id,
             key_store,

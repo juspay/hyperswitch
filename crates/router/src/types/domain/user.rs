@@ -371,7 +371,7 @@ impl NewUserMerchant {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &state,
+                &(&state).into(),
                 self.get_merchant_id().as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -953,9 +953,14 @@ impl UserFromStorage {
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
+        let key_manager_state = &state.into();
         let key_store_result = state
             .global_store
-            .get_user_key_store_by_user_id(state, self.get_user_id(), &master_key.to_vec().into())
+            .get_user_key_store_by_user_id(
+                key_manager_state,
+                self.get_user_id(),
+                &master_key.to_vec().into(),
+            )
             .await;
 
         if let Ok(key_store) = key_store_result {
@@ -973,7 +978,7 @@ impl UserFromStorage {
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
                 key: domain_types::encrypt(
-                    &state.into(),
+                    key_manager_state,
                     key.to_vec().into(),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
@@ -986,7 +991,7 @@ impl UserFromStorage {
             #[cfg(feature = "keymanager_create")]
             {
                 common_utils::keymanager::create_key_in_key_manager(
-                    &state.into(),
+                    key_manager_state,
                     EncryptionCreateRequest {
                         identifier: Identifier::User(key_store.user_id.clone()),
                     },
@@ -997,7 +1002,7 @@ impl UserFromStorage {
 
             state
                 .global_store
-                .insert_user_key_store(state, key_store, &master_key.to_vec().into())
+                .insert_user_key_store(key_manager_state, key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
         } else {
@@ -1023,11 +1028,11 @@ impl UserFromStorage {
         if self.0.totp_secret.is_none() {
             return Ok(None);
         }
-
+        let key_manager_state = &state.into();
         let user_key_store = state
             .global_store
             .get_user_key_store_by_user_id(
-                state,
+                key_manager_state,
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -1035,7 +1040,7 @@ impl UserFromStorage {
             .change_context(UserErrors::InternalServerError)?;
 
         Ok(domain_types::decrypt::<String, masking::WithType>(
-            &state.into(),
+            key_manager_state,
             self.0.totp_secret.clone(),
             Identifier::User(user_key_store.user_id.clone()),
             user_key_store.key.peek(),
@@ -1153,7 +1158,7 @@ impl SignInWithMultipleRolesStrategy {
         let merchant_accounts = state
             .store
             .list_multiple_merchant_accounts(
-                state,
+                &state.into(),
                 self.user_roles
                     .iter()
                     .map(|role| role.merchant_id.clone())

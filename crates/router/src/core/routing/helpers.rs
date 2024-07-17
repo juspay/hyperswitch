@@ -221,7 +221,7 @@ pub async fn update_merchant_active_algorithm_ref(
     };
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
-        state,
+        &state.into(),
         &key_store.merchant_id,
         merchant_account_update,
         key_store,
@@ -314,7 +314,7 @@ pub async fn validate_connectors_in_routing_config(
     let all_mcas = &*state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            state,
+            &state.into(),
             merchant_id,
             true,
             key_store,

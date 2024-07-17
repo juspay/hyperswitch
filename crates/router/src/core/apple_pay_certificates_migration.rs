@@ -28,12 +28,12 @@ pub async fn apple_pay_certificates_migration(
 
     let mut migration_successful_merchant_ids = vec![];
     let mut migration_failed_merchant_ids = vec![];
-
+    let key_manager_state = &(&state).into();
     for merchant_id in merchant_id_list {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &state,
+                key_manager_state,
                 merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -42,7 +42,7 @@ pub async fn apple_pay_certificates_migration(
 
         let merchant_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state,
+                key_manager_state,
                 merchant_id,
                 true,
                 &key_store,

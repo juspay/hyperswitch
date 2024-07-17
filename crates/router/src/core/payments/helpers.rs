@@ -154,6 +154,7 @@ pub async fn create_or_update_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &session_state.store;
+    let key_manager_state = &session_state.into();
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
@@ -199,7 +200,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
-                        session_state,
+                        key_manager_state,
                         merchant_id,
                         payment_id,
                         id,
@@ -211,7 +212,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                     .attach_printable("Error while fetching address")?;
                 Some(
                     db.update_address_for_payments(
-                        session_state,
+                        key_manager_state,
                         address,
                         address_update,
                         payment_id.to_string(),
@@ -225,7 +226,7 @@ pub async fn create_or_update_address_for_payment_by_request(
             }
             None => Some(
                 db.find_address_by_merchant_id_payment_id_address_id(
-                    session_state,
+                    key_manager_state,
                     merchant_id,
                     payment_id,
                     id,
@@ -254,7 +255,7 @@ pub async fn create_or_update_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        session_state,
+                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -286,10 +287,11 @@ pub async fn create_or_find_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &state.store;
+    let key_manager_state = &state.into();
     Ok(match address_id {
         Some(id) => Some(
             db.find_address_by_merchant_id_payment_id_address_id(
-                state,
+                key_manager_state,
                 merchant_id,
                 payment_id,
                 id,
@@ -317,7 +319,7 @@ pub async fn create_or_find_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        state,
+                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -397,7 +399,7 @@ pub async fn get_address_by_id(
             let db = &*state.store;
             Ok(db
                 .find_address_by_merchant_id_payment_id_address_id(
-                    state,
+                    &state.into(),
                     merchant_id,
                     payment_id,
                     &address_id,
@@ -1409,7 +1411,7 @@ pub async fn get_customer_from_details<F: Clone>(
             let db = &*state.store;
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    state,
+                    &state.into(),
                     &customer_id,
                     merchant_id,
                     merchant_key_store,
@@ -1592,12 +1594,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
     let db = &*state.store;
-    let key_manager_state: KeyManagerState = state.into();
+    let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    state,
+                    key_manager_state,
                     &customer_id,
                     merchant_id,
                     key_store,
@@ -1606,7 +1608,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 .await?;
             let key = key_store.key.get_inner().peek();
             let encrypted_data = types::batch_encrypt(
-                &key_manager_state,
+                key_manager_state,
                 CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
                     name: request_customer_details.name.clone(),
                     email: request_customer_details.email.clone(),
@@ -1641,7 +1643,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
-                            state,
+                            key_manager_state,
                             customer_id,
                             merchant_id.to_string(),
                             c,
@@ -1673,7 +1675,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         updated_by: None,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
-                    db.insert_customer(state, new_customer, key_store, storage_scheme)
+                    db.insert_customer(key_manager_state, new_customer, key_store, storage_scheme)
                         .await
                 }
             })
@@ -1682,7 +1684,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    state,
+                    key_manager_state,
                     customer_id,
                     merchant_id,
                     key_store,
@@ -3312,6 +3314,7 @@ pub async fn get_merchant_connector_account(
     merchant_connector_id: Option<&String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
+    let key_manager_state = &state.into();
     match creds_identifier {
         Some(creds_identifier) => {
             let key = format!("mcd_{merchant_id}_{creds_identifier}");
@@ -3386,7 +3389,7 @@ pub async fn get_merchant_connector_account(
         None => {
             if let Some(merchant_connector_id) = merchant_connector_id {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    state,
+                    key_manager_state,
                     merchant_id,
                     merchant_connector_id,
                     key_store,
@@ -3399,7 +3402,7 @@ pub async fn get_merchant_connector_account(
                 )
             } else {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    state,
+                    key_manager_state,
                     profile_id,
                     connector_name,
                     key_store,
@@ -4217,7 +4220,7 @@ where
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                state,
+                &state.into(),
                 merchant_account.merchant_id.as_str(),
                 false,
                 key_store,
@@ -5086,7 +5089,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     let db = &*state.store;
     let merchant_connector_account_list = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            state,
+            &state.into(),
             merchant_id,
             true,
             key_store,

@@ -9,7 +9,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::Identifier,
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -1079,13 +1079,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
-        let key_manager_state: KeyManagerState = state.into();
+        let key_manager_state = &state.into();
         let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
             let key = key_store.key.get_inner().peek();
 
             let card_detail_from_locker: Option<api::CardDetailFromLocker> =
                 decrypt::<serde_json::Value, masking::WithType>(
-                    &key_manager_state,
+                    key_manager_state,
                     pm.payment_method_data.clone(),
                     Identifier::Merchant(key_store.merchant_id.clone()),
                     key,
@@ -1278,6 +1278,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
+        let key_manager_state = state.into();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1328,10 +1329,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 let m_updated_customer = updated_customer.clone();
                 let session_state = state.clone();
                 let m_db = session_state.store.clone();
+                let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
                         m_db.update_customer_by_customer_id_merchant_id(
-                            &session_state,
+                            &key_manager_state,
                             m_customer_customer_id,
                             m_customer_merchant_id,
                             customer,

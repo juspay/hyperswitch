@@ -613,10 +613,11 @@ pub async fn get_or_create_customer_details(
 
     let merchant_id = &merchant_account.merchant_id;
     let key = key_store.key.get_inner().peek();
+    let key_manager_state = &state.into();
 
     match db
         .find_customer_optional_by_customer_id_merchant_id(
-            state,
+            key_manager_state,
             &customer_id,
             merchant_id,
             key_store,
@@ -662,9 +663,14 @@ pub async fn get_or_create_customer_details(
             };
 
             Ok(Some(
-                db.insert_customer(state, customer, key_store, merchant_account.storage_scheme)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                db.insert_customer(
+                    key_manager_state,
+                    customer,
+                    key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
             ))
         }
     }

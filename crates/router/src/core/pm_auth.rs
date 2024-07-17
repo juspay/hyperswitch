@@ -139,7 +139,7 @@ pub async fn create_link_token(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            &(&state).into(),
             merchant_account.merchant_id.as_str(),
             &selected_config.mca_id,
             &key_store,
@@ -235,7 +235,7 @@ pub async fn exchange_token_core(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state,
+            &(&state).into(),
             merchant_account.merchant_id.as_str(),
             &config.mca_id,
             &key_store,
@@ -707,15 +707,19 @@ pub async fn retrieve_payment_method_from_auth_service(
     let connector = PaymentAuthConnectorData::get_connector_by_name(
         auth_token.connector_details.connector.as_str(),
     )?;
-
+    let key_manager_state = &state.into();
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(state, &payment_intent.merchant_id, key_store)
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &payment_intent.merchant_id,
+            key_store,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            state,
+            key_manager_state,
             &payment_intent.merchant_id,
             &auth_token.connector_details.mca_id,
             key_store,

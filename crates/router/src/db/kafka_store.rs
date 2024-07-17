@@ -70,7 +70,6 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
-    routes::SessionState,
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
@@ -103,7 +102,7 @@ impl KafkaStore {
 impl AddressInterface for KafkaStore {
     async fn find_address_by_address_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -114,7 +113,7 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         address_id: String,
         address: storage::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -126,7 +125,7 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_for_payments(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
@@ -147,7 +146,7 @@ impl AddressInterface for KafkaStore {
 
     async fn insert_address_for_payments(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         payment_id: &str,
         address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
@@ -160,7 +159,7 @@ impl AddressInterface for KafkaStore {
 
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         payment_id: &str,
         address_id: &str,
@@ -181,7 +180,7 @@ impl AddressInterface for KafkaStore {
 
     async fn insert_address_for_customers(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -192,7 +191,7 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address: storage::AddressUpdate,
@@ -354,7 +353,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -373,7 +372,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         customer_id: id_type::CustomerId,
         merchant_id: String,
         customer: domain::Customer,
@@ -396,7 +395,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn list_customers_by_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
@@ -407,7 +406,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -426,7 +425,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn insert_customer(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         customer_data: domain::Customer,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -549,7 +548,7 @@ impl EphemeralKeyInterface for KafkaStore {
 impl EventInterface for KafkaStore {
     async fn insert_event(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
@@ -560,7 +559,7 @@ impl EventInterface for KafkaStore {
 
     async fn find_event_by_merchant_id_event_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -572,7 +571,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -589,7 +588,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         created_after: Option<PrimitiveDateTime>,
         created_before: Option<PrimitiveDateTime>,
@@ -612,7 +611,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -629,7 +628,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         profile_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -646,7 +645,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_initial_events_by_profile_id_constraints(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         profile_id: &str,
         created_after: Option<PrimitiveDateTime>,
         created_before: Option<PrimitiveDateTime>,
@@ -669,7 +668,7 @@ impl EventInterface for KafkaStore {
 
     async fn list_events_by_profile_id_initial_attempt_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         profile_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -686,7 +685,7 @@ impl EventInterface for KafkaStore {
 
     async fn update_event_by_merchant_id_event_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         event_id: &str,
         event: domain::EventUpdate,
@@ -841,7 +840,7 @@ impl PaymentLinkInterface for KafkaStore {
 impl MerchantAccountInterface for KafkaStore {
     async fn insert_merchant(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_account: domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
@@ -852,7 +851,7 @@ impl MerchantAccountInterface for KafkaStore {
 
     async fn find_merchant_account_by_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
@@ -863,7 +862,7 @@ impl MerchantAccountInterface for KafkaStore {
 
     async fn update_merchant(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -875,7 +874,7 @@ impl MerchantAccountInterface for KafkaStore {
 
     async fn update_specific_fields_in_merchant(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -896,7 +895,7 @@ impl MerchantAccountInterface for KafkaStore {
 
     async fn find_merchant_account_by_publishable_key(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         self.diesel_store
@@ -907,7 +906,7 @@ impl MerchantAccountInterface for KafkaStore {
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         organization_id: &str,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         self.diesel_store
@@ -927,7 +926,7 @@ impl MerchantAccountInterface for KafkaStore {
     #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_ids: Vec<String>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         self.diesel_store
@@ -1015,7 +1014,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         connector: &str,
         key_store: &domain::MerchantKeyStore,
@@ -1032,7 +1031,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -1049,7 +1048,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         profile_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -1066,7 +1065,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn insert_merchant_connector_account(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -1077,7 +1076,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -1094,7 +1093,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
@@ -1111,7 +1110,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
 
     async fn update_merchant_connector_account(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
@@ -2150,7 +2149,7 @@ impl RefundInterface for KafkaStore {
 impl MerchantKeyStoreInterface for KafkaStore {
     async fn insert_merchant_key_store(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -2161,7 +2160,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
 
     async fn get_merchant_key_store_by_merchant_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -2182,7 +2181,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
@@ -2192,7 +2191,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
     }
     async fn get_all_key_stores(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         self.diesel_store.get_all_key_stores(state, key).await
@@ -3044,7 +3043,7 @@ impl GenericLinkInterface for KafkaStore {
 impl UserKeyStoreInterface for KafkaStore {
     async fn insert_user_key_store(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -3055,7 +3054,7 @@ impl UserKeyStoreInterface for KafkaStore {
 
     async fn get_user_key_store_by_user_id(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -3066,7 +3065,7 @@ impl UserKeyStoreInterface for KafkaStore {
 
     async fn get_all_user_key_store(
         &self,
-        state: &SessionState,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         self.diesel_store.get_all_user_key_store(state, key).await
