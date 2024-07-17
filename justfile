@@ -8,7 +8,7 @@ fmt_flags := '--all'
 fmt *FLAGS:
     cargo +nightly fmt {{ fmt_flags }} {{ FLAGS }}
 
-check_flags := '--all-features --all-targets'
+check_flags := '--all-targets'
 
 # Check compilation of Rust code
 check *FLAGS:
@@ -18,7 +18,17 @@ alias c := check
 
 # Check compilation of Rust code and catch common mistakes
 clippy *FLAGS:
-    cargo clippy {{ check_flags }} {{ FLAGS }}
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+        jq -r '
+            [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+            | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
 
 alias cl := clippy
 
@@ -65,6 +75,12 @@ hack_flags := '--workspace --each-feature --all-targets'
 # Check compilation of each cargo feature
 hack:
     cargo hack check {{ hack_flags }}
+
+# Check compilation of v2 feature on base dependencies
+v2_intermediate_features := "merchant_account_v2,payment_v2"
+hack_v2:
+    cargo hack check  --feature-powerset --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
+    cargo hack check --features "v2,payment_v2" -p storage_impl
 
 # Use the env variables if present, or fallback to default values
 
