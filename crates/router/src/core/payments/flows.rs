@@ -1131,6 +1131,7 @@ default_imp_for_post_processing_steps!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
