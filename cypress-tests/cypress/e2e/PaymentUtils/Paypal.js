@@ -64,7 +64,7 @@ export const connectorDetails = {
         status: 200,
         trigger_skip: true,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
