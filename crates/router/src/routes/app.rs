@@ -26,6 +26,10 @@ use super::dummy_connector::*;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "oltp", not(feature = "v2")))]
+use super::pm_auth;
+#[cfg(feature = "oltp")]
+use super::poll::retrieve_poll_status;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -42,8 +46,6 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
-#[cfg(feature = "oltp")]
-use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -924,7 +926,7 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(not(feature = "v2"), any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
@@ -1096,7 +1098,7 @@ impl MerchantConnectorAccount {
 
 pub struct EphemeralKey;
 
-#[cfg(all(feature = "oltp"))]
+#[cfg(feature = "oltp")]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")

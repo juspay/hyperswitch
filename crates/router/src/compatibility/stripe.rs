@@ -10,10 +10,10 @@ pub mod errors;
 #[cfg(not(feature = "v2"))]
 use crate::routes;
 
-#[cfg(all(not(feature = "v2")))]
+#[cfg(not(feature = "v2"))]
 pub struct StripeApis;
 
-#[cfg(all(not(feature = "v2")))]
+#[cfg(not(feature = "v2"))]
 impl StripeApis {
     pub fn server(state: routes::AppState) -> Scope {
         let max_depth = 10;

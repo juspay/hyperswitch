@@ -35,7 +35,7 @@ pub async fn customers_create(
     .await
 }
 
-#[cfg(all(not(feature = "v2")))]
+#[cfg(not(feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,

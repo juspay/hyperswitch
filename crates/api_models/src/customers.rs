@@ -205,20 +205,20 @@ impl CustomerResponse {
     }
 }
 
-#[cfg(all(not(feature = "v2")))]
+#[cfg(not(feature = "v2"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CustomerId {
     pub customer_id: id_type::CustomerId,
 }
 
-#[cfg(all(not(feature = "v2")))]
+#[cfg(not(feature = "v2"))]
 impl CustomerId {
     pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
         self.customer_id.clone()
     }
 
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> CustomerId {
-        CustomerId { customer_id: cust }
+    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
+        Self { customer_id: cust }
     }
 }
 
@@ -228,14 +228,14 @@ pub struct CustomerId {
     pub merchant_reference_id: id_type::CustomerId,
 }
 
-#[cfg(all(feature = "v2"))]
+#[cfg(feature = "v2")]
 impl CustomerId {
     pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
         self.merchant_reference_id.clone()
     }
 
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> CustomerId {
-        CustomerId {
+    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
+        Self {
             merchant_reference_id: cust,
         }
     }
