@@ -76,7 +76,10 @@ pub async fn toggle_blocklist_guard_for_merchant(
         }
         Err(error) => {
             logger::error!(?error);
-            Err(error)
+            state
+                .store
+                .insert_config(new_config)
+                .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
         }
