@@ -8,11 +8,7 @@ pub use api_models::admin::{
 };
 #[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::ext_traits::Encode;
-#[cfg(any(feature = "v1", feature = "v2"))]
-use common_utils::ext_traits::Encode;
 use common_utils::ext_traits::ValueExt;
-#[cfg(any(feature = "v1", feature = "v2"))]
-use error_stack::ResultExt;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
