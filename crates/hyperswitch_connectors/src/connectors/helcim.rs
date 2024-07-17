@@ -38,10 +38,13 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Mask};
 use transformers as helcim;
 
-use crate::{constants::headers, utils::to_connector_meta};
+use crate::{
+    constants::headers,
+    utils::{to_connector_meta, PaymentsAuthorizeRequestData},
+};
 
 #[derive(Debug, Clone)]
 pub struct Helcim;

@@ -21,6 +21,12 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use crate::utils::{
+    AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+    PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
+    RefundsRequestData, RouterData as RouterDataUtils,
+};
 #[derive(Debug, Serialize)]
 pub struct HelcimRouterData<T> {
     pub amount: f64,
