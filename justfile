@@ -40,7 +40,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features 'v2 merchant_account_v2 payment_v2''
+doc_flags := '--all-features --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
 
 # Generate documentation
 doc *FLAGS:
@@ -60,7 +60,7 @@ euclid-wasm features='dummy_connector':
 # Run pre-commit checks
 precommit: fmt clippy
 
-hack_flags := '--workspace --each-feature --all-targets --exclude-features 'v2 merchant_account_v2 payment_v2''
+hack_flags := '--workspace --each-feature --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
 
 # Check compilation of each cargo feature
 hack:
