@@ -5,23 +5,25 @@ use crate::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest, Cust
 impl ApiEventMetric for CustomerDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: Some(self.customer_id.clone()),
         })
     }
 }
 
 impl ApiEventMetric for CustomerRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        self.customer_id
+        self.get_merchant_reference_id()
             .clone()
-            .map(|customer_id| ApiEventsType::Customer { customer_id })
+            .map(|customer_id| ApiEventsType::Customer {
+                customer_id: Some(customer_id),
+            })
     }
 }
 
 impl ApiEventMetric for CustomerResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: self.get_merchant_reference_id().clone(),
         })
     }
 }
@@ -29,7 +31,7 @@ impl ApiEventMetric for CustomerResponse {
 impl ApiEventMetric for CustomerId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: Some(self.get_merchant_reference_id()).clone(),
         })
     }
 }

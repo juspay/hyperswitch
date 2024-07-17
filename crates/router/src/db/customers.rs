@@ -1,6 +1,7 @@
 use common_utils::{ext_traits::AsyncExt, id_type};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
+use hyperswitch_domain_models::customer;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -18,7 +19,7 @@ use crate::{
 #[async_trait::async_trait]
 pub trait CustomerInterface
 where
-    domain::Customer:
+    customer::Customer:
         Conversion<DstType = storage_types::Customer, NewDstType = storage_types::CustomerNew>,
 {
     async fn delete_customer_by_customer_id_merchant_id(
@@ -33,17 +34,17 @@ where
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Option<domain::Customer>, errors::StorageError>;
+    ) -> CustomResult<Option<customer::Customer>, errors::StorageError>;
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         customer_id: id_type::CustomerId,
         merchant_id: String,
-        customer: domain::Customer,
+        customer: customer::Customer,
         customer_update: storage_types::CustomerUpdate,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError>;
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -51,20 +52,20 @@ where
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError>;
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
 
     async fn list_customers_by_merchant_id(
         &self,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError>;
+    ) -> CustomResult<Vec<customer::Customer>, errors::StorageError>;
 
     async fn insert_customer(
         &self,
-        customer_data: domain::Customer,
+        customer_data: customer::Customer,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError>;
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -73,6 +74,7 @@ mod storage {
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
+    use hyperswitch_domain_models::customer;
     use masking::PeekInterface;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{
@@ -107,7 +109,7 @@ mod storage {
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+        ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
                 storage_types::Customer::find_optional_by_customer_id_merchant_id(
@@ -169,11 +171,11 @@ mod storage {
             &self,
             customer_id: id_type::CustomerId,
             merchant_id: String,
-            customer: domain::Customer,
+            customer: customer::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             let customer = Conversion::convert(customer)
                 .await
@@ -248,7 +250,7 @@ mod storage {
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
                 storage_types::Customer::find_by_customer_id_merchant_id(
@@ -286,7 +288,7 @@ mod storage {
                 }
             }?;
 
-            let result: domain::Customer = customer
+            let result: customer::Customer = customer
                 .convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -305,7 +307,7 @@ mod storage {
             &self,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
-        ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+        ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
             let encrypted_customers =
@@ -329,10 +331,10 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_customer(
             &self,
-            customer_data: domain::Customer,
+            customer_data: customer::Customer,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let customer_id = customer_data.customer_id.clone();
             let merchant_id = customer_data.merchant_id.clone();
             let mut new_customer = customer_data
@@ -451,9 +453,9 @@ mod storage {
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+        ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            let maybe_customer: Option<domain::Customer> =
+            let maybe_customer: Option<customer::Customer> =
                 storage_types::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
@@ -485,11 +487,11 @@ mod storage {
             &self,
             customer_id: id_type::CustomerId,
             merchant_id: String,
-            _customer: domain::Customer,
+            _customer: customer::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Customer::update_by_customer_id_merchant_id(
                 &conn,
@@ -514,9 +516,9 @@ mod storage {
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            let customer: domain::Customer =
+            let customer: customer::Customer =
                 storage_types::Customer::find_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
@@ -543,7 +545,7 @@ mod storage {
             &self,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
-        ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+        ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
             let encrypted_customers =
@@ -567,10 +569,10 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_customer(
             &self,
-            customer_data: domain::Customer,
+            customer_data: customer::Customer,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Customer, errors::StorageError> {
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             customer_data
                 .construct_new()
@@ -614,7 +616,7 @@ impl CustomerInterface for MockDb {
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
         let customer = customers
             .iter()
@@ -636,7 +638,7 @@ impl CustomerInterface for MockDb {
         &self,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+    ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
 
         let customers = try_join_all(
@@ -661,11 +663,11 @@ impl CustomerInterface for MockDb {
         &self,
         _customer_id: id_type::CustomerId,
         _merchant_id: String,
-        _customer: domain::Customer,
+        _customer: customer::Customer,
         _customer_update: storage_types::CustomerUpdate,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -676,7 +678,7 @@ impl CustomerInterface for MockDb {
         _merchant_id: &str,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -684,10 +686,10 @@ impl CustomerInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_customer(
         &self,
-        customer_data: domain::Customer,
+        customer_data: customer::Customer,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
 
         let customer = Conversion::convert(customer_data)

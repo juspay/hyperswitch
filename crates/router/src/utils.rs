@@ -647,6 +647,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 
 #[async_trait::async_trait]
 pub trait CustomerAddress {
+    #[cfg(not(feature = "v2"))]
     async fn get_address_update(
         &self,
         address_details: payments::AddressDetails,
@@ -666,6 +667,7 @@ pub trait CustomerAddress {
 
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
+    #[cfg(not(feature = "v2"))]
     async fn get_address_update(
         &self,
         address_details: payments::AddressDetails,
@@ -775,7 +777,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
                 email: self
-                    .email
+                    .get_optional_email()
                     .as_ref()
                     .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))

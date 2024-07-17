@@ -800,7 +800,19 @@ impl Routing {
 
 pub struct Customers;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+impl Customers {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "oltp", feature = "v2"))]
+        {
+            route = route.service(web::resource("").route(web::post().to(customers_create)))
+        }
+        route
+    }
+}
+
+#[cfg(all(not(feature = "v2"), any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
@@ -1084,7 +1096,7 @@ impl MerchantConnectorAccount {
 
 pub struct EphemeralKey;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp"))]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")

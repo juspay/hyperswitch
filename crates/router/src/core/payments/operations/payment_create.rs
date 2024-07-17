@@ -41,6 +41,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
+        transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
 };
@@ -635,7 +636,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
         let raw_customer_details = customer
-            .map(|customer| CustomerData::try_from(customer.clone()))
+            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
