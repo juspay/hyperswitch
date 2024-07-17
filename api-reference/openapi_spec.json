@@ -4887,6 +4887,21 @@
           }
         }
       },
+      "AdditionalMerchantData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_recipient_data"
+            ],
+            "properties": {
+              "open_banking_recipient_data": {
+                "$ref": "#/components/schemas/MerchantRecipientData"
+              }
+            }
+          }
+        ]
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -6991,6 +7006,11 @@
               }
             ],
             "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -7148,6 +7168,11 @@
                 "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
           }
         }
@@ -9490,11 +9515,11 @@
             "nullable": true
           },
           "search_tags": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RedirectResponse"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional tags to be used for global search",
             "nullable": true
           }
         }
@@ -9766,6 +9791,28 @@
             "enum": [
               "user_vpa_id"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "language_preference"
+            ],
+            "properties": {
+              "language_preference": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11226,6 +11273,68 @@
         },
         "additionalProperties": false
       },
+      "MerchantAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "iban"
+            ],
+            "properties": {
+              "iban": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "MerchantAccountDeleteResponse": {
         "type": "object",
         "required": [
@@ -11670,6 +11779,14 @@
               }
             ],
             "nullable": true
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11905,6 +12022,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12111,6 +12236,45 @@
         },
         "additionalProperties": false
       },
+      "MerchantRecipientData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "connector_recipient_id"
+            ],
+            "properties": {
+              "connector_recipient_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_id"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "account_data"
+            ],
+            "properties": {
+              "account_data": {
+                "$ref": "#/components/schemas/MerchantAccountData"
+              }
+            }
+          }
+        ]
+      },
       "MerchantRoutingAlgorithm": {
         "type": "object",
         "description": "Routing Algorithm specific to merchants",
@@ -12177,6 +12341,10 @@
           "date_of_birth": {
             "type": "string",
             "format": "date"
+          },
+          "language_preference": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -12545,6 +12713,33 @@
           }
         },
         "additionalProperties": false
+      },
+      "OpenBankingData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_pis"
+            ],
+            "properties": {
+              "open_banking_pis": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "OpenBankingSessionToken": {
+        "type": "object",
+        "required": [
+          "open_banking_session_token"
+        ],
+        "properties": {
+          "open_banking_session_token": {
+            "type": "string",
+            "description": "The session token for OpenBanking Connectors"
+          }
+        }
       },
       "OrderDetails": {
         "type": "object",
@@ -13569,7 +13764,8 @@
           "real_time_payment",
           "upi",
           "voucher",
-          "gift_card"
+          "gift_card",
+          "open_banking"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -13964,6 +14160,18 @@
                 "$ref": "#/components/schemas/CardToken"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            }
           }
         ]
       },
@@ -14167,6 +14375,17 @@
             ],
             "properties": {
               "card_token": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
                 "type": "object"
               }
             }
@@ -14532,7 +14751,8 @@
           "seicomart",
           "pay_easy",
           "local_bank_transfer",
-          "mifinity"
+          "mifinity",
+          "open_banking_pis"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19502,6 +19722,7 @@
           "worldline",
           "worldpay",
           "zen",
+          "plaid",
           "zsl"
         ]
       },
@@ -19996,6 +20217,27 @@
                     "type": "string",
                     "enum": [
                       "apple_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingSessionToken"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }

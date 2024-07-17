@@ -71,6 +71,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,

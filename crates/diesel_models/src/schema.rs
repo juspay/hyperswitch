@@ -204,6 +204,7 @@ diesel::table! {
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
+        outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
     }
 }
 
@@ -707,6 +708,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
+        additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
     }
 }
@@ -821,6 +823,7 @@ diesel::table! {
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
+        customer_acceptance -> Nullable<Jsonb>,
     }
 }
 

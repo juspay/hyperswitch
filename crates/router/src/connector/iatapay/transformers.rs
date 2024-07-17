@@ -204,7 +204,8 @@ impl
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("iatapay"),
                     ))?

@@ -804,8 +804,8 @@ pub async fn validate_and_create_refund(
         .set_total_amount(payment_attempt.amount)
         .set_refund_amount(refund_amount)
         .set_currency(currency)
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_modified_at(Some(common_utils::date_time::now()))
+        .set_created_at(common_utils::date_time::now())
+        .set_modified_at(common_utils::date_time::now())
         .set_refund_status(enums::RefundStatus::Pending)
         .set_metadata(req.metadata)
         .set_description(req.reason.clone())
@@ -1030,7 +1030,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
-            updated_at: Some(refund.updated_at),
+            updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
             charges: refund.charges,

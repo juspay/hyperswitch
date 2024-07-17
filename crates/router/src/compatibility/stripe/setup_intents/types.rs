@@ -418,6 +418,7 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
