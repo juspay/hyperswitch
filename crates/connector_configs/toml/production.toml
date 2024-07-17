@@ -543,13 +543,6 @@ label="Merchant Account Id"
 placeholder="Enter Merchant Account Id"
 required=true
 type="Text"
-[braintree.metadata.merchant_config_currency]
-name="merchant_config_currency"
-label="Currency"
-placeholder="Enter Currency"
-required=true
-type="Select"
-options=[]
 
 [bambora]
 [[bambora.credit]]

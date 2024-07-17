@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use api_models::{
-    admin::{self as admin_types},
+    admin::{self as admin_types, AcceptedCurrencies, PaymentMethodsEnabled},
     enums as api_enums, routing as routing_types,
 };
+use common_enums::Currency;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
@@ -1060,6 +1061,65 @@ fn validate_certificate_in_mca_metadata(
     Ok(())
 }
 
+pub fn validate_accepted_currency_specified(
+    connector_name: api_models::enums::Connector,
+    payment_methods_enabled: &Option<Vec<PaymentMethodsEnabled>>,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    if connector_name != api_models::enums::Connector::Braintree {
+        return Ok(());
+    }
+    match payment_methods_enabled {
+        Some(methods) => {
+            let mut all_currencies: Vec<Currency> = Vec::new();
+            for method in methods {
+                if let Some(payment_method_types) = &method.payment_method_types {
+                    for payment_type in payment_method_types {
+                        match &payment_type.accepted_currencies {
+                            Some(AcceptedCurrencies::EnableOnly(currencies)) => {
+                                if currencies.len() != 1 {
+                                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                            message: "Exactly one accepted currency must be specified for Braintree connector".to_string(),
+                                        }
+                                        .into());
+                                }
+                                all_currencies.extend(currencies);
+                            }
+                            Some(AcceptedCurrencies::DisableOnly(_))
+                            | Some(AcceptedCurrencies::AllAccepted) => {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                        message: "Braintree connector requires exactly one enabled currency, not disabled or all accepted".to_string(),
+                                    }
+                                    .into());
+                            }
+                            None => {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                        message: "Accepted currencies must be specified for Braintree connector".to_string(),
+                                    }
+                                    .into());
+                            }
+                        }
+                    }
+                }
+            }
+            if !all_currencies.is_empty()
+                && !all_currencies
+                    .iter()
+                    .all(|x| Some(x) == all_currencies.first())
+            {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "All payment methods must have the same accepted currency for Braintree connector".to_string(),
+                    }
+                    .into())
+            } else {
+                Ok(())
+            }
+        }
+        None => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payment methods must be specified for Braintree connector".to_string(),
+        }
+        .into()),
+    }
+}
 pub async fn create_payment_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
@@ -1162,7 +1222,7 @@ pub async fn create_payment_connector(
         ));
 
     let mut vec = Vec::new();
-    let payment_methods_enabled = match req.payment_methods_enabled {
+    let payment_methods_enabled = match req.payment_methods_enabled.clone() {
         Some(val) => {
             for pm in val.into_iter() {
                 let pm_value = pm
@@ -1213,7 +1273,7 @@ pub async fn create_payment_connector(
     .attach_printable("Failed to get MerchantRecipientData")?;
 
     validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata)?;
-
+    validate_accepted_currency_specified(req.connector_name, &req.payment_methods_enabled)?;
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     // The purpose of this merchant account update is just to update the
@@ -1528,7 +1588,7 @@ pub async fn update_payment_connector(
             id: merchant_connector_id.to_string(),
         })?;
 
-    let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
+    let payment_methods_enabled = req.payment_methods_enabled.clone().map(|pm_enabled| {
         pm_enabled
             .iter()
             .flat_map(Encode::encode_to_value)
@@ -1555,6 +1615,7 @@ pub async fn update_payment_connector(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     validate_auth_and_metadata_type(connector_enum, &auth, &metadata)?;
+    validate_accepted_currency_specified(connector_enum, &req.payment_methods_enabled)?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;

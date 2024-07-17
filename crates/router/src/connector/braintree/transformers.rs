@@ -21,7 +21,6 @@ pub struct PaymentOptions {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Option<Secret<String>>,
-    merchant_config_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -42,10 +41,6 @@ pub struct BraintreeSessionRequest {
 impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(_item.connector_meta_data.clone())?;
-
-        utils::validate_currency(_item.request.currency, metadata.merchant_config_currency)?;
         Ok(Self {
             client_token: BraintreeApiVersion {
                 version: "2".to_string(),
@@ -100,8 +95,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
         let submit_for_settlement = matches!(
             item.request.capture_method,
             Some(enums::CaptureMethod::Automatic) | None
@@ -413,11 +406,6 @@ pub struct Amount {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
-
         let refund_amount =
             utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
