@@ -6,6 +6,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
     not(feature = "merchant_account_v2")
 ))]
 use crate::schema::merchant_account;
+
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::merchant_account;
 use crate::{encryption::Encryption, enums as storage_enums};
@@ -65,8 +66,9 @@ pub struct MerchantAccount {
     serde::Serialize,
     Queryable,
     router_derive::DebugAsDisplay,
+    Selectable,
 )]
-#[diesel(table_name = merchant_account, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
     pub merchant_id: String,
     pub return_url: Option<String>,
