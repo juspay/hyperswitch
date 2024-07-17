@@ -419,7 +419,7 @@ mod storage {
     }
 }
 
-#[cfg(all(not(feature = "kv_store"), not(feature = "v2")))]
+#[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type};
     use error_stack::{report, ResultExt};
