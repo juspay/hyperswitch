@@ -1844,6 +1844,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,

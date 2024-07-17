@@ -1271,6 +1271,7 @@ default_imp_for_payouts_retrieve!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
