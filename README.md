@@ -61,17 +61,17 @@ To quickly experience the ease that Hyperswitch provides while handling the paym
 
 Congratulations🎉 on making your first payment with Hyperswitch. 
 
-<a href="#For Businesses">
-  <h2 id="For Businesses">⚡️ For Businesses</h2>
+<a href="#For Enterprise">
+  <h2 id="For Enterprise">⚡️ For Enterprises</h2>
 </a>
 
-Hyperswitch helps businesses in -  
+Hyperswitch helps Enterprises in -  
 - Improving profitability
 - Increasing conversion rates
 - Lowering payment costs
 - Streamlining payment operations 
 
-Hyperswitch has ample features **for businesses of all domains and sizes**, check out [how it can help your business][Docs-link-for-businesses]. 
+Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our Enterprise offering**][Website-link]. 
 
 <a href="#For Contributors">
   <h2 id="For Contributors">⚡️ For Contributors</h2>
@@ -80,8 +80,9 @@ Hyperswitch has ample features **for businesses of all domains and sizes**, chec
 Hyperswitch is an open source project, and aims to make digital payments accessible to people across the globe like a basic utility. With the vision for developing Hyperswitch as the **Linux of Payments**, We seek support from the developers across the globe.
 
 Utilise the following resources to quickstart your journey with Hyperswitch -
-- [Dev Documentation][Docs-link-for-developers]
-- [Learning Resources]
+- [Developer Docs][Docs-link-for-developers]
+- [Learning Resources][learning-resources]
+
 
 
 
@@ -117,9 +118,11 @@ This will start the app server, web client and control center.
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
-[Docs-link-for-businesses]: https://docs.hyperswitch.io/
+[Docs-link-for-Enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [Docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
 [Dashboard-link]: https://app.hyperswitch.io/
+[Website-link]: https://hyperswitch.io/
+[learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
 
