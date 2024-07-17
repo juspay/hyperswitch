@@ -2,6 +2,7 @@
 -- The below query will lock the merchant connector account table
 -- Running this query is not necessary on higher environments
 -- as the application will work fine without these queries being run
+-- This query should be run only after the new version of application is deployed
 ALTER TABLE merchant_connector_account DROP CONSTRAINT merchant_connector_account_pkey;
 
 -- Use the `merchant_connector_id` column as primary key
