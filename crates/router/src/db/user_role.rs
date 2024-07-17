@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Not};
+use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
@@ -222,37 +222,49 @@ impl UserRoleInterface for Store {
 
             let new_org_admin_merchant_ids = new_org_admin_user_roles
                 .iter()
-                .map(|user_role| user_role.merchant_id.to_owned())
-                .collect::<HashSet<String>>();
+                .map(|user_role| {
+                    user_role
+                        .merchant_id
+                        .to_owned()
+                        .ok_or(errors::DatabaseError::NotFound)
+                })
+                .collect::<Result<HashSet<_>, _>>()?;
 
             let now = common_utils::date_time::now();
 
-            let missing_new_user_roles =
-                old_org_admin_user_roles.into_iter().filter_map(|old_role| {
-                    new_org_admin_merchant_ids
-                        .contains(&old_role.merchant_id)
-                        .not()
-                        .then_some({
-                            storage::UserRoleNew {
-                                user_id: to_user_id.to_string(),
-                                merchant_id: old_role.merchant_id,
-                                role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-                                org_id: org_id.to_string(),
-                                status: enums::UserStatus::Active,
-                                created_by: from_user_id.to_string(),
-                                last_modified_by: from_user_id.to_string(),
-                                created_at: now,
-                                last_modified: now,
-                            }
-                        })
-                });
+            let mut missing_new_user_roles = Vec::new();
 
-            futures::future::try_join_all(missing_new_user_roles.map(|user_role| async {
-                user_role
-                    .insert(&conn)
-                    .await
-                    .map_err(|e| *e.current_context())
-            }))
+            for old_role in old_org_admin_user_roles {
+                let Some(old_role_merchant_id) = &old_role.merchant_id else {
+                    return Err(errors::DatabaseError::NotFound);
+                };
+                if !new_org_admin_merchant_ids.contains(old_role_merchant_id) {
+                    missing_new_user_roles.push(storage::UserRoleNew {
+                        user_id: to_user_id.to_string(),
+                        merchant_id: Some(old_role_merchant_id.to_string()),
+                        role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+                        org_id: Some(org_id.to_string()),
+                        status: enums::UserStatus::Active,
+                        created_by: from_user_id.to_string(),
+                        last_modified_by: from_user_id.to_string(),
+                        created_at: now,
+                        last_modified: now,
+                        profile_id: None,
+                        entity_id: None,
+                        entity_type: None,
+                        version: None,
+                    });
+                }
+            }
+
+            futures::future::try_join_all(missing_new_user_roles.into_iter().map(
+                |user_role| async {
+                    user_role
+                        .insert(&conn)
+                        .await
+                        .map_err(|e| *e.current_context())
+                },
+            ))
             .await?;
 
             Ok::<_, errors::DatabaseError>(())
@@ -292,6 +304,10 @@ impl UserRoleInterface for MockDb {
             last_modified: user_role.last_modified,
             last_modified_by: user_role.last_modified_by,
             org_id: user_role.org_id,
+            profile_id: None,
+            entiity_id: None,
+            entity_type: None,
+            version: None,
         };
         user_roles.push(user_role.clone());
         Ok(user_role)
@@ -320,16 +336,24 @@ impl UserRoleInterface for MockDb {
         merchant_id: &str,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
-        user_roles
-            .iter()
-            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == merchant_id)
-            .cloned()
-            .ok_or(
-                errors::StorageError::ValueNotFound(format!(
-                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id}"
-                ))
-                .into(),
-            )
+
+        for user_role in user_roles.iter() {
+            let Some(user_role_merchant_id) = &user_role.merchant_id else {
+                return Err(errors::StorageError::ValueNotFound(
+                    "Merchant id not found".to_string(),
+                )
+                .into());
+            };
+            if user_role.user_id == user_id && user_role_merchant_id == merchant_id {
+                return Ok(user_role.clone());
+            }
+        }
+
+        Err(errors::StorageError::ValueNotFound(format!(
+            "No user role available for user_id = {} and merchant_id = {}",
+            user_id, merchant_id
+        ))
+        .into())
     }
 
     async fn update_user_role_by_user_id_merchant_id(
@@ -339,36 +363,40 @@ impl UserRoleInterface for MockDb {
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
-        user_roles
-            .iter_mut()
-            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == merchant_id)
-            .map(|user_role| {
-                *user_role = match &update {
+
+        for user_role in user_roles.iter_mut() {
+            let Some(user_role_merchant_id) = &user_role.merchant_id else {
+                return Err(errors::StorageError::ValueNotFound(
+                    "Merchant id not found".to_string(),
+                )
+                .into());
+            };
+            if user_role.user_id == user_id && user_role_merchant_id == merchant_id {
+                match &update {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
                         modified_by,
-                    } => storage::UserRole {
-                        role_id: role_id.to_string(),
-                        last_modified_by: modified_by.to_string(),
-                        ..user_role.to_owned()
-                    },
+                    } => {
+                        user_role.role_id = role_id.to_string();
+                        user_role.last_modified_by = modified_by.to_string();
+                    }
                     storage::UserRoleUpdate::UpdateStatus {
                         status,
                         modified_by,
-                    } => storage::UserRole {
-                        status: status.to_owned(),
-                        last_modified_by: modified_by.to_owned(),
-                        ..user_role.to_owned()
-                    },
+                    } => {
+                        user_role.status = *status;
+                        user_role.last_modified_by = modified_by.to_string();
+                    }
                 };
-                user_role.to_owned()
-            })
-            .ok_or(
-                errors::StorageError::ValueNotFound(format!(
-                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id}"
-                ))
-                .into(),
-            )
+                return Ok(user_role.clone());
+            }
+        }
+
+        Err(errors::StorageError::ValueNotFound(format!(
+            "No user role available for user_id = {} and merchant_id = {}",
+            user_id, merchant_id
+        ))
+        .into())
     }
 
     async fn update_user_roles_by_user_id_org_id(
@@ -380,7 +408,13 @@ impl UserRoleInterface for MockDb {
         let mut user_roles = self.user_roles.lock().await;
         let mut updated_user_roles = Vec::new();
         for user_role in user_roles.iter_mut() {
-            if user_role.user_id == user_id && user_role.org_id == org_id {
+            let Some(user_role_org_id) = &user_role.org_id else {
+                return Err(errors::StorageError::ValueNotFound(
+                    "No user org_id is available".to_string(),
+                )
+                .into());
+            };
+            if user_role.user_id == user_id && user_role_org_id == org_id {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
@@ -440,30 +474,45 @@ impl UserRoleInterface for MockDb {
 
         let new_org_admin_merchant_ids = new_org_admin_user_roles
             .iter()
-            .map(|user_role| user_role.merchant_id.to_owned())
-            .collect::<HashSet<String>>();
+            .map(|user_role| {
+                user_role.merchant_id.to_owned().ok_or(report!(
+                    errors::StorageError::ValueNotFound(
+                        "Cannot find merchnat id for the user role".to_string(),
+                    )
+                ))
+            })
+            .collect::<Result<HashSet<_>, _>>()?;
 
         let now = common_utils::date_time::now();
+        let mut missing_new_user_roles = Vec::new();
 
-        let missing_new_user_roles = old_org_admin_user_roles
-            .into_iter()
-            .filter_map(|old_roles| {
-                if !new_org_admin_merchant_ids.contains(&old_roles.merchant_id) {
-                    Some(storage::UserRoleNew {
-                        user_id: to_user_id.to_string(),
-                        merchant_id: old_roles.merchant_id,
-                        role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-                        org_id: org_id.to_string(),
-                        status: enums::UserStatus::Active,
-                        created_by: from_user_id.to_string(),
-                        last_modified_by: from_user_id.to_string(),
-                        created_at: now,
-                        last_modified: now,
-                    })
-                } else {
-                    None
-                }
-            });
+        for old_roles in old_org_admin_user_roles {
+            let Some(merchant_id) = &old_roles.merchant_id else {
+                return Err(errors::StorageError::ValueNotFound(
+                    "Cannot find merchnat id for the user role".to_string(),
+                )
+                .into());
+            };
+            if !new_org_admin_merchant_ids.contains(merchant_id) {
+                let new_user_role = storage::UserRoleNew {
+                    user_id: to_user_id.to_string(),
+                    merchant_id: Some(merchant_id.to_string()),
+                    role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+                    org_id: Some(org_id.to_string()),
+                    status: enums::UserStatus::Active,
+                    created_by: from_user_id.to_string(),
+                    last_modified_by: from_user_id.to_string(),
+                    created_at: now,
+                    last_modified: now,
+                    profile_id: None,
+                    entity_id: None,
+                    entity_type: None,
+                    version: None,
+                };
+
+                missing_new_user_roles.push(new_user_role);
+            }
+        }
 
         for user_role in missing_new_user_roles {
             self.insert_user_role(user_role).await?;
@@ -479,11 +528,16 @@ impl UserRoleInterface for MockDb {
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
 
-        match user_roles
-            .iter()
-            .position(|role| role.user_id == user_id && role.merchant_id == merchant_id)
-        {
-            Some(index) => Ok(user_roles.remove(index)),
+        let index = user_roles.iter().position(|role| {
+            role.user_id == user_id
+                && match role.merchant_id {
+                    Some(ref mid) => mid == merchant_id,
+                    None => false,
+                }
+        });
+
+        match index {
+            Some(idx) => Ok(user_roles.remove(idx)),
             None => Err(errors::StorageError::ValueNotFound(
                 "Cannot find user role to delete".to_string(),
             )
@@ -515,16 +569,22 @@ impl UserRoleInterface for MockDb {
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
-        Ok(user_roles
+        let filtered_roles: Vec<_> = user_roles
             .iter()
-            .cloned()
-            .filter_map(|ele| {
-                if ele.merchant_id == merchant_id {
-                    return Some(ele);
+            .filter_map(|role| {
+                if let Some(role_merchant_id) = &role.merchant_id {
+                    if role_merchant_id == merchant_id {
+                        Some(role.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
                 }
-                None
             })
-            .collect())
+            .collect();
+
+        Ok(filtered_roles)
     }
 }
 

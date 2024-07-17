@@ -80,11 +80,15 @@ pub async fn signup_with_merchant_id(
         )
         .await;
 
+    let Some(merchant_id) = &user_role.merchant_id else {
+        return Err(UserErrors::InternalServerError.into());
+    };
+
     logger::info!(?send_email_result);
     Ok(ApplicationResponse::Json(user_api::AuthorizeResponse {
         is_email_sent: send_email_result.is_ok(),
         user_id: user_from_db.get_user_id().to_string(),
-        merchant_id: user_role.merchant_id,
+        merchant_id: merchant_id.to_string(),
     }))
 }
 
@@ -271,13 +275,16 @@ pub async fn connect_account(
             )
             .await;
 
+        let Some(merchant_id) = &user_role.merchant_id else {
+            return Err(UserErrors::InternalServerError.into());
+        };
         logger::info!(?send_email_result);
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
-                merchant_id: user_role.merchant_id,
+                merchant_id: merchant_id.to_string(),
             },
         ));
     } else if find_user
@@ -322,13 +329,17 @@ pub async fn connect_account(
             )
             .await;
 
+        let Some(merchant_id) = &user_role.merchant_id else {
+            return Err(UserErrors::InternalServerError.into());
+        };
+
         logger::info!(?send_email_result);
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
-                merchant_id: user_role.merchant_id,
+                merchant_id: merchant_id.to_string(),
             },
         ));
     } else {
@@ -718,9 +729,9 @@ async fn handle_existing_user_invitation(
         .store
         .insert_user_role(UserRoleNew {
             user_id: invitee_user_from_db.get_user_id().to_owned(),
-            merchant_id: user_from_token.merchant_id.clone(),
+            merchant_id: Some(user_from_token.merchant_id.clone()),
             role_id: request.role_id.clone(),
-            org_id: user_from_token.org_id.clone(),
+            org_id: Some(user_from_token.org_id.clone()),
             status: {
                 if cfg!(feature = "email") {
                     UserStatus::InvitationSent
@@ -732,6 +743,10 @@ async fn handle_existing_user_invitation(
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
+            profile_id: None,
+            entity_id: None,
+            entity_type: None,
+            version: None,
         })
         .await
         .map_err(|e| {
@@ -806,14 +821,18 @@ async fn handle_new_user_invitation(
         .store
         .insert_user_role(UserRoleNew {
             user_id: new_user.get_user_id().to_owned(),
-            merchant_id: user_from_token.merchant_id.clone(),
+            merchant_id: Some(user_from_token.merchant_id.clone()),
             role_id: request.role_id.clone(),
-            org_id: user_from_token.org_id.clone(),
+            org_id: Some(user_from_token.org_id.clone()),
             status: invitation_status,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
+            profile_id: None,
+            entity_id: None,
+            entity_type: None,
+            version: None,
         })
         .await
         .map_err(|e| {
@@ -1239,7 +1258,10 @@ pub async fn switch_merchant_id(
 
         let user_role = active_user_roles
             .iter()
-            .find(|role| role.merchant_id == request.merchant_id)
+            .find(|role| match role.merchant_id.clone() {
+                Some(mid) => mid == request.merchant_id,
+                None => false,
+            })
             .ok_or(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User doesn't have access to switch")?;
 
@@ -1308,8 +1330,12 @@ pub async fn list_merchants_for_user(
         .list_multiple_merchant_accounts(
             user_roles
                 .iter()
-                .map(|role| role.merchant_id.clone())
-                .collect(),
+                .map(|role| {
+                    role.merchant_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)
+                })
+                .collect::<Result<Vec<_>, _>>()?,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -1408,8 +1434,14 @@ pub async fn list_users_for_merchant_account(
                 roles::RoleInfo::from_role_id(
                     &state,
                     &user_role.role_id.clone(),
-                    &user_role.merchant_id,
-                    &user_role.org_id,
+                    &user_role
+                        .merchant_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)?,
+                    &user_role
+                        .org_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)?,
                 )
                 .await
                 .map(|role_info| (user, user_role, role_info))
@@ -1613,10 +1645,11 @@ pub async fn verify_token(
         .find_user_role_by_user_id(&req.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
-        .merchant_id;
+        .merchant_id
+        .ok_or(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_string(),
+        merchant_id,
         user_email: user.email,
     }))
 }

@@ -84,7 +84,8 @@ pub async fn send_recon_request(
         .find_user_role_by_user_id(&user.user_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
-        .merchant_id;
+        .merchant_id
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             merchant_id.as_str(),

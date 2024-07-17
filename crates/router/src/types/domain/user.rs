@@ -644,7 +644,7 @@ impl NewUser {
         state
             .store
             .insert_user_role(UserRoleNew {
-                merchant_id: self.get_new_merchant().get_merchant_id(),
+                merchant_id: Some(self.get_new_merchant().get_merchant_id()),
                 status: user_status,
                 created_by: user_id.clone(),
                 last_modified_by: user_id.clone(),
@@ -652,10 +652,15 @@ impl NewUser {
                 role_id,
                 created_at: now,
                 last_modified: now,
-                org_id: self
-                    .get_new_merchant()
-                    .get_new_organization()
-                    .get_organization_id(),
+                org_id: Some(
+                    self.get_new_merchant()
+                        .get_new_organization()
+                        .get_organization_id(),
+                ),
+                profile_id: None,
+                entity_id: None,
+                entity_type: None,
+                version: None, // make it Some
             })
             .await
             .change_context(UserErrors::InternalServerError)
@@ -1064,6 +1069,8 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
     }
 }
 
+// TODO: Will be removing this allow lint after v2 APIs get stable
+#[allow(clippy::large_enum_variant)]
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),
@@ -1143,8 +1150,12 @@ impl SignInWithMultipleRolesStrategy {
             .list_multiple_merchant_accounts(
                 self.user_roles
                     .iter()
-                    .map(|role| role.merchant_id.clone())
-                    .collect(),
+                    .map(|role| {
+                        role.merchant_id
+                            .clone()
+                            .ok_or(UserErrors::InternalServerError)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
             )
             .await
             .change_context(UserErrors::InternalServerError)?;
