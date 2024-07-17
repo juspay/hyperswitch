@@ -2444,10 +2444,13 @@ pub enum BankTransferData {
     },
     Pix {
         /// Unique key for pix transfer
+        #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
+        #[schema(value_type = Option<String>, example = "10599054689")]
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
+        #[schema(value_type = Option<String>, example = "74469027417312")]
         cnpj: Option<Secret<String>>,
     },
     Pse {},
