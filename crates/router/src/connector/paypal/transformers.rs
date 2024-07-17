@@ -1264,7 +1264,7 @@ impl<F, T>
                 resource_id: order_id,
                 redirection_data: None,
                 mandate_reference: Some(MandateReference {
-                    connector_mandate_id: match item.response.payment_source {
+                    connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
                                 Some(paypal_source.attributes.vault.id)
@@ -1274,7 +1274,15 @@ impl<F, T>
                         None => None,
                     },
                     payment_method_id: None,
-                    connector_customer_id: None,
+                    connector_customer_id:  match item.response.payment_source {
+                        Some(paypal_source) => match paypal_source {
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                Some(paypal_source.attributes.vault.id)
+                            }
+                            PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
+                        },
+                        None => None,
+                    },
                 }),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,

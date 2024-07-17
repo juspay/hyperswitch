@@ -1288,6 +1288,22 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             },
             Err(_) => None,
         };
+        let connector_customer_id = match router_data.response.clone() {
+            Ok(resp) => match resp {
+                types::PaymentsResponseData::TransactionResponse {
+                    ref mandate_reference,
+                    ..
+                } => {
+                    if let Some(mandate_ref) = mandate_reference {
+                        mandate_ref.connector_customer_id.clone()
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            Err(_) => None,
+        };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
                 tokenization::update_connector_mandate_details_in_payment_method(
@@ -1297,6 +1313,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
+    connector_customer_id,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 &*state.store,

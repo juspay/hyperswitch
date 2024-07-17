@@ -150,6 +150,19 @@ where
                 }
                 _ => None,
             };
+            let connector_customer_id = match responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    ref mandate_reference,
+                    ..
+                } => {
+                    if let Some(mandate_ref) = mandate_reference {
+                        mandate_ref.connector_customer_id.clone()
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
             let check_for_mit_mandates = save_payment_method_data
                 .request
                 .get_setup_mandate_details()
@@ -167,6 +180,7 @@ where
                     currency,
                     merchant_connector_id.clone(),
                     connector_mandate_id.clone(),
+                    connector_customer_id.clone(),
                 )
             } else {
                 None
@@ -290,6 +304,7 @@ where
                                                 currency,
                                                 merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
+                                                connector_customer_id.clone(),
                                             )?;
 
                                         payment_methods::cards::update_payment_method_connector_mandate_details(db, pm, connector_mandate_details, merchant_account.storage_scheme).await.change_context(
@@ -383,6 +398,7 @@ where
                                                     currency,
                                                     merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
+                                                    connector_customer_id.clone(),
                                                 )?;
 
                                             payment_methods::cards::update_payment_method_connector_mandate_details(db, pm.clone(), connector_mandate_details, merchant_account.storage_scheme).await.change_context(
@@ -897,6 +913,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<String>,
     connector_mandate_id: Option<String>,
+    connector_customer_id: Option<String>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
@@ -910,6 +927,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 payment_method_type,
                 original_payment_authorized_amount: authorized_amount,
                 original_payment_authorized_currency: authorized_currency,
+                connector_customer_id,
             },
         );
         Some(storage::PaymentsMandateReference(mandate_details))
@@ -925,6 +943,7 @@ pub fn update_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<String>,
     connector_mandate_id: Option<String>,
+    connector_customer_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match payment_method.connector_mandate_details {
         Some(_) => {
@@ -945,6 +964,7 @@ pub fn update_connector_mandate_details_in_payment_method(
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
                     original_payment_authorized_currency: authorized_currency,
+                    connector_customer_id:connector_customer_id.clone(),
                 };
                 mandate_details.map(|mut payment_mandate_reference| {
                     payment_mandate_reference
@@ -955,6 +975,7 @@ pub fn update_connector_mandate_details_in_payment_method(
                             payment_method_type,
                             original_payment_authorized_amount: authorized_amount,
                             original_payment_authorized_currency: authorized_currency,
+                            connector_customer_id,
                         });
                     payment_mandate_reference
                 })
@@ -968,6 +989,7 @@ pub fn update_connector_mandate_details_in_payment_method(
             authorized_currency,
             merchant_connector_id,
             connector_mandate_id,
+            connector_customer_id,
         ),
     };
     let connector_mandate_details = mandate_reference
