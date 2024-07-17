@@ -189,8 +189,8 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .map(|connector| {
                 api_models::routing::RoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
+                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
-
                         merchant_connector_id: None,
                     },
                 ))

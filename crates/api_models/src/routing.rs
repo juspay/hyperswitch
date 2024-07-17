@@ -151,10 +151,29 @@ pub struct ConnectorVolumeSplit {
 }
 
 /// Routable Connector chosen for a payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(from = "RoutableChoiceSerde", into = "RoutableChoiceSerde")]
 pub struct RoutableConnectorChoice {
+    #[serde(skip)]
+    pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
     pub merchant_connector_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum RoutableChoiceKind {
+    OnlyConnector,
+    FullStruct,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum RoutableChoiceSerde {
+    OnlyConnector(Box<RoutableConnectors>),
+    FullStruct {
+        connector: RoutableConnectors,
+        merchant_connector_id: Option<String>,
+    },
 }
 
 impl std::fmt::Display for RoutableConnectorChoice {
@@ -169,6 +188,48 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     fn from(value: RoutableConnectorChoice) -> Self {
         Self {
             connector: value.connector,
+        }
+    }
+}
+
+impl PartialEq for RoutableConnectorChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.connector.eq(&other.connector)
+            && self.merchant_connector_id.eq(&other.merchant_connector_id)
+    }
+}
+
+impl Eq for RoutableConnectorChoice {}
+
+impl From<RoutableChoiceSerde> for RoutableConnectorChoice {
+    fn from(value: RoutableChoiceSerde) -> Self {
+        match value {
+            RoutableChoiceSerde::OnlyConnector(connector) => Self {
+                choice_kind: RoutableChoiceKind::OnlyConnector,
+                connector: *connector,
+                merchant_connector_id: None,
+            },
+
+            RoutableChoiceSerde::FullStruct {
+                connector,
+                merchant_connector_id,
+            } => Self {
+                choice_kind: RoutableChoiceKind::FullStruct,
+                connector,
+                merchant_connector_id,
+            },
+        }
+    }
+}
+
+impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
+    fn from(value: RoutableConnectorChoice) -> Self {
+        match value.choice_kind {
+            RoutableChoiceKind::OnlyConnector => Self::OnlyConnector(Box::new(value.connector)),
+            RoutableChoiceKind::FullStruct => Self::FullStruct {
+                connector: value.connector,
+                merchant_connector_id: value.merchant_connector_id,
+            },
         }
     }
 }

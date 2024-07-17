@@ -161,13 +161,16 @@ pub struct Program<O> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoutableConnectorChoice {
+    #[serde(skip)]
+    pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
     pub merchant_connector_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
+    #[default]
     FullStruct,
 }
 

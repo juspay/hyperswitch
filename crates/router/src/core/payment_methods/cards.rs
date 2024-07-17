@@ -2575,6 +2575,7 @@ pub async fn list_payment_methods(
             let mut routable_choice_list = vec![];
             for choice in routing_choice {
                 let routable_choice = routing_types::RoutableConnectorChoice {
+                    choice_kind: routing_types::RoutableChoiceKind::FullStruct,
                     connector: choice
                         .connector
                         .connector_name
