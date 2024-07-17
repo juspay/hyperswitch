@@ -804,8 +804,8 @@ pub async fn validate_and_create_refund(
         .set_total_amount(payment_attempt.amount)
         .set_refund_amount(refund_amount)
         .set_currency(currency)
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_modified_at(Some(common_utils::date_time::now()))
+        .set_created_at(common_utils::date_time::now())
+        .set_modified_at(common_utils::date_time::now())
         .set_refund_status(enums::RefundStatus::Pending)
         .set_metadata(req.metadata)
         .set_description(req.reason.clone())
@@ -836,13 +836,7 @@ pub async fn validate_and_create_refund(
         }
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
-                db.find_refund_by_merchant_id_refund_id(
-                    merchant_account.merchant_id.as_str(),
-                    refund_id.as_str(),
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?
+                Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
                     .change_context(errors::ApiErrorResponse::RefundNotFound)
@@ -1036,7 +1030,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
-            updated_at: Some(refund.updated_at),
+            updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
             charges: refund.charges,
@@ -1452,7 +1446,7 @@ pub async fn get_refund_sync_process_schedule_time(
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(err) => {
-            logger::error!("Error: while getting connector mapping: {}", err);
+            logger::error!("Error: while getting connector mapping: {err:?}");
             process_data::ConnectorPTMapping::default()
         }
     };

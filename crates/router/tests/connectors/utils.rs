@@ -560,6 +560,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1000,7 +1001,6 @@ impl Default for PaymentSyncType {
             payment_experience: None,
             amount: MinorUnit::new(100),
             integrity_object: None,
-            captured_amount: None,
         };
         Self(data)
     }
@@ -1070,6 +1070,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Err(_) => None,
     }
 }

@@ -1,5 +1,7 @@
+use common_utils::types::MinorUnit;
 use error_stack::Report;
 use masking::Secret;
+use serde::Serialize;
 
 #[cfg(feature = "payouts")]
 pub mod payouts;
@@ -25,5 +27,21 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenplatformAuthType {
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct AdyenPlatformRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(MinorUnit, T)> for AdyenPlatformRouterData<T> {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
     }
 }

@@ -1,13 +1,14 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -18,7 +19,7 @@ use crate::connector::utils::PayoutsData;
 use crate::{
     capture_method_not_supported,
     configs::settings,
-    connector::utils::PaymentMethodDataType,
+    connector::utils::{convert_amount, PaymentMethodDataType},
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -39,8 +40,18 @@ use crate::{
 
 const ADYEN_API_VERSION: &str = "v68";
 
-#[derive(Debug, Clone)]
-pub struct Adyen;
+#[derive(Clone)]
+pub struct Adyen {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Adyen {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl ConnectorCommon for Adyen {
     fn id(&self) -> &'static str {
@@ -223,7 +234,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::UpiIntent
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
-                | PaymentMethodType::LocalBankRedirect => {
+                | PaymentMethodType::LocalBankRedirect
+                | PaymentMethodType::OpenBankingPIS => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -377,12 +389,14 @@ impl
             req,
             types::PaymentsAuthorizeData::foreign_from(req),
         ));
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+
+        let amount = convert_amount(
+            self.amount_converter,
+            authorize_req.request.minor_amount,
             authorize_req.request.currency,
-            authorize_req.request.amount,
-            &authorize_req,
-        ))?;
+        )?;
+
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, &authorize_req))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -511,12 +525,13 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount_to_capture, req))?;
         let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -795,12 +810,12 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -961,12 +976,14 @@ impl
                 field_name: "currency",
             })?,
         };
-        let amount = match data.request.amount {
+        let amount = match data.request.minor_amount {
             Some(amount) => amount,
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "amount",
             })?,
         };
+
+        let amount = convert_amount(self.amount_converter, amount, currency)?;
 
         if response.balance.currency != currency || response.balance.value < amount {
             Ok(types::RouterData {
@@ -1266,12 +1283,12 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         req: &types::PayoutsRouterData<api::PoCreate>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutCreateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1372,12 +1389,13 @@ impl
         req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1506,12 +1524,13 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1618,12 +1637,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = adyen::AdyenRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((refund_amount, req))?;
         let connector_req = adyen::AdyenRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1754,15 +1773,16 @@ impl api::IncomingWebhook for Adyen {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1774,7 +1794,7 @@ impl api::IncomingWebhook for Adyen {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

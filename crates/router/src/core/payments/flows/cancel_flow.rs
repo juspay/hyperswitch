@@ -24,6 +24,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Void,
@@ -36,8 +37,20 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 

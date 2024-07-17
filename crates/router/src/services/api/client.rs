@@ -110,10 +110,11 @@ pub fn create_client(
     }
 }
 
-pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
+pub fn proxy_bypass_urls(locker: &Locker, config_whitelist: &[String]) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
-    vec![
+
+    let proxy_list = [
         format!("{locker_host}/cards/add"),
         format!("{locker_host}/cards/fingerprint"),
         format!("{locker_host}/cards/retrieve"),
@@ -125,7 +126,9 @@ pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
-    ]
+    ];
+
+    [&proxy_list, config_whitelist].concat().to_vec()
 }
 
 pub trait RequestBuilder: Send + Sync {

@@ -270,6 +270,8 @@ pub enum ApiErrorResponse {
     GenericDuplicateError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_39", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
     IncorrectPaymentMethodConfiguration,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_40", message = "{message}")]
+    LinkConfigurationError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -282,7 +284,6 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
-
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}", ignore = "status_code")]
     IntegrityCheckFailed {
         reason: String,
@@ -618,6 +619,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::IncorrectPaymentMethodConfiguration => {
                 AER::BadRequest(ApiError::new("IR", 39, "No eligible connector was found for the current payment method configuration", None))
             }
+            Self::LinkConfigurationError { message } => {
+                AER::BadRequest(ApiError::new("IR", 40, message, None))
+            },
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }
