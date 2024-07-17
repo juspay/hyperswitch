@@ -1,4 +1,4 @@
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 use test_utils::connector_auth;
 
