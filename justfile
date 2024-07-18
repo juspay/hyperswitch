@@ -30,7 +30,10 @@ clippy *FLAGS:
             | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+
+    set -x
     cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
 
 alias cl := clippy
 
