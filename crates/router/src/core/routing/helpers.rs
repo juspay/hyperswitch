@@ -251,14 +251,11 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let merchant_id = current_business_profile.merchant_id.clone();
 
-    #[cfg(feature = "business_profile_routing")]
     let profile_id = current_business_profile.profile_id.clone();
-    #[cfg(feature = "business_profile_routing")]
+
     let routing_cache_key =
         cache::CacheKind::Routing(format!("routing_config_{merchant_id}_{profile_id}").into());
 
-    #[cfg(not(feature = "business_profile_routing"))]
-    let routing_cache_key = cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(ref_val), None),
         #[cfg(feature = "payouts")]
@@ -324,7 +321,6 @@ pub async fn validate_connectors_in_routing_config(
             id: merchant_id.to_string(),
         })?;
 
-    #[cfg(feature = "connector_choice_mca_id")]
     let name_mca_id_set = all_mcas
         .iter()
         .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
@@ -337,7 +333,6 @@ pub async fn validate_connectors_in_routing_config(
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
-    #[cfg(feature = "connector_choice_mca_id")]
     let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
@@ -361,21 +356,6 @@ pub async fn validate_connectors_in_routing_config(
                 }
             );
         }
-
-        Ok(())
-    };
-
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
-        error_stack::ensure!(
-            name_set.contains(&choice.connector.to_string()),
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "connector with name '{}' not found for the given profile",
-                    choice.connector,
-                )
-            }
-        );
 
         Ok(())
     };

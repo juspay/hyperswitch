@@ -48,8 +48,6 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
-#[cfg(not(feature = "connector_choice_mca_id"))]
-use crate::core::utils::get_connector_label;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
@@ -2453,6 +2451,10 @@ pub async fn list_payment_methods(
             .await?;
         }
     }
+    logger::info!(
+        "The Payment Methods available after Constraint Graph filtering are {:?}",
+        response
+    );
 
     // Filter out wallet payment method from mca if customer has already saved it
     customer
@@ -2604,7 +2606,6 @@ pub async fn list_payment_methods(
             let mut routable_choice_list = vec![];
             for choice in routing_choice {
                 let routable_choice = routing_types::RoutableConnectorChoice {
-                    #[cfg(feature = "backwards_compatibility")]
                     choice_kind: routing_types::RoutableChoiceKind::FullStruct,
                     connector: choice
                         .connector
@@ -2612,10 +2613,7 @@ pub async fn list_payment_methods(
                         .to_string()
                         .parse::<api_enums::RoutableConnectors>()
                         .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     merchant_connector_id: choice.connector.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    sub_label: choice.sub_label,
                 };
                 routable_choice_list.push(routable_choice);
             }
@@ -2646,22 +2644,6 @@ pub async fn list_payment_methods(
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let connector_label = get_connector_label(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                first_routable_connector.sub_label.as_ref(),
-                #[cfg(feature = "connector_choice_mca_id")]
-                None,
-                first_routable_connector.connector.to_string().as_str(),
-            );
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let matched_mca = filtered_mcas
-                .iter()
-                .find(|m| connector_label == m.connector_label);
-
-            #[cfg(feature = "connector_choice_mca_id")]
             let matched_mca = filtered_mcas.iter().find(|m| {
                 first_routable_connector.merchant_connector_id.as_ref()
                     == Some(&m.merchant_connector_id)
@@ -3466,11 +3448,7 @@ pub async fn filter_payment_methods(
                         connector_variant.to_string().as_str(),
                     ) {
                         context_values.push(dir::DirValue::Connector(Box::new(
-                            api_models::routing::ast::ConnectorChoice {
-                                connector,
-                                #[cfg(not(feature = "connector_choice_mca_id"))]
-                                sub_label: None,
-                            },
+                            api_models::routing::ast::ConnectorChoice { connector },
                         )));
                     };
 
@@ -3537,6 +3515,7 @@ pub async fn filter_payment_methods(
                         .unwrap_or(true);
 
                     let context = AnalysisContext::from_dir_values(context_values.clone());
+                    logger::info!("Context created for List Payment method is {:?}", context);
 
                     let domain_ident: &[String] = &[mca_id.clone()];
                     let result = graph.key_value_analysis(
@@ -3546,7 +3525,13 @@ pub async fn filter_payment_methods(
                         &mut cgraph::CycleCheck::new(),
                         Some(domain_ident),
                     );
-                    if filter_pm_based_on_allowed_types
+                    if let Err(ref e) = result {
+                        logger::error!(
+                            "Error while performing Constraint graph's key value analysis
+                            for list payment methods {:?}",
+                            e
+                        );
+                    } else if filter_pm_based_on_allowed_types
                         && filter_pm_card_network_based
                         && saved_payment_methods_filter
                         && matches!(result, Ok(()))
