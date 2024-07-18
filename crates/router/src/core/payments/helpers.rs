@@ -4220,7 +4220,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
+#[cfg(feature = "retry")]
 pub async fn get_apple_pay_retryable_connectors<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
