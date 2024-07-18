@@ -72,24 +72,26 @@ pub async fn create_customer(
         .await
 }
 
+#[async_trait::async_trait]
 trait CustomerCreateBridge {
-    async fn create_domain_model_from_request(
-        self,
-        db: &dyn StorageInterface,
-        key: &domain::MerchantKeyStore,
-        merchant_reference_id: &Option<id_type::CustomerId>,
-        merchant_account: &domain::MerchantAccount,
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
+#[async_trait::async_trait]
 #[cfg(not(feature = "v2"))]
 impl CustomerCreateBridge for customers::CustomerRequest {
-    async fn create_domain_model_from_request(
-        self,
-        db: &dyn StorageInterface,
-        key_store: &domain::MerchantKeyStore,
-        merchant_reference_id: &Option<id_type::CustomerId>,
-        merchant_account: &domain::MerchantAccount,
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         // Setting default billing address to Db
         let address = self.get_address();
@@ -115,24 +117,27 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                 merchant_id: merchant_id.to_string(),
                 name: self
                     .name
+                    .clone()
                     .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 email: self
                     .email
+                    .clone()
                     .async_lift(|inner| {
                         types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                     })
                     .await?,
                 phone: self
                     .phone
+                    .clone()
                     .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
-                description: self.description,
-                phone_country_code: self.phone_country_code,
-                metadata: self.metadata,
+                description: self.description.clone(),
+                phone_country_code: self.phone_country_code.clone(),
+                metadata: self.metadata.clone(),
                 id: None,
                 connector_customer: None,
-                address_id: address_from_db.clone().map(|addr| addr.address_id),
+                address_id: address_from_db.map(|addr| addr.address_id),
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 default_payment_method_id: None,
@@ -160,14 +165,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
 impl CustomerCreateBridge for customers::CustomerRequest {
-    async fn create_domain_model_from_request(
-        self,
-        db: &dyn StorageInterface,
-        key_store: &domain::MerchantKeyStore,
-        merchant_reference_id: &Option<id_type::CustomerId>,
-        merchant_account: &domain::MerchantAccount,
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let _default_customer_billing_address = self.get_default_customer_billing_address();
         let _default_customer_shipping_address = self.get_default_customer_shipping_address();
@@ -184,15 +190,16 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             Ok(customer_domain::Customer {
                 customer_id: merchant_reference_id.to_owned().unwrap_or_default(),
                 merchant_id: merchant_id.to_string(),
-                name: Some(types::encrypt(self.name, key).await?),
-                email: Some(types::encrypt(self.email.expose(), key).await?),
+                name: Some(types::encrypt(self.name.clone(), key).await?),
+                email: Some(types::encrypt(self.email.clone().expose(), key).await?),
                 phone: self
                     .phone
+                    .clone()
                     .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
-                description: self.description,
-                phone_country_code: self.phone_country_code,
-                metadata: self.metadata,
+                description: self.description.clone(),
+                phone_country_code: self.phone_country_code.clone(),
+                metadata: self.metadata.clone(),
                 id: None,
                 connector_customer: None,
                 address_id: None,
