@@ -84,10 +84,7 @@ trait CustomerCreateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
@@ -169,7 +166,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(any(feature = "oltp", all(feature = "v2", feature = "customer_v2")))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
