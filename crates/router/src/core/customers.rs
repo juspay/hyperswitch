@@ -1,4 +1,4 @@
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
     ext_traits::OptionExt,
@@ -24,7 +24,7 @@ use crate::{
         transformers::ForeignFrom,
     },
 };
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::payment_methods::cards,
     routes::metrics,
@@ -84,7 +84,7 @@ trait CustomerCreateBridge {
 }
 
 #[async_trait::async_trait]
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
@@ -166,7 +166,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 }
 
 #[async_trait::async_trait]
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", features = "customer_v2"))]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
@@ -228,7 +228,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
@@ -238,7 +238,7 @@ struct AddressStructForDbEntry<'a> {
     key_store: &'a domain::MerchantKeyStore,
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<'a> AddressStructForDbEntry<'a> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
@@ -251,7 +251,8 @@ impl<'a> AddressStructForDbEntry<'a> {
                     .get_domain_address(
                         addr.clone(),
                         self.merchant_id,
-                        self.customer_id.unwrap(),
+                        self.customer_id
+                            .ok_or(errors::CustomersErrorResponse::InternalServerError), // should we raise error since in v1 appilcation is supposed to have this id or generate it at this point.
                         self.key_store.key.get_inner().peek(),
                         self.storage_scheme,
                     )
@@ -323,7 +324,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -354,7 +355,7 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -376,7 +377,7 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -532,7 +533,7 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn update_customer(
     state: SessionState,

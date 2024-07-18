@@ -647,7 +647,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 
 #[async_trait::async_trait]
 pub trait CustomerAddress {
-    #[cfg(not(feature = "v2"))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn get_address_update(
         &self,
         address_details: payments::AddressDetails,
@@ -667,7 +667,7 @@ pub trait CustomerAddress {
 
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
-    #[cfg(not(feature = "v2"))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn get_address_update(
         &self,
         address_details: payments::AddressDetails,

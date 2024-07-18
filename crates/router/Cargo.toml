@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "v1"]
 tls = ["actix-web/rustls-0_22"]
 keymanager_mtls = ["reqwest/rustls-tls","common_utils/keymanager_mtls"]
 email = ["external_services/email", "scheduler/email", "olap"]
@@ -29,7 +29,9 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_mod
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = ["api_models/v2"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
+customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2"]
 
 [dependencies]
 actix-cors = "0.6.5"

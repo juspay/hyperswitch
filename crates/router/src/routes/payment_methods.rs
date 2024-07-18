@@ -1,4 +1,4 @@
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type};
@@ -22,7 +22,7 @@ use crate::{
     },
     utils::Encode,
 };
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::{customers, payment_methods::migration},
     types::api::customers::CustomerRequest,
@@ -108,7 +108,7 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,

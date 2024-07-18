@@ -4,7 +4,7 @@ pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequ
 use hyperswitch_domain_models::customer;
 use serde::Serialize;
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::payments;
 use crate::{
     newtype,
@@ -22,7 +22,7 @@ impl common_utils::events::ApiEventMetric for CustomerResponse {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResponse {
     fn foreign_from((cust, address): (domain::Customer, Option<payments::AddressDetails>)) -> Self {
         customers::CustomerResponse {

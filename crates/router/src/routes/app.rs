@@ -26,7 +26,7 @@ use super::dummy_connector::*;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(all(feature = "oltp", not(feature = "v2")))]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll::retrieve_poll_status;
@@ -800,7 +800,7 @@ impl Customers {
     }
 }
 
-#[cfg(all(not(feature = "v2"), any(feature = "olap", feature = "oltp")))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
@@ -912,7 +912,7 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(all(not(feature = "v2"), any(feature = "olap", feature = "oltp")))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));

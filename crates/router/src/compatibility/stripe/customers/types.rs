@@ -1,7 +1,7 @@
 use std::{convert::From, default::Default};
 
 use api_models::{payment_methods as api_types, payments};
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
     id_type,
@@ -9,7 +9,7 @@ use common_utils::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::logger;
 use crate::types::{api, api::enums as api_enums};
 
@@ -117,7 +117,7 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
@@ -133,7 +133,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CustomerUpdateRequest> for api::CustomerRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
@@ -148,7 +148,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerResponse> for CreateCustomerResponse {
     fn from(cust: api::CustomerResponse) -> Self {
         let cust = cust.into_inner();
