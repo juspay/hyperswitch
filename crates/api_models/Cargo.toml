@@ -20,6 +20,8 @@ recon = []
 v2 = []
 v1 = []
 customer_v2 = []
+merchant_account_v2 = []
+payment_v2 = []
 
 [dependencies]
 actix-web = { version = "4.5.1", optional = true }

@@ -15,6 +15,8 @@ frm = ["api_models/frm"]
 v2 = ["api_models/v2", "diesel_models/v2"]
 v1 = ["api_models/v1", "diesel_models/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2"]
+merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2"]
+payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2"]
 
 [dependencies]
 # First party deps

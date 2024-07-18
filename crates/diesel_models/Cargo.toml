@@ -13,6 +13,8 @@ kv_store = []
 v1 = []
 v2 = []
 customer_v2 = []
+merchant_account_v2 = []
+payment_v2 = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }

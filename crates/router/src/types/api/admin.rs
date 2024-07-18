@@ -18,7 +18,10 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -59,7 +62,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -146,6 +149,7 @@ pub async fn business_profile_response(
     })
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn create_business_profile(
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,

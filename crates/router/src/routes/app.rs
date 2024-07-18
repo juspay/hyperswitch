@@ -1022,7 +1022,7 @@ impl Blocklist {
 
 pub struct MerchantAccount;
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/accounts")
@@ -1031,7 +1031,11 @@ impl MerchantAccount {
     }
 }
 
-#[cfg(all(feature = "olap", not(feature = "v2")))]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")

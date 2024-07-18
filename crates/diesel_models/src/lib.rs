@@ -42,8 +42,12 @@ pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+
 #[allow(unused_qualifications)]
 pub mod schema;
+#[allow(unused_qualifications)]
+pub mod schema_v2;
+
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
