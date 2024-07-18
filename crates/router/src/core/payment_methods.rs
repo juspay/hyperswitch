@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 pub mod cards;
 pub mod migration;
 pub mod surcharge_decision_configs;
@@ -13,7 +14,10 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    api::{GenericLinks, GenericLinksData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -27,7 +31,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
@@ -246,7 +250,10 @@ pub async fn render_pm_collect_link(
                     theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::ExpiredLink(expired_link_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+                        data: GenericLinksData::ExpiredLink(expired_link_data),
+                    },
                 )))
 
             // else, send back form link
@@ -304,7 +311,11 @@ pub async fn render_pm_collect_link(
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+
+                        data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                    },
                 )))
             }
         }
@@ -345,7 +356,11 @@ pub async fn render_pm_collect_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PaymentMethodCollectStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: HashSet::from([]),
+
+                    data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                },
             )))
         }
     }

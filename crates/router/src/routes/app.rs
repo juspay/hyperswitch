@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-#[cfg(all(feature = "business_profile_routing", feature = "olap"))]
+#[cfg(feature = "olap")]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
@@ -569,22 +569,19 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
-            .service(web::resource("/active").route(web::get().to(
-                |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+            .service(
+                web::resource("/active").route(web::get().to(|state, req, query_params| {
                     cloud_routing::routing_retrieve_linked_config(
                         state,
                         req,
-                        #[cfg(feature = "business_profile_routing")]
                         query_params,
-                        #[cfg(feature = "business_profile_routing")]
                         &TransactionType::Payment,
                     )
-                },
-            )))
+                })),
+            )
             .service(
                 web::resource("")
                     .route(
-                        #[cfg(feature = "business_profile_routing")]
                         web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
                             cloud_routing::list_routing_configs(
                                 state,
@@ -593,8 +590,6 @@ impl Routing {
                                 &TransactionType::Payment,
                             )
                         }),
-                        #[cfg(not(feature = "business_profile_routing"))]
-                        web::get().to(cloud_routing::list_routing_configs),
                     )
                     .route(web::post().to(|state, req, payload| {
                         cloud_routing::routing_create_config(
@@ -623,17 +618,16 @@ impl Routing {
                         )
                     })),
             )
-            .service(web::resource("/deactivate").route(web::post().to(
-                |state, req, #[cfg(feature = "business_profile_routing")] payload| {
+            .service(
+                web::resource("/deactivate").route(web::post().to(|state, req, payload| {
                     cloud_routing::routing_unlink_config(
                         state,
                         req,
-                        #[cfg(feature = "business_profile_routing")]
                         payload,
                         &TransactionType::Payment,
                     )
-                },
-            )))
+                })),
+            )
             .service(
                 web::resource("/decision")
                     .route(web::put().to(cloud_routing::upsert_decision_manager_config))
@@ -676,21 +670,16 @@ impl Routing {
             route = route
                 .service(
                     web::resource("/payouts")
-                        .route(
-                            #[cfg(feature = "business_profile_routing")]
-                            web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
+                        .route(web::get().to(
+                            |state, req, path: web::Query<RoutingRetrieveQuery>| {
                                 cloud_routing::list_routing_configs(
                                     state,
                                     req,
-                                    #[cfg(feature = "business_profile_routing")]
                                     path,
-                                    #[cfg(feature = "business_profile_routing")]
                                     &TransactionType::Payout,
                                 )
-                            }),
-                            #[cfg(not(feature = "business_profile_routing"))]
-                            web::get().to(cloud_routing::list_routing_configs),
-                        )
+                            },
+                        ))
                         .route(web::post().to(|state, req, payload| {
                             cloud_routing::routing_create_config(
                                 state,
@@ -701,13 +690,11 @@ impl Routing {
                         })),
                 )
                 .service(web::resource("/payouts/active").route(web::get().to(
-                    |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+                    |state, req, query_params| {
                         cloud_routing::routing_retrieve_linked_config(
                             state,
                             req,
-                            #[cfg(feature = "business_profile_routing")]
                             query_params,
-                            #[cfg(feature = "business_profile_routing")]
                             &TransactionType::Payout,
                         )
                     },
@@ -743,11 +730,10 @@ impl Routing {
                     )),
                 )
                 .service(web::resource("/payouts/deactivate").route(web::post().to(
-                    |state, req, #[cfg(feature = "business_profile_routing")] payload| {
+                    |state, req, payload| {
                         cloud_routing::routing_unlink_config(
                             state,
                             req,
-                            #[cfg(feature = "business_profile_routing")]
                             payload,
                             &TransactionType::Payout,
                         )

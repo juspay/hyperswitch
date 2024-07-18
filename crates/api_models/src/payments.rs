@@ -9,11 +9,12 @@ use common_utils::{
     consts::default_payments_list_limit,
     crypto,
     ext_traits::{ConfigExt, Encode},
+    hashing::HashedString,
     id_type,
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -744,6 +745,7 @@ pub struct HeaderPayload {
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<api_enums::BrowserName>,
     pub x_client_platform: Option<api_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
 }
 
 impl HeaderPayload {
@@ -4987,11 +4989,12 @@ pub struct PaymentsStartRequest {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
     // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
-    #[schema(value_type = Option<RedirectResponse>)]
-    pub search_tags: Option<Vec<Secret<String>>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
