@@ -252,7 +252,7 @@ impl<'a> AddressStructForDbEntry<'a> {
                         addr.clone(),
                         self.merchant_id,
                         self.customer_id
-                            .ok_or(errors::CustomersErrorResponse::InternalServerError), // should we raise error since in v1 appilcation is supposed to have this id or generate it at this point.
+                            .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // should we raise error since in v1 appilcation is supposed to have this id or generate it at this point.
                         self.key_store.key.get_inner().peek(),
                         self.storage_scheme,
                     )
