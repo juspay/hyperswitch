@@ -72,12 +72,6 @@ euclid-wasm features='dummy_connector':
 # Run pre-commit checks
 precommit: fmt clippy
 
-hack_flags := '--workspace --each-feature --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
-
-# Check compilation of each cargo feature
-hack:
-    cargo hack check {{ hack_flags }}
-
 # Check compilation of v2 feature on base dependencies
 v2_intermediate_features := "merchant_account_v2,payment_v2"
 hack_v2:
