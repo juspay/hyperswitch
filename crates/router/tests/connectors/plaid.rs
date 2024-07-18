@@ -14,7 +14,7 @@ impl Connector for PlaidTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Plaid;
         utils::construct_connector_data_old(
-            Box::new(&Plaid),
+            Box::new(Plaid::new()),
             types::Connector::Plaid,
             api::GetToken::Connector,
             None,

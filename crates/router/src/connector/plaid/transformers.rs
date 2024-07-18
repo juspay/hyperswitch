@@ -1,35 +1,26 @@
 use common_enums::Currency;
+use common_utils::types::FloatMajorUnit;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
     core::errors,
     types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
 pub struct PlaidRouterData<T> {
-    pub amount: Option<f64>, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(Option<i64>, Option<Currency>, T)> for PlaidRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, currency, item): (Option<i64>, Option<Currency>, T),
-    ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        let amount = if let (Some(amount), Some(currency)) = (amount, currency) {
-            Some(utils::to_currency_base_unit_asf64(amount, currency)?)
-        } else {
-            None
-        };
-        Ok(Self {
+impl<T> From<(FloatMajorUnit, T)> for PlaidRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -47,7 +38,7 @@ pub struct PlaidPaymentsRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PlaidAmount {
     currency: Currency,
-    value: f64,
+    value: FloatMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -102,11 +93,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
                 domain::OpenBankingData::OpenBankingPIS { .. } => {
-                    let amount =
-                        item.amount
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "amount",
-                            })?;
+                    let amount = item.amount;
                     let currency = item.router_data.request.currency;
                     // This reference is supposed to be under 18 chars in length, so unable to use payment_id
                     let reference = "SomeRef".to_string();
@@ -150,12 +137,10 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
     }
 }
 
-impl TryFrom<&PlaidRouterData<&types::PaymentsSyncRouterData>> for PlaidSyncRequest {
+impl TryFrom<&types::PaymentsSyncRouterData> for PlaidSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PlaidRouterData<&types::PaymentsSyncRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.connector_transaction_id {
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        match item.request.connector_transaction_id {
             types::ResponseId::ConnectorTransactionId(ref id) => Ok(Self {
                 payment_id: id.clone(),
             }),
@@ -166,12 +151,10 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsSyncRouterData>> for PlaidSyncRequ
     }
 }
 
-impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for PlaidLinkTokenRequest {
+impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PlaidRouterData<&types::PaymentsPostProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
+    fn try_from(item: &types::PaymentsPostProcessingRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
                 domain::OpenBankingData::OpenBankingPIS { .. } => Ok(Self {
                     // discuss this with folks
@@ -181,7 +164,6 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for Pla
                     products: vec!["payment_initiation".to_string()],
                     user: User {
                         client_user_id: item
-                            .router_data
                             .request
                             .customer_id
                             .clone()
@@ -189,14 +171,11 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsPostProcessingRouterData>> for Pla
                             .unwrap_or("default cust".to_string()),
                     },
                     payment_initiation: PlaidPaymentInitiation {
-                        payment_id: item
-                            .router_data
-                            .request
-                            .connector_transaction_id
-                            .clone()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                        payment_id: item.request.connector_transaction_id.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
                                 field_name: "connector_transaction_id",
-                            })?,
+                            },
+                        )?,
                     },
                 }),
             },
@@ -388,18 +367,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct PlaidRefundRequest {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&PlaidRouterData<&types::RefundsRouterData<F>>> for PlaidRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PlaidRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?,
+            amount: item.amount,
         })
     }
 }

@@ -61,6 +61,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
+    pub plaid: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
@@ -80,7 +81,6 @@ pub struct Connectors {
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
-    pub plaid: ConnectorParams,
 }
 
 /// struct ConnectorParams
