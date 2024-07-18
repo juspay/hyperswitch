@@ -147,7 +147,7 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: just ci
+        run: just ci_hack
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -270,7 +270,7 @@ jobs:
 
       - name: Run cargo check
         shell: bash
-        run: just ci
+        run: just ci_hack
 
   typos:
     name: Spell check
