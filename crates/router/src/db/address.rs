@@ -116,7 +116,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            &state.into(),
+                            state,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone(),
                         )
@@ -147,11 +147,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|address| async {
                 address
-                    .convert(
-                        &state.into(),
-                        key_store.key.get_inner(),
-                        merchant_id.to_string(),
-                    )
+                    .convert(state, key_store.key.get_inner(), merchant_id.to_string())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -173,7 +169,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            &state.into(),
+                            state,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone(),
                         )
@@ -204,7 +200,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            &state.into(),
+                            state,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone(),
                         )
@@ -234,7 +230,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            &state.into(),
+                            state,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone(),
                         )
@@ -262,7 +258,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            &state.into(),
+                            state,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone(),
                         )
@@ -295,11 +291,7 @@ mod storage {
                 for address in addresses.into_iter() {
                     output.push(
                         address
-                            .convert(
-                                &state.into(),
-                                key_store.key.get_inner(),
-                                merchant_id.to_string(),
-                            )
+                            .convert(state, key_store.key.get_inner(), merchant_id.to_string())
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )
