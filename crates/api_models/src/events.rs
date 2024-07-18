@@ -31,6 +31,7 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
     payment_methods::*,
     payments::*,
     verifications::*,
@@ -125,7 +126,10 @@ impl_misc_api_event_type!(
     GetSearchRequestWithIndex,
     GetDisputeFilterRequest,
     DisputeFiltersResponse,
-    GetDisputeMetricRequest
+    GetDisputeMetricRequest,
+    OrganizationResponse,
+    OrganizationRequest,
+    OrganizationId
 );
 
 #[cfg(feature = "stripe")]

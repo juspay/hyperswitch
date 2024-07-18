@@ -1283,6 +1283,18 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     }
 }
 
+impl ForeignFrom<api_models::organization::OrganizationRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        Self {
+            org_id: org_new.org_id,
+            org_name: item.organization_name,
+        }
+    }
+}
+
 impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
         Self {

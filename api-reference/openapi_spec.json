@@ -1109,6 +1109,111 @@
         ]
       }
     },
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Create an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/accounts": {
       "post": {
         "tags": [
@@ -12861,6 +12966,30 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "required": [
+          "organization_id"
+        ],
+        "properties": {
+          "organization_id": {
+            "type": "string"
+          },
+          "organization_name": {
+            "type": "string",
             "nullable": true
           }
         }

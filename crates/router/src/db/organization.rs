@@ -19,7 +19,7 @@ pub trait OrganizationInterface {
 
     async fn update_organization_by_org_id(
         &self,
-        user_id: &str,
+        org_id: &str,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError>;
 }
