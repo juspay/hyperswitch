@@ -9,7 +9,6 @@ use common_utils::ext_traits::{AsyncExt, Encode};
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::query::generics::db_metrics;
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_v2"),
@@ -19,13 +18,11 @@ use diesel_models::schema::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-
 #[cfg(all(feature = "v2", feature = "payment_v2", feature = "olap"))]
 use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
