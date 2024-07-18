@@ -367,7 +367,7 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
                 .address
                 .get_payment_billing()
                 .and_then(|bl| bl.address.as_ref())
-                .and_then(|address| address.country.clone()),
+                .and_then(|address| address.country),
         })
     }
 }
