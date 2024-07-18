@@ -3954,7 +3954,6 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
- "storage_impl",
  "thiserror",
  "time",
 ]

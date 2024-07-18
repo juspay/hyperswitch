@@ -364,6 +364,7 @@ impl CreateOrValidateOrganization {
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
+    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 enum CreateBusinessProfile {
@@ -378,6 +379,7 @@ enum CreateBusinessProfile {
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
+    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 impl CreateBusinessProfile {

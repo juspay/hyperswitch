@@ -34,7 +34,6 @@ pub struct MerchantAccountListRequest {
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
