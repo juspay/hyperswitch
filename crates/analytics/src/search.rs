@@ -66,6 +66,24 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
     };
 
     let response_text: OpenMsearchOutput = client
@@ -165,6 +183,24 @@ pub async fn search_results(
                             .filter_map(|email| {
                                 // TODO: Add trait based inputs instead of converting this to strings
                                 serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
                                     .ok()
                                     .and_then(|a| a.as_str().map(|a| a.to_string()))
                             })

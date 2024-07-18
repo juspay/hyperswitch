@@ -38,6 +38,7 @@ mod gocardless;
 mod gpayments;
 mod helcim;
 mod iatapay;
+mod itaubank;
 mod mifinity;
 mod mollie;
 mod multisafepay;

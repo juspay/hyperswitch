@@ -23,13 +23,14 @@ pub async fn render_payout_link(
         merchant_id: merchant_id.clone(),
         payout_id,
     };
+    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload.clone(),
         |state, auth, req, _| {
-            initiate_payout_link(state, auth.merchant_account, auth.key_store, req)
+            initiate_payout_link(state, auth.merchant_account, auth.key_store, req, headers)
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,

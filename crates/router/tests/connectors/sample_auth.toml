@@ -246,3 +246,6 @@ api_key="API Key"
 key1 = "Merchant id"
 api_secret = "Razorpay Id"
 key2 = "Razorpay Secret"
+
+[itaubank]
+api_key="API Key"
