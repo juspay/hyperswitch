@@ -42,10 +42,6 @@
               }
           }
       },
-      "routing": {
-        "type": "single",
-        "data": "adyen"
-      },
       "billing": {
         "address": {
           "line1": "1467",

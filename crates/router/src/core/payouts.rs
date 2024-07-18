@@ -112,10 +112,7 @@ pub async fn get_connector_choice(
             payout_data.payout_attempt.routing_info = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: Some(request_straight_through.clone()),
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
@@ -137,10 +134,7 @@ pub async fn get_connector_choice(
         api::ConnectorChoice::Decide => {
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: None,
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
