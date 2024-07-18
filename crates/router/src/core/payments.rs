@@ -3192,7 +3192,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
-        routing_data.routed_through = Some(connector_name.clone().to_owned());
+        routing_data.routed_through = Some(connector_name.clone());
         return Ok(ConnectorCallType::PreDetermined(connector_data));
     }
 
