@@ -17,9 +17,9 @@ use {
         keymanager::call_encryption_service,
         transformers::{ForeignFrom, ForeignTryFrom},
         types::keymanager::{
-            BatchDecryptDataRequest, BatchDecryptDataResponse, BatchEncryptDataRequest,
-            BatchEncryptDataResponse, DecryptDataRequest, DecryptDataResponse, EncryptDataRequest,
-            EncryptDataResponse,
+            BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
+            DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
+            TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
         },
     },
     http::Method,
@@ -155,7 +155,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -265,7 +265,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -394,7 +394,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -503,7 +503,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -630,7 +630,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                DecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
@@ -735,7 +735,7 @@ impl<
                 state,
                 Method::POST,
                 "data/decrypt",
-                BatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
             )
             .await;
             let decrypted = match result {
