@@ -2424,6 +2424,10 @@ pub async fn list_payment_methods(
             .await?;
         }
     }
+    logger::info!(
+        "The Payment Methods available after Constraint Graph filtering are {:?}",
+        response
+    );
 
     // Filter out wallet payment method from mca if customer has already saved it
     customer
@@ -3482,6 +3486,7 @@ pub async fn filter_payment_methods(
                         .unwrap_or(true);
 
                     let context = AnalysisContext::from_dir_values(context_values.clone());
+                    logger::info!("Context created for List Payment method is {:?}", context);
 
                     let domain_ident: &[String] = &[mca_id.clone()];
                     let result = graph.key_value_analysis(
@@ -3491,7 +3496,13 @@ pub async fn filter_payment_methods(
                         &mut cgraph::CycleCheck::new(),
                         Some(domain_ident),
                     );
-                    if filter_pm_based_on_allowed_types
+                    if let Err(ref e) = result {
+                        logger::error!(
+                            "Error while performing Constraint graph's key value analysis
+                            for list payment methods {:?}",
+                            e
+                        );
+                    } else if filter_pm_based_on_allowed_types
                         && filter_pm_card_network_based
                         && saved_payment_methods_filter
                         && matches!(result, Ok(()))
