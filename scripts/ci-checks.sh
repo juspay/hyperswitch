@@ -57,8 +57,6 @@ else
       '[ ( .workspace_members | sort ) as $package_ids | .packages[] | select( IN( .id; $package_ids[] ) ) | { name: .name, features: ( .features | keys ) } ]')"
 fi
 
-echo $crates_with_features
-
 # List of cargo commands that will be executed
 all_commands=()
 
@@ -69,7 +67,7 @@ crates_with_v1_feature="$(
   jq --monochrome-output --raw-output \
     --argjson crates_with_features "${crates_with_features}" \
     --null-input \
-    '$crates_with_features[] 
+    '$crates_with_features[]
     | select( IN("v1"; .features[]))  # Select crates with `v1` feature
     | { name, features: (.features - ["v1", "v2", "default", "payment_v2", "merchant_account_v2"]) }  # Remove specific features to generate feature combinations
     | { name, features: ( .features | map([., "v1"] | join(",")) ) }  # Add `v1` to remaining features and join them by comma
@@ -100,13 +98,13 @@ echo
 
 # Execute the commands
 for command in "${all_commands[@]}"; do
-  if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+  if [[ "${CI:-false}" = "true" && "${GITHUB_ACTIONS:-false}" = "true" ]]; then
     printf '::group::Running `%s`\n' "${command}"
   fi
 
   bash -c -x "${command}"
 
-  if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+  if [[ "${CI:-false}" = "true" && "${GITHUB_ACTIONS:-false}" = "true" ]]; then
     echo '::endgroup::'
   fi
 done
