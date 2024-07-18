@@ -126,7 +126,9 @@ impl ConnectorCommon for Plaid {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: response
+                .error_code
+                .unwrap_or(crate::consts::NO_ERROR_CODE.to_string()),
             message: response.error_message,
             reason: response.display_message,
             attempt_status: None,
@@ -276,14 +278,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        _req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let _connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}/payment_initiation/payment/get",
             self.base_url(connectors)
