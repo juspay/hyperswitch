@@ -2,10 +2,10 @@ pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
-    PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
-    PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
+    PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
+    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
     PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
     PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
     PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
@@ -18,14 +18,14 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
-    PreProcessing, Reject, Session, SetupMandate, Void,
+    PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
     PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
     PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
-    PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
+    PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
 };
 use crate::{
     core::errors,
@@ -172,6 +172,15 @@ pub trait PaymentsPreProcessing:
 {
 }
 
+pub trait PaymentsPostProcessing:
+    api::ConnectorIntegration<
+    PostProcessing,
+    types::PaymentsPostProcessingData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
@@ -187,6 +196,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
+    + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
 {

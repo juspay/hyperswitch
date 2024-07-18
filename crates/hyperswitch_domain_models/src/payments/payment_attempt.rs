@@ -2,6 +2,7 @@ use api_models::enums::Connector;
 use common_enums as storage_enums;
 use common_utils::{
     errors::{CustomResult, ValidationError},
+    pii,
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -175,6 +176,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttempt {
@@ -264,6 +266,7 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptNew {
@@ -346,6 +349,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -486,6 +490,7 @@ impl behaviour::Conversion for PaymentIntent {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(DieselPaymentIntent {
+            id: None,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
@@ -628,8 +633,8 @@ impl behaviour::Conversion for PaymentIntent {
             billing_address_id: self.billing_address_id,
             statement_descriptor_name: self.statement_descriptor_name,
             statement_descriptor_suffix: self.statement_descriptor_suffix,
-            created_at: Some(self.created_at),
-            modified_at: Some(self.modified_at),
+            created_at: self.created_at,
+            modified_at: self.modified_at,
             last_synced: self.last_synced,
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
