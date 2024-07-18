@@ -249,6 +249,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount {
+                    id: self.id,
                     merchant_id: self.merchant_id.get_string_repr().to_owned(),
                     merchant_name: self
                         .merchant_name

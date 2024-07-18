@@ -24,9 +24,9 @@ use crate::{encryption::Encryption, enums as storage_enums};
     Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_account, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub id: Option<i32>,
+    pub id: i32,
     pub merchant_id: String,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,

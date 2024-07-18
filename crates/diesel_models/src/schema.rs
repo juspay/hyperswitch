@@ -634,7 +634,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_account (merchant_id) {
-        id -> Nullable<Int4>,
+        id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 255]
