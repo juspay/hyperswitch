@@ -60,11 +60,11 @@ pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, Cache, Cards, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates,
-    MerchantAccount, MerchantConnectorAccount, Organization, PaymentLink, PaymentMethods, Payments,
-    Poll, Refunds, SessionState, User, Webhooks,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
+pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "stripe")]
