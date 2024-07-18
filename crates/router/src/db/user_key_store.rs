@@ -81,13 +81,13 @@ impl UserKeyStoreInterface for Store {
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
 
-        let fetch_func = || async {
-            diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(&conn, from, limit)
-                .await
-                .map_err(|err| report!(errors::StorageError::from(err)))
-        };
+        let key_stores = diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(
+            &conn, from, limit,
+        )
+        .await
+        .map_err(|err| report!(errors::StorageError::from(err)))?;
 
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+        futures::future::try_join_all(key_stores.into_iter().map(|key_store| async {
             key_store
                 .convert(key)
                 .await

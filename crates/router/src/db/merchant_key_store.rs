@@ -178,15 +178,13 @@ impl MerchantKeyStoreInterface for Store {
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let fetch_func = || async {
-            diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
-                &conn, from, to,
-            )
-            .await
-            .map_err(|err| report!(errors::StorageError::from(err)))
-        };
+        let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
+            &conn, from, to,
+        )
+        .await
+        .map_err(|err| report!(errors::StorageError::from(err)))?;
 
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+        futures::future::try_join_all(stores.into_iter().map(|key_store| async {
             key_store
                 .convert(key)
                 .await
