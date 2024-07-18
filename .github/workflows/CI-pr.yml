@@ -145,7 +145,6 @@ jobs:
           checksum: true
 
       - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: just ci_hack
 
