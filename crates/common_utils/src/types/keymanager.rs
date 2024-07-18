@@ -9,7 +9,7 @@ use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
-    Deserialize, Deserializer, Serialize,
+    ser, Deserialize, Deserializer, Serialize,
 };
 
 use crate::{
@@ -19,8 +19,6 @@ use crate::{
     errors::{self, CustomResult},
     transformers::{ForeignFrom, ForeignTryFrom},
 };
-
-static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
 
 #[derive(Debug)]
 pub struct KeyManagerState {
@@ -189,17 +187,30 @@ pub struct EncryptDataResponse {
 
 #[derive(Debug, Serialize, serde::Deserialize)]
 pub struct EncryptedDataGroup(pub FxHashMap<String, EncryptedData>);
+#[derive(Debug)]
+pub struct TransientBatchDecryptDataRequest {
+    pub identifier: Identifier,
+    pub data: FxHashMap<String, StrongSecret<Vec<u8>>>,
+}
+
+#[derive(Debug)]
+pub struct TransientDecryptDataRequest {
+    pub identifier: Identifier,
+    pub data: StrongSecret<Vec<u8>>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BatchDecryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub data: EncryptedDataGroup,
+    pub data: FxHashMap<String, StrongSecret<String>>,
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptDataRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub data: EncryptedData,
+    pub data: StrongSecret<String>,
 }
 
 impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, BatchEncryptDataResponse)>
@@ -327,34 +338,22 @@ where
     }
 }
 
-impl From<(Encryption, Identifier)> for DecryptDataRequest {
+impl From<(Encryption, Identifier)> for TransientDecryptDataRequest {
     fn from((encryption, identifier): (Encryption, Identifier)) -> Self {
         Self {
-            data: EncryptedData {
-                data: StrongSecret::new(encryption.clone().into_inner().expose()),
-            },
+            data: StrongSecret::new(encryption.clone().into_inner().expose()),
             identifier,
         }
     }
 }
 
-impl From<(FxHashMap<String, Encryption>, Identifier)> for BatchDecryptDataRequest {
+impl From<(FxHashMap<String, Encryption>, Identifier)> for TransientBatchDecryptDataRequest {
     fn from((map, identifier): (FxHashMap<String, Encryption>, Identifier)) -> Self {
-        let group = map
+        let data = map
             .into_iter()
-            .map(|(k, v)| {
-                (
-                    k,
-                    EncryptedData {
-                        data: StrongSecret::new(v.clone().into_inner().expose()),
-                    },
-                )
-            })
+            .map(|(k, v)| (k, StrongSecret::new(v.clone().into_inner().expose())))
             .collect();
-        Self {
-            data: EncryptedDataGroup(group),
-            identifier,
-        }
+        Self { data, identifier }
     }
 }
 
@@ -432,13 +431,7 @@ impl Serialize for EncryptedData {
     where
         S: serde::Serializer,
     {
-        let data = match String::from_utf8(self.data.peek().clone()) {
-            Ok(data) => data,
-            Err(_) => {
-                let data = BASE64_ENGINE.encode(self.data.peek().clone());
-                format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
-            }
-        };
+        let data = String::from_utf8(self.data.peek().clone()).map_err(ser::Error::custom)?;
         serializer.serialize_str(data.as_str())
     }
 }
