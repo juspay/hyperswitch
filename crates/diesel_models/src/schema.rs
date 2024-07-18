@@ -128,7 +128,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (id) {
+    blocklist (merchant_id, fingerprint_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
