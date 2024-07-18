@@ -358,7 +358,7 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 upi_collect = { country = "IN", currency = "INR" }
 
 [pm_filters.plaid]
-open_banking_pis = {currency = "EUR, GBP"}
+open_banking_pis = {currency = "EUR,GBP"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
