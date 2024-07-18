@@ -50,8 +50,6 @@ pub enum ApiErrorResponse {
     VerificationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
     DisputeFailed { data: Option<serde_json::Value> },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "CE_09", message = "Payout validation failed")]
-    PayoutFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
     ResourceBusy,
@@ -64,8 +62,6 @@ pub enum ApiErrorResponse {
     },
     #[error(error_type = ErrorType::ValidationError, code = "HE_00", message = "Failed to convert currency to minor unit")]
     CurrencyConversionFailed,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_00", message = "Failed to convert amount to {amount_type} type")]
-    AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate refund request. Refund already attempted with the refund ID")]
     DuplicateRefundRequest,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID")]
@@ -160,6 +156,8 @@ pub enum ApiErrorResponse {
     MissingTenantId,
     #[error(error_type = ErrorType::ProcessingError, code = "HE_05", message = "Invalid tenant id: {tenant_id}")]
     InvalidTenant { tenant_id: String },
+    #[error(error_type = ErrorType::ValidationError, code = "HE_05", message = "Failed to convert amount to {amount_type} type")]
+    AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
     NotImplemented { message: NotImplementedMessage },
     #[error(
@@ -272,6 +270,9 @@ pub enum ApiErrorResponse {
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_40", message = "{message}")]
     LinkConfigurationError { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_41", message = "Payout validation failed")]
+    PayoutFailed { data: Option<serde_json::Value> },
+
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -352,17 +353,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DisputeFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 8, "Dispute operation failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
             }
-            Self::PayoutFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 9, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
-            },
+
             Self::ResourceBusy => {
                 AER::Unprocessable(ApiError::new("HE", 0, "There was an issue processing the webhook body", None))
             }
             Self::CurrencyConversionFailed => {
                 AER::Unprocessable(ApiError::new("HE", 0, "Failed to convert currency to minor unit", None))
-            }
-            Self::AmountConversionFailed { amount_type }  => {
-                AER::InternalServerError(ApiError::new("HE", 0, format!("Failed to convert amount to {amount_type} type"), None))
             }
             Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
@@ -486,6 +482,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidTenant { tenant_id }  => {
                 AER::InternalServerError(ApiError::new("HE", 5, format!("Invalid Tenant {tenant_id}"), None))
             }
+            Self::AmountConversionFailed { amount_type }  => {
+                AER::InternalServerError(ApiError::new("HE", 5, format!("Failed to convert amount to {amount_type} type"), None))
+            }
+
             Self::NotImplemented { message } => {
                 AER::NotImplemented(ApiError::new("IR", 0, format!("{message:?}"), None))
             }
@@ -622,6 +622,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::LinkConfigurationError { message } => {
                 AER::BadRequest(ApiError::new("IR", 40, message, None))
             },
+            Self::PayoutFailed { data } => {
+                AER::BadRequest(ApiError::new("IR", 41, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
+            },
+
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }
