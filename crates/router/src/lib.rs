@@ -81,6 +81,7 @@ pub mod headers {
     pub const CONTENT_LENGTH: &str = "Content-Length";
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
+    pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
 }
 
 pub mod pii {
