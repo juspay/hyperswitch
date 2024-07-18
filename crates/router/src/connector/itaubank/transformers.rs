@@ -85,13 +85,40 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                             devedor,
                         })
                     }
-                    _ => Err(
-                        errors::ConnectorError::NotImplemented("Payment methods".to_string())
-                            .into(),
+                    domain::BankTransferData::AchBankTransfer {}
+                    | domain::BankTransferData::SepaBankTransfer {}
+                    | domain::BankTransferData::BacsBankTransfer {}
+                    | domain::BankTransferData::MultibancoBankTransfer {}
+                    | domain::BankTransferData::PermataBankTransfer {}
+                    | domain::BankTransferData::BcaBankTransfer {}
+                    | domain::BankTransferData::BniVaBankTransfer {}
+                    | domain::BankTransferData::BriVaBankTransfer {}
+                    | domain::BankTransferData::CimbVaBankTransfer {}
+                    | domain::BankTransferData::DanamonVaBankTransfer {}
+                    | domain::BankTransferData::MandiriVaBankTransfer {}
+                    | domain::BankTransferData::Pse {}
+                    | domain::BankTransferData::LocalBankTransfer { .. } => Err(
+                        errors::ConnectorError::NotImplemented("Payment method".to_string()).into(),
                     ),
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::OpenBanking(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
         }
     }
 }
