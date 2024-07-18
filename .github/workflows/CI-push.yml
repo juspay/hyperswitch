@@ -81,10 +81,15 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
+      - name: Install Just
+        uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: just
+
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --workspace --each-feature --all-targets
+        run: just ci
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
