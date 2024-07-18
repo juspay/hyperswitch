@@ -6,7 +6,6 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
     not(feature = "merchant_account_v2")
 ))]
 use crate::schema::merchant_account;
-
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::merchant_account;
 use crate::{encryption::Encryption, enums as storage_enums};
