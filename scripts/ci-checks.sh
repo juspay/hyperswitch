@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 # The below script is run on the github actions CI
 # Obtain a list of workspace members
