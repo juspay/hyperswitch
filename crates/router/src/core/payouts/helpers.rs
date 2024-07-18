@@ -452,9 +452,12 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_data(key_store, Some(pm_data))
-                    .await
-                    .map(|details| details.into()),
+                Some(
+                    cards::create_encrypted_data(key_store, pm_data)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt customer details")?,
+                ),
                 payment_method,
             )
         } else {
@@ -494,7 +497,7 @@ pub async fn save_payout_data_to_locker(
             &merchant_account.merchant_id,
             None,
             None,
-            card_details_encrypted.clone(),
+            card_details_encrypted.clone().map(Into::into),
             key_store,
             None,
             None,
@@ -557,7 +560,7 @@ pub async fn save_payout_data_to_locker(
 
         // Update card's metadata in payment_methods table
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-            payment_method_data: card_details_encrypted,
+            payment_method_data: card_details_encrypted.map(Into::into),
         };
         db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
             .await
@@ -687,7 +690,6 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
             )
             .await
@@ -708,10 +710,7 @@ pub async fn decide_payout_connector(
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     payout_attempt.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -719,14 +718,8 @@ pub async fn decide_payout_connector(
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
-        }
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         routing_data.routing_info.algorithm = Some(routing_algorithm);
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
@@ -745,7 +738,6 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
             )
             .await
@@ -768,10 +760,7 @@ pub async fn decide_payout_connector(
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     payout_attempt.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -779,14 +768,8 @@ pub async fn decide_payout_connector(
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
-        }
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
@@ -887,9 +870,13 @@ pub async fn get_gsm_record(
 }
 
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
-    matches!(
+    !matches!(
         status,
-        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -910,10 +897,21 @@ pub(crate) fn validate_payout_status_against_not_allowed_statuses(
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
-        api_enums::PayoutStatus::Pending
-            | api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            // Initiated by the underlying connector
+            | api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::Initiated
+            | api_enums::PayoutStatus::RequiresFulfillment
+    )
+}
+
+pub fn should_call_retrieve(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -930,7 +928,9 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
     matches!(
         status,
         api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresPayoutMethodData,
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
     )
 }
 

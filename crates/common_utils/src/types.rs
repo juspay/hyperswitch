@@ -1,4 +1,6 @@
 //! Types that can be used in other crates
+pub mod keymanager;
+
 use std::{
     fmt::Display,
     ops::{Add, Sub},

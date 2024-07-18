@@ -440,7 +440,7 @@ impl MerchantConnectorAccountInterface for Store {
 
                 #[cfg(feature = "accounts_cache")]
                 // Redact all caches as any of might be used because of backwards compatibility
-                cache::publish_and_redact_multiple(
+                Box::pin(cache::publish_and_redact_multiple(
                     self,
                     [
                         cache::CacheKind::Accounts(
@@ -454,7 +454,7 @@ impl MerchantConnectorAccountInterface for Store {
                         ),
                     ],
                     || update,
-                )
+                ))
                 .await
                 .map_err(|error| {
                     // Returning `DatabaseConnectionError` after logging the actual error because
@@ -476,9 +476,9 @@ impl MerchantConnectorAccountInterface for Store {
                         // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
                         //    because of Rust's orphan rules
                         router_env::logger::error!(
-                        ?error,
-                        "DB transaction for updating multiple merchant connector account failed"
-                    );
+                            ?error,
+                            "DB transaction for updating multiple merchant connector account failed"
+                        );
                         errors::StorageError::DatabaseConnectionError
                     })?;
                 }
@@ -784,6 +784,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             pm_auth_config: t.pm_auth_config,
             status: t.status,
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
+            additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
         };
         accounts.push(account.clone());
         account
@@ -991,6 +992,7 @@ mod merchant_connector_account_cache_tests {
                 .await
                 .unwrap(),
             ),
+            additional_merchant_data: None,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

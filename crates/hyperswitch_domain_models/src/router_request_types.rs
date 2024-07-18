@@ -54,7 +54,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
@@ -84,8 +84,6 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
-    /// Sync capture amount in case of automatic capture
-    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -338,6 +336,35 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         })
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostProcessingData {
+    pub payment_method_data: PaymentMethodData,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub connector_transaction_id: Option<String>,
+}
+
+impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
+    for PaymentsPostProcessingData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.request.payment_method_data,
+            connector_transaction_id: match data.response {
+                Ok(response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(id),
+                    ..
+                }) => Some(id.clone()),
+                _ => None,
+            },
+            customer_id: data.request.customer_id,
+        })
+    }
+}
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -384,7 +411,6 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
-    pub captured_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -759,4 +785,7 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    // MinorUnit for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }
