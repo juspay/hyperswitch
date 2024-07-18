@@ -83,7 +83,7 @@ where
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::{ext_traits::AsyncExt, id_type};
+    use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
 
@@ -91,7 +91,6 @@ mod storage {
     use crate::{
         connection,
         core::errors::{self, CustomResult},
-        routes::SessionState,
         services::Store,
         types::{
             domain::{
@@ -106,7 +105,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -130,7 +129,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             merchant_id: &str,
             payment_id: &str,
             address_id: &str,
@@ -162,7 +161,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             address_id: String,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -187,7 +186,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
             _payment_id: String,
@@ -218,7 +217,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             _payment_id: &str,
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
@@ -248,7 +247,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -276,7 +275,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
-            state: &SessionState,
+            state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             address: storage_types::AddressUpdate,

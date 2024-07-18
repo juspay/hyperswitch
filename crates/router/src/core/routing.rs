@@ -625,7 +625,7 @@ pub async fn unlink_routing_config(
         };
 
         db.update_specific_fields_in_merchant(
-            &state,
+            &(&state).into(),
             &key_store.merchant_id,
             merchant_account_update,
             &key_store,

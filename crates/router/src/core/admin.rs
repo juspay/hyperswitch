@@ -8,7 +8,7 @@ use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     id_type, pii,
-    types::keymanager::{self as km_types, KeyManagerState},
+    types::keymanager as km_types,
 };
 use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
@@ -255,7 +255,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let key = key_store.key.clone().into_inner();
-        let key_manager_state: KeyManagerState = state.into();
+        let key_manager_state = state.into();
 
         let mut merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
@@ -548,7 +548,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .get_merchant_reference_id()
             .get_string_repr()
             .to_owned();
-        let key_manager_state: KeyManagerState = state.into();
+        let key_manager_state = state.into();
         let identifier = km_types::Identifier::Merchant(merchant_id.clone());
 
         async {
