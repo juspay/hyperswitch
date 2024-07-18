@@ -143,7 +143,7 @@ resurrect:
     psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db';
     psql -U postgres -c 'CREATE DATABASE hyperswitch_db';
 
-ci:
-    scripts/ci.sh
+ci_hack:
+    scripts/ci-checks.sh
 
 

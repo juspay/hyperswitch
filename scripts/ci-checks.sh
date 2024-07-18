@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 set -euo pipefail
 
-# The below command is run on the github actions CI
+# The below script is run on the github actions CI
 # Obtain a list of workspace members
 workspace_members="$(
   cargo metadata --format-version 1 --no-deps \
@@ -96,6 +96,13 @@ printf "%s\n" "${commands_without_v1_feature[@]}"
 
 # Print and execute the commands
 for command in "${commands_with_v1_feature[@]}"; do
-  echo $command
-  eval $command
+  if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+    printf '::group::Running `%s`\n' "${command}"
+  fi
+
+  bash -c -x "${command}"
+
+  if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+    echo '::endgroup::'
+  fi
 done
