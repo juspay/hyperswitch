@@ -10,9 +10,8 @@ use common_utils::id_type;
 use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
 use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
 use diesel_models::{
-    enums::{TotpStatus, UserStatus},
-    organization as diesel_org,
-    organization::Organization,
+    enums::{TotpStatus, UserRoleVersion, UserStatus},
+    organization::{self as diesel_org, Organization},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
@@ -660,7 +659,7 @@ impl NewUser {
                 profile_id: None,
                 entity_id: None,
                 entity_type: None,
-                version: None, // make it Some
+                version: Some(UserRoleVersion::V1),
             })
             .await
             .change_context(UserErrors::InternalServerError)
@@ -854,7 +853,7 @@ impl UserFromStorage {
     pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
         state
             .store
-            .find_user_role_by_user_id(&self.0.user_id)
+            .find_user_role_by_user_id(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -862,7 +861,7 @@ impl UserFromStorage {
     pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
-            .list_user_roles_by_user_id(&self.0.user_id)
+            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -925,7 +924,11 @@ impl UserFromStorage {
     ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store
-            .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
+            .find_user_role_by_user_id_merchant_id(
+                self.get_user_id(),
+                merchant_id,
+                UserRoleVersion::V1,
+            )
             .await
     }
 
@@ -939,7 +942,7 @@ impl UserFromStorage {
         } else {
             state
                 .store
-                .list_user_roles_by_user_id(&self.0.user_id)
+                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
                 .await?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)

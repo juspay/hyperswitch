@@ -7,7 +7,7 @@ use api_models::{
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
-    enums::{TotpStatus, UserStatus},
+    enums::{TotpStatus, UserRoleVersion, UserStatus},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
     user_role::UserRoleNew,
@@ -746,7 +746,7 @@ async fn handle_existing_user_invitation(
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: None,
+            version: Some(UserRoleVersion::V1),
         })
         .await
         .map_err(|e| {
@@ -832,7 +832,7 @@ async fn handle_new_user_invitation(
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: None,
+            version: Some(UserRoleVersion::V1),
         })
         .await
         .map_err(|e| {
@@ -1247,7 +1247,7 @@ pub async fn switch_merchant_id(
     } else {
         let user_roles = state
             .store
-            .list_user_roles_by_user_id(&user_from_token.user_id)
+            .list_user_roles_by_user_id(&user_from_token.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)?;
 
@@ -1321,7 +1321,7 @@ pub async fn list_merchants_for_user(
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
+        .list_user_roles_by_user_id(user_from_token.user_id.as_str(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1367,6 +1367,7 @@ pub async fn get_user_details_in_merchant_account(
         .find_user_role_by_user_id_merchant_id(
             required_user.get_user_id(),
             &user_from_token.merchant_id,
+            UserRoleVersion::V1,
         )
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)
@@ -1402,7 +1403,7 @@ pub async fn list_users_for_merchant_account(
 ) -> UserResponse<user_api::ListUsersResponse> {
     let user_roles: HashMap<String, _> = state
         .store
-        .list_user_roles_by_merchant_id(user_from_token.merchant_id.as_str())
+        .list_user_roles_by_merchant_id(user_from_token.merchant_id.as_str(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("No user roles for given merchant id")?
@@ -1642,7 +1643,7 @@ pub async fn verify_token(
         })?;
     let merchant_id = state
         .store
-        .find_user_role_by_user_id(&req.user_id)
+        .find_user_role_by_user_id(&req.user_id, UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?
         .merchant_id
@@ -1672,7 +1673,11 @@ pub async fn update_user_details(
     if let Some(ref preferred_merchant_id) = req.preferred_merchant_id {
         let _ = state
             .store
-            .find_user_role_by_user_id_merchant_id(user.get_user_id(), preferred_merchant_id)
+            .find_user_role_by_user_id_merchant_id(
+                user.get_user_id(),
+                preferred_merchant_id,
+                UserRoleVersion::V1,
+            )
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {

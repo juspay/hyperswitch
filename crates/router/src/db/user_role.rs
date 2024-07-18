@@ -22,12 +22,14 @@ pub trait UserRoleInterface {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn update_user_role_by_user_id_merchant_id(
@@ -35,6 +37,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn update_user_roles_by_user_id_org_id(
@@ -42,22 +45,26 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn list_user_roles_by_merchant_id(
         &self,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn transfer_org_ownership_between_users(
@@ -65,6 +72,7 @@ pub trait UserRoleInterface {
         from_user_id: &str,
         to_user_id: &str,
         org_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<(), errors::StorageError>;
 }
 
@@ -86,9 +94,10 @@ impl UserRoleInterface for Store {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::find_by_user_id(&conn, user_id.to_owned())
+        storage::UserRole::find_by_user_id(&conn, user_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -98,12 +107,14 @@ impl UserRoleInterface for Store {
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::find_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
+            version,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -115,6 +126,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::update_by_user_id_merchant_id(
@@ -122,6 +134,7 @@ impl UserRoleInterface for Store {
             user_id.to_owned(),
             merchant_id.to_owned(),
             update,
+            version,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -133,6 +146,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::update_by_user_id_org_id(
@@ -140,6 +154,7 @@ impl UserRoleInterface for Store {
             user_id.to_owned(),
             org_id.to_owned(),
             update,
+            version,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -150,6 +165,7 @@ impl UserRoleInterface for Store {
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
@@ -157,6 +173,7 @@ impl UserRoleInterface for Store {
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
+            version,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -166,9 +183,10 @@ impl UserRoleInterface for Store {
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::list_by_user_id(&conn, user_id.to_owned())
+        storage::UserRole::list_by_user_id(&conn, user_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -177,9 +195,10 @@ impl UserRoleInterface for Store {
     async fn list_user_roles_by_merchant_id(
         &self,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned())
+        storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -190,6 +209,7 @@ impl UserRoleInterface for Store {
         from_user_id: &str,
         to_user_id: &str,
         org_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<(), errors::StorageError> {
         let conn = connection::pg_connection_write(self)
             .await
@@ -204,6 +224,7 @@ impl UserRoleInterface for Store {
                     role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
                     modified_by: from_user_id.to_owned(),
                 },
+                version,
             )
             .await
             .map_err(|e| *e.current_context())?;
@@ -216,6 +237,7 @@ impl UserRoleInterface for Store {
                     role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                     modified_by: from_user_id.to_owned(),
                 },
+                version,
             )
             .await
             .map_err(|e| *e.current_context())?;
@@ -252,7 +274,7 @@ impl UserRoleInterface for Store {
                         profile_id: None,
                         entity_id: None,
                         entity_type: None,
-                        version: None,
+                        version: Some(enums::UserRoleVersion::V1),
                     });
                 }
             }
@@ -307,7 +329,7 @@ impl UserRoleInterface for MockDb {
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: None,
+            version: Some(enums::UserRoleVersion::V1),
         };
         user_roles.push(user_role.clone());
         Ok(user_role)
@@ -316,11 +338,12 @@ impl UserRoleInterface for MockDb {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
         user_roles
             .iter()
-            .find(|user_role| user_role.user_id == user_id)
+            .find(|user_role| user_role.user_id == user_id && user_role.version == Some(version))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -334,6 +357,7 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
@@ -344,7 +368,10 @@ impl UserRoleInterface for MockDb {
                 )
                 .into());
             };
-            if user_role.user_id == user_id && user_role_merchant_id == merchant_id {
+            if user_role.user_id == user_id
+                && user_role_merchant_id == merchant_id
+                && user_role.version == Some(version)
+            {
                 return Ok(user_role.clone());
             }
         }
@@ -361,6 +388,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
 
@@ -371,7 +399,10 @@ impl UserRoleInterface for MockDb {
                 )
                 .into());
             };
-            if user_role.user_id == user_id && user_role_merchant_id == merchant_id {
+            if user_role.user_id == user_id
+                && user_role_merchant_id == merchant_id
+                && user_role.version == Some(version)
+            {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
@@ -404,6 +435,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &str,
         update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         let mut updated_user_roles = Vec::new();
@@ -414,7 +446,10 @@ impl UserRoleInterface for MockDb {
                 )
                 .into());
             };
-            if user_role.user_id == user_id && user_role_org_id == org_id {
+            if user_role.user_id == user_id
+                && user_role_org_id == org_id
+                && user_role.version == Some(version)
+            {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
@@ -449,6 +484,7 @@ impl UserRoleInterface for MockDb {
         from_user_id: &str,
         to_user_id: &str,
         org_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<(), errors::StorageError> {
         let old_org_admin_user_roles = self
             .update_user_roles_by_user_id_org_id(
@@ -458,6 +494,7 @@ impl UserRoleInterface for MockDb {
                     role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
                     modified_by: from_user_id.to_string(),
                 },
+                version,
             )
             .await?;
 
@@ -469,6 +506,7 @@ impl UserRoleInterface for MockDb {
                     role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                     modified_by: from_user_id.to_string(),
                 },
+                version,
             )
             .await?;
 
@@ -507,7 +545,7 @@ impl UserRoleInterface for MockDb {
                     profile_id: None,
                     entity_id: None,
                     entity_type: None,
-                    version: None,
+                    version: Some(enums::UserRoleVersion::V1),
                 };
 
                 missing_new_user_roles.push(new_user_role);
@@ -525,11 +563,13 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
 
         let index = user_roles.iter().position(|role| {
             role.user_id == user_id
+                && role.version == Some(version)
                 && match role.merchant_id {
                     Some(ref mid) => mid == merchant_id,
                     None => false,
@@ -548,6 +588,7 @@ impl UserRoleInterface for MockDb {
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
@@ -555,7 +596,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .cloned()
             .filter_map(|ele| {
-                if ele.user_id == user_id {
+                if ele.user_id == user_id && ele.version == Some(version) {
                     return Some(ele);
                 }
                 None
@@ -566,6 +607,7 @@ impl UserRoleInterface for MockDb {
     async fn list_user_roles_by_merchant_id(
         &self,
         merchant_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
@@ -573,7 +615,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .filter_map(|role| {
                 if let Some(role_merchant_id) = &role.merchant_id {
-                    if role_merchant_id == merchant_id {
+                    if role_merchant_id == merchant_id && role.version == Some(version) {
                         Some(role.clone())
                     } else {
                         None
@@ -610,8 +652,11 @@ impl UserRoleInterface for super::KafkaStore {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.diesel_store.find_user_role_by_user_id(user_id).await
+        self.diesel_store
+            .find_user_role_by_user_id(user_id, version)
+            .await
     }
     async fn delete_user_role_by_user_id_merchant_id(
         &self,

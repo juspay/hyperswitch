@@ -1,5 +1,8 @@
 use api_models::{user as user_api, user_role as user_role_api};
-use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRoleUpdate,
+};
 use error_stack::{report, ResultExt};
 use router_env::logger;
 
@@ -109,6 +112,7 @@ pub async fn update_user_role(
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
             },
+            UserRoleVersion::V1,
         )
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)
@@ -149,6 +153,7 @@ pub async fn transfer_org_ownership(
             &user_from_token.user_id,
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
+            UserRoleVersion::V1,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -186,6 +191,7 @@ pub async fn accept_invitation(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -216,6 +222,7 @@ pub async fn merchant_select(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -270,6 +277,7 @@ pub async fn merchant_select_token_only_flow(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -332,7 +340,7 @@ pub async fn delete_user_role(
 
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id())
+        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -366,6 +374,7 @@ pub async fn delete_user_role(
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
                 user_from_token.merchant_id.as_str(),
+                UserRoleVersion::V1,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -383,6 +392,7 @@ pub async fn delete_user_role(
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
                 user_from_token.merchant_id.as_str(),
+                UserRoleVersion::V1,
             )
             .await
             .change_context(UserErrors::InternalServerError)
