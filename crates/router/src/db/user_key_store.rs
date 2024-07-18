@@ -31,6 +31,8 @@ pub trait UserKeyStoreInterface {
     async fn get_all_user_key_store(
         &self,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError>;
 }
 
@@ -74,11 +76,13 @@ impl UserKeyStoreInterface for Store {
     async fn get_all_user_key_store(
         &self,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
 
         let fetch_func = || async {
-            diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(&conn)
+            diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(&conn, from, limit)
                 .await
                 .map_err(|err| report!(errors::StorageError::from(err)))
         };
@@ -127,6 +131,8 @@ impl UserKeyStoreInterface for MockDb {
     async fn get_all_user_key_store(
         &self,
         key: &Secret<Vec<u8>>,
+        _from: u32,
+        _limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let user_key_store = self.user_key_store.lock().await;
 

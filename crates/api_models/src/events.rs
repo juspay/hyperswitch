@@ -76,6 +76,7 @@ impl_misc_api_event_type!(
     BusinessProfileUpdate,
     BusinessProfileCreate,
     RevokeApiKeyResponse,
+    MerchantKeyTransferRequest,
     ToggleKVResponse,
     ToggleKVRequest,
     ToggleAllKVRequest,

@@ -1040,6 +1040,16 @@ pub struct ToggleKVResponse {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct MerchantKeyTransferRequest {
+    /// Offset for merchant account
+    #[schema(example = 32)]
+    pub from: u32,
+    /// Limit for merchant account
+    #[schema(example = 32)]
+    pub limit: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct TransferKeyResponse {
     /// The identifier for the Merchant Account

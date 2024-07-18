@@ -2593,8 +2593,9 @@ pub(crate) fn validate_connector_auth_type(
 
 pub async fn transfer_key_store_to_key_manager(
     state: SessionState,
+    req: admin_types::MerchantKeyTransferRequest,
 ) -> RouterResponse<admin_types::TransferKeyResponse> {
-    let resp = transfer_encryption_key(&state).await?;
+    let resp = transfer_encryption_key(&state, req).await?;
 
     Ok(service_api::ApplicationResponse::Json(
         admin_types::TransferKeyResponse {
