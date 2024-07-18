@@ -204,6 +204,7 @@ diesel::table! {
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
+        outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
     }
 }
 
@@ -335,7 +336,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dispute (id) {
+    dispute (dispute_id) {
         id -> Int4,
         #[max_length = 64]
         dispute_id -> Varchar,
@@ -586,7 +587,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    mandate (id) {
+    mandate (mandate_id) {
         id -> Int4,
         #[max_length = 64]
         mandate_id -> Varchar,
@@ -675,7 +676,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (id) {
+    merchant_connector_account (merchant_connector_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,

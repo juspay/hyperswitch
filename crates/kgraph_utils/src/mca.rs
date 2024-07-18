@@ -143,6 +143,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
         api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
         api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
+        api_enums::PaymentMethodType::OpenBankingPIS => {
+            Ok(dirval!(OpenBankingType = OpenBankingPIS))
+        }
     }
 }
 
@@ -416,9 +419,11 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(GiftCardType));
     global_vector.append(collect_global_variants!(BankTransferType));
     global_vector.append(collect_global_variants!(CardRedirectType));
+    global_vector.append(collect_global_variants!(OpenBankingType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));
+
     let global_vector = global_vector
         .into_iter()
         .filter(|global_value| !enabled_pmt.contains(global_value))
@@ -646,11 +651,7 @@ fn compile_merchant_connector_graph(
             None,
         )
         .map_err(KgraphError::GraphConstructionError)?;
-    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
-        connector,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: mca.business_sub_label.clone(),
-    }));
+    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice { connector }));
 
     let connector_info = "Connector";
     let connector_node_id =

@@ -8,7 +8,7 @@ license.workspace = true
 
 [features]
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector"]
-connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id"]
+
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

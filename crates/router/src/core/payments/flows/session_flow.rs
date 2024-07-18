@@ -39,6 +39,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -51,8 +52,20 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &routes::SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -197,6 +210,7 @@ async fn create_applepay_session_token(
             apple_pay_merchant_cert_key,
             apple_pay_merchant_identifier,
             merchant_business_country,
+            merchant_configured_domain_optional,
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
@@ -219,7 +233,7 @@ async fn create_applepay_session_token(
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
                         merchant_identifier.clone(),
-                        session_token_data,
+                        session_token_data.clone(),
                     );
 
                     let apple_pay_merchant_cert = state
@@ -243,6 +257,7 @@ async fn create_applepay_session_token(
                         apple_pay_merchant_cert_key,
                         merchant_identifier,
                         merchant_business_country,
+                        Some(session_token_data.initiative_context),
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
@@ -251,8 +266,10 @@ async fn create_applepay_session_token(
                 } => {
                     logger::info!("Apple pay manual flow");
 
-                    let apple_pay_session_request =
-                        get_session_request_for_manual_apple_pay(session_token_data.clone());
+                    let apple_pay_session_request = get_session_request_for_manual_apple_pay(
+                        session_token_data.clone(),
+                        header_payload.x_merchant_domain.clone(),
+                    );
 
                     let merchant_business_country = session_token_data.merchant_business_country;
 
@@ -263,6 +280,7 @@ async fn create_applepay_session_token(
                         session_token_data.certificate_keys,
                         session_token_data.merchant_identifier,
                         merchant_business_country,
+                        session_token_data.initiative_context,
                     )
                 }
             },
@@ -271,6 +289,7 @@ async fn create_applepay_session_token(
 
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
+                    header_payload.x_merchant_domain.clone(),
                 );
 
                 let merchant_business_country = apple_pay_metadata
@@ -286,6 +305,7 @@ async fn create_applepay_session_token(
                         .clone(),
                     apple_pay_metadata.session_token_data.merchant_identifier,
                     merchant_business_country,
+                    apple_pay_metadata.session_token_data.initiative_context,
                 )
             }
         };
@@ -370,9 +390,9 @@ async fn create_applepay_session_token(
                     .attach_printable("Failed to obtain apple pay session request")?;
                 let applepay_session_request = build_apple_pay_session_request(
                     state,
-                    apple_pay_session_request,
-                    apple_pay_merchant_cert,
-                    apple_pay_merchant_cert_key,
+                    apple_pay_session_request.clone(),
+                    apple_pay_merchant_cert.clone(),
+                    apple_pay_merchant_cert_key.clone(),
                 )?;
 
                 let response = services::call_connector_api(
@@ -382,10 +402,43 @@ async fn create_applepay_session_token(
                 )
                 .await;
 
-                // logging the error if present in session call response
-                log_session_response_if_error(&response);
+                let updated_response = match (
+                    response.as_ref().ok(),
+                    header_payload.x_merchant_domain.clone(),
+                ) {
+                    (Some(Err(error)), Some(_)) => {
+                        logger::error!(
+                            "Retry apple pay session call with the merchant configured domain {error:?}"
+                        );
+                        let merchant_configured_domain = merchant_configured_domain_optional
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to get initiative_context for apple pay session call retry",
+                            )?;
+                        let apple_pay_retry_session_request =
+                            payment_types::ApplepaySessionRequest {
+                                initiative_context: merchant_configured_domain,
+                                ..apple_pay_session_request
+                            };
+                        let applepay_retry_session_request = build_apple_pay_session_request(
+                            state,
+                            apple_pay_retry_session_request,
+                            apple_pay_merchant_cert,
+                            apple_pay_merchant_cert_key,
+                        )?;
+                        services::call_connector_api(
+                            state,
+                            applepay_retry_session_request,
+                            "create_apple_pay_session_token",
+                        )
+                        .await
+                    }
+                    _ => response,
+                };
 
-                response
+                // logging the error if present in session call response
+                log_session_response_if_error(&updated_response);
+                updated_response
                     .ok()
                     .and_then(|apple_pay_res| {
                         apple_pay_res
@@ -441,6 +494,7 @@ fn get_session_request_for_simplified_apple_pay(
 
 fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
+    merchant_domain: Option<String>,
 ) -> RouterResult<payment_types::ApplepaySessionRequest> {
     let initiative_context = session_token_data
         .initiative_context
@@ -450,7 +504,7 @@ fn get_session_request_for_manual_apple_pay(
         merchant_identifier: session_token_data.merchant_identifier.clone(),
         display_name: session_token_data.display_name.clone(),
         initiative: session_token_data.initiative.to_string(),
-        initiative_context,
+        initiative_context: merchant_domain.unwrap_or(initiative_context),
     })
 }
 
