@@ -26,7 +26,6 @@ hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_const
 default = []
 ast_parser = ["dep:nom"]
 valued_jit = []
-connector_choice_mca_id = []
 dummy_connector = []
 payouts = []
 

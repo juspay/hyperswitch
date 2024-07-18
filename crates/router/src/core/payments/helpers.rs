@@ -66,8 +66,9 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
-        PaymentsResponseData, RecurringMandatePaymentData, RouterData,
+        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
+        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
+        RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -2429,6 +2430,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
                 | api_enums::PaymentMethodType::OpenBankingUk
+                | api_enums::PaymentMethodType::OpenBankingPIS
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -2502,6 +2504,10 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Benefit
                 | api_enums::PaymentMethodType::MomoAtm
                 | api_enums::PaymentMethodType::CardRedirect
+        ),
+        api_enums::PaymentMethod::OpenBanking => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::OpenBankingPIS
         ),
     }
 }
@@ -3341,6 +3347,15 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_additional_merchant_data(
+        &self,
+    ) -> Option<Encryptable<masking::Secret<serde_json::Value>>> {
+        match self {
+            Self::DbVal(db_val) => db_val.additional_merchant_data.clone(),
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -4024,6 +4039,9 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::CardToken(_) => {
             api_models::payments::AdditionalPaymentData::CardToken {}
         }
+        api_models::payments::PaymentMethodData::OpenBanking(_) => {
+            api_models::payments::AdditionalPaymentData::OpenBanking {}
+        }
     }
 }
 
@@ -4202,7 +4220,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
+#[cfg(feature = "retry")]
 pub async fn get_apple_pay_retryable_connectors<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -4572,6 +4590,11 @@ pub fn get_key_params_for_surcharge_details(
             gift_card.get_payment_method_type(),
             None,
         )),
+        api_models::payments::PaymentMethodData::OpenBanking(ob_data) => Some((
+            common_enums::PaymentMethod::OpenBanking,
+            ob_data.get_payment_method_type(),
+            None,
+        )),
         api_models::payments::PaymentMethodData::CardToken(_) => None,
     }
 }
@@ -4669,6 +4692,40 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     }
 }
 
+pub fn get_recipient_id_for_open_banking(
+    merchant_data: &AdditionalMerchantData,
+) -> Result<Option<String>, errors::ApiErrorResponse> {
+    match merchant_data {
+        AdditionalMerchantData::OpenBankingRecipientData(data) => match data {
+            MerchantRecipientData::ConnectorRecipientId(id) => Ok(Some(id.peek().clone())),
+            MerchantRecipientData::AccountData(acc_data) => match acc_data {
+                MerchantAccountData::Bacs {
+                    connector_recipient_id,
+                    ..
+                } => match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Ok(Some(id.peek().clone())),
+                    Some(RecipientIdType::LockerId(id)) => Ok(Some(id.peek().clone())),
+                    _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: "recipient_id".to_string(),
+                    }),
+                },
+                MerchantAccountData::Iban {
+                    connector_recipient_id,
+                    ..
+                } => match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Ok(Some(id.peek().clone())),
+                    Some(RecipientIdType::LockerId(id)) => Ok(Some(id.peek().clone())),
+                    _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: "recipient_id".to_string(),
+                    }),
+                },
+            },
+            _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                config: "recipient_id".to_string(),
+            }),
+        },
+    }
+}
 // This function validates the intent fulfillment time expiry set by the merchant in the request
 pub fn validate_intent_fulfillment_expiry(
     intent_fulfillment_time: u32,

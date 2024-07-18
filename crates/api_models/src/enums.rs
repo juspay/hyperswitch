@@ -101,6 +101,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
+    // Itaubank, template code for future usage
     Klarna,
     Mifinity,
     Mollie,
