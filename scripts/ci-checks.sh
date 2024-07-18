@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 # The below script is run on the github actions CI
 # Obtain a list of workspace members
@@ -77,6 +77,8 @@ done < <(jq --monochrome-output --raw-output \
     | { name, features: ( .features | map([., "v1"] | join(",")) ) }  # Add `v1` to remaining features and join them by comma
     | .name as $name | .features[] | { $name, features: . }  # Expand nested features object to have package - features combinations
     | "\(.name) \(.features)"') # Print out package name and features separated by space
+
+echo $all_commands
 
 # For crates which do not have v1 feature, we can run the usual cargo hack command
 while IFS=' ' read -r crate; do
