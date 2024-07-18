@@ -2373,8 +2373,7 @@ pub async fn make_payout_data(
         validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
-        payouts::PayoutRequest::PayoutRetrieveRequest(_)
-        | payouts::PayoutRequest::PayoutActionRequest(_) => {
+        payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {
                 Some(payout_token) => {
                     let customer_id = customer_details
@@ -2397,6 +2396,7 @@ pub async fn make_payout_data(
                 None => None,
             }
         }
+        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
     let payout_link = payouts
