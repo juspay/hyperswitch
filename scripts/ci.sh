@@ -38,7 +38,7 @@ if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
   done <<< "${workspace_members}"
   printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
 
-  packages_checked=$(printf '%s\n' "${PACKAGES_CHECKED[@]}" | jq -R . | jq -s -c.)
+  packages_checked=$(printf '%s\n' "${PACKAGES_CHECKED[@]}" | jq -R . | jq -s -c .)
 
   crates_with_features="$(cargo metadata --format-version 1 --no-deps \
     | jq \
