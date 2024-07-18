@@ -1,6 +1,6 @@
 //! Types interface
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, PaymentMethodToken},
+    router_data::AccessToken,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
@@ -8,8 +8,8 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PreProcessing,
-            Session, SetupMandate, Void,
+            CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+            PaymentMethodToken, PreProcessing, Session, SetupMandate, Void,
         },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,

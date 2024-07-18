@@ -74,11 +74,7 @@ use crate::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
-    },
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =

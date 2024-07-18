@@ -4,6 +4,7 @@ use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
@@ -12,7 +13,6 @@ use crate::{
     services::{self, api::ConnectorValidation, logger},
     types::{self, api, domain, storage},
 };
-
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
@@ -142,7 +142,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         &self.request,
                         self.is_three_ds(),
                         self.status,
-                        self.connector_meta_data,
+                        self.connector_meta_data.clone(),
                     )
                     .is_err()
                 {

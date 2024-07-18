@@ -361,7 +361,7 @@ impl ConnectorValidation for ConnectorEnum {
         &self,
         data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
         is_three_ds: bool,
-        status: enums::AttemptStatus,
+        status: common_enums::enums::AttemptStatus,
         connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
