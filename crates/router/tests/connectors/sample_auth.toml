@@ -196,8 +196,8 @@ key1= "Trankey"
 
 
 [plaid]
-api_key="API Key"
-key1= "Some key"
+api_key="Client Id"
+key1= "Secret"
 
 [threedsecureio]
 api_key="API Key"

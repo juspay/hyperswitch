@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub struct PlaidRouterData<T> {
-    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
@@ -95,7 +95,6 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                 domain::OpenBankingData::OpenBankingPIS { .. } => {
                     let amount = item.amount;
                     let currency = item.router_data.request.currency;
-                    // This reference is supposed to be under 18 chars in length, so unable to use payment_id
                     let payment_id = item.router_data.payment_id.clone();
                     let id_len = payment_id.len();
                     let reference = if id_len > 18 {
@@ -163,15 +162,13 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
                 domain::OpenBankingData::OpenBankingPIS { .. } => Ok(Self {
-                    // discuss this with folks
                     client_name: "Hyperswitch".to_string(),
                     country_codes: item
                         .request
                         .country
-                        .clone()
                         .map(|code| vec![code.to_string()])
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_codes",
+                            field_name: "billing.address.country",
                         })?,
                     language: "en".to_string(),
                     products: vec!["payment_initiation".to_string()],
@@ -235,7 +232,6 @@ pub enum PlaidPaymentStatus {
 impl From<PlaidPaymentStatus> for enums::AttemptStatus {
     fn from(item: PlaidPaymentStatus) -> Self {
         match item {
-            // Double check these with someone
             PlaidPaymentStatus::PaymentStatusAuthorising => Self::Authorizing,
             PlaidPaymentStatus::PaymentStatusBlocked => Self::AuthorizationFailed,
             PlaidPaymentStatus::PaymentStatusCancelled => Self::Voided,
@@ -270,6 +266,7 @@ impl<F, T>
             status,
             response: if is_payment_failure(status) {
                 Err(types::ErrorResponse {
+                    // populating status everywhere as plaid only sends back a status
                     code: item.response.status.clone().to_string(),
                     message: item.response.status.clone().to_string(),
                     reason: Some(item.response.status.to_string()),
@@ -355,6 +352,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
             status,
             response: if is_payment_failure(status) {
                 Err(types::ErrorResponse {
+                    // populating status everywhere as plaid only sends back a status
                     code: item.response.status.clone().to_string(),
                     message: item.response.status.clone().to_string(),
                     reason: Some(item.response.status.to_string()),
@@ -376,80 +374,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     charge_id: None,
                 })
             },
-            ..item.data
-        })
-    }
-}
-
-#[derive(Default, Debug, Serialize)]
-pub struct PlaidRefundRequest {
-    pub amount: FloatMajorUnit,
-}
-
-impl<F> TryFrom<&PlaidRouterData<&types::RefundsRouterData<F>>> for PlaidRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PlaidRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount,
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
             ..item.data
         })
     }
