@@ -26,7 +26,11 @@ use super::dummy_connector::*;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(all(
+    feature = "oltp",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll::retrieve_poll_status;
@@ -788,11 +792,15 @@ impl Routing {
 
 pub struct Customers;
 
-#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    any(feature = "olap", feature = "oltp")
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
-        #[cfg(all(feature = "oltp", feature = "v2"))]
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route.service(web::resource("").route(web::post().to(customers_create)))
         }
@@ -800,7 +808,11 @@ impl Customers {
     }
 }
 
-#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    any(feature = "olap", feature = "oltp")
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));

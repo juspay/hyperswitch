@@ -5,6 +5,7 @@ use common_utils::{
 };
 use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt, id_type};
 use error_stack::{report, ResultExt};
+#[cfg(any(feature = "v1", feature = "v2"))]
 use hyperswitch_domain_models::customer as customer_domain;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -83,8 +84,11 @@ trait CustomerCreateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[async_trait::async_trait]
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
@@ -165,8 +169,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
+#[cfg(any(feature = "oltp", all(feature = "v2", feature = "customer_v2")))]
 #[async_trait::async_trait]
-#[cfg(all(feature = "v2", features = "customer_v2"))]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
@@ -228,7 +232,10 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
@@ -238,7 +245,10 @@ struct AddressStructForDbEntry<'a> {
     key_store: &'a domain::MerchantKeyStore,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 impl<'a> AddressStructForDbEntry<'a> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
@@ -324,7 +334,10 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -355,7 +368,10 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -377,7 +393,10 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -533,7 +552,10 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip(state))]
 pub async fn update_customer(
     state: SessionState,
