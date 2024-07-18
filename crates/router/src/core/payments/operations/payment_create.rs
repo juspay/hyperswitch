@@ -136,7 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account,
             merchant_key_store,
             None,
-            &request.customer_id,
+            None,
         )
         .await?;
 
@@ -281,6 +281,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_method_info,
             merchant_key_store,
             profile_id,
+            &customer_acceptance,
         )
         .await?;
 
@@ -642,10 +643,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, raw_customer_details).await
-            })
-            .await;
+            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")?;
 
         payment_data.payment_intent = state
             .store
@@ -684,7 +686,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        helpers::validate_customer_details_in_request(request)?;
+        helpers::validate_customer_information(request)?;
+
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
         }
@@ -749,11 +752,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request
-                    .customer
-                    .as_ref()
-                    .map(|customer| &customer.id)
-                    .or(request.customer_id.as_ref()),
+                request.get_customer_id(),
             )?;
         }
 
@@ -798,6 +797,7 @@ impl PaymentCreate {
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: String,
+        customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -968,6 +968,13 @@ impl PaymentCreate {
                 charge_id: None,
                 client_source: None,
                 client_version: None,
+                customer_acceptance: customer_acceptance
+                    .clone()
+                    .map(|customer_acceptance| customer_acceptance.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize customer_acceptance")?
+                    .map(Secret::new),
             },
             additional_pm_data,
         ))
@@ -1050,13 +1057,25 @@ impl PaymentCreate {
         let billing_details = request
             .billing
             .clone()
-            .async_and_then(|_| async {
-                create_encrypted_data(key_store, request.billing.clone()).await
-            })
-            .await;
+            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?;
+
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_details = request
+            .shipping
+            .clone()
+            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
+        let raw_customer_details = if request.get_customer_id().is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()
@@ -1073,11 +1092,12 @@ impl PaymentCreate {
         };
 
         // Encrypting our Customer Details to be stored in Payment Intent
-        let customer_details = if raw_customer_details.is_some() {
-            create_encrypted_data(key_store, raw_customer_details).await
-        } else {
-            None
-        };
+        let customer_details = raw_customer_details
+            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")?;
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
@@ -1105,7 +1125,7 @@ impl PaymentCreate {
             ),
             order_details,
             amount_captured: None,
-            customer_id: None,
+            customer_id: request.get_customer_id().cloned(),
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
@@ -1129,6 +1149,7 @@ impl PaymentCreate {
             billing_details,
             customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            shipping_details,
         })
     }
 
@@ -1138,10 +1159,10 @@ impl PaymentCreate {
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
     ) -> Option<ephemeral_key::EphemeralKey> {
-        match request.customer_id.clone() {
+        match request.get_customer_id() {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
-                customer_id,
+                customer_id.clone(),
                 merchant_account.merchant_id.clone(),
             )
             .await

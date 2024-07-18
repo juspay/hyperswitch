@@ -24,6 +24,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsCaptureRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Capture,
@@ -36,8 +37,20 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -60,7 +73,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let resp = services::execute_connector_processing_step(
+        let mut new_router_data = services::execute_connector_processing_step(
             state,
             connector_integration,
             &self,
@@ -70,7 +83,14 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         .await
         .to_payment_failed_response()?;
 
-        Ok(resp)
+        // Initiating Integrity check
+        let integrity_result = helpers::check_integrity_based_on_flow(
+            &new_router_data.request,
+            &new_router_data.response,
+        );
+        new_router_data.integrity_check = integrity_result;
+
+        Ok(new_router_data)
     }
 
     async fn add_access_token<'a>(

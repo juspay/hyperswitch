@@ -8,21 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-/// Merchant Account - Create
-///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
-#[utoipa::path(
-    post,
-    path = "/accounts",
-    request_body= MerchantAccountCreate,
-    responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
-        (status = 400, description = "Invalid data")
-    ),
-    tag = "Merchant Account",
-    operation_id = "Create a Merchant Account",
-    security(("admin_api_key" = []))
-)]
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -41,6 +27,7 @@ pub async fn merchant_account_create(
     ))
     .await
 }
+
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
@@ -459,16 +446,16 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
-/// Merchant Account - Toggle KV
+/// Merchant Account - Transfer Keys
 ///
-/// Toggle KV mode for all Merchant Accounts
+/// Transfer Merchant Encryption key to keymanager
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_all_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::ToggleAllKVRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ConfigKeyUpdate;
+    let flow = Flow::MerchantTransferKey;
     let payload = json_payload.into_inner();
 
     api::server_wrap(
@@ -521,22 +508,22 @@ pub async fn business_profile_retrieve(
     let flow = Flow::BusinessProfileRetrieve;
     let (merchant_id, profile_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         profile_id,
-        |state, _, profile_id, _| retrieve_business_profile(state, profile_id),
+        |state, _, profile_id, _| retrieve_business_profile(state, profile_id, merchant_id.clone()),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountRead,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
@@ -596,7 +583,7 @@ pub async fn business_profiles_list(
     let flow = Flow::BusinessProfileList;
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -611,7 +598,7 @@ pub async fn business_profiles_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -658,6 +645,27 @@ pub async fn merchant_account_kv_status(
         &req,
         merchant_id,
         |state, _, req, _| check_merchant_account_kv_status(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_transfer_keys(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, _, _, _| transfer_key_store_to_key_manager(state),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

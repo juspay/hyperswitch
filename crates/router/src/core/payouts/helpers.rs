@@ -391,6 +391,9 @@ pub async fn save_payout_data_to_locker(
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
+                billing: None,
+                connector_mandate_details: None,
+                network_transaction_id: None,
             };
 
             let pm_data = card_isin
@@ -449,9 +452,12 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_data(key_store, Some(pm_data))
-                    .await
-                    .map(|details| details.into()),
+                Some(
+                    cards::create_encrypted_data(key_store, pm_data)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt customer details")?,
+                ),
                 payment_method,
             )
         } else {
@@ -472,6 +478,9 @@ pub async fn save_payout_data_to_locker(
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
+                    billing: None,
+                    connector_mandate_details: None,
+                    network_transaction_id: None,
                 },
             )
         };
@@ -488,12 +497,13 @@ pub async fn save_payout_data_to_locker(
             &merchant_account.merchant_id,
             None,
             None,
-            card_details_encrypted.clone(),
+            card_details_encrypted.clone().map(Into::into),
             key_store,
             None,
             None,
             None,
             merchant_account.storage_scheme,
+            None,
             None,
         )
         .await?;
@@ -550,7 +560,7 @@ pub async fn save_payout_data_to_locker(
 
         // Update card's metadata in payment_methods table
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-            payment_method_data: card_details_encrypted,
+            payment_method_data: card_details_encrypted.map(Into::into),
         };
         db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
             .await
@@ -880,9 +890,13 @@ pub async fn get_gsm_record(
 }
 
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
-    matches!(
+    !matches!(
         status,
-        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -903,10 +917,21 @@ pub(crate) fn validate_payout_status_against_not_allowed_statuses(
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
-        api_enums::PayoutStatus::Pending
-            | api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            // Initiated by the underlying connector
+            | api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::Initiated
+            | api_enums::PayoutStatus::RequiresFulfillment
+    )
+}
+
+pub fn should_call_retrieve(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -923,7 +948,9 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
     matches!(
         status,
         api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresPayoutMethodData,
+            | api_enums::PayoutStatus::RequiresConfirmation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresVendorAccountCreation
     )
 }
 

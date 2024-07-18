@@ -4887,6 +4887,21 @@
           }
         }
       },
+      "AdditionalMerchantData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_recipient_data"
+            ],
+            "properties": {
+              "open_banking_recipient_data": {
+                "$ref": "#/components/schemas/MerchantRecipientData"
+              }
+            }
+          }
+        ]
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -6809,11 +6824,22 @@
           },
           {
             "type": "object",
+            "required": [
+              "allowed_domains"
+            ],
             "properties": {
               "domain_name": {
                 "type": "string",
                 "description": "Custom domain name to be used for hosting the link",
                 "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true
               }
             }
           }
@@ -6991,6 +7017,11 @@
               }
             ],
             "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -7148,6 +7179,11 @@
                 "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
           }
         }
@@ -7724,6 +7760,7 @@
           "airwallex",
           "authorizedotnet",
           "bambora",
+          "bamboraapac",
           "bankofamerica",
           "billwerk",
           "bitpay",
@@ -7735,6 +7772,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -7763,6 +7801,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "shift4",
           "square",
           "stax",
@@ -9487,11 +9526,11 @@
             "nullable": true
           },
           "search_tags": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RedirectResponse"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional tags to be used for global search",
             "nullable": true
           }
         }
@@ -9757,6 +9796,34 @@
             "enum": [
               "user_date_of_birth"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_vpa_id"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "language_preference"
+            ],
+            "properties": {
+              "language_preference": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11098,7 +11165,8 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "merchant_name": {
             "type": "string",
@@ -11172,7 +11240,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object",
             "nullable": true
           },
           "publishable_key": {
@@ -11202,7 +11270,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The id of the organization to which the merchant belongs to",
+            "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
             "nullable": true
           },
           "pm_collect_link_config": {
@@ -11215,6 +11283,68 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "iban"
+            ],
+            "properties": {
+              "iban": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "MerchantAccountDeleteResponse": {
         "type": "object",
@@ -11252,7 +11382,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -11332,7 +11462,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "locker_id": {
@@ -11660,6 +11790,14 @@
               }
             ],
             "nullable": true
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11895,6 +12033,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12101,6 +12247,45 @@
         },
         "additionalProperties": false
       },
+      "MerchantRecipientData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "connector_recipient_id"
+            ],
+            "properties": {
+              "connector_recipient_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_id"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "account_data"
+            ],
+            "properties": {
+              "account_data": {
+                "$ref": "#/components/schemas/MerchantAccountData"
+              }
+            }
+          }
+        ]
+      },
       "MerchantRoutingAlgorithm": {
         "type": "object",
         "description": "Routing Algorithm specific to merchants",
@@ -12167,6 +12352,10 @@
           "date_of_birth": {
             "type": "string",
             "format": "date"
+          },
+          "language_preference": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -12535,6 +12724,33 @@
           }
         },
         "additionalProperties": false
+      },
+      "OpenBankingData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_pis"
+            ],
+            "properties": {
+              "open_banking_pis": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "OpenBankingSessionToken": {
+        "type": "object",
+        "required": [
+          "open_banking_session_token"
+        ],
+        "properties": {
+          "open_banking_session_token": {
+            "type": "string",
+            "description": "The session token for OpenBanking Connectors"
+          }
+        }
       },
       "OrderDetails": {
         "type": "object",
@@ -13559,7 +13775,8 @@
           "real_time_payment",
           "upi",
           "voucher",
-          "gift_card"
+          "gift_card",
+          "open_banking"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -13756,6 +13973,14 @@
               }
             ],
             "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13944,6 +14169,18 @@
             "properties": {
               "card_token": {
                 "$ref": "#/components/schemas/CardToken"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
               }
             }
           }
@@ -14149,6 +14386,17 @@
             ],
             "properties": {
               "card_token": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
                 "type": "object"
               }
             }
@@ -14514,7 +14762,8 @@
           "seicomart",
           "pay_easy",
           "local_bank_transfer",
-          "mifinity"
+          "mifinity",
+          "open_banking_pis"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19434,6 +19683,7 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "bamboraapac",
           "bluesnap",
           "boku",
           "braintree",
@@ -19442,6 +19692,7 @@
           "coinbase",
           "cryptopay",
           "cybersource",
+          "datatrans",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -19468,6 +19719,7 @@
           "powertranz",
           "prophetpay",
           "rapyd",
+          "razorpay",
           "riskified",
           "shift4",
           "signifyd",
@@ -19481,6 +19733,7 @@
           "worldline",
           "worldpay",
           "zen",
+          "plaid",
           "zsl"
         ]
       },
@@ -19975,6 +20228,27 @@
                     "type": "string",
                     "enum": [
                       "apple_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingSessionToken"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }
