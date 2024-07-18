@@ -1004,7 +1004,7 @@ impl Organization {
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(
                 web::resource("/{id}")
-                    .route(web::get().to(organization_retrive))
+                    .route(web::get().to(organization_retrieve))
                     .route(web::put().to(organization_update)),
             )
     }

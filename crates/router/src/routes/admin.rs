@@ -53,7 +53,7 @@ pub async fn organization_update(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationRetrieve))]
-pub async fn organization_retrive(
+pub async fn organization_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     org_id: web::Path<String>,
