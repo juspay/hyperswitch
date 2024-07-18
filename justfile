@@ -18,7 +18,7 @@ alias c := check
 
 # Check compilation of Rust code and catch common mistakes
 # We cannot run --all-features because v1 and v2 are mutually exclusive features
-# Create a list of features by exlcuding certain features 
+# Create a list of features by excluding certain features 
 clippy *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
@@ -30,7 +30,10 @@ clippy *FLAGS:
             | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+
+    set -x
     cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
 
 alias cl := clippy
 
@@ -52,7 +55,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets'
+doc_flags := '--all-features --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
 
 # Generate documentation
 doc *FLAGS:
@@ -71,12 +74,6 @@ euclid-wasm features='dummy_connector':
 
 # Run pre-commit checks
 precommit: fmt clippy
-
-hack_flags := '--workspace --each-feature --all-targets'
-
-# Check compilation of each cargo feature
-hack:
-    cargo hack check {{ hack_flags }}
 
 # Check compilation of v2 feature on base dependencies
 v2_intermediate_features := "merchant_account_v2,payment_v2"
@@ -142,3 +139,8 @@ migrate_v2 operation=default_operation *args='':
 resurrect:
     psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db';
     psql -U postgres -c 'CREATE DATABASE hyperswitch_db';
+
+ci_hack:
+    scripts/ci-checks.sh
+
+
