@@ -15,8 +15,8 @@ workspace_members="$(
 PACKAGES_CHECKED=()
 PACKAGES_SKIPPED=()
 
-# If we are running this in the CI, then only check for packages that are modified
-if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+# If we are running this on a pull request, then only check for packages that are modified
+if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
   while IFS= read -r package_name; do
     # Obtain comma-separated list of transitive workspace dependencies for each workspace member
     change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
@@ -48,7 +48,7 @@ if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
       --argjson packages_checked "${packages_checked}" \
       '[ ( .workspace_members | sort ) as $package_ids | .packages[] | select( IN( .name; $packages_checked[] ) ) | { name: .name, features: ( .features | keys ) } ]')"
 else
-  # If we are doing this locally, then check for all the crates
+  # If we are doing this locally or on merge queue, then check for all the crates
   crates_with_features="$(cargo metadata --format-version 1 --no-deps \
     | jq \
       --compact-output \
@@ -58,14 +58,14 @@ else
 fi
 
 # List of cargo commands that will be executed
-commands_with_v1_feature=()
+all_commands=()
 
 # Process the metadata to generate the cargo check commands for crates which have v1 features
 # We need to always have the v1 feature with each feature
 # This is because, no crate should be run without any features
 while IFS=' ' read -r crate features; do
   command="cargo check --all-targets --package \"${crate}\" --no-default-features --features \"${features}\""
-  commands_with_v1_feature+=("$command")
+  all_commands+=("$command")
 done < <(jq --monochrome-output --raw-output \
   --argjson crates_with_features "${crates_with_features}" \
   --null-input \
@@ -76,26 +76,22 @@ done < <(jq --monochrome-output --raw-output \
     | .name as $name | .features[] | { $name, features: . }  # Expand nested features object to have package - features combinations
     | "\(.name) \(.features)"') # Print out package name and features separated by space
 
-echo "Compiling crates with v1 feature"
-printf "%s\n" "${commands_with_v1_feature[@]}"
-
-commands_without_v1_feature=()
-
 # For crates which do not have v1 feature, we can run the usual cargo hack command
 while IFS=' ' read -r crate; do
   command="cargo hack check --all-targets --each-feature --package \"${crate}\""
-  commands_without_v1_feature+=("$command")
+  all_commands+=("$command")
 done < <(jq --monochrome-output --raw-output \
   --argjson crates_with_features "${crates_with_features}" \
   --null-input \
   '$crates_with_features[] | select(IN("v1"; .features[]) | not ) # Select crates without `v1` feature
   | "\(.name)" # Print out package name')
 
-echo "Compiling crates without v1 feature"
-printf "%s\n" "${commands_without_v1_feature[@]}"
+echo "The list of commands that will be executed:"
+printf "%s\n" "${all_commands[@]}"
+echo
 
-# Print and execute the commands
-for command in "${commands_with_v1_feature[@]}"; do
+# Execute the commands
+for command in "${all_commands[@]}"; do
   if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
     printf '::group::Running `%s`\n' "${command}"
   fi
