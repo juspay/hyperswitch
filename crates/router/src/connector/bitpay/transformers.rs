@@ -184,7 +184,7 @@ impl<F> TryFrom<&BitpayRouterData<&types::RefundsRouterData<F>>> for BitpayRefun
         item: &BitpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.amount,
         })
     }
 }
