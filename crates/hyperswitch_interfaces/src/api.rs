@@ -317,10 +317,12 @@ pub trait ConnectorValidation: ConnectorCommon {
     /// fn validate_psync_reference_id
     fn validate_psync_reference_id(
         &self,
-        data: &hyperswitch_domain_models::types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
+        data.connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
             .map(|_| ())

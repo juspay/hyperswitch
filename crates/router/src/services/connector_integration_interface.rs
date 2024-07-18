@@ -359,11 +359,24 @@ impl ConnectorValidation for ConnectorEnum {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        is_three_ds: bool,
+        status: enums::AttemptStatus,
+        connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.validate_psync_reference_id(data),
-            Self::New(connector) => connector.validate_psync_reference_id(data),
+            Self::Old(connector) => connector.validate_psync_reference_id(
+                data,
+                is_three_ds,
+                status,
+                connector_meta_data,
+            ),
+            Self::New(connector) => connector.validate_psync_reference_id(
+                data,
+                is_three_ds,
+                status,
+                connector_meta_data,
+            ),
         }
     }
 

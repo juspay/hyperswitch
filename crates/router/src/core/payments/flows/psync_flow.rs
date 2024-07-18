@@ -138,7 +138,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 //validate_psync_reference_id if call_connector_action is trigger
                 if connector
                     .connector
-                    .validate_psync_reference_id(self)
+                    .validate_psync_reference_id(
+                        &self.request,
+                        self.is_three_ds(),
+                        self.status,
+                        self.connector_meta_data,
+                    )
                     .is_err()
                 {
                     logger::warn!(

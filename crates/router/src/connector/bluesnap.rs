@@ -196,10 +196,13 @@ impl ConnectorValidation for Bluesnap {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        is_three_ds: bool,
+        status: enums::AttemptStatus,
+        connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // If 3DS payment was triggered, connector will have context about payment in CompleteAuthorizeFlow and thus can't make force_sync
-        if data.is_three_ds() && data.status == enums::AttemptStatus::AuthenticationPending {
+        if is_three_ds && status == enums::AttemptStatus::AuthenticationPending {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "connector_transaction_id".to_string(),
@@ -209,7 +212,6 @@ impl ConnectorValidation for Bluesnap {
         }
         // if connector_transaction_id is present, psync can be made
         if data
-            .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .is_ok()
@@ -218,7 +220,7 @@ impl ConnectorValidation for Bluesnap {
         }
         // if merchant_id is present, psync can be made along with attempt_id
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
+            connector_utils::to_connector_meta_from_secret(connector_meta_data.clone());
 
         meta_data.map(|_| ())
     }

@@ -281,9 +281,12 @@ impl ConnectorValidation for Adyen {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if data.request.encoded_data.is_some() {
+        if data.encoded_data.is_some() {
             return Ok(());
         }
         Err(errors::ConnectorError::MissingRequiredField {
