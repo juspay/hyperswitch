@@ -29,7 +29,6 @@ common_utils = { version = "0.1.0", path = "../common_utils"}
 default = []
 ast_parser = ["dep:nom"]
 valued_jit = []
-connector_choice_mca_id = []
 dummy_connector = []
 payouts = []
 

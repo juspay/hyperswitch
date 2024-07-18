@@ -690,7 +690,6 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
             )
             .await
@@ -711,10 +710,7 @@ pub async fn decide_payout_connector(
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     payout_attempt.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -722,14 +718,8 @@ pub async fn decide_payout_connector(
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
-        }
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         routing_data.routing_info.algorithm = Some(routing_algorithm);
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
@@ -748,7 +738,6 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
             )
             .await
@@ -771,10 +760,7 @@ pub async fn decide_payout_connector(
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     payout_attempt.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -782,14 +768,8 @@ pub async fn decide_payout_connector(
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
-        }
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
@@ -896,6 +876,7 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -922,7 +903,15 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
             // Initiated by the underlying connector
             | api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::Initiated
             | api_enums::PayoutStatus::RequiresFulfillment
+    )
+}
+
+pub fn should_call_retrieve(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::Initiated
     )
 }
 
