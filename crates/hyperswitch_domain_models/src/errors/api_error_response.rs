@@ -156,7 +156,7 @@ pub enum ApiErrorResponse {
     MissingTenantId,
     #[error(error_type = ErrorType::ProcessingError, code = "HE_05", message = "Invalid tenant id: {tenant_id}")]
     InvalidTenant { tenant_id: String },
-    #[error(error_type = ErrorType::ValidationError, code = "HE_05", message = "Failed to convert amount to {amount_type} type")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_06", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
     NotImplemented { message: NotImplementedMessage },
@@ -483,7 +483,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE", 5, format!("Invalid Tenant {tenant_id}"), None))
             }
             Self::AmountConversionFailed { amount_type }  => {
-                AER::InternalServerError(ApiError::new("HE", 5, format!("Failed to convert amount to {amount_type} type"), None))
+                AER::InternalServerError(ApiError::new("HE", 6, format!("Failed to convert amount to {amount_type} type"), None))
             }
 
             Self::NotImplemented { message } => {
