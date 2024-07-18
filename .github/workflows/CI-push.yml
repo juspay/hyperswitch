@@ -148,10 +148,11 @@ jobs:
         with:
           crate: cargo-hack
 
-      - name: Install Just
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.41.10
         with:
-          crate: just
+          tool: cargo-hack
+          checksum: true
 
       # - name: Install cargo-nextest
       #   uses: baptiste0928/cargo-install@v2.2.0

@@ -138,10 +138,11 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Install Just
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
         with:
-          crate: just
+          tool: just
+          checksum: true
 
       # - name: Check modified crates
       #   shell: bash
@@ -281,10 +282,11 @@ jobs:
           tool: cargo-hack
           checksum: true
 
-      - name: Install Just
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
         with:
-          crate: just
+          tool: just
+          checksum: true
 
       # - name: Install cargo-nextest
       #   uses: taiki-e/install-action@v2.33.28
