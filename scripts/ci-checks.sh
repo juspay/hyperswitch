@@ -57,6 +57,8 @@ else
       '[ ( .workspace_members | sort ) as $package_ids | .packages[] | select( IN( .id; $package_ids[] ) ) | { name: .name, features: ( .features | keys ) } ]')"
 fi
 
+echo $crates_with_features
+
 # List of cargo commands that will be executed
 all_commands=()
 
