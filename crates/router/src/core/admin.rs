@@ -129,6 +129,8 @@ pub async fn update_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
         org_name: req.organization_name,
+        organization_details: req.organization_details,
+        metadata: req.metadata,
     };
     state
         .store

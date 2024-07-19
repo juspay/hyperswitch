@@ -30,6 +30,10 @@ impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResp
         Self {
             organization_id: org.org_id,
             organization_name: org.org_name,
+            organization_details: org.organization_details,
+            metadata: org.metadata,
+            modified_at: org.modified_at,
+            created_at: org.created_at,
         }
     }
 }
