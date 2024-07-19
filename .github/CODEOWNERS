@@ -11,8 +11,12 @@ Makefile @juspay/hyperswitch-maintainers
 
 .github/ @juspay/hyperswitch-devops
 
+crates/router/src/core/ @juspay/hyperswitch-core
+
 config/ @juspay/hyperswitch-framework
 crates/ @juspay/hyperswitch-framework
+crates/hyperswitch_domain_models/src/errors @juspay/hyperswitch-framework
+crates/hyperswitch_domain_models/src/errors.rs @juspay/hyperswitch-framework
 crates/router/src/types/ @juspay/hyperswitch-framework
 crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
@@ -43,8 +47,6 @@ crates/test_utils/tests/sample_auth.toml @juspay/hyperswitch-connector
 crates/connector_configs/ @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
-
-crates/router/src/core/ @juspay/hyperswitch-core
 
 crates/api_models/src/routing.rs @juspay/hyperswitch-routing
 crates/hyperswitch_constraint_graph @juspay/hyperswitch-routing
