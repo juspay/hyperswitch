@@ -15,8 +15,8 @@ crates/router/src/core/ @juspay/hyperswitch-core
 
 config/ @juspay/hyperswitch-framework
 crates/ @juspay/hyperswitch-framework
-crates/hyperswitch_domain_models/src/errors @juspay/hyperswitch-framework
-crates/hyperswitch_domain_models/src/errors.rs @juspay/hyperswitch-framework
+crates/router/src/core/errors @juspay/hyperswitch-framework
+crates/router/src/core/errors.rs @juspay/hyperswitch-framework
 crates/router/src/types/ @juspay/hyperswitch-framework
 crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
