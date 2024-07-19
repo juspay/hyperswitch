@@ -15,7 +15,7 @@ use crate::{
         errors::{ApiClientError, CustomResult},
         payments,
     },
-    routes::SessionState,
+    routes::{app::settings::KeyManagerConfig, SessionState},
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -110,7 +110,12 @@ pub fn create_client(
     }
 }
 
-pub fn proxy_bypass_urls(locker: &Locker, config_whitelist: &[String]) -> Vec<String> {
+pub fn proxy_bypass_urls(
+    key_manager: &KeyManagerConfig,
+    locker: &Locker,
+    config_whitelist: &[String],
+) -> Vec<String> {
+    let key_manager_host = key_manager.url.to_owned();
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
 
@@ -126,8 +131,11 @@ pub fn proxy_bypass_urls(locker: &Locker, config_whitelist: &[String]) -> Vec<St
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
+        format!("{key_manager_host}/data/encrypt"),
+        format!("{key_manager_host}/data/decrypt"),
+        format!("{key_manager_host}/key/create"),
+        format!("{key_manager_host}/key/rotate"),
     ];
-
     [&proxy_list, config_whitelist].concat().to_vec()
 }
 

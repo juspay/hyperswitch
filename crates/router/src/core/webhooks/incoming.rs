@@ -258,7 +258,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             Some(merchant_connector_account) => merchant_connector_account,
             None => {
                 helper_utils::get_mca_from_object_reference_id(
-                    &*state.clone().store,
+                    &state,
                     object_ref_id.clone(),
                     &merchant_account,
                     &connector_name,
@@ -1675,6 +1675,7 @@ async fn fetch_optional_mca_and_connector(
     if connector_name_or_mca_id.starts_with("mca_") {
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &state.into(),
                 &merchant_account.merchant_id,
                 connector_name_or_mca_id,
                 key_store,
