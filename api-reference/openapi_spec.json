@@ -6865,6 +6865,15 @@
                   "$ref": "#/components/schemas/PaymentLinkConfigRequest"
                 },
                 "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true,
+                "nullable": true
               }
             }
           }
@@ -13582,6 +13591,15 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "allowed_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+            "uniqueItems": true,
+            "nullable": true
           }
         }
       },
@@ -13651,14 +13669,26 @@
         "type": "object",
         "required": [
           "link",
+          "link_open",
           "payment_link_id"
         ],
         "properties": {
           "link": {
-            "type": "string"
+            "type": "string",
+            "description": "URL for rendering the open payment link [deprecated soon; use link_open instead]"
+          },
+          "link_open": {
+            "type": "string",
+            "description": "URL for rendering the open payment link"
+          },
+          "link_secure": {
+            "type": "string",
+            "description": "URL for rendering the secure payment link",
+            "nullable": true
           },
           "payment_link_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier for the payment link"
           }
         }
       },
@@ -19539,7 +19569,7 @@
         "required": [
           "payment_link_id",
           "merchant_id",
-          "link_to_pay",
+          "link_open",
           "amount",
           "created_at",
           "status"
@@ -19553,9 +19583,9 @@
             "type": "string",
             "description": "Identifier for Merchant"
           },
-          "link_to_pay": {
+          "link_open": {
             "type": "string",
-            "description": "Payment Link"
+            "description": "Open payment link (without any security checks and listing SPMs)"
           },
           "amount": {
             "type": "integer",
@@ -19588,6 +19618,11 @@
                 "$ref": "#/components/schemas/Currency"
               }
             ],
+            "nullable": true
+          },
+          "link_secure": {
+            "type": "string",
+            "description": "Secure payment link (with security checks and listing SPMs)",
             "nullable": true
           }
         }

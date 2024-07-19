@@ -10,7 +10,7 @@ use crate::{enums as storage_enums, schema::payment_link};
 pub struct PaymentLink {
     pub payment_link_id: String,
     pub payment_id: String,
-    pub link_to_pay: String,
+    pub link_open: String,
     pub merchant_id: String,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
@@ -24,6 +24,7 @@ pub struct PaymentLink {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<String>,
+    pub link_secure: Option<String>,
 }
 
 #[derive(
@@ -40,7 +41,7 @@ pub struct PaymentLink {
 pub struct PaymentLinkNew {
     pub payment_link_id: String,
     pub payment_id: String,
-    pub link_to_pay: String,
+    pub link_open: String,
     pub merchant_id: String,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
@@ -54,4 +55,5 @@ pub struct PaymentLinkNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<String>,
+    pub link_secure: Option<String>,
 }

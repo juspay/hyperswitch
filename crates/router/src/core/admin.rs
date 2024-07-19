@@ -2028,12 +2028,15 @@ pub async fn update_business_profile(
     let payment_link_config = request
         .payment_link_config
         .as_ref()
-        .map(|pl_metadata| {
-            pl_metadata.encode_to_value().change_context(
+        .map(|payment_link_conf| match payment_link_conf.validate() {
+            Ok(_) => payment_link_conf.encode_to_value().change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
                 },
-            )
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
         })
         .transpose()?;
 

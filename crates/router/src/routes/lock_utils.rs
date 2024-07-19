@@ -183,6 +183,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
+            | Flow::PaymentSecureLinkInitiate
             | Flow::PaymentLinkList
             | Flow::PaymentLinkStatus => Self::PaymentLink,
 

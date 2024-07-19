@@ -1407,7 +1407,7 @@ impl BusinessGenericLinkConfig {
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received");
+            return Err("Invalid host domain name received in payout_link_config");
         }
 
         let are_allowed_domains_valid = self
@@ -1416,7 +1416,7 @@ impl BusinessGenericLinkConfig {
             .iter()
             .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received");
+            return Err("Invalid allowed domain names received in payout_link_config");
         }
 
         Ok(())
@@ -1433,6 +1433,37 @@ pub struct BusinessPaymentLinkConfig {
     pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    #[schema(value_type = Option<HashSet<String>>)]
+    pub allowed_domains: Option<HashSet<String>>,
+}
+
+impl BusinessPaymentLinkConfig {
+    pub fn validate(&self) -> Result<(), &str> {
+        let host_domain_valid = self
+            .domain_name
+            .clone()
+            .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
+            .unwrap_or(true);
+        if !host_domain_valid {
+            return Err("Invalid host domain name received in payment_link_config");
+        }
+
+        let are_allowed_domains_valid = self
+            .allowed_domains
+            .clone()
+            .map(|allowed_domains| {
+                allowed_domains
+                    .iter()
+                    .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain))
+            })
+            .unwrap_or(true);
+        if !are_allowed_domains_valid {
+            return Err("Invalid allowed domain names received in payment_link_config");
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1471,6 +1502,8 @@ pub struct PaymentLinkConfig {
     pub display_sdk_only: bool,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    pub allowed_domains: Option<HashSet<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

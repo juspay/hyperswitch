@@ -304,11 +304,21 @@ pub async fn render_pm_collect_link(
                         .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?
                 );
 
+                let document =
+                    include_str!("./generic_link/payment_method_collect/initiate/index.html");
+                let scripts =
+                    include_str!("./generic_link/payment_method_collect/initiate/script.js");
+                let styles =
+                    include_str!("./generic_link/payment_method_collect/initiate/styles.css");
+
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
                     sdk_url: default_config.sdk_url.to_string(),
                     html_meta_tags: String::new(),
+                    document,
+                    scripts,
+                    styles,
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {

@@ -270,7 +270,7 @@ pub fn validate_payout_link_render_request(
     }
 }
 
-fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
+pub fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
     allowed_domains.iter().any(|allowed_domain| {
         Glob::new(allowed_domain)
             .map(|glob| glob.compile_matcher().is_match(domain))

@@ -71,6 +71,7 @@ pub enum GenericLinksData {
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
+    SecurePaymentLink(PaymentLinkFormData),
 }
 
 impl Display for GenericLinksData {
@@ -84,6 +85,7 @@ impl Display for GenericLinksData {
                 Self::PayoutLink(_) => "PayoutLink",
                 Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
                 Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::SecurePaymentLink(_) => "SecurePaymentLink",
             }
         )
     }
@@ -102,6 +104,9 @@ pub struct GenericLinkFormData {
     pub css_data: String,
     pub sdk_url: String,
     pub html_meta_tags: String,
+    pub scripts: &'static str,
+    pub styles: &'static str,
+    pub document: &'static str,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]

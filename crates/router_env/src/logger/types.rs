@@ -284,6 +284,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// payment Link Initiate flow
+    PaymentSecureLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
     /// Payment Link Status

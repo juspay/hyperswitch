@@ -1,14 +1,21 @@
-use api_models::{admin as admin_types, payments::PaymentLinkStatusWrap};
+pub mod validator;
+use actix_web::http::header;
+use api_models::{
+    admin::PaymentLinkConfig,
+    payments::{PaymentLinkData, PaymentLinkStatusWrap},
+};
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
+        DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use futures::future;
+use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
@@ -20,7 +27,9 @@ use crate::{
     routes::SessionState,
     services,
     types::{
-        api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
+        api::payment_link::PaymentLinkResponseExt,
+        domain,
+        storage::{enums as storage_enums, payment_link::PaymentLink},
         transformers::ForeignFrom,
     },
 };
@@ -49,13 +58,13 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-pub async fn initiate_payment_link_flow(
-    state: SessionState,
+pub async fn form_payment_link_data(
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: String,
     payment_id: String,
-) -> RouterResponse<services::PaymentLinkFormData> {
+) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -83,21 +92,24 @@ pub async fn initiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = if let Some(pl_config_value) = payment_link.payment_link_config {
-        extract_payment_link_config(pl_config_value)?
-    } else {
-        admin_types::PaymentLinkConfig {
-            theme: DEFAULT_BACKGROUND_COLOR.to_string(),
-            logo: DEFAULT_MERCHANT_LOGO.to_string(),
-            seller_name: merchant_name_from_merchant_account,
-            sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
-            display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
-            enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-        }
-    };
+    let payment_link_config =
+        if let Some(pl_config_value) = payment_link.payment_link_config.clone() {
+            extract_payment_link_config(pl_config_value)?
+        } else {
+            PaymentLinkConfig {
+                theme: DEFAULT_BACKGROUND_COLOR.to_string(),
+                logo: DEFAULT_MERCHANT_LOGO.to_string(),
+                seller_name: merchant_name_from_merchant_account,
+                sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
+                display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
+                enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+                allowed_domains: DEFAULT_ALLOWED_DOMAINS,
+            }
+        };
 
     let profile_id = payment_link
         .profile_id
+        .clone()
         .or(payment_intent.profile_id)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Profile id missing in payment link and payment intent")?;
@@ -142,7 +154,6 @@ pub async fn initiate_payment_link_flow(
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
-    let css_script = get_color_scheme_css(payment_link_config.clone());
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
@@ -204,78 +215,185 @@ pub async fn initiate_payment_link_flow(
             return_url: return_url.clone(),
         };
 
-        logger::info!(
-            "payment link data, for building payment link status page {:?}",
-            payment_details
-        );
-        let js_script = get_js_script(
-            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
-        )?;
-        let payment_link_error_data = services::PaymentLinkStatusData {
-            js_script,
-            css_script,
-        };
-        return Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
-            services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
-        )));
+        return Ok((
+            payment_link,
+            PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+            payment_link_config,
+        ));
     };
 
-    let payment_details = api_models::payments::PaymentLinkDetails {
-        amount,
-        currency,
-        payment_id: payment_intent.payment_id,
-        merchant_name,
-        order_details,
-        return_url,
-        session_expiry,
-        pub_key: merchant_account.publishable_key,
-        client_secret,
-        merchant_logo: payment_link_config.logo.clone(),
-        max_items_visible_after_collapse: 3,
-        theme: payment_link_config.theme.clone(),
-        merchant_description: payment_intent.description,
-        sdk_layout: payment_link_config.sdk_layout.clone(),
-        display_sdk_only: payment_link_config.display_sdk_only,
-        enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
-    };
+    let payment_link_details =
+        PaymentLinkData::PaymentLinkDetails(api_models::payments::PaymentLinkDetails {
+            amount,
+            currency,
+            payment_id: payment_intent.payment_id,
+            merchant_name,
+            order_details,
+            return_url,
+            session_expiry,
+            pub_key: merchant_account.publishable_key,
+            client_secret,
+            merchant_logo: payment_link_config.logo.clone(),
+            max_items_visible_after_collapse: 3,
+            theme: payment_link_config.theme.clone(),
+            merchant_description: payment_intent.description,
+            sdk_layout: payment_link_config.sdk_layout.clone(),
+            display_sdk_only: payment_link_config.display_sdk_only,
+        });
 
-    let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
-        &payment_details,
-    ))?;
+    Ok((payment_link, payment_link_details, payment_link_config))
+}
 
-    let html_meta_tags = get_meta_tags_html(payment_details);
+pub async fn initiate_secure_payment_link_flow(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    merchant_id: String,
+    payment_id: String,
+    request_headers: &header::HeaderMap,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    let (payment_link, payment_link_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
-    let payment_link_data = services::PaymentLinkFormData {
-        js_script,
-        sdk_url: state.conf.payment_link.sdk_url.clone(),
-        css_script,
-        html_meta_tags,
-    };
+    validator::validate_secure_payment_link_render_request(
+        request_headers,
+        &payment_link,
+        &payment_link_config,
+    )?;
 
-    logger::info!(
-        "payment link data, for building payment link {:?}",
-        payment_link_data
-    );
-    Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
-        services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
-    )))
+    let css_script = get_color_scheme_css(&payment_link_config);
+
+    match payment_link_details {
+        PaymentLinkData::PaymentLinkStatusDetails(ref status_details) => {
+            let js_script = get_js_script(&payment_link_details)?;
+            let payment_link_error_data = services::PaymentLinkStatusData {
+                js_script,
+                css_script,
+            };
+            logger::info!(
+                "payment link data, for building payment link status page {:?}",
+                status_details
+            );
+            Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
+                services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
+            )))
+        }
+        PaymentLinkData::PaymentLinkDetails(link_details) => {
+            let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
+                enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+                payment_link_details: link_details.to_owned(),
+            };
+            let js_script = format!(
+                "window.__PAYMENT_DETAILS = {}",
+                serde_json::to_string(&secure_payment_link_details)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize PaymentLinkData")?
+            );
+            let html_meta_tags = get_meta_tags_html(&link_details);
+            let payment_link_data = services::PaymentLinkFormData {
+                js_script,
+                sdk_url: state.conf.payment_link.sdk_url.clone(),
+                css_script,
+                html_meta_tags,
+            };
+            let allowed_domains = payment_link_config
+                .allowed_domains
+                .clone()
+                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Invalid list of allowed_domains found - {:?}",
+                        payment_link_config.allowed_domains.clone()
+                    )
+                })?;
+
+            if allowed_domains.is_empty() {
+                return Err(report!(errors::ApiErrorResponse::InternalServerError))
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Invalid list of allowed_domains found - {:?}",
+                            payment_link_config.allowed_domains.clone()
+                        )
+                    });
+            }
+
+            let link_data = GenericLinks {
+                allowed_domains,
+                data: GenericLinksData::SecurePaymentLink(payment_link_data),
+            };
+            logger::info!(
+                "payment link data, for building secure payment link {:?}",
+                link_data
+            );
+
+            Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
+                link_data,
+            )))
+        }
+    }
+}
+
+pub async fn initiate_payment_link_flow(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    merchant_id: String,
+    payment_id: String,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    let (_, payment_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
+
+    let css_script = get_color_scheme_css(&payment_link_config);
+    let js_script = get_js_script(&payment_details)?;
+
+    match payment_details {
+        PaymentLinkData::PaymentLinkStatusDetails(status_details) => {
+            let payment_link_error_data = services::PaymentLinkStatusData {
+                js_script,
+                css_script,
+            };
+            logger::info!(
+                "payment link data, for building payment link status page {:?}",
+                status_details
+            );
+            Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
+                services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
+            )))
+        }
+        PaymentLinkData::PaymentLinkDetails(payment_details) => {
+            let html_meta_tags = get_meta_tags_html(&payment_details);
+            let payment_link_data = services::PaymentLinkFormData {
+                js_script,
+                sdk_url: state.conf.payment_link.sdk_url.clone(),
+                css_script,
+                html_meta_tags,
+            };
+            logger::info!(
+                "payment link data, for building open payment link {:?}",
+                payment_link_data
+            );
+            Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
+                services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
+            )))
+        }
+    }
 }
 
 /*
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-fn get_js_script(
-    payment_details: &api_models::payments::PaymentLinkData<'_>,
-) -> RouterResult<String> {
+fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
     let payment_details_str = serde_json::to_string(payment_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize PaymentLinkData")?;
     Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
 }
 
-fn get_color_scheme_css(payment_link_config: api_models::admin::PaymentLinkConfig) -> String {
-    let background_primary_color = payment_link_config.theme;
+fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {
+    let background_primary_color = payment_link_config.theme.clone();
     format!(
         ":root {{
       --primary-color: {background_primary_color};
@@ -283,12 +401,15 @@ fn get_color_scheme_css(payment_link_config: api_models::admin::PaymentLinkConfi
     )
 }
 
-fn get_meta_tags_html(payment_details: api_models::payments::PaymentLinkDetails) -> String {
+fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
     format!(
         r#"<meta property="og:title" content="Payment request from {0}"/>
         <meta property="og:description" content="{1}"/>"#,
-        payment_details.merchant_name,
-        payment_details.merchant_description.unwrap_or_default()
+        payment_details.merchant_name.clone(),
+        payment_details
+            .merchant_description
+            .clone()
+            .unwrap_or_default()
     )
 }
 
@@ -394,11 +515,12 @@ fn validate_order_details(
 
 pub fn extract_payment_link_config(
     pl_config: serde_json::Value,
-) -> Result<api_models::admin::PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
-    serde_json::from_value::<api_models::admin::PaymentLinkConfig>(pl_config.clone())
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+) -> Result<PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
+    serde_json::from_value::<PaymentLinkConfig>(pl_config).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
             field_name: "payment_link_config",
-        })
+        },
+    )
 }
 
 pub fn get_payment_link_config_based_on_priority(
@@ -407,39 +529,39 @@ pub fn get_payment_link_config_based_on_priority(
     merchant_name: String,
     default_domain_name: String,
     payment_link_config_id: Option<String>,
-) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
-{
-    let (domain_name, business_theme_configs) = if let Some(business_config) = business_link_config
-    {
-        let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
-            .parse_value("BusinessPaymentLinkConfig")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_link_config",
-            })
-            .attach_printable("Invalid payment_link_config given in business config")?;
-        logger::info!(
-            "domain name set to custom domain https://{:?}",
-            extracted_value.domain_name
-        );
-
-        (
-            extracted_value
-                .domain_name
-                .clone()
-                .map(|d_name| format!("https://{}", d_name))
-                .unwrap_or_else(|| default_domain_name.clone()),
-            payment_link_config_id
-                .and_then(|id| {
-                    extracted_value
-                        .business_specific_configs
-                        .as_ref()
-                        .and_then(|specific_configs| specific_configs.get(&id).cloned())
+) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
+    let (domain_name, business_theme_configs, allowed_domains) =
+        if let Some(business_config) = business_link_config {
+            let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
+                .parse_value("BusinessPaymentLinkConfig")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
                 })
-                .or(extracted_value.default_config),
-        )
-    } else {
-        (default_domain_name, None)
-    };
+                .attach_printable("Invalid payment_link_config given in business config")?;
+            logger::info!(
+                "domain name set to custom domain https://{:?}",
+                extracted_value.domain_name
+            );
+
+            (
+                extracted_value
+                    .domain_name
+                    .clone()
+                    .map(|d_name| format!("https://{}", d_name))
+                    .unwrap_or_else(|| default_domain_name.clone()),
+                payment_link_config_id
+                    .and_then(|id| {
+                        extracted_value
+                            .business_specific_configs
+                            .as_ref()
+                            .and_then(|specific_configs| specific_configs.get(&id).cloned())
+                    })
+                    .or(extracted_value.default_config),
+                extracted_value.allowed_domains,
+            )
+        } else {
+            (default_domain_name, None, None)
+        };
 
     let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
         payment_create_link_config,
@@ -455,13 +577,14 @@ pub fn get_payment_link_config_based_on_priority(
         )
     );
 
-    let payment_link_config = admin_types::PaymentLinkConfig {
+    let payment_link_config = PaymentLinkConfig {
         theme,
         logo,
         seller_name,
         sdk_layout,
         display_sdk_only,
         enabled_saved_payment_method,
+        allowed_domains,
     };
 
     Ok((payment_link_config, domain_name))
@@ -535,13 +658,14 @@ pub async fn get_payment_link_status(
     let payment_link_config = if let Some(pl_config_value) = payment_link.payment_link_config {
         extract_payment_link_config(pl_config_value)?
     } else {
-        admin_types::PaymentLinkConfig {
+        PaymentLinkConfig {
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name_from_merchant_account,
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            allowed_domains: DEFAULT_ALLOWED_DOMAINS,
         }
     };
 
@@ -562,7 +686,7 @@ pub async fn get_payment_link_status(
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
-    let css_script = get_color_scheme_css(payment_link_config.clone());
+    let css_script = get_color_scheme_css(&payment_link_config);
 
     let profile_id = payment_link
         .profile_id
@@ -601,9 +725,7 @@ pub async fn get_payment_link_status(
         theme: payment_link_config.theme.clone(),
         return_url,
     };
-    let js_script = get_js_script(
-        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
-    )?;
+    let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(payment_details))?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
         css_script,
