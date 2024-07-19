@@ -39,14 +39,14 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorMandateRevoke,
-    ConnectorVerifyWebhookSource, CurrencyUnit,
+    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
+    ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
 
 #[cfg(feature = "frm")]
@@ -66,47 +66,17 @@ use crate::{
         payments::types as payments_types,
     },
     services::{
-        connector_integration_interface::ConnectorEnum, ConnectorIntegrationV2,
-        ConnectorRedirectResponse, ConnectorValidation,
+        connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse,
+        ConnectorValidation,
     },
     types::{self, api::enums as api_enums},
 };
-
-pub trait ConnectorAccessTokenV2:
-    ConnectorIntegrationV2<
-    AccessTokenAuth,
-    AccessTokenFlowData,
-    types::AccessTokenRequestData,
-    types::AccessToken,
->
-{
-}
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
-}
-
-pub trait ConnectorVerifyWebhookSourceV2:
-    ConnectorIntegrationV2<
-    VerifyWebhookSource,
-    types::WebhookSourceVerifyData,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
-
-pub trait ConnectorMandateRevokeV2:
-    ConnectorIntegrationV2<
-    MandateRevoke,
-    types::MandateRevokeFlowData,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
->
-{
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {

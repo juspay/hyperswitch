@@ -7,91 +7,12 @@ pub use api_models::payouts::{
 pub use hyperswitch_domain_models::router_flow_types::payouts::{
     PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
 };
-
-use crate::{
-    services::api,
-    types::{self, api as api_types},
+pub use hyperswitch_interfaces::api::payouts_v2::{
+    PayoutCancelV2, PayoutCreateV2, PayoutEligibilityV2, PayoutFulfillV2, PayoutQuoteV2,
+    PayoutRecipientAccountV2, PayoutRecipientV2, PayoutSyncV2,
 };
 
-pub trait PayoutCancelV2:
-    api::ConnectorIntegrationV2<
-    PoCancel,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutCreateV2:
-    api::ConnectorIntegrationV2<
-    PoCreate,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutEligibilityV2:
-    api::ConnectorIntegrationV2<
-    PoEligibility,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutFulfillV2:
-    api::ConnectorIntegrationV2<
-    PoFulfill,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutQuoteV2:
-    api::ConnectorIntegrationV2<
-    PoQuote,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutRecipientV2:
-    api::ConnectorIntegrationV2<
-    PoRecipient,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutRecipientAccountV2:
-    api::ConnectorIntegrationV2<
-    PoRecipientAccount,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
-
-pub trait PayoutSyncV2:
-    api::ConnectorIntegrationV2<
-    PoSync,
-    types::PayoutFlowData,
-    types::PayoutsData,
-    types::PayoutsResponseData,
->
-{
-}
+use crate::types::api as api_types;
 
 pub trait PayoutsV2:
     api_types::ConnectorCommon

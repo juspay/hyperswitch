@@ -1,10 +1,14 @@
 //! API interface
 
 pub mod disputes;
+pub mod disputes_v2;
 pub mod files;
+pub mod files_v2;
 pub mod fraud_check;
+pub mod fraud_check_v2;
 pub mod payments;
 pub mod payouts;
+pub mod payouts_v2;
 pub mod refunds;
 
 use common_enums::enums::{CaptureMethod, PaymentMethodType};
@@ -16,6 +20,9 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::{
+        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+    },
     router_flow_types::{mandate_revoke::MandateRevoke, AccessTokenAuth, VerifyWebhookSource},
     router_request_types::{
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
@@ -28,7 +35,8 @@ use serde_json::json;
 
 pub use self::{payments::*, refunds::*};
 use crate::{
-    configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// type BoxedConnectorIntegration
@@ -279,9 +287,26 @@ pub trait ConnectorMandateRevoke:
 {
 }
 
+/// trait ConnectorMandateRevokeV2
+pub trait ConnectorMandateRevokeV2:
+    ConnectorIntegrationV2<
+    MandateRevoke,
+    MandateRevokeFlowData,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
+>
+{
+}
+
 /// trait ConnectorAccessToken
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
+}
+
+/// trait ConnectorAccessTokenV2
+pub trait ConnectorAccessTokenV2:
+    ConnectorIntegrationV2<AccessTokenAuth, AccessTokenFlowData, AccessTokenRequestData, AccessToken>
 {
 }
 
@@ -289,6 +314,17 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorVerifyWebhookSource:
     ConnectorIntegration<
     VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait ConnectorVerifyWebhookSourceV2
+pub trait ConnectorVerifyWebhookSourceV2:
+    ConnectorIntegrationV2<
+    VerifyWebhookSource,
+    WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
 >
