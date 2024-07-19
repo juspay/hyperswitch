@@ -35,6 +35,38 @@ clippy *FLAGS:
     cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
+clippy_v2 *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+        jq -r '
+            [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+            | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
+
+check_v2 *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+        jq -r '
+            [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+            | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+            | del( .[] | select( any( . ; . == ("v1", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
+
 alias cl := clippy
 
 # Build binaries

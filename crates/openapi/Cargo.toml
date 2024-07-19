@@ -18,4 +18,4 @@ router_env = { version = "0.1.0", path = "../router_env" }
 [features]
 default = ["v1"]
 v2 = ["api_models/v2"]
-v1 = []
+v1 = ["api_models/v1"]

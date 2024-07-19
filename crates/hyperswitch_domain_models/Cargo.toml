@@ -9,8 +9,8 @@ license.workspace = true
 
 [features]
 default = ["olap", "payouts", "frm", "v1"]
-olap = []
 encryption_service = []
+olap = []
 payouts = ["api_models/payouts"]
 frm = ["api_models/frm"]
 v2 = ["api_models/v2", "diesel_models/v2"]
@@ -24,7 +24,7 @@ payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2"]
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics",  "encryption_service", "keymanager"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

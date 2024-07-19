@@ -77,14 +77,19 @@ jobs:
         with:
           crate: cargo-hack
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       - name: Deny warnings
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
-      - name: Install Just
-        uses: baptiste0928/cargo-install@v2.2.0
-        with:
-          crate: just
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
@@ -153,6 +158,10 @@ jobs:
         with:
           tool: just
           checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
       #   uses: baptiste0928/cargo-install@v2.2.0

@@ -2,11 +2,7 @@ mod openapi;
 mod routes;
 
 fn main() {
-    #[cfg(any(feature = "v1", feature = "v2"))]
     let relative_file_path = "api-reference/openapi_spec.json";
-
-    #[cfg(all(feature = "v2", not(feature = "v1")))]
-    let relative_file_path = "api-reference/v2/openapi_spec.json";
 
     let mut file_path = router_env::workspace_path();
     file_path.push(relative_file_path);
