@@ -11263,7 +11263,8 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_id"
+          "merchant_id",
+          "organization_id"
         ],
         "properties": {
           "merchant_id": {
@@ -11376,7 +11377,9 @@
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
-            "nullable": true
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "pm_collect_link_config": {
             "allOf": [
@@ -11593,7 +11596,10 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with"
+            "description": "The organization id merchant is associated with",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -12997,7 +13003,10 @@
         ],
         "properties": {
           "organization_id": {
-            "type": "string"
+            "type": "string",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "organization_name": {
             "type": "string",

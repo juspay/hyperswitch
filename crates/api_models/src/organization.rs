@@ -26,6 +26,7 @@ pub struct OrganizationRequest {
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct OrganizationResponse {
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: id_type::OrganizationId,
     pub organization_name: Option<String>,
 }
