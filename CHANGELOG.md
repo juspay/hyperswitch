@@ -4,6 +4,59 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.19.0
+
+### Features
+
+- **connector:** [Itau Bank] Template for payment flows ([#5304](https://github.com/juspay/hyperswitch/pull/5304)) ([`ef1418f`](https://github.com/juspay/hyperswitch/commit/ef1418f978835a8df149181bc5e19053775490f2))
+
+### Bug Fixes
+
+- **core:** [payouts] failure of payout retrieve when token is expired ([#5362](https://github.com/juspay/hyperswitch/pull/5362)) ([`817d06c`](https://github.com/juspay/hyperswitch/commit/817d06c7faa14493674931ba51ab6c32769602d1))
+
+### Refactors
+
+- **blocklist:** Change primary key of blocklist table ([#5356](https://github.com/juspay/hyperswitch/pull/5356)) ([`93047ae`](https://github.com/juspay/hyperswitch/commit/93047ae616b6a5240c2be13f8c5267e5fa616eab))
+- **merchant_account:** Change primary key for merchant account ([#5327](https://github.com/juspay/hyperswitch/pull/5327)) ([`a0c367e`](https://github.com/juspay/hyperswitch/commit/a0c367ee8c7f04cfdf1f9d4863447f24279a537f))
+- **router:** Remove id dependency from merchant connector account, dispute and mandate ([#5330](https://github.com/juspay/hyperswitch/pull/5330)) ([`6d74527`](https://github.com/juspay/hyperswitch/commit/6d74527f4428c8cb61e89d59385bfb2dd8056c2e))
+- **routing:** Remove backwards compatibility for the routing crate ([#3015](https://github.com/juspay/hyperswitch/pull/3015)) ([`78a7804`](https://github.com/juspay/hyperswitch/commit/78a7804b9c8b4db881b112fc72e31cfd3e97a82d))
+
+### Documentation
+
+- Updating Error codes for documentation purposes ([#5314](https://github.com/juspay/hyperswitch/pull/5314)) ([`fe14336`](https://github.com/juspay/hyperswitch/commit/fe14336f78b15e948b10d09b197fb1d529939b5c))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`93dd60c`](https://github.com/juspay/hyperswitch/commit/93dd60c9ab8180ed7688959e32a3c2730c2bfad2))
+- Increasing log coverage for payment method list ([#5042](https://github.com/juspay/hyperswitch/pull/5042)) ([`edb581e`](https://github.com/juspay/hyperswitch/commit/edb581e8e3307714c1ebc3dec65fc73aeb2d7cb0))
+
+### Build System / Dependencies
+
+- Remove unused dependencies ([#5343](https://github.com/juspay/hyperswitch/pull/5343)) ([`7f582e4`](https://github.com/juspay/hyperswitch/commit/7f582e4737c1c7dfe906e7d01de239e131511f84))
+
+**Full Changelog:** [`2024.07.18.0...2024.07.19.0`](https://github.com/juspay/hyperswitch/compare/2024.07.18.0...2024.07.19.0)
+
+- - -
+
+## 2024.07.18.0
+
+### Features
+
+- **core:** Payments core modification for open banking connectors ([#3947](https://github.com/juspay/hyperswitch/pull/3947)) ([`eb6f27d`](https://github.com/juspay/hyperswitch/commit/eb6f27d64e07f3f65b4e9a2f227898a238355477))
+- **globalsearch:** Added search_tags based filter for global search in dashboard ([#5341](https://github.com/juspay/hyperswitch/pull/5341)) ([`35c9b8a`](https://github.com/juspay/hyperswitch/commit/35c9b8afe1a09b858c79c0ce13cf5c24d200d3fd))
+- **payout_link:** Secure payout links using server side validations and client side headers ([#5219](https://github.com/juspay/hyperswitch/pull/5219)) ([`2d204c9`](https://github.com/juspay/hyperswitch/commit/2d204c9f7348c4ed121ab472ef1b5bb8d9d32d24))
+- **router:** Add support for passing the domain dynamically in the session call ([#5347](https://github.com/juspay/hyperswitch/pull/5347)) ([`67bfb1c`](https://github.com/juspay/hyperswitch/commit/67bfb1cfecd4a4ad8503eaf57837073bb1980bdd))
+
+### Refactors
+
+- **connector:** Added amount conversion framework for checkout,adyen and globalpay ([#4974](https://github.com/juspay/hyperswitch/pull/4974)) ([`ecc862c`](https://github.com/juspay/hyperswitch/commit/ecc862c3543be37e2cc7959f450ca51770978ae5))
+- **cypress:** Nullify false positives ([#5303](https://github.com/juspay/hyperswitch/pull/5303)) ([`96edf52`](https://github.com/juspay/hyperswitch/commit/96edf52ca639178e01dc4c3e008611b847bc358f))
+- **router:** Remove the locker call in the psync flow ([#5348](https://github.com/juspay/hyperswitch/pull/5348)) ([`24360b2`](https://github.com/juspay/hyperswitch/commit/24360b22efc308cc5fc6da7b4168f560a1dc8689))
+
+**Full Changelog:** [`2024.07.17.0...2024.07.18.0`](https://github.com/juspay/hyperswitch/compare/2024.07.17.0...2024.07.18.0)
+
+- - -
+
 ## 2024.07.17.0
 
 ### Features

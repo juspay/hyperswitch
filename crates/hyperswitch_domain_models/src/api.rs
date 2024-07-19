@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
@@ -59,7 +59,13 @@ pub struct PaymentLinkStatusData {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum GenericLinks {
+pub struct GenericLinks {
+    pub allowed_domains: HashSet<String>,
+    pub data: GenericLinksData,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinksData {
     ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
     PayoutLink(GenericLinkFormData),
@@ -67,12 +73,12 @@ pub enum GenericLinks {
     PaymentMethodCollectStatus(GenericLinkStatusData),
 }
 
-impl Display for GenericLinks {
+impl Display for GenericLinksData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
-            match self {
+            match *self {
                 Self::ExpiredLink(_) => "ExpiredLink",
                 Self::PaymentMethodCollect(_) => "PaymentMethodCollect",
                 Self::PayoutLink(_) => "PayoutLink",
