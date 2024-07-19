@@ -2196,7 +2196,9 @@ impl MerchantKeyStoreInterface for KafkaStore {
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_key_stores(state, key,from,to).await
+        self.diesel_store
+            .get_all_key_stores(state, key, from, to)
+            .await
     }
 }
 
@@ -3072,7 +3074,9 @@ impl UserKeyStoreInterface for KafkaStore {
         from: u32,
         limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_user_key_store(state, key,from,limit).await
+        self.diesel_store
+            .get_all_user_key_store(state, key, from, limit)
+            .await
     }
 }
 
