@@ -542,14 +542,23 @@ impl behaviour::Conversion for PaymentIntent {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| decrypt(inner, key.peek());
+            let inner_decrypt = |inner| {
+                decrypt(
+                    state,
+                    inner,
+                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
+                    key.peek(),
+                )
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
