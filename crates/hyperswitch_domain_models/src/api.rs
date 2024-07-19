@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     }
 }
 
-impl_misc_api_event_type!(PaymentLinkFormData, GenericLinkFormData);
+impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
