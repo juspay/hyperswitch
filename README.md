@@ -80,6 +80,7 @@ Hyperswitch has ample features for businesses of all domains and sizes. [**Check
 Hyperswitch is an open source project, and aims to make digital payments accessible to people across the globe like a basic utility. With the vision for developing Hyperswitch as the **Linux of Payments**, We seek support from the developers across the globe.
 
 Utilise the following resources to quickstart your journey with Hyperswitch -
+- [Guide for contributors][Contributing-guidelines]
 - [Developer Docs][Docs-link-for-developers]
 - [Learning Resources][learning-resources]
 
@@ -120,6 +121,7 @@ setup, which includes the [scheduler and monitoring services][docker-compose-sch
 
 [Docs-link-for-Enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [Docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
+[Contributing-guidelines]: docs/CONTRIBUTING.md
 [Dashboard-link]: https://app.hyperswitch.io/
 [Website-link]: https://hyperswitch.io/
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
