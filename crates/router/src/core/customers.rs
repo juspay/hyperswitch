@@ -118,11 +118,11 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 
         let customer_billing_address_struct = AddressStructForDbEntry {
             address: address.as_ref(),
-            customer_data: &self,
-            merchant_id: &merchant_id,
+            customer_data: self,
+            merchant_id,
             customer_id: merchant_reference_id.as_ref(),
             storage_scheme: merchant_account.storage_scheme,
-            key_store: &key_store,
+            key_store,
             key_manager_state,
             state,
         };
@@ -172,7 +172,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .insert_customer(
                 domain_customer,
                 key_manager_state,
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
