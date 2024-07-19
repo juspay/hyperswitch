@@ -6,7 +6,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::MinorUnit,
+    types::{keymanager::Identifier, MinorUnit},
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
@@ -32,7 +32,10 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{app::ReqState, SessionState},
+    routes::{
+        app::{ReqState, SessionStateInfo},
+        SessionState,
+    },
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -144,7 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-            db,
+            state,
             request.shipping.as_ref(),
             None,
             merchant_id,
@@ -156,7 +159,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         let billing_address = helpers::create_or_find_address_for_payment_by_request(
-            db,
+            state,
             request.billing.as_ref(),
             None,
             merchant_id,
@@ -169,7 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
-                db,
+                state,
                 request
                     .payment_method_data
                     .as_ref()
@@ -287,7 +290,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         payment_intent = db
-            .insert_payment_intent(payment_intent_new, merchant_key_store, storage_scheme)
+            .insert_payment_intent(
+                &state.into(),
+                payment_intent_new,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
@@ -476,7 +484,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
@@ -489,8 +497,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
+            state,
             Box::new(self),
-            db,
             payment_data,
             request,
             &key_store.merchant_id,
@@ -639,12 +647,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let raw_customer_details = customer
             .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
+        let session_state = state.session_state();
 
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
-            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .async_map(|customer_details| {
+                create_encrypted_data(&session_state, key_store, customer_details)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -653,6 +664,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::PaymentCreateUpdate {
                     return_url: None,
@@ -837,7 +849,9 @@ impl PaymentCreate {
                 .as_ref()
                 .async_map(|pm_info| async {
                     decrypt::<serde_json::Value, masking::WithType>(
+                        &state.into(),
                         pm_info.payment_method_data.clone(),
+                        Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
                     .await
@@ -984,7 +998,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
-        _state: &SessionState,
+        state: &SessionState,
         payment_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -1058,7 +1072,7 @@ impl PaymentCreate {
         let billing_details = request
             .billing
             .clone()
-            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .async_map(|billing_details| create_encrypted_data(state, key_store, billing_details))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1069,7 +1083,7 @@ impl PaymentCreate {
         let shipping_details = request
             .shipping
             .clone()
-            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1094,7 +1108,7 @@ impl PaymentCreate {
 
         // Encrypting our Customer Details to be stored in Payment Intent
         let customer_details = raw_customer_details
-            .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+            .async_map(|customer_details| create_encrypted_data(state, key_store, customer_details))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)

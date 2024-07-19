@@ -2006,6 +2006,7 @@ name = "common_utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.0",
  "blake3",
  "bytes 1.6.0",
  "common_enums",
@@ -2704,6 +2705,7 @@ dependencies = [
  "masking",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "strum 0.26.2",
@@ -3858,6 +3860,7 @@ dependencies = [
  "mime",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "serde_with",

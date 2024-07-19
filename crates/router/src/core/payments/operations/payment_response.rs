@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
-use common_utils::{ext_traits::Encode, types::MinorUnit};
+use common_utils::{
+    ext_traits::Encode,
+    types::{keymanager::KeyManagerState, MinorUnit},
+};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
@@ -265,7 +268,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b SessionState,
+        state: &'b SessionState,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
@@ -317,7 +320,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
-            payment_data.payment_attempt = db
+            payment_data.payment_attempt = state
                 .store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt.clone(),
@@ -329,9 +332,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         }
         // payment_intent update
         if let Some(payment_intent_update) = option_payment_intent_update {
-            payment_data.payment_intent = db
+            payment_data.payment_intent = state
                 .store
                 .update_payment_intent(
+                    &state.into(),
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
                     key_store,
@@ -370,7 +374,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     "missing authorization_id in incremental_authorization_details in payment_data",
                 ),
             )?;
-        db.store
+        state
+            .store
             .update_authorization_by_merchant_id_authorization_id(
                 router_data.merchant_id.clone(),
                 authorization_id,
@@ -380,7 +385,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed while updating authorization")?;
         //Fetch all the authorizations of the payment and send in incremental authorization response
-        let authorizations = db
+        let authorizations = state
             .store
             .find_all_authorizations_by_merchant_id_payment_id(
                 &router_data.merchant_id,
@@ -1255,9 +1260,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_key_store = key_store.clone();
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
+    let key_manager_state: KeyManagerState = state.into();
     let payment_intent_fut = tokio::spawn(
         async move {
             m_db.update_payment_intent(
+                &key_manager_state,
                 m_payment_data_payment_intent,
                 m_payment_intent_update,
                 &m_key_store,

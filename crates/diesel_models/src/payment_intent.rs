@@ -1,14 +1,14 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+use crate::enums as storage_enums;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 use crate::schema::payment_intent;
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 use crate::schema_v2::payment_intent;
-use crate::{encryption::Encryption, enums as storage_enums};
 
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]

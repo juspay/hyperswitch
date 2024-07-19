@@ -1,9 +1,10 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
 use common_utils::{
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii,
-    types::MinorUnit,
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -479,8 +480,7 @@ impl ForeignIDRef for PaymentAttempt {
 }
 
 use diesel_models::{
-    encryption::Encryption, PaymentIntent as DieselPaymentIntent,
-    PaymentIntentNew as DieselPaymentIntentNew,
+    PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
@@ -729,14 +729,23 @@ impl behaviour::Conversion for PaymentIntent {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| decrypt(inner, key.peek());
+            let inner_decrypt = |inner| {
+                decrypt(
+                    state,
+                    inner,
+                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
+                    key.peek(),
+                )
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

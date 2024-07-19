@@ -1,16 +1,19 @@
+use api_models::customers::CustomerRequestWithEncryption;
 use common_utils::{
     crypto, date_time,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type, pii,
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
+use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::type_encryption as types;
 // use api_models::payments::Address;
-use crate::type_encryption::AsyncLift;
+// use crate::type_encryption::AsyncLift;
 
 pub enum SoftDeleteStatus {
     Active,
@@ -67,36 +70,49 @@ impl super::behaviour::Conversion for Customer {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: Some(item.id),
-                customer_id: item.customer_id,
-                merchant_id: item.merchant_id,
-                name: item.name.async_lift(inner_decrypt).await?,
-                email: item.email.async_lift(inner_decrypt_email).await?,
-                phone: item.phone.async_lift(inner_decrypt).await?,
-                phone_country_code: item.phone_country_code,
-                description: item.description,
-                created_at: item.created_at,
-                metadata: item.metadata,
-                modified_at: item.modified_at,
-                connector_customer: item.connector_customer,
-                address_id: item.address_id,
-                default_payment_method_id: item.default_payment_method_id,
-                updated_by: item.updated_by,
-            })
-        }
+        let decrypted = types::batch_decrypt(
+            state,
+            CustomerRequestWithEncryption::to_encryptable(CustomerRequestWithEncryption {
+                name: item.name.clone(),
+                phone: item.phone.clone(),
+                email: item.email.clone(),
+            }),
+            Identifier::Merchant(item.merchant_id.clone()),
+            key.peek(),
+        )
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
+        })?;
+        let encryptable_customer = CustomerRequestWithEncryption::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
+
+        Ok(Self {
+            id: Some(item.id),
+            customer_id: item.customer_id,
+            merchant_id: item.merchant_id,
+            name: encryptable_customer.name,
+            email: encryptable_customer.email,
+            phone: encryptable_customer.phone,
+            phone_country_code: item.phone_country_code,
+            description: item.description,
+            created_at: item.created_at,
+            metadata: item.metadata,
+            modified_at: item.modified_at,
+            connector_customer: item.connector_customer,
+            address_id: item.address_id,
+            default_payment_method_id: item.default_payment_method_id,
+            updated_by: item.updated_by,
         })
     }
 

@@ -1096,7 +1096,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (id) {
+    refund (merchant_id, refund_id) {
         id -> Int4,
         #[max_length = 64]
         internal_reference_id -> Varchar,

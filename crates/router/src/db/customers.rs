@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::AsyncExt, id_type};
+use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::customer;
@@ -30,14 +30,17 @@ where
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<customer::Customer>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         customer_id: id_type::CustomerId,
         merchant_id: String,
         customer: customer::Customer,
@@ -48,6 +51,7 @@ where
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -56,6 +60,7 @@ where
 
     async fn list_customers_by_merchant_id(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError>;
@@ -63,6 +68,7 @@ where
     async fn insert_customer(
         &self,
         customer_data: customer::Customer,
+        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
@@ -70,7 +76,7 @@ where
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{ext_traits::AsyncExt, id_type};
+    use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
@@ -105,6 +111,7 @@ mod storage {
         // check customer not found in kv and fallback to db
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -151,9 +158,13 @@ mod storage {
 
             let maybe_result = maybe_customer
                 .async_map(|c| async {
-                    c.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
                 .transpose()?;
@@ -169,6 +180,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: id_type::CustomerId,
             merchant_id: String,
             customer: customer::Customer,
@@ -238,7 +250,11 @@ mod storage {
             };
 
             updated_object?
-                .convert(key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -246,6 +262,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -289,7 +306,11 @@ mod storage {
             }?;
 
             let result: customer::Customer = customer
-                .convert(key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             //.await
@@ -305,6 +326,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
+            state: &KeyManagerState,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
@@ -318,7 +340,11 @@ mod storage {
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
                     encrypted_customer
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
@@ -332,6 +358,7 @@ mod storage {
         async fn insert_customer(
             &self,
             customer_data: customer::Customer,
+            state: &KeyManagerState,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<customer::Customer, errors::StorageError> {
@@ -396,7 +423,11 @@ mod storage {
             }?;
 
             create_customer
-                .convert(key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -421,7 +452,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::{ext_traits::AsyncExt, id_type};
+    use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
     use hyperswitch_domain_models::customer;
@@ -450,6 +481,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -465,7 +497,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?
                 .async_map(|c| async {
-                    c.convert(key_store.key.get_inner())
+                    c.convert(state, key_store.key.get_inner(), merchant_id.to_string())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -486,6 +518,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: id_type::CustomerId,
             merchant_id: String,
             _customer: customer::Customer,
@@ -497,13 +530,13 @@ mod storage {
             storage_types::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
-                merchant_id,
+                merchant_id.clone(),
                 customer_update.into(),
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|c| async {
-                c.convert(key_store.key.get_inner())
+                c.convert(state, key_store.key.get_inner(), merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -513,6 +546,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
+            state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -528,7 +562,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
-                    c.convert(key_store.key.get_inner())
+                    c.convert(state, key_store.key.get_inner(), merchant_id.to_string())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -544,6 +578,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
+            state: &KeyManagerState,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
@@ -557,7 +592,7 @@ mod storage {
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
                     encrypted_customer
-                        .convert(key_store.key.get_inner())
+                        .convert(state, key_store.key.get_inner(), merchant_id.to_string())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
@@ -570,6 +605,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_customer(
             &self,
+            state: &KeyManagerState,
             customer_data: customer::Customer,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -583,9 +619,13 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
-                    c.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
         }
@@ -613,6 +653,7 @@ impl CustomerInterface for MockDb {
     #[allow(clippy::panic)]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -627,9 +668,13 @@ impl CustomerInterface for MockDb {
             .cloned();
         customer
             .async_map(|c| async {
-                c.convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                c.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()
@@ -637,6 +682,7 @@ impl CustomerInterface for MockDb {
 
     async fn list_customers_by_merchant_id(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
@@ -649,7 +695,11 @@ impl CustomerInterface for MockDb {
                 .map(|customer| async {
                     customer
                         .to_owned()
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),
@@ -662,6 +712,7 @@ impl CustomerInterface for MockDb {
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
+        _state: &KeyManagerState,
         _customer_id: id_type::CustomerId,
         _merchant_id: String,
         _customer: customer::Customer,
@@ -675,6 +726,7 @@ impl CustomerInterface for MockDb {
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
+        _state: &KeyManagerState,
         _customer_id: &id_type::CustomerId,
         _merchant_id: &str,
         _key_store: &domain::MerchantKeyStore,
@@ -688,6 +740,7 @@ impl CustomerInterface for MockDb {
     async fn insert_customer(
         &self,
         customer_data: customer::Customer,
+        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError> {
@@ -700,7 +753,11 @@ impl CustomerInterface for MockDb {
         customers.push(customer.clone());
 
         customer
-            .convert(key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
