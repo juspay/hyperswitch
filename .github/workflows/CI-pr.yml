@@ -95,7 +95,6 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
-          - ubuntu-24.04
           - hyperswitch-runners
 
     steps:
@@ -135,15 +134,19 @@ jobs:
           tool: cargo-hack
           checksum: true
 
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Install just
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: just
           checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
         shell: bash
@@ -179,7 +182,6 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
-          - ubuntu-24.04
           - hyperswitch-runners
 
     steps:
@@ -236,6 +238,10 @@ jobs:
         with:
           tool: just
           checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
       #   uses: taiki-e/install-action@v2.33.28

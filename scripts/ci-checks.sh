@@ -98,13 +98,13 @@ echo
 
 # Execute the commands
 for command in "${all_commands[@]}"; do
-  if [[ "${CI:-false}" = "true" && "${GITHUB_ACTIONS:-false}" = "true" ]]; then
+  if [[ "${CI:-false}" == "true" && "${GITHUB_ACTIONS:-false}" == "true" ]]; then
     printf '::group::Running `%s`\n' "${command}"
   fi
 
   bash -c -x "${command}"
 
-  if [[ "${CI:-false}" = "true" && "${GITHUB_ACTIONS:-false}" = "true" ]]; then
+  if [[ "${CI:-false}" == "true" && "${GITHUB_ACTIONS:-false}" == "true" ]]; then
     echo '::endgroup::'
   fi
 done
