@@ -28,11 +28,10 @@ thiserror = "1.0.58"
 time = "0.3.35"
 
 # First party crates
+masking = { version = "0.1.0", path = "../masking" }
 api_models = { version = "0.1.0", path = "../api_models" }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false, features = ["v1"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
-masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env" }
-storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }

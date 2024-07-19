@@ -178,6 +178,7 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
             ))?,
@@ -270,6 +271,7 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
             ))?,

@@ -6824,11 +6824,22 @@
           },
           {
             "type": "object",
+            "required": [
+              "allowed_domains"
+            ],
             "properties": {
               "domain_name": {
                 "type": "string",
                 "description": "Custom domain name to be used for hosting the link",
                 "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true
               }
             }
           }
@@ -9515,11 +9526,11 @@
             "nullable": true
           },
           "search_tags": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RedirectResponse"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional tags to be used for global search",
             "nullable": true
           }
         }
@@ -12714,6 +12725,33 @@
         },
         "additionalProperties": false
       },
+      "OpenBankingData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_pis"
+            ],
+            "properties": {
+              "open_banking_pis": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "OpenBankingSessionToken": {
+        "type": "object",
+        "required": [
+          "open_banking_session_token"
+        ],
+        "properties": {
+          "open_banking_session_token": {
+            "type": "string",
+            "description": "The session token for OpenBanking Connectors"
+          }
+        }
+      },
       "OrderDetails": {
         "type": "object",
         "required": [
@@ -13737,7 +13775,8 @@
           "real_time_payment",
           "upi",
           "voucher",
-          "gift_card"
+          "gift_card",
+          "open_banking"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -14132,6 +14171,18 @@
                 "$ref": "#/components/schemas/CardToken"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            }
           }
         ]
       },
@@ -14335,6 +14386,17 @@
             ],
             "properties": {
               "card_token": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
                 "type": "object"
               }
             }
@@ -14700,7 +14762,8 @@
           "seicomart",
           "pay_easy",
           "local_bank_transfer",
-          "mifinity"
+          "mifinity",
+          "open_banking_pis"
         ]
       },
       "PaymentMethodUpdate": {
@@ -20165,6 +20228,27 @@
                     "type": "string",
                     "enum": [
                       "apple_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingSessionToken"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }

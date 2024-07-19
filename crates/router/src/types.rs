@@ -31,7 +31,7 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PreProcessing,
+        CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PreProcessing, PostProcessing,
         Reject, Session, SetupMandate, Void,
     },
     refunds::{Execute, RSync},
@@ -56,9 +56,10 @@ pub use hyperswitch_domain_models::{
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, ResponseId, RetrieveFileRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -104,6 +105,8 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPostProcessingRouterData =
+    RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =

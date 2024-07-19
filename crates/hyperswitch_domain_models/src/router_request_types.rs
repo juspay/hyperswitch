@@ -54,7 +54,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
@@ -333,6 +333,41 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: None,
             redirect_response: data.redirect_response,
             enrolled_for_3ds: true,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostProcessingData {
+    pub payment_method_data: PaymentMethodData,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub connector_transaction_id: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
+    for PaymentsPostProcessingData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.request.payment_method_data,
+            connector_transaction_id: match data.response {
+                Ok(response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(id),
+                    ..
+                }) => Some(id.clone()),
+                _ => None,
+            },
+            customer_id: data.request.customer_id,
+            country: data
+                .address
+                .get_payment_billing()
+                .and_then(|bl| bl.address.as_ref())
+                .and_then(|address| address.country),
         })
     }
 }

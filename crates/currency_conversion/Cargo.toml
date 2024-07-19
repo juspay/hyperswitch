@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums", package = "common_enums" }
