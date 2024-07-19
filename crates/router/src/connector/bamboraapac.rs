@@ -92,6 +92,22 @@ impl ConnectorValidation for Bamboraapac {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_data {
+            types::domain::payments::PaymentMethodData::Card(_) => Ok(()),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
 }
 
 impl ConnectorCommon for Bamboraapac {
@@ -167,6 +183,85 @@ impl
         types::PaymentsResponseData,
     > for Bamboraapac
 {
+    fn get_headers(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/sipp.asmx", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = bamboraapac::get_setup_mandate_body(req)?;
+
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        let response_data = html_to_xml_string_conversion(
+            String::from_utf8(res.response.to_vec())
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        );
+
+        let response = response_data
+            .parse_xml::<bamboraapac::BamboraapacMandateResponse>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -189,7 +284,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}/dts.asmx", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -284,7 +379,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}/dts.asmx", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -368,7 +463,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}/dts.asmx", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -467,7 +562,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundExecuteRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}/dts.asmx", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -560,7 +655,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}/dts.asmx", self.base_url(connectors)))
     }
 
     fn get_request_body(
