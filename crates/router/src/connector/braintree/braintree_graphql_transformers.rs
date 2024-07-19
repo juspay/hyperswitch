@@ -80,7 +80,6 @@ pub enum BraintreePaymentsRequest {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Secret<String>,
-    merchant_config_currency: enums::Currency,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
@@ -171,10 +170,6 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
                 })?;
-        utils::validate_currency(
-            item.router_data.request.currency,
-            Some(metadata.merchant_config_currency),
-        )?;
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(_) => {
                 if item.router_data.is_three_ds() {
@@ -720,11 +715,6 @@ impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for Braintree
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
                 })?;
-
-        utils::validate_currency(
-            item.router_data.request.currency,
-            Some(metadata.merchant_config_currency),
-        )?;
         let query = REFUND_TRANSACTION_MUTATION.to_string();
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
@@ -824,14 +814,6 @@ pub struct BraintreeRSyncRequest {
 impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
-            item.connector_meta_data.clone(),
-        )
-        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
-        utils::validate_currency(
-            item.request.currency,
-            Some(metadata.merchant_config_currency),
-        )?;
         let refund_id = item.request.get_connector_refund_id()?;
         let query = format!("query {{ search {{ refunds(input: {{ id: {{is: \"{}\"}} }}, first: 1) {{ edges {{ node {{ id status createdAt amount {{ value currencyCode }} orderId }} }} }} }} }}",refund_id);
 
@@ -1492,10 +1474,6 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
                 })?;
-        utils::validate_currency(
-            item.router_data.request.currency,
-            Some(metadata.merchant_config_currency),
-        )?;
         let payload_data = PaymentsCompleteAuthorizeRequestData::get_redirect_response_payload(
             &item.router_data.request,
         )?
