@@ -76,7 +76,7 @@ euclid-wasm features='dummy_connector':
 precommit: fmt clippy
 
 # Check compilation of v2 feature on base dependencies
-v2_intermediate_features := "merchant_account_v2,payment_v2"
+v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2"
 hack_v2:
     cargo hack check  --feature-powerset --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
     cargo hack check --features "v2,payment_v2" -p storage_impl
