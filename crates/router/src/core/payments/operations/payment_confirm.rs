@@ -39,7 +39,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self, types::decrypt},
+        domain::{self, types::decrypt_optional},
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -1084,7 +1084,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             let key = key_store.key.get_inner().peek();
 
             let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                decrypt::<serde_json::Value, masking::WithType>(
+                decrypt_optional::<serde_json::Value, masking::WithType>(
                     key_manager_state,
                     pm.payment_method_data.clone(),
                     Identifier::Merchant(key_store.merchant_id.clone()),

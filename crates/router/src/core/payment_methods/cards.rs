@@ -71,7 +71,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{self, types::decrypt},
+        domain::{self, types::decrypt_optional},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -1209,7 +1209,7 @@ pub async fn update_customer_payment_method(
         }
 
         // Fetch the existing payment method data from db
-        let existing_card_data = decrypt::<serde_json::Value, masking::WithType>(
+        let existing_card_data = decrypt_optional::<serde_json::Value, masking::WithType>(
             &(&state).into(),
             pm.payment_method_data.clone(),
             Identifier::Merchant(key_store.merchant_id.clone()),
@@ -1683,7 +1683,7 @@ pub async fn decode_and_decrypt_locker_data(
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
     // Decrypt
-    decrypt(
+    decrypt_optional(
         &state.into(),
         Some(Encryption::new(decoded_bytes.into())),
         Identifier::Merchant(key_store.merchant_id.clone()),
@@ -4061,12 +4061,16 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data =
-        decrypt::<serde_json::Value, masking::WithType>(&state.into(), data, identifier, key)
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to decrypt data")?;
+    let decrypted_data = decrypt_optional::<serde_json::Value, masking::WithType>(
+        &state.into(),
+        data,
+        identifier,
+        key,
+    )
+    .await
+    .change_context(errors::StorageError::DecryptionError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -4083,7 +4087,7 @@ pub async fn get_card_details_with_locker_fallback(
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = decrypt::<serde_json::Value, masking::WithType>(
+    let card_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
         &state.into(),
         pm.payment_method_data.clone(),
         identifier,
@@ -4119,7 +4123,7 @@ pub async fn get_card_details_without_locker_fallback(
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = decrypt::<serde_json::Value, masking::WithType>(
+    let card_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
         &state.into(),
         pm.payment_method_data.clone(),
         identifier,
@@ -4194,7 +4198,7 @@ async fn get_masked_bank_details(
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let payment_method_data = decrypt::<serde_json::Value, masking::WithType>(
+    let payment_method_data = decrypt_optional::<serde_json::Value, masking::WithType>(
         &state.into(),
         pm.payment_method_data.clone(),
         identifier,
@@ -4234,7 +4238,7 @@ async fn get_bank_account_connector_details(
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let payment_method_data = decrypt::<serde_json::Value, masking::WithType>(
+    let payment_method_data = decrypt_optional::<serde_json::Value, masking::WithType>(
         &state.into(),
         pm.payment_method_data.clone(),
         identifier,
