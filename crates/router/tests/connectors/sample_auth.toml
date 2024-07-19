@@ -195,6 +195,10 @@ api_key= "Login"
 key1= "Trankey"
 
 
+[plaid]
+api_key="Client Id"
+key1= "Secret"
+
 [threedsecureio]
 api_key="API Key"
 

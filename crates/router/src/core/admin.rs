@@ -1256,6 +1256,8 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
+    validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata)?;
+
     let merchant_recipient_data = if let Some(data) = &req.additional_merchant_data {
         Some(
             process_open_banking_connectors(
@@ -1279,8 +1281,6 @@ pub async fn create_payment_connector(
     .transpose()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get MerchantRecipientData")?;
-
-    validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata)?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
