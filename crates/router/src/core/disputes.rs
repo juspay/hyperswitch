@@ -89,6 +89,7 @@ pub async fn accept_dispute(
     )?;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -202,6 +203,7 @@ pub async fn submit_evidence(
     .await?;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
             &merchant_account.merchant_id,
             &key_store,

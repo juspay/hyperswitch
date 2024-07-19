@@ -27,6 +27,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let merchant_id = merchant_account.merchant_id.clone();
     match db
         .find_customer_by_customer_id_merchant_id(
+            &state.into(),
             &customer_id,
             &merchant_id,
             key_store,

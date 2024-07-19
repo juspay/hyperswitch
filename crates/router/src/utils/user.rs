@@ -2,8 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
 use common_enums::UserAuthType;
-use common_utils::{errors::CustomResult, id_type};
-use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
+use common_utils::{
+    encryption::Encryption, errors::CustomResult, id_type, types::keymanager::Identifier,
+};
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
@@ -33,9 +35,11 @@ impl UserFromToken {
         &self,
         state: SessionState,
     ) -> UserResult<MerchantAccount> {
+        let key_manager_state = &(&state).into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &self.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -49,7 +53,7 @@ impl UserFromToken {
             })?;
         let merchant_account = state
             .store
-            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -218,8 +222,10 @@ impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
 }
 
 pub async fn construct_public_and_private_db_configs(
+    state: &SessionState,
     auth_config: &user_api::AuthConfig,
     encryption_key: &[u8],
+    id: String,
 ) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {
     match auth_config {
         user_api::AuthConfig::OpenIdConnect {
@@ -231,7 +237,9 @@ pub async fn construct_public_and_private_db_configs(
                 .attach_printable("Failed to convert auth config to json")?;
 
             let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                &state.into(),
                 private_config_value.into(),
+                Identifier::UserAuth(id),
                 encryption_key,
             )
             .await
@@ -263,6 +271,7 @@ where
 pub async fn decrypt_oidc_private_config(
     state: &SessionState,
     encrypted_config: Option<Encryption>,
+    id: String,
 ) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
     let user_auth_key = hex::decode(
         state
@@ -277,7 +286,9 @@ pub async fn decrypt_oidc_private_config(
     .attach_printable("Failed to decode DEK")?;
 
     let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
+        &state.into(),
         encrypted_config,
+        Identifier::UserAuth(id),
         &user_auth_key,
     )
     .await

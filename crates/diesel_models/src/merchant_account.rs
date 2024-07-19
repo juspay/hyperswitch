@@ -1,7 +1,7 @@
-use common_utils::{id_type, pii};
+use common_utils::{encryption::Encryption, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_account};
+use crate::{enums as storage_enums, schema::merchant_account};
 
 #[derive(
     Clone,

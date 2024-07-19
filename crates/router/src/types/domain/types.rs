@@ -1,6 +1,7 @@
 use common_utils::types::keymanager::KeyManagerState;
 pub use hyperswitch_domain_models::type_encryption::{
-    decrypt, encrypt, encrypt_optional, AsyncLift, Lift, TypeEncryption,
+    batch_decrypt, batch_encrypt, decrypt, encrypt, encrypt_optional, AsyncLift, Lift,
+    TypeEncryption,
 };
 
 impl From<&crate::SessionState> for KeyManagerState {

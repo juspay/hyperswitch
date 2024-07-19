@@ -1,13 +1,14 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
     id_type, pii,
+    types::keymanager,
 };
 use diesel_models::{
-    encryption::Encryption, enums::MerchantStorageScheme,
-    merchant_account::MerchantAccountUpdateInternal,
+    enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -195,8 +196,10 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 
     async fn convert_back(
+        state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -206,7 +209,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
-
+        let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -217,11 +220,11 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| decrypt(inner, key.peek()))
+                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| decrypt(inner, key.peek()))
+                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,

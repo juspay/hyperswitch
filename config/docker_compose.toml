@@ -162,6 +162,7 @@ payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
+plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -239,6 +240,7 @@ cards = [
     "paypal",
     "payu",
     "placetopay",
+    "plaid",
     "powertranz",
     "prophetpay",
     "shift4",
@@ -354,6 +356,9 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 
 [pm_filters.razorpay]
 upi_collect = { country = "IN", currency = "INR" }
+
+[pm_filters.plaid]
+open_banking_pis = {currency = "EUR,GBP"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

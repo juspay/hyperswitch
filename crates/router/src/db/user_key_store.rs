@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -18,18 +18,21 @@ use crate::{
 pub trait UserKeyStoreInterface {
     async fn insert_user_key_store(
         &self,
+        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError>;
 
     async fn get_user_key_store_by_user_id(
         &self,
+        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError>;
 
     async fn get_all_user_key_store(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError>;
 }
@@ -39,10 +42,12 @@ impl UserKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_key_store(
         &self,
+        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
+        let user_id = user_key_store.user_id.clone();
         user_key_store
             .construct_new()
             .await
@@ -50,7 +55,7 @@ impl UserKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(key)
+            .convert(state, key, user_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -58,6 +63,7 @@ impl UserKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn get_user_key_store_by_user_id(
         &self,
+        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -66,13 +72,14 @@ impl UserKeyStoreInterface for Store {
         diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(key)
+            .convert(state, key, user_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn get_all_user_key_store(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -84,8 +91,9 @@ impl UserKeyStoreInterface for Store {
         };
 
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            let user_id = key_store.user_id.clone();
             key_store
-                .convert(key)
+                .convert(state, key, user_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -98,6 +106,7 @@ impl UserKeyStoreInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_user_key_store(
         &self,
+        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -117,23 +126,25 @@ impl UserKeyStoreInterface for MockDb {
             .await
             .change_context(errors::StorageError::MockDbError)?;
         locked_user_key_store.push(user_key_store.clone());
-
+        let user_id = user_key_store.user_id.clone();
         user_key_store
-            .convert(key)
+            .convert(state, key, user_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn get_all_user_key_store(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let user_key_store = self.user_key_store.lock().await;
 
         futures::future::try_join_all(user_key_store.iter().map(|user_key| async {
+            let user_id = user_key.user_id.clone();
             user_key
                 .to_owned()
-                .convert(key)
+                .convert(state, key, user_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -143,6 +154,7 @@ impl UserKeyStoreInterface for MockDb {
     #[instrument(skip_all)]
     async fn get_user_key_store_by_user_id(
         &self,
+        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -156,7 +168,7 @@ impl UserKeyStoreInterface for MockDb {
                 "No user_key_store is found for user_id={}",
                 user_id
             )))?
-            .convert(key)
+            .convert(state, key, user_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

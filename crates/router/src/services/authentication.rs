@@ -319,9 +319,12 @@ where
                 .attach_printable("API key has expired");
         }
 
+        let key_manager_state = &(&state.session_state()).into();
+
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &stored_api_key.merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
@@ -331,7 +334,11 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &stored_api_key.merchant_id,
+                &key_store,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -534,9 +541,11 @@ where
         _request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 self.0.as_ref(),
                 &state.store().get_master_key().to_vec().into(),
             )
@@ -552,7 +561,7 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(self.0.as_ref(), &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, self.0.as_ref(), &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -590,10 +599,10 @@ where
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-
+        let key_manager_state = &(&state.session_state()).into();
         state
             .store()
-            .find_merchant_account_by_publishable_key(publishable_key)
+            .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -818,10 +827,11 @@ where
 
         let permissions = authorization::get_permissions(state, &payload).await?;
         authorization::check_authorization(&self.0, &permissions)?;
-
+        let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &payload.merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
@@ -831,7 +841,11 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
@@ -868,10 +882,11 @@ where
 
         let permissions = authorization::get_permissions(state, &payload).await?;
         authorization::check_authorization(&self.0, &permissions)?;
-
+        let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &payload.merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
@@ -881,7 +896,11 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
@@ -963,10 +982,11 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-
+        let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &payload.merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
@@ -976,7 +996,11 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
