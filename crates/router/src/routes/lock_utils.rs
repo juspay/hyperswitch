@@ -45,6 +45,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
+            | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
 
             Flow::RoutingCreateConfig
@@ -93,6 +94,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
+            | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::PaymentMethodsRetrieve
@@ -143,7 +145,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList
-            | Flow::RefundsFilters => Self::Refunds,
+            | Flow::RefundsFilters
+            | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
@@ -231,6 +234,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateUserAuthenticationMethod
             | Flow::UpdateUserAuthenticationMethod
             | Flow::ListUserAuthenticationMethods
+            | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
             | Flow::AuthSelect => Self::User,

@@ -25,6 +25,7 @@ use crate::{
 };
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
@@ -34,7 +35,17 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>>;
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -110,6 +121,19 @@ pub trait Feature<F, T> {
         Ok(self)
     }
 
+    async fn postprocessing_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     async fn create_connector_customer<'a>(
         &self,
         _state: &SessionState,
@@ -166,6 +190,7 @@ default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
     connector::Bamboraapac,
+    connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
     connector::Boku,
@@ -183,6 +208,7 @@ default_imp_for_complete_authorize!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Multisafepay,
@@ -196,6 +222,7 @@ default_imp_for_complete_authorize!(
     connector::Payu,
     connector::Placetopay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -267,6 +294,7 @@ default_imp_for_webhook_source_verification!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -286,6 +314,7 @@ default_imp_for_webhook_source_verification!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -359,6 +388,7 @@ default_imp_for_create_customer!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -379,6 +409,7 @@ default_imp_for_create_customer!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -446,6 +477,7 @@ default_imp_for_connector_redirect_response!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Multisafepay,
@@ -460,6 +492,7 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -515,6 +548,7 @@ default_imp_for_connector_request_id!(
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -534,6 +568,7 @@ default_imp_for_connector_request_id!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -609,6 +644,7 @@ default_imp_for_accept_dispute!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -629,6 +665,7 @@ default_imp_for_accept_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -724,6 +761,7 @@ default_imp_for_file_upload!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -743,6 +781,7 @@ default_imp_for_file_upload!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -816,6 +855,7 @@ default_imp_for_submit_evidence!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -835,6 +875,7 @@ default_imp_for_submit_evidence!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -908,6 +949,7 @@ default_imp_for_defend_dispute!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -927,6 +969,7 @@ default_imp_for_defend_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -960,6 +1003,21 @@ macro_rules! default_imp_for_pre_processing_steps{
     };
 }
 
+macro_rules! default_imp_for_post_processing_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::PaymentsPostProcessing for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PostProcessing,
+            types::PaymentsPostProcessingData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentsPreProcessing for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -978,6 +1036,7 @@ default_imp_for_pre_processing_steps!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
+    connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
@@ -991,6 +1050,88 @@ default_imp_for_pre_processing_steps!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Iatapay,
+    connector::Itaubank,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payone,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Threedsecureio,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsPostProcessing for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostProcessing,
+        types::PaymentsPostProcessingData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_post_processing_steps!(
+    connector::Adyenplatform,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Bankofamerica,
+    connector::Cybersource,
+    connector::Gocardless,
+    connector::Nmi,
+    connector::Nuvei,
+    connector::Payme,
+    connector::Paypal,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Aci,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cryptopay,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Iatapay,
+    connector::Itaubank,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
@@ -1024,7 +1165,8 @@ default_imp_for_pre_processing_steps!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Razorpay
 );
 
 macro_rules! default_imp_for_payouts {
@@ -1064,6 +1206,7 @@ default_imp_for_payouts!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1082,6 +1225,7 @@ default_imp_for_payouts!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1153,6 +1297,7 @@ default_imp_for_payouts_create!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1172,6 +1317,7 @@ default_imp_for_payouts_create!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1181,6 +1327,102 @@ default_imp_for_payouts_create!(
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_payouts_retrieve {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutSync for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PoSync,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PayoutSync for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
+    for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_payouts_retrieve!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Square,
+    connector::Stax,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
@@ -1246,6 +1488,7 @@ default_imp_for_payouts_eligibility!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1266,6 +1509,7 @@ default_imp_for_payouts_eligibility!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1336,6 +1580,7 @@ default_imp_for_payouts_fulfill!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1354,6 +1599,7 @@ default_imp_for_payouts_fulfill!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1425,6 +1671,7 @@ default_imp_for_payouts_cancel!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1445,6 +1692,7 @@ default_imp_for_payouts_cancel!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1517,6 +1765,7 @@ default_imp_for_payouts_quote!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1537,6 +1786,7 @@ default_imp_for_payouts_quote!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1610,6 +1860,7 @@ default_imp_for_payouts_recipient!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1630,6 +1881,7 @@ default_imp_for_payouts_recipient!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1706,6 +1958,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1726,6 +1979,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1799,6 +2053,7 @@ default_imp_for_approve!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1819,6 +2074,7 @@ default_imp_for_approve!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1893,6 +2149,7 @@ default_imp_for_reject!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1913,6 +2170,7 @@ default_imp_for_reject!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1971,6 +2229,7 @@ default_imp_for_fraud_check!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1991,6 +2250,7 @@ default_imp_for_fraud_check!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2065,6 +2325,7 @@ default_imp_for_frm_sale!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2085,6 +2346,7 @@ default_imp_for_frm_sale!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2159,6 +2421,7 @@ default_imp_for_frm_checkout!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2179,6 +2442,7 @@ default_imp_for_frm_checkout!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2253,6 +2517,7 @@ default_imp_for_frm_transaction!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2273,6 +2538,7 @@ default_imp_for_frm_transaction!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2347,6 +2613,7 @@ default_imp_for_frm_fulfillment!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2367,6 +2634,7 @@ default_imp_for_frm_fulfillment!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2441,6 +2709,7 @@ default_imp_for_frm_record_return!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2461,6 +2730,7 @@ default_imp_for_frm_record_return!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -2532,6 +2802,7 @@ default_imp_for_incremental_authorization!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2552,6 +2823,7 @@ default_imp_for_incremental_authorization!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2623,6 +2895,7 @@ default_imp_for_revoking_mandates!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2642,6 +2915,7 @@ default_imp_for_revoking_mandates!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2774,6 +3048,7 @@ default_imp_for_connector_authentication!(
     connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2793,6 +3068,7 @@ default_imp_for_connector_authentication!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2863,6 +3139,7 @@ default_imp_for_authorize_session_token!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2882,6 +3159,7 @@ default_imp_for_authorize_session_token!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Stax,

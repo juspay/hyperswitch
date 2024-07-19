@@ -1,13 +1,17 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
-import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import {
+  connectorDetails as CommonConnectorDetails,
+  updateDefaultStatusCode,
+} from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -20,6 +24,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  datatrans:datatransConnectorDetails
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -62,7 +67,7 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
@@ -74,6 +79,10 @@ function getValueByKey(jsonObject, key) {
 }
 
 export const should_continue_further = (res_data) => {
+  if (res_data.trigger_skip !== undefined) {
+    return !res_data.trigger_skip;
+  }
+
   if (
     res_data.body.error !== undefined ||
     res_data.body.error_code !== undefined ||
@@ -84,3 +93,22 @@ export const should_continue_further = (res_data) => {
     return true;
   }
 };
+
+export function defaultErrorHandler(response, response_data) {
+  if (
+    response.status === 400 &&
+    response.body.error.message === "Payment method type not supported"
+  ) {
+    // Update the default status from 501 to 400 as `unsupported payment method` error is the next common error after `not implemented` error
+    response_data = updateDefaultStatusCode();
+  }
+
+  if (response_data.status === 200) {
+    throw new Error("Expecting valid response but got an error response");
+  }
+
+  expect(response.body).to.have.property("error");
+  for (const key in response_data.body.error) {
+    expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+  }
+}

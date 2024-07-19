@@ -1,4 +1,8 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    ext_traits::ByteSliceExt,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -19,19 +23,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CheckoutRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for CheckoutRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -131,6 +132,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -222,7 +224,7 @@ pub struct ReturnUrl {
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
@@ -367,6 +369,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -418,7 +421,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = item.router_data.request.metadata.clone();
+        let metadata = item.router_data.request.metadata.clone().map(Into::into);
         Ok(Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -591,7 +594,7 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: Option<i32>,
+    amount: Option<MinorUnit>,
     currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
@@ -755,11 +758,11 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
                 // for webhook consumption flow
-                utils::construct_captures_response_hashmap(vec![payments_response])
+                utils::construct_captures_response_hashmap(vec![payments_response])?
             }
             PaymentsResponseEnum::ActionResponse(action_list) => {
                 // for captures sync
-                utils::construct_captures_response_hashmap(action_list)
+                utils::construct_captures_response_hashmap(action_list)?
             }
         };
         Ok(Self {
@@ -835,7 +838,7 @@ pub enum CaptureType {
 
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
     pub reference: Option<String>,
@@ -922,7 +925,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     reference: String,
 }
 
@@ -1020,7 +1023,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,
@@ -1058,8 +1061,8 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(Some(self.amount))
     }
 }
 
@@ -1079,8 +1082,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.map(Into::into)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount)
     }
 }
 
@@ -1211,7 +1214,7 @@ pub struct CheckoutWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub balances: Option<Balances>,
     pub response_code: Option<String>,
     pub response_summary: Option<String>,

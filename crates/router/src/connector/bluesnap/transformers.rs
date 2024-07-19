@@ -233,6 +233,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
@@ -258,7 +259,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let (payment_method, card_holder_info) = match item
@@ -397,6 +398,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bluesnap"),
@@ -609,7 +611,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 .metadata
                 .as_ref()
                 .map(|metadata| BluesnapMetadata {
-                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.to_owned()),
                 });
 
         let token = item

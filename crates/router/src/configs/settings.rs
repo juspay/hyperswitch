@@ -8,6 +8,7 @@ use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
@@ -33,7 +34,7 @@ use storage_impl::config::QueueStrategy;
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
-    env::{self, logger, Env},
+    env::{self, Env},
     events::EventsConfig,
 };
 
@@ -69,6 +70,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
+    pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
@@ -101,6 +103,7 @@ pub struct Settings<S: SecretState> {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
@@ -125,6 +128,8 @@ pub struct Settings<S: SecretState> {
     pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
+    pub decision: Option<DecisionConfig>,
+    pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -144,6 +149,11 @@ impl Multitenancy {
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DecisionConfig {
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -207,25 +217,61 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeyManagerConfig {
+    pub url: String,
+    #[cfg(feature = "keymanager_mtls")]
+    pub cert: Secret<String>,
+    #[cfg(feature = "keymanager_mtls")]
+    pub ca: Secret<String>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenericLink {
     pub payment_method_collect: GenericLinkEnvConfig,
     pub payout_link: GenericLinkEnvConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvConfig {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub expiry: u32,
     pub ui_config: GenericLinkEnvUiConfig,
-    pub enabled_payment_methods: HashMap<enums::PaymentMethod, Vec<enums::PaymentMethodType>>,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+impl Default for GenericLinkEnvConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("http://localhost:9050/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+            expiry: 900,
+            ui_config: GenericLinkEnvUiConfig::default(),
+            enabled_payment_methods: HashMap::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct GenericLinkEnvUiConfig {
-    pub logo: String,
+    pub logo: url::Url,
     pub merchant_name: Secret<String>,
     pub theme: String,
+}
+
+#[allow(clippy::panic)]
+impl Default for GenericLinkEnvUiConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            logo: url::Url::parse("https://hyperswitch.io/favicon.ico")
+                .expect("Failed to parse default logo URL"),
+            merchant_name: Secret::new("HyperSwitch".to_string()),
+            theme: "#4285F4".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -537,6 +583,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -653,6 +700,13 @@ pub struct ApplePayDecryptConifg {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerBasedRecipientConnectorList {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
@@ -684,7 +738,8 @@ impl Settings<SecuredSecret> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        let config = router_env::Config::builder(&environment.to_string())?
+        let config = router_env::Config::builder(&environment.to_string())
+            .change_context(ApplicationError::ConfigurationError)?
             .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -694,23 +749,17 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
+                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payment_method_collect.enabled_payment_methods.wallet")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.card")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.bank_transfer")
-                    .with_list_parse_key("generic_link.payout_link.enabled_payment_methods.wallet"),
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
-            .build()?;
+            .build()
+            .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config).map_err(|error| {
-            logger::error!(%error, "Unable to deserialize application configuration");
-            eprintln!("Unable to deserialize application configuration: {error}");
-            ApplicationError::from(error.into_inner())
-        })
+        serde_path_to_error::deserialize(config)
+            .attach_printable("Unable to deserialize application configuration")
+            .change_context(ApplicationError::ConfigurationError)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -724,14 +773,18 @@ impl Settings<SecuredSecret> {
         })?;
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log file name must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log file name must not be empty".into(),
+                    ),
                 ));
             }
 
             if self.log.file.path.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log directory path must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log directory path must not be empty".into(),
+                    ),
                 ));
             }
         }
@@ -847,6 +900,61 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
+fn deserialize_hashmap_inner<K, V>(
+    value: HashMap<String, String>,
+) -> Result<HashMap<K, HashSet<V>>, String>
+where
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let (values, errors) = value
+        .into_iter()
+        .map(
+            |(k, v)| match (K::from_str(k.trim()), deserialize_hashset_inner(v)) {
+                (Err(error), _) => Err(format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    k,
+                    std::any::type_name::<K>()
+                )),
+                (_, Err(error)) => Err(error),
+                (Ok(key), Ok(value)) => Ok((key, value)),
+            },
+        )
+        .fold(
+            (HashMap::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok((key, value)) => {
+                    values.insert(key, value);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_hashmap<'a, D, K, V>(deserializer: D) -> Result<HashMap<K, HashSet<V>>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    K: Eq + std::str::FromStr + std::hash::Hash,
+    V: Eq + std::str::FromStr + std::hash::Hash,
+    <K as std::str::FromStr>::Err: std::fmt::Display,
+    <V as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+    deserialize_hashmap_inner(<HashMap<String, String>>::deserialize(deserializer)?)
+        .map_err(D::Error::custom)
+}
+
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,
@@ -913,6 +1021,99 @@ where
             }
         })
     })?
+}
+
+#[cfg(test)]
+mod hashmap_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use std::collections::{HashMap, HashSet};
+
+    use serde::de::{
+        value::{Error as ValueError, MapDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::deserialize_hashmap;
+
+    #[test]
+    fn test_payment_method_and_payment_method_types() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("bank_transfer".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,venmo".to_string()),
+        ]);
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
+            ),
+            (
+                PaymentMethod::Wallet,
+                HashSet::from([PaymentMethodType::Paypal, PaymentMethodType::Venmo]),
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_and_payment_method_types_with_spaces() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = HashMap::from([
+            (" bank_transfer ".to_string(), " ach , bacs ".to_string()),
+            ("wallet ".to_string(), " paypal , pix , venmo ".to_string()),
+        ]);
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+        let expected_result = HashMap::from([
+            (
+                PaymentMethod::BankTransfer,
+                HashSet::from([PaymentMethodType::Ach, PaymentMethodType::Bacs]),
+            ),
+            (
+                PaymentMethod::Wallet,
+                HashSet::from([
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Pix,
+                    PaymentMethodType::Venmo,
+                ]),
+            ),
+        ]);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_payment_method_deserializer_error() {
+        use diesel_models::enums::{PaymentMethod, PaymentMethodType};
+
+        let input_map: HashMap<String, String> = HashMap::from([
+            ("unknown".to_string(), "ach,bacs".to_string()),
+            ("wallet".to_string(), "paypal,unknown".to_string()),
+        ]);
+        let deserializer: MapDeserializer<
+            '_,
+            std::collections::hash_map::IntoIter<String, String>,
+            ValueError,
+        > = input_map.into_deserializer();
+        let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
+
+        assert!(result.is_err());
+    }
 }
 
 #[cfg(test)]

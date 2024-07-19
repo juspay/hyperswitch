@@ -301,3 +301,26 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsManualUpdate))]
+#[cfg(feature = "olap")]
+pub async fn refunds_manual_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::RefundManualUpdateRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RefundsManualUpdate;
+    let mut refund_manual_update_req = payload.into_inner();
+    refund_manual_update_req.refund_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_manual_update_req,
+        |state, _auth, req, _| refund_manual_update(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

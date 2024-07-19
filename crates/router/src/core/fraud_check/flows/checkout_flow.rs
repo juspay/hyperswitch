@@ -13,11 +13,14 @@ use crate::{
     },
     errors, services,
     types::{
-        api::fraud_check::{self as frm_api, FraudCheckConnectorData},
+        api::{
+            self,
+            fraud_check::{self as frm_api, FraudCheckConnectorData},
+        },
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         storage::enums as storage_enums,
-        BrowserInformation, ConnectorAuthType, ResponseId, RouterData,
+        BrowserInformation, ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
     },
     SessionState,
 };
@@ -34,6 +37,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         _key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -130,9 +134,21 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<MerchantRecipientData>> {
+        Ok(None)
     }
 }
 

@@ -4,7 +4,7 @@ pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::{Debug, Display},
+    fmt::Debug,
     future::Future,
     str,
     sync::Arc,
@@ -13,8 +13,9 @@ use std::{
 
 use actix_http::header::HeaderMap;
 use actix_web::{
-    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
-    ResponseError,
+    body,
+    http::header::{HeaderName, HeaderValue},
+    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
@@ -26,7 +27,14 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
-pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+pub use hyperswitch_domain_models::{
+    api::{
+        ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
+        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
+        RedirectionFormData,
+    },
+    router_response_types::RedirectForm,
+};
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
@@ -466,9 +474,12 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+    let should_bypass_proxy =
+        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
+            .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -714,93 +725,6 @@ async fn handle_response(
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ApplicationResponse<R> {
-    Json(R),
-    StatusOk,
-    TextPlain(String),
-    JsonForRedirection(api::RedirectionResponse),
-    Form(Box<RedirectionFormData>),
-    PaymentLinkForm(Box<PaymentLinkAction>),
-    FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
-    GenericLinkForm(Box<GenericLinks>),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum GenericLinks {
-    ExpiredLink(GenericExpiredLinkData),
-    PaymentMethodCollect(GenericLinkFormData),
-    PayoutLink(GenericLinkFormData),
-    PayoutLinkStatus(GenericLinkStatusData),
-    PaymentMethodCollectStatus(GenericLinkStatusData),
-}
-
-impl Display for Box<GenericLinks> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match **self {
-                GenericLinks::ExpiredLink(_) => "ExpiredLink",
-                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
-                GenericLinks::PayoutLink(_) => "PayoutLink",
-                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
-                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
-            }
-        )
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkFormData {
-    pub js_data: String,
-    pub css_data: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericExpiredLinkData {
-    pub title: String,
-    pub message: String,
-    pub theme: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkStatusData {
-    pub js_data: String,
-    pub css_data: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkStatusData {
-    pub js_script: String,
-    pub css_script: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct RedirectionFormData {
-    pub redirect_form: RedirectForm,
-    pub payment_method_data: Option<api::PaymentMethodData>,
-    pub amount: String,
-    pub currency: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
 pub enum PaymentAction {
     PSync,
     CompleteAuthorize,
@@ -820,7 +744,15 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(request, payload, state, func, api_auth, request_state),
+    skip(
+        request,
+        payload,
+        state,
+        func,
+        api_auth,
+        request_state,
+        incoming_request_header
+    ),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
@@ -1118,9 +1050,18 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            let link_type = (boxed_generic_link_data).to_string();
-            match build_generic_link_html(*boxed_generic_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
+            let link_type = boxed_generic_link_data.data.to_string();
+            match build_generic_link_html(boxed_generic_link_data.data) {
+                Ok(rendered_html) => {
+                    let domains_str = boxed_generic_link_data
+                        .allowed_domains
+                        .into_iter()
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                    let headers = HashSet::from([("content-security-policy", csp_header)]);
+                    http_response_html_data(rendered_html, Some(headers))
+                }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
@@ -1131,7 +1072,7 @@ where
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1143,7 +1084,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1272,8 +1213,8 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         }
         let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
             Ok(header_value) => header_value,
-            Err(e) => {
-                logger::error!(?e);
+            Err(error) => {
+                logger::error!(?error);
                 return http_server_error_json_response("Something Went Wrong");
             }
         };
@@ -1300,8 +1241,22 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
-pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
-    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
+pub fn http_response_html_data<T: body::MessageBody + 'static>(
+    res: T,
+    optional_headers: Option<HashSet<(&'static str, String)>>,
+) -> HttpResponse {
+    let mut res_builder = HttpResponse::Ok();
+    res_builder.content_type(mime::TEXT_HTML);
+
+    if let Some(headers) = optional_headers {
+        for (key, value) in headers {
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
+            }
+        }
+    }
+
+    res_builder.body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1877,10 +1832,11 @@ pub fn build_redirection_form(
         RedirectForm::Mifinity {
             initialization_token,
         } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
             maud::html! {
                         (maud::DOCTYPE)
                         head {
-                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
                         (PreEscaped(format!("<div id='widget-container'></div>
@@ -1888,9 +1844,11 @@ pub fn build_redirection_form(
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
-				  setTimeout(function() {{
-					widget.close();
-				  }}, 5000);
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
 			  }}
 		   }});
 	   </script>")))
@@ -1936,6 +1894,10 @@ pub fn build_payment_link_html(
         }
     };
 
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Modify Html template with rendered js and rendered css files
     let html_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
@@ -1960,6 +1922,8 @@ pub fn build_payment_link_html(
     );
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
+
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -2002,6 +1966,10 @@ pub fn get_payment_link_status(
         }
     };
 
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_status/status.js").to_string();
@@ -2024,6 +1992,7 @@ pub fn get_payment_link_status(
     context.insert("rendered_css", &rendered_css);
 
     context.insert("rendered_js", &rendered_js);
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),

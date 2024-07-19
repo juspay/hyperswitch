@@ -1,14 +1,16 @@
 use common_enums::MerchantStorageScheme;
 use common_utils::{id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::payment_methods};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_methods)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods, check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
     pub id: i32,
     pub customer_id: id_type::CustomerId,
@@ -96,8 +98,13 @@ pub struct TokenizeCoreWorkflow {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
-    MetadataUpdate {
+    MetadataUpdateAndLastUsed {
         metadata: Option<serde_json::Value>,
+        last_used_at: PrimitiveDateTime,
+    },
+    UpdatePaymentMethodDataAndLastUsed {
+        payment_method_data: Option<Encryption>,
+        last_used_at: PrimitiveDateTime,
     },
     PaymentMethodDataUpdate {
         payment_method_data: Option<Encryption>,
@@ -191,10 +198,13 @@ impl PaymentMethodUpdateInternal {
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
-            PaymentMethodUpdate::MetadataUpdate { metadata } => Self {
+            PaymentMethodUpdate::MetadataUpdateAndLastUsed {
+                metadata,
+                last_used_at,
+            } => Self {
                 metadata,
                 payment_method_data: None,
-                last_used_at: None,
+                last_used_at: Some(last_used_at),
                 network_transaction_id: None,
                 status: None,
                 locker_id: None,
@@ -222,6 +232,22 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
+                last_used_at: Some(last_used_at),
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+                payment_method_data,
+                last_used_at,
+            } => Self {
+                metadata: None,
+                payment_method_data,
                 last_used_at: Some(last_used_at),
                 network_transaction_id: None,
                 status: None,

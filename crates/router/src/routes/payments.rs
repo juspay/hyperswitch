@@ -595,8 +595,11 @@ pub async fn payments_connector_session(
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
-        Err(err) => {
-            logger::error!(?err, "Failed to get headers in payments_connector_session");
+        Err(error) => {
+            logger::error!(
+                ?error,
+                "Failed to get headers in payments_connector_session"
+            );
             HeaderPayload::default()
         }
     };

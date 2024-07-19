@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use transformers as stax;
 
 use self::stax::StaxWebhookEventType;
@@ -24,7 +24,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
+        ErrorResponse, Response,
     },
     utils::BytesExt,
 };
@@ -852,8 +852,9 @@ impl api::IncomingWebhook for Stax {
     async fn verify_webhook_source(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _merchant_connector_account: domain::MerchantConnectorAccount,
+        _merchant_id: &str,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)

@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
+use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -65,8 +66,9 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
-        RecurringMandatePaymentData, RouterData,
+        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
+        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
+        RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -450,6 +452,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_method_id: Option<String>,
+    payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -503,17 +506,15 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
-
                         let customer_id = request
-                            .customer_id
-                            .clone()
+                            .get_customer_id()
                             .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
                             &merchant_account.merchant_id,
                             &payment_method_info.customer_id,
-                            &customer_id,
+                            customer_id,
                         )?;
 
                         (
@@ -553,7 +554,10 @@ pub async fn get_token_pm_type_mandate_details(
                         || request.payment_method_type
                             == Some(api_models::enums::PaymentMethodType::GooglePay)
                     {
-                        if let Some(customer_id) = &request.customer_id {
+                        let payment_request_customer_id = request.get_customer_id();
+                        if let Some(customer_id) =
+                            payment_request_customer_id.or(payment_intent_customer_id)
+                        {
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -606,6 +610,21 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -613,7 +632,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                            None,
+                            payment_method_info,
                         )
                     }
                 }
@@ -693,11 +712,10 @@ pub async fn get_token_for_recurring_mandate(
         .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
-
-    let customer = req.customer_id.clone().get_required_value("customer_id")?;
+    let customer = req.get_customer_id().get_required_value("customer_id")?;
 
     let payment_method_id = {
-        if mandate.customer_id != customer {
+        if &mandate.customer_id != customer {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id must match mandate customer_id".into()
             }))?
@@ -1368,6 +1386,9 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1387,6 +1408,9 @@ pub(crate) async fn get_payment_method_create_request(
                         card_network: None,
                         client_secret: None,
                         payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
                     };
 
                     Ok(payment_method_request)
@@ -1436,25 +1460,6 @@ pub async fn get_customer_from_details<F: Clone>(
     }
 }
 
-// Checks if the inner values of two options are not equal and throws appropriate error
-fn validate_options_for_inequality<T: PartialEq>(
-    first_option: Option<&T>,
-    second_option: Option<&T>,
-    field_name: &str,
-) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(
-        first_option
-            .zip(second_option)
-            .map(|(value1, value2)| value1 != value2)
-            .unwrap_or(false),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!("The field name `{field_name}` sent in both places is ambiguous"),
-            })
-        },
-    )
-}
-
 pub fn validate_max_amount(
     amount: api_models::payments::Amount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1473,44 +1478,21 @@ pub fn validate_max_amount(
     }
 }
 
-// Checks if the customer details are passed in both places
-// If so, raise an error
-pub fn validate_customer_details_in_request(
+/// Check whether the customer information that is sent in the root of payments request
+/// and in the customer object are same, if the values mismatch return an error
+pub fn validate_customer_information(
     request: &api_models::payments::PaymentsRequest,
-) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(customer_details) = request.customer.as_ref() {
-        validate_options_for_inequality(
-            request.customer_id.as_ref(),
-            Some(&customer_details.id),
-            "customer_id",
-        )?;
-
-        validate_options_for_inequality(
-            request.email.as_ref(),
-            customer_details.email.as_ref(),
-            "email",
-        )?;
-
-        validate_options_for_inequality(
-            request.name.as_ref(),
-            customer_details.name.as_ref(),
-            "name",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone.as_ref(),
-            customer_details.phone.as_ref(),
-            "phone",
-        )?;
-
-        validate_options_for_inequality(
-            request.phone_country_code.as_ref(),
-            customer_details.phone_country_code.as_ref(),
-            "phone_country_code",
-        )?;
+) -> RouterResult<()> {
+    if let Some(mismatched_fields) = request.validate_customer_details_in_request() {
+        let mismatched_fields = mismatched_fields.join(", ");
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "The field names `{mismatched_fields}` sent in both places is ambiguous"
+            ),
+        })?
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// Get the customer details from customer field if present
@@ -1519,12 +1501,7 @@ pub fn validate_customer_details_in_request(
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
-    let customer_id = request
-        .customer
-        .as_ref()
-        .map(|customer_details| &customer_details.id)
-        .or(request.customer_id.as_ref())
-        .map(ToOwned::to_owned);
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -1636,8 +1613,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
-        .async_and_then(|_| async { create_encrypted_data(key_store, raw_customer_details).await })
-        .await;
+        .async_map(|customer_details| create_encrypted_data(key_store, customer_details))
+        .await
+        .transpose()
+        .change_context(errors::StorageError::EncryptionError)
+        .attach_printable("Unable to encrypt customer details")?;
 
     let customer_id = request_customer_details
         .customer_id
@@ -1946,7 +1926,7 @@ pub async fn retrieve_card_with_permanent_token(
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
             .transpose()
             .map_err(|e| {
-                logger::error!("Failed to parse card network {}", e);
+                logger::error!("Failed to parse card network {e:?}");
             })
             .ok()
             .flatten(),
@@ -2450,6 +2430,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
                 | api_enums::PaymentMethodType::OpenBankingUk
+                | api_enums::PaymentMethodType::OpenBankingPIS
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -2523,6 +2504,10 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Benefit
                 | api_enums::PaymentMethodType::MomoAtm
                 | api_enums::PaymentMethodType::CardRedirect
+        ),
+        api_enums::PaymentMethod::OpenBanking => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::OpenBankingPIS
         ),
     }
 }
@@ -3079,7 +3064,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3132,6 +3117,9 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3139,7 +3127,9 @@ mod tests {
     }
 
     #[test]
-    fn test_authenticate_client_secret_fulfillment_time_expired() {
+    fn test_authenticate_client_secret_session_expired() {
+        let created_at =
+            common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -3156,7 +3146,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
+            created_at,
             modified_at: common_utils::date_time::now(),
             fingerprint_id: None,
             last_synced: None,
@@ -3185,13 +3175,15 @@ mod tests {
             incremental_authorization_allowed: None,
             authorization_count: None,
             session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3251,6 +3243,9 @@ mod tests {
             charges: None,
             frm_metadata: None,
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: None,
+            shipping_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3349,6 +3344,15 @@ impl MerchantConnectorAccountType {
     pub fn get_connector_name(&self) -> Option<String> {
         match self {
             Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    pub fn get_additional_merchant_data(
+        &self,
+    ) -> Option<Encryptable<masking::Secret<serde_json::Value>>> {
+        match self {
+            Self::DbVal(db_val) => db_val.additional_merchant_data.clone(),
             Self::CacheVal(_) => None,
         }
     }
@@ -3523,6 +3527,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        integrity_check: Ok(()),
         connector_wallets_details: router_data.connector_wallets_details,
     }
 }
@@ -3722,6 +3727,7 @@ impl AttemptType {
             charge_id: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
+            customer_acceptance: old_payment_attempt.customer_acceptance,
         }
     }
 
@@ -4033,6 +4039,66 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::CardToken(_) => {
             api_models::payments::AdditionalPaymentData::CardToken {}
         }
+        api_models::payments::PaymentMethodData::OpenBanking(_) => {
+            api_models::payments::AdditionalPaymentData::OpenBanking {}
+        }
+    }
+}
+
+pub async fn populate_bin_details_for_payment_method_create(
+    card_details: api_models::payment_methods::CardDetail,
+    db: &dyn StorageInterface,
+) -> api_models::payment_methods::CardDetail {
+    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+    if card_details.card_issuer.is_some()
+        && card_details.card_network.is_some()
+        && card_details.card_type.is_some()
+        && card_details.card_issuing_country.is_some()
+    {
+        api::CardDetail {
+            card_issuer: card_details.card_issuer.to_owned(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.to_owned(),
+            card_issuing_country: card_details.card_issuing_country.to_owned(),
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        }
+    } else {
+        let card_info = card_isin
+            .clone()
+            .async_and_then(|card_isin| async move {
+                db.get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten()
+            .map(|card_info| api::CardDetail {
+                card_issuer: card_info.card_issuer,
+                card_network: card_info.card_network.clone(),
+                card_type: card_info.card_type,
+                card_issuing_country: card_info.card_issuing_country,
+                card_exp_month: card_details.card_exp_month.clone(),
+                card_exp_year: card_details.card_exp_year.clone(),
+                card_holder_name: card_details.card_holder_name.clone(),
+                card_number: card_details.card_number.clone(),
+                nick_name: card_details.nick_name.clone(),
+            });
+        card_info.unwrap_or_else(|| api::CardDetail {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        })
     }
 }
 
@@ -4041,8 +4107,8 @@ pub fn validate_customer_access(
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_same_customer = request.customer_id == payment_intent.customer_id;
+    if auth_flow == services::AuthFlow::Client && request.get_customer_id().is_some() {
+        let is_same_customer = request.get_customer_id() == payment_intent.customer_id.as_ref();
         if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
@@ -4154,9 +4220,9 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
+#[cfg(feature = "retry")]
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: SessionState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4180,7 +4246,7 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
     let merchant_connector_account_type = get_merchant_connector_account(
-        &state,
+        state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
@@ -4524,6 +4590,11 @@ pub fn get_key_params_for_surcharge_details(
             gift_card.get_payment_method_type(),
             None,
         )),
+        api_models::payments::PaymentMethodData::OpenBanking(ob_data) => Some((
+            common_enums::PaymentMethod::OpenBanking,
+            ob_data.get_payment_method_type(),
+            None,
+        )),
         api_models::payments::PaymentMethodData::CardToken(_) => None,
     }
 }
@@ -4621,6 +4692,40 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     }
 }
 
+pub fn get_recipient_id_for_open_banking(
+    merchant_data: &AdditionalMerchantData,
+) -> Result<Option<String>, errors::ApiErrorResponse> {
+    match merchant_data {
+        AdditionalMerchantData::OpenBankingRecipientData(data) => match data {
+            MerchantRecipientData::ConnectorRecipientId(id) => Ok(Some(id.peek().clone())),
+            MerchantRecipientData::AccountData(acc_data) => match acc_data {
+                MerchantAccountData::Bacs {
+                    connector_recipient_id,
+                    ..
+                } => match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Ok(Some(id.peek().clone())),
+                    Some(RecipientIdType::LockerId(id)) => Ok(Some(id.peek().clone())),
+                    _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: "recipient_id".to_string(),
+                    }),
+                },
+                MerchantAccountData::Iban {
+                    connector_recipient_id,
+                    ..
+                } => match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Ok(Some(id.peek().clone())),
+                    Some(RecipientIdType::LockerId(id)) => Ok(Some(id.peek().clone())),
+                    _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: "recipient_id".to_string(),
+                    }),
+                },
+            },
+            _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                config: "recipient_id".to_string(),
+            }),
+        },
+    }
+}
 // This function validates the intent fulfillment time expiry set by the merchant in the request
 pub fn validate_intent_fulfillment_expiry(
     intent_fulfillment_time: u32,
@@ -4946,6 +5051,35 @@ pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str)
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
 
+pub fn check_integrity_based_on_flow<T, Request>(
+    request: &Request,
+    payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+) -> Result<(), common_utils::errors::IntegrityCheckError>
+where
+    T: FlowIntegrity,
+    Request: GetIntegrityObject<T> + CheckIntegrity<Request, T>,
+{
+    let connector_transaction_id = match payment_response_data {
+        Ok(resp_data) => match resp_data {
+            PaymentsResponseData::TransactionResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::TransactionUnresolvedResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            PaymentsResponseData::PreProcessingResponse {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id,
+            _ => &None,
+        },
+        Err(_) => &None,
+    };
+    request.check_integrity(request, connector_transaction_id.to_owned())
+}
+
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -4962,9 +5096,64 @@ pub async fn config_skip_saving_wallet_at_connector(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
         ),
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             None
         }
     })
+}
+
+pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+    db: &dyn StorageInterface,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+        let skip_saving_wallet_at_connector_optional =
+            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
+                .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.payment_intent.setup_future_usage =
+                        Some(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
+}
+
+pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
+    merchant_id: &str,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let merchant_connector_account_list = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_connector_ids: Vec<String> = merchant_connector_account_list
+        .iter()
+        .map(|merchant_connector_account| merchant_connector_account.merchant_connector_id.clone())
+        .collect();
+
+    for merchant_connector_id in connector_mandate_details.0.keys() {
+        if !merchant_connector_ids.contains(merchant_connector_id) {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_connector_id",
+            })
+            .attach_printable_lazy(|| {
+                format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+            })?
+        }
+    }
+    Ok(())
 }

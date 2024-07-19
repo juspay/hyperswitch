@@ -10,6 +10,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use futures::future;
 use masking::{PeekInterface, Secret};
+use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
@@ -118,8 +119,7 @@ pub async fn initiate_payment_link_flow(
             })?
     };
 
-    let (pub_key, currency, client_secret) = validate_sdk_requirements(
-        merchant_account.publishable_key,
+    let (currency, client_secret) = validate_sdk_requirements(
         payment_intent.currency,
         payment_intent.client_secret.clone(),
     )?;
@@ -161,12 +161,17 @@ pub async fn initiate_payment_link_flow(
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
+                logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                 PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
             }
             api_models::payments::PaymentLinkStatus::Expired => {
                 if is_terminal_state {
+                    logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                     PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
                 } else {
+                    logger::info!(
+                        "displaying status page as the requested payment link has expired"
+                    );
                     PaymentLinkStatusWrap::PaymentLinkStatus(
                         api_models::payments::PaymentLinkStatus::Expired,
                     )
@@ -198,6 +203,11 @@ pub async fn initiate_payment_link_flow(
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
         };
+
+        logger::info!(
+            "payment link data, for building payment link status page {:?}",
+            payment_details
+        );
         let js_script = get_js_script(
             &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
         )?;
@@ -218,7 +228,7 @@ pub async fn initiate_payment_link_flow(
         order_details,
         return_url,
         session_expiry,
-        pub_key,
+        pub_key: merchant_account.publishable_key,
         client_secret,
         merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
@@ -241,6 +251,11 @@ pub async fn initiate_payment_link_flow(
         css_script,
         html_meta_tags,
     };
+
+    logger::info!(
+        "payment link data, for building payment link {:?}",
+        payment_link_data
+    );
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
     )))
@@ -278,14 +293,9 @@ fn get_meta_tags_html(payment_details: api_models::payments::PaymentLinkDetails)
 }
 
 fn validate_sdk_requirements(
-    pub_key: Option<String>,
     currency: Option<api_models::enums::Currency>,
     client_secret: Option<String>,
-) -> Result<(String, api_models::enums::Currency, String), errors::ApiErrorResponse> {
-    let pub_key = pub_key.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "pub_key",
-    })?;
-
+) -> Result<(api_models::enums::Currency, String), errors::ApiErrorResponse> {
     let currency = currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "currency",
     })?;
@@ -293,7 +303,7 @@ fn validate_sdk_requirements(
     let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "client_secret",
     })?;
-    Ok((pub_key, currency, client_secret))
+    Ok((currency, client_secret))
 }
 
 pub async fn list_payment_link(
@@ -407,6 +417,10 @@ pub fn get_payment_link_config_based_on_priority(
                 field_name: "payment_link_config",
             })
             .attach_printable("Invalid payment_link_config given in business config")?;
+        logger::info!(
+            "domain name set to custom domain https://{:?}",
+            extracted_value.domain_name
+        );
 
         (
             extracted_value

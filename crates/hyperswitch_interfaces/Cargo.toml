@@ -12,9 +12,11 @@ dummy_connector = []
 payouts = []
 
 [dependencies]
+actix-web = "4.5.1"
 async-trait = "0.1.79"
 bytes = "1.6.0"
 dyn-clone = "1.0.17"
+error-stack = "0.4.1"
 http = "0.2.12"
 mime = "0.3.17"
 once_cell = "1.19.0"
@@ -25,9 +27,10 @@ thiserror = "1.0.58"
 time = "0.3.35"
 
 # First party crates
+api_models = { version = "0.1.0", path = "../api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env" }
-storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }

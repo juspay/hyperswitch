@@ -38,6 +38,7 @@ mod gocardless;
 mod gpayments;
 mod helcim;
 mod iatapay;
+mod itaubank;
 mod mifinity;
 mod mollie;
 mod multisafepay;
@@ -60,6 +61,7 @@ mod powertranz;
 #[cfg(feature = "dummy_connector")]
 mod prophetpay;
 mod rapyd;
+mod razorpay;
 mod shift4;
 mod square;
 mod stax;

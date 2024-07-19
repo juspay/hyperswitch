@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::id_type;
+use common_utils::{id_type, types as util_types};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -114,13 +114,110 @@ impl TryFrom<&types::ExchangeTokenRouterData> for PlaidExchangeTokenRequest {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateRequest {
+    pub name: String,
+    #[serde(flatten)]
+    pub account_data: PlaidRecipientAccountData,
+    pub address: Option<PlaidRecipientCreateAddress>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateResponse {
+    pub recipient_id: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PlaidRecipientAccountData {
+    Iban(Secret<String>),
+    Bacs {
+        sort_code: Secret<String>,
+        account: Secret<String>,
+    },
+}
+
+impl From<&types::RecipientAccountData> for PlaidRecipientAccountData {
+    fn from(item: &types::RecipientAccountData) -> Self {
+        match item {
+            types::RecipientAccountData::Iban(iban) => Self::Iban(iban.clone()),
+            types::RecipientAccountData::Bacs {
+                sort_code,
+                account_number,
+            } => Self::Bacs {
+                sort_code: sort_code.clone(),
+                account: account_number.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateAddress {
+    pub street: String,
+    pub city: String,
+    pub postal_code: String,
+    pub country: String,
+}
+
+impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
+    fn from(item: &types::RecipientCreateAddress) -> Self {
+        Self {
+            street: item.street.clone(),
+            city: item.city.clone(),
+            postal_code: item.postal_code.clone(),
+            country: common_enums::CountryAlpha2::to_string(&item.country),
+        }
+    }
+}
+
+impl From<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    fn from(item: &types::RecipientCreateRouterData) -> Self {
+        Self {
+            name: item.request.name.clone(),
+            account_data: PlaidRecipientAccountData::from(&item.request.account_data),
+            address: item
+                .request
+                .address
+                .as_ref()
+                .map(PlaidRecipientCreateAddress::from),
+        }
+    }
+}
+
+impl<F, T>
+    From<
+        types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    > for types::PaymentAuthRouterData<F, T, types::RecipientCreateResponse>
+{
+    fn from(
+        item: types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    ) -> Self {
+        Self {
+            response: Ok(types::RecipientCreateResponse {
+                recipient_id: item.response.recipient_id,
+            }),
+            ..item.data
+        }
+    }
+}
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct PlaidBankAccountCredentialsRequest {
     access_token: String,
     options: Option<BankAccountCredentialsOptions>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
@@ -135,19 +232,20 @@ pub struct BankAccountCredentialsOptions {
     account_ids: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,
     pub subtype: Option<String>,
+    pub balances: Option<PlaidBankAccountCredentialsBalances>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct PlaidBankAccountCredentialsBalances {
-    pub available: Option<i32>,
-    pub current: Option<i32>,
-    pub limit: Option<i32>,
+    pub available: Option<util_types::FloatMajorUnit>,
+    pub current: Option<util_types::FloatMajorUnit>,
+    pub limit: Option<util_types::FloatMajorUnit>,
     pub iso_currency_code: Option<String>,
     pub unofficial_currency_code: Option<String>,
     pub last_updated_datetime: Option<String>,
@@ -242,16 +340,27 @@ impl<F, T>
         let mut id_to_subtype = HashMap::new();
 
         accounts_info.into_iter().for_each(|acc| {
-            id_to_subtype.insert(acc.account_id, (acc.subtype, acc.name));
+            id_to_subtype.insert(
+                acc.account_id,
+                (
+                    acc.subtype,
+                    acc.name,
+                    acc.balances.and_then(|balance| balance.available),
+                ),
+            );
         });
 
         account_numbers.ach.into_iter().for_each(|ach| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&ach.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
-                } else {
-                    (None, None)
-                };
+            let (acc_type, acc_name, available_balance) = if let Some((
+                _type,
+                name,
+                available_balance,
+            )) = id_to_subtype.get(&ach.account_id)
+            {
+                (_type.to_owned(), Some(name.clone()), *available_balance)
+            } else {
+                (None, None, None)
+            };
 
             let account_details =
                 types::PaymentMethodTypeDetails::Ach(types::BankAccountDetailsAch {
@@ -266,17 +375,19 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: ach.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
         });
 
         account_numbers.bacs.into_iter().for_each(|bacs| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&bacs.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&bacs.account_id)
+                {
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
 
             let account_details =
@@ -292,17 +403,19 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: bacs.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
         });
 
         account_numbers.international.into_iter().for_each(|sepa| {
-            let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_subtype.get(&sepa.account_id) {
-                    (_type.to_owned(), Some(name.clone()))
+            let (acc_type, acc_name, available_balance) =
+                if let Some((_type, name, available_balance)) = id_to_subtype.get(&sepa.account_id)
+                {
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
 
             let account_details =
@@ -318,6 +431,7 @@ impl<F, T>
                 payment_method: PaymentMethod::BankDebit,
                 account_id: sepa.account_id.into(),
                 account_type: acc_type,
+                balance: available_balance,
             };
 
             bank_account_vec.push(bank_details_new);
@@ -334,6 +448,7 @@ impl<F, T>
 pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
+    pub merchant_data: Option<types::MerchantRecipientData>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
@@ -343,6 +458,16 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
             types::ConnectorAuthType::BodyKey { client_id, secret } => Ok(Self {
                 client_id: client_id.to_owned(),
                 secret: secret.to_owned(),
+                merchant_data: None,
+            }),
+            types::ConnectorAuthType::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data,
+            } => Ok(Self {
+                client_id: api_key.to_owned(),
+                secret: key1.to_owned(),
+                merchant_data: Some(merchant_data.clone()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

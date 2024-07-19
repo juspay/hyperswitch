@@ -1,6 +1,6 @@
-//! Common
+//! This module has common utilities for links in HyperSwitch
 
-use std::primitive::i64;
+use std::{collections::HashSet, primitive::i64};
 
 use common_enums::enums;
 use diesel::{
@@ -13,10 +13,13 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+use regex::Regex;
+#[cfg(feature = "logs")]
+use router_env::logger;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::{errors::ParsingError, id_type, types::MinorUnit};
+use crate::{consts, errors::ParsingError, id_type, types::MinorUnit};
 
 #[derive(
     Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
@@ -148,7 +151,7 @@ pub struct PayoutLinkData {
     /// Identifier for the payouts resource
     pub payout_id: String,
     /// Link to render the payout link
-    pub link: Secret<String>,
+    pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs
     pub client_secret: Secret<String>,
     /// Expiry in seconds from the time it was created
@@ -162,16 +165,18 @@ pub struct PayoutLinkData {
     pub amount: MinorUnit,
     /// Payout currency
     pub currency: enums::Currency,
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    pub allowed_domains: HashSet<String>,
 }
 
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
 
 /// Object for GenericLinkUiConfig
-#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, Serialize, ToSchema)]
 pub struct GenericLinkUiConfig {
     /// Merchant's display logo
     #[schema(value_type = Option<String>, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: Option<String>,
+    pub logo: Option<url::Url>,
 
     /// Custom merchant name for the link
     #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch")]
@@ -182,12 +187,12 @@ pub struct GenericLinkUiConfig {
     pub theme: Option<String>,
 }
 
-/// Object for GenericLinkUIConfigFormData
-#[derive(Clone, Debug, Default, serde::Deserialize, Serialize, ToSchema)]
-pub struct GenericLinkUIConfigFormData {
+/// Object for GenericLinkUiConfigFormData
+#[derive(Clone, Debug, serde::Deserialize, Serialize, ToSchema)]
+pub struct GenericLinkUiConfigFormData {
     /// Merchant's display logo
     #[schema(value_type = String, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
-    pub logo: String,
+    pub logo: url::Url,
 
     /// Custom merchant name for the link
     #[schema(value_type = String, max_length = 255, example = "Hyperswitch")]
@@ -206,6 +211,143 @@ pub struct EnabledPaymentMethod {
     pub payment_method: enums::PaymentMethod,
 
     /// An array of associated payment method types
-    #[schema(value_type = Vec<PaymentMethodType>)]
-    pub payment_method_types: Vec<enums::PaymentMethodType>,
+    #[schema(value_type = HashSet<PaymentMethodType>)]
+    pub payment_method_types: HashSet<enums::PaymentMethodType>,
+}
+
+/// Util function for validating a domain without any wildcard characters.
+pub fn validate_strict_domain(domain: &str) -> bool {
+    Regex::new(consts::STRICT_DOMAIN_REGEX)
+        .map(|regex| regex.is_match(domain))
+        .map_err(|err| {
+            let err_msg = format!("Invalid strict domain regex: {err:?}");
+            #[cfg(feature = "logs")]
+            logger::error!(err_msg);
+            err_msg
+        })
+        .unwrap_or(false)
+}
+
+/// Util function for validating a domain with "*" wildcard characters.
+pub fn validate_wildcard_domain(domain: &str) -> bool {
+    Regex::new(consts::WILDCARD_DOMAIN_REGEX)
+        .map(|regex| regex.is_match(domain))
+        .map_err(|err| {
+            let err_msg = format!("Invalid strict domain regex: {err:?}");
+            #[cfg(feature = "logs")]
+            logger::error!(err_msg);
+            err_msg
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod domain_tests {
+    use regex::Regex;
+
+    use super::*;
+
+    #[test]
+    fn test_validate_strict_domain_regex() {
+        assert!(
+            Regex::new(consts::STRICT_DOMAIN_REGEX).is_ok(),
+            "Strict domain regex is invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_wildcard_domain_regex() {
+        assert!(
+            Regex::new(consts::WILDCARD_DOMAIN_REGEX).is_ok(),
+            "Wildcard domain regex is invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_strict_domain() {
+        let valid_domains = vec![
+            "example.com",
+            "example.subdomain.com",
+            "https://example.com:8080",
+            "http://example.com",
+            "example.com:8080",
+            "example.com:443",
+            "localhost:443",
+            "127.0.0.1:443",
+        ];
+
+        for domain in valid_domains {
+            assert!(
+                validate_strict_domain(domain),
+                "Could not validate strict domain: {}",
+                domain
+            );
+        }
+
+        let invalid_domains = vec![
+            "",
+            "invalid.domain.",
+            "not_a_domain",
+            "http://example.com/path?query=1#fragment",
+            "127.0.0.1.2:443",
+        ];
+
+        for domain in invalid_domains {
+            assert!(
+                !validate_strict_domain(domain),
+                "Could not validate invalid strict domain: {}",
+                domain
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_wildcard_domain() {
+        let valid_domains = vec![
+            "example.com",
+            "example.subdomain.com",
+            "https://example.com:8080",
+            "http://example.com",
+            "example.com:8080",
+            "example.com:443",
+            "localhost:443",
+            "127.0.0.1:443",
+            "*.com",
+            "example.*.com",
+            "example.com:*",
+            "*:443",
+            "localhost:*",
+            "127.0.0.*:*",
+            "*:*",
+        ];
+
+        for domain in valid_domains {
+            assert!(
+                validate_wildcard_domain(domain),
+                "Could not validate wildcard domain: {}",
+                domain
+            );
+        }
+
+        let invalid_domains = vec![
+            "",
+            "invalid.domain.",
+            "not_a_domain",
+            "http://example.com/path?query=1#fragment",
+            "*.",
+            ".*",
+            "example.com:*:",
+            "*:443:",
+            ":localhost:*",
+            "127.00.*:*",
+        ];
+
+        for domain in invalid_domains {
+            assert!(
+                !validate_wildcard_domain(domain),
+                "Could not validate invalid wildcard domain: {}",
+                domain
+            );
+        }
+    }
 }

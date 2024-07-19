@@ -86,3 +86,6 @@ counter_metric!(
 
 #[cfg(feature = "partial-auth")]
 counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
+
+counter_metric!(API_KEY_REQUEST_INITIATED, GLOBAL_METER);
+counter_metric!(API_KEY_REQUEST_COMPLETED, GLOBAL_METER);

@@ -1,6 +1,9 @@
+use std::collections::HashSet;
 pub mod cards;
+pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
@@ -11,7 +14,11 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    api::{GenericLinks, GenericLinksData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -24,7 +31,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
@@ -68,6 +75,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
@@ -145,11 +153,17 @@ pub async fn initiate_pm_collect_link(
     )?;
 
     // Return response
+    let url = pm_collect_link.url.peek();
     let response = payment_methods::PaymentMethodCollectLinkResponse {
         pm_collect_link_id: pm_collect_link.link_id,
         customer_id,
         expiry: pm_collect_link.expiry,
-        link: pm_collect_link.url,
+        link: url::Url::parse(url)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("Failed to parse the payment method collect link - {}", url)
+            })?
+            .into(),
         return_url: pm_collect_link.return_url,
         ui_config: pm_collect_link.link_data.ui_config,
         enabled_payment_methods: pm_collect_link.link_data.enabled_payment_methods,
@@ -214,7 +228,7 @@ pub async fn render_pm_collect_link(
     let link_data = pm_collect_link.link_data;
     let default_config = &state.conf.generic_link.payment_method_collect;
     let default_ui_config = default_config.ui_config.clone();
-    let ui_config_data = common_utils::link_utils::GenericLinkUIConfigFormData {
+    let ui_config_data = common_utils::link_utils::GenericLinkUiConfigFormData {
         merchant_name: link_data
             .ui_config
             .merchant_name
@@ -236,7 +250,10 @@ pub async fn render_pm_collect_link(
                     theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::ExpiredLink(expired_link_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+                        data: GenericLinksData::ExpiredLink(expired_link_data),
+                    },
                 )))
 
             // else, send back form link
@@ -267,12 +284,7 @@ pub async fn render_pm_collect_link(
                     ))?;
 
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    publishable_key: merchant_account
-                        .publishable_key
-                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "publishable_key",
-                        })?
-                        .into(),
+                    publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
                     customer_id: customer.customer_id,
@@ -295,11 +307,15 @@ pub async fn render_pm_collect_link(
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
-                    sdk_url: default_config.sdk_url.clone(),
+                    sdk_url: default_config.sdk_url.to_string(),
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+
+                        data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                    },
                 )))
             }
         }
@@ -310,7 +326,15 @@ pub async fn render_pm_collect_link(
                 pm_collect_link_id: pm_collect_link.link_id,
                 customer_id: link_data.customer_id,
                 session_expiry: pm_collect_link.expiry,
-                return_url: pm_collect_link.return_url,
+                return_url: pm_collect_link
+                    .return_url
+                    .as_ref()
+                    .map(|url| url::Url::parse(url))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to parse return URL for payment method collect's status link",
+                    )?,
                 ui_config: ui_config_data,
                 status,
             };
@@ -332,7 +356,11 @@ pub async fn render_pm_collect_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PaymentMethodCollectStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: HashSet::from([]),
+
+                    data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                },
             )))
         }
     }

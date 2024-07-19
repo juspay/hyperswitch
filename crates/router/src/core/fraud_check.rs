@@ -91,6 +91,7 @@ where
             key_store,
             customer,
             &merchant_connector_account,
+            None,
         )
         .await?;
 
@@ -320,7 +321,7 @@ where
         .or_else(||
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.payment_intent.metadata.clone().and_then(|meta| {
-                let order_details = meta.peek().get("order_details").to_owned();
+                let order_details = meta.get("order_details").to_owned();
                 order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
