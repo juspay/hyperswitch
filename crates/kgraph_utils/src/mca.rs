@@ -651,11 +651,7 @@ fn compile_merchant_connector_graph(
             None,
         )
         .map_err(KgraphError::GraphConstructionError)?;
-    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
-        connector,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: mca.business_sub_label.clone(),
-    }));
+    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice { connector }));
 
     let connector_info = "Connector";
     let connector_node_id =
