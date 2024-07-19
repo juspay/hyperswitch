@@ -5130,6 +5130,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
     merchant_id: &str,
+    card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let merchant_connector_account_list = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -5140,20 +5141,68 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let merchant_connector_ids: Vec<String> = merchant_connector_account_list
+    let merchant_connector_account_details_hash_map: std::collections::HashMap<
+        String,
+        domain::MerchantConnectorAccount,
+    > = merchant_connector_account_list
         .iter()
-        .map(|merchant_connector_account| merchant_connector_account.merchant_connector_id.clone())
+        .map(|merchant_connector_account| {
+            (
+                merchant_connector_account.merchant_connector_id.clone(),
+                merchant_connector_account.clone(),
+            )
+        })
         .collect();
 
-    for merchant_connector_id in connector_mandate_details.0.keys() {
-        if !merchant_connector_ids.contains(merchant_connector_id) {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_connector_id",
-            })
-            .attach_printable_lazy(|| {
-                format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
-            })?
+    if let Some(card_network) = card_network {
+        match card_network {
+            enums::CardNetwork::Discover => {
+                for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
+                    connector_mandate_details.0.clone()
+                {
+                    match merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id) {
+                        Some(merchant_connector_account_details) => if let ("cybersource", None) = (
+                          merchant_connector_account_details.connector_name.as_str(),
+                        migrating_connector_mandate_details
+                            .original_payment_authorized_amount
+                            .zip(
+                                migrating_connector_mandate_details
+                                  .original_payment_authorized_currency,
+                             ),
+                      ) {
+                        Err(errors::ApiErrorResponse::MissingRequiredFields {
+                              field_names: vec![
+                                 "original_payment_authorized_currency",
+                                  "original_payment_authorized_amount",
+                          ],
+                         }).attach_printable(format!("Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id}"))?
+                    },
+                        None => {
+                            Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "merchant_connector_id",
+                            })
+                            .attach_printable_lazy(|| {
+                                format!("{migrating_merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+                            })?
+                        },
+                    }
+                }
+            }
+            _ => {
+                for merchant_connector_id in connector_mandate_details.0.keys() {
+                    if !merchant_connector_account_details_hash_map
+                        .contains_key(merchant_connector_id)
+                    {
+                        Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "merchant_connector_id",
+                        })
+                        .attach_printable_lazy(|| {
+                            format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+                        })?
+                    }
+                }
+            }
         }
-    }
+    };
     Ok(())
 }
