@@ -2,7 +2,8 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            DisputesFlowData, MandateRevokeFlowData, PayoutFlowData, WebhookSourceVerifyData,
+            DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, PayoutFlowData,
+            RefundFlowData, WebhookSourceVerifyData,
         },
         AccessTokenFlowData, FilesFlowData, FrmFlowData,
     },
@@ -11,10 +12,16 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
         mandate_revoke::MandateRevoke,
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PreProcessing, Reject, Session, SetupMandate, Void,
+        },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
             PoSync,
         },
+        refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
         AccessTokenAuth,
     },
@@ -23,14 +30,20 @@ use hyperswitch_domain_models::{
             FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
             FraudCheckSaleData, FraudCheckTransactionData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PayoutsData, RetrieveFileRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PayoutsData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
-        MandateRevokeResponseData, PayoutsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, UploadFileResponse, VerifyWebhookSourceResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, PayoutsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,16 +54,131 @@ use hyperswitch_interfaces::{
             FraudCheckCheckoutV2, FraudCheckFulfillmentV2, FraudCheckRecordReturnV2,
             FraudCheckSaleV2, FraudCheckTransactionV2,
         },
+        payments_v2::{
+            ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
+            PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
+            PaymentRejectV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
+            PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
+        },
         payouts_v2::{
             PayoutCancelV2, PayoutCreateV2, PayoutEligibilityV2, PayoutFulfillV2, PayoutQuoteV2,
             PayoutRecipientAccountV2, PayoutRecipientV2, PayoutSyncV2,
         },
+        refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
 };
 
 use crate::connectors;
+
+macro_rules! default_imp_for_new_connector_integration_payment {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl PaymentV2 for $path::$connector{}
+            impl PaymentAuthorizeV2 for $path::$connector{}
+            impl PaymentAuthorizeSessionTokenV2 for $path::$connector{}
+            impl PaymentSyncV2 for $path::$connector{}
+            impl PaymentVoidV2 for $path::$connector{}
+            impl PaymentApproveV2 for $path::$connector{}
+            impl PaymentRejectV2 for $path::$connector{}
+            impl PaymentCaptureV2 for $path::$connector{}
+            impl PaymentSessionV2 for $path::$connector{}
+            impl MandateSetupV2 for $path::$connector{}
+            impl PaymentIncrementalAuthorizationV2 for $path::$connector{}
+            impl PaymentsCompleteAuthorizeV2 for $path::$connector{}
+            impl PaymentTokenV2 for $path::$connector{}
+            impl ConnectorCustomerV2 for $path::$connector{}
+            impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<PSync,PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Approve,PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Reject,PaymentFlowData, PaymentsRejectData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Capture,PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Session,PaymentFlowData, PaymentsSessionData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<SetupMandate,PaymentFlowData, SetupMandateRequestData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            CompleteAuthorize,
+            PaymentFlowData,
+                CompleteAuthorizeData,
+                PaymentsResponseData,
+            >            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+                PaymentMethodTokenizationData,
+                PaymentsResponseData,
+            > for   $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+                ConnectorCustomerData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PreProcessing,
+            PaymentFlowData,
+                PaymentsPreProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+                AuthorizeSessionToken,
+                PaymentFlowData,
+                AuthorizeSessionTokenData,
+                PaymentsResponseData
+        > for $path::$connector{}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_payment!(connectors::Helcim);
+
+macro_rules! default_imp_for_new_connector_integration_refund {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl RefundV2 for $path::$connector{}
+            impl RefundExecuteV2 for $path::$connector{}
+            impl RefundSyncV2 for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Execute, RefundFlowData, RefundsData, RefundsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<RSync, RefundFlowData, RefundsData, RefundsResponseData>
+            for $path::$connector{}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_refund!(connectors::Helcim);
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
     ($($path:ident::$connector:ident),*) => {

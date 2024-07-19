@@ -7,9 +7,11 @@ pub mod files_v2;
 pub mod fraud_check;
 pub mod fraud_check_v2;
 pub mod payments;
+pub mod payments_v2;
 pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
+pub mod refunds_v2;
 
 use common_enums::enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{

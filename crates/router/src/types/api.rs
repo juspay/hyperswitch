@@ -65,10 +65,7 @@ use crate::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    services::{
-        connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse,
-        ConnectorValidation,
-    },
+    services::{connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
