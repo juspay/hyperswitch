@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 default = ["olap", "payouts", "frm"]
+encryption_service =[]
 olap = []
 payouts = ["api_models/payouts"]
 frm = ["api_models/frm"]
@@ -18,7 +19,7 @@ frm = ["api_models/frm"]
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics",  "encryption_service", "keymanager"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
@@ -31,6 +32,7 @@ error-stack = "0.4.1"
 futures = "0.3.30"
 http = "0.2.12"
 mime = "0.3.17"
+rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 serde_with = "3.7.0"

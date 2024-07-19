@@ -1,7 +1,8 @@
+use common_utils::encryption::Encryption;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums, schema::user_authentication_methods};
+use crate::{enums, schema::user_authentication_methods};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = user_authentication_methods, check_for_backend(diesel::pg::Pg))]

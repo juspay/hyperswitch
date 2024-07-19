@@ -10,6 +10,7 @@ license.workspace = true
 [features]
 keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
+encryption_service = ["dep:router_env"]
 signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
@@ -17,6 +18,7 @@ metrics = ["dep:router_env", "dep:futures"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
+base64 = "0.22.0"
 blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
 diesel = "2.1.5"
