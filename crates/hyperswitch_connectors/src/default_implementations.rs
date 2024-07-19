@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CompleteAuthorize, CreateConnectorCustomer,
-            IncrementalAuthorization, PreProcessing, Reject,
+            IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
         },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
@@ -26,9 +26,9 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData,
-        PaymentsRejectData, PayoutsData, RetrieveFileRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsRejectData, PayoutsData, RetrieveFileRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
@@ -47,7 +47,7 @@ use hyperswitch_interfaces::api::{
     payments::{
         ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
         PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
-        PaymentsPreProcessing,
+        PaymentsPostProcessing, PaymentsPreProcessing,
     },
     payouts::{
         PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
@@ -140,6 +140,23 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(connectors::Helcim);
+
+macro_rules! default_imp_for_post_processing_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl PaymentsPostProcessing for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            PostProcessing,
+            PaymentsPostProcessingData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_post_processing_steps!(connectors::Helcim);
 
 macro_rules! default_imp_for_approve {
     ($($path:ident::$connector:ident),*) => {

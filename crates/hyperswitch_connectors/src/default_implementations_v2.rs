@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PreProcessing, Reject, Session, SetupMandate, Void,
+            PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
         },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PayoutsData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PayoutsData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
@@ -58,7 +58,8 @@ use hyperswitch_interfaces::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
             PaymentRejectV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
-            PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPreProcessingV2,
+            PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2,
+            PaymentsPreProcessingV2,
         },
         payouts_v2::{
             PayoutCancelV2, PayoutCreateV2, PayoutEligibilityV2, PayoutFulfillV2, PayoutQuoteV2,
@@ -90,6 +91,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl PaymentsPostProcessingV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -147,6 +149,12 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PreProcessing,
             PaymentFlowData,
                 PaymentsPreProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PostProcessing,
+            PaymentFlowData,
+                PaymentsPostProcessingData,
                 PaymentsResponseData,
             > for $path::$connector{}
             impl

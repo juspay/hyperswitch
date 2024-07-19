@@ -5,14 +5,14 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PreProcessing, Reject, Session, SetupMandate, Void,
+        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        SetupMandateRequestData,
+        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, SetupMandateRequestData,
     },
     router_response_types::PaymentsResponseData,
 };
@@ -133,6 +133,17 @@ pub trait PaymentsPreProcessingV2:
 {
 }
 
+/// trait PaymentsPostProcessingV2
+pub trait PaymentsPostProcessingV2:
+    ConnectorIntegrationV2<
+    PostProcessing,
+    PaymentFlowData,
+    PaymentsPostProcessingData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentV2
 pub trait PaymentV2:
     ConnectorCommon
@@ -149,6 +160,7 @@ pub trait PaymentV2:
     + PaymentSessionV2
     + PaymentTokenV2
     + PaymentsPreProcessingV2
+    + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
 {

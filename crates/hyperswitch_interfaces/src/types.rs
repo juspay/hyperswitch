@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PreProcessing, Session, SetupMandate, Void,
+            PaymentMethodToken, PostProcessing, PreProcessing, Session, SetupMandate, Void,
         },
         payouts::{
             PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
@@ -23,9 +23,10 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, PayoutsData, RefundsData,
-        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PayoutsData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -58,6 +59,9 @@ pub type MandateRevokeType =
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreProcessingType =
     dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
+pub type PaymentsPostProcessingType =
+    dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>`
 pub type PaymentsCompleteAuthorizeType =
     dyn ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;

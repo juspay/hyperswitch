@@ -24,13 +24,7 @@ pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
     PaymentSession, PaymentSync, PaymentToken, PaymentVoid, PaymentsCompleteAuthorize,
-    PaymentsPreProcessing, PaymentsPostProcessing
-};
-pub use hyperswitch_interfaces::api::payments::{
-    ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
-    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
-    PaymentSession, PaymentSync, PaymentToken, PaymentVoid, PaymentsCompleteAuthorize,
-    PaymentsPreProcessing,
+    PaymentsPostProcessing, PaymentsPreProcessing,
 };
 
 pub use super::payments_v2::{

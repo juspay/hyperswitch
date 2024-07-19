@@ -1058,7 +1058,6 @@ default_imp_for_pre_processing_steps!(
     connector::Globalpay,
     connector::Globepay,
     connector::Gpayments,
-    connector::Helcim,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
