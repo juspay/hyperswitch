@@ -1,7 +1,10 @@
-pub use hyperswitch_interfaces::disputes::DisputePayload;
+pub use hyperswitch_interfaces::{
+    api::disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
+    disputes::DisputePayload,
+};
 use masking::{Deserialize, Serialize};
 
-use crate::{services, types};
+use crate::types;
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DisputeId {
@@ -47,32 +50,3 @@ pub enum EvidenceType {
     RecurringTransactionAgreement,
     UncategorizedFile,
 }
-
-pub trait AcceptDispute:
-    services::ConnectorIntegration<
-    Accept,
-    types::AcceptDisputeRequestData,
-    types::AcceptDisputeResponse,
->
-{
-}
-
-pub trait SubmitEvidence:
-    services::ConnectorIntegration<
-    Evidence,
-    types::SubmitEvidenceRequestData,
-    types::SubmitEvidenceResponse,
->
-{
-}
-
-pub trait DefendDispute:
-    services::ConnectorIntegration<
-    Defend,
-    types::DefendDisputeRequestData,
-    types::DefendDisputeResponse,
->
-{
-}
-
-pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence + DefendDispute {}

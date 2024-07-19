@@ -45,7 +45,8 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, CurrencyUnit,
+    ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorMandateRevoke,
+    ConnectorVerifyWebhookSource, CurrencyUnit,
 };
 
 #[cfg(feature = "frm")]
@@ -65,8 +66,8 @@ use crate::{
         payments::types as payments_types,
     },
     services::{
-        connector_integration_interface::ConnectorEnum, ConnectorIntegration,
-        ConnectorIntegrationV2, ConnectorRedirectResponse, ConnectorValidation,
+        connector_integration_interface::ConnectorEnum, ConnectorIntegrationV2,
+        ConnectorRedirectResponse, ConnectorValidation,
     },
     types::{self, api::enums as api_enums},
 };
@@ -88,29 +89,12 @@ pub enum ConnectorCallType {
     SessionMultiple(Vec<SessionConnectorData>),
 }
 
-pub trait ConnectorVerifyWebhookSource:
-    ConnectorIntegration<
-    VerifyWebhookSource,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
 pub trait ConnectorVerifyWebhookSourceV2:
     ConnectorIntegrationV2<
     VerifyWebhookSource,
     types::WebhookSourceVerifyData,
     types::VerifyWebhookSourceRequestData,
     types::VerifyWebhookSourceResponseData,
->
-{
-}
-
-pub trait ConnectorMandateRevoke:
-    ConnectorIntegration<
-    MandateRevoke,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
 >
 {
 }

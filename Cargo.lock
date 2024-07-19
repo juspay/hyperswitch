@@ -3976,6 +3976,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage_impl",
+ "strum 0.26.2",
  "thiserror",
  "time",
 ]
@@ -6153,6 +6154,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_connectors",
  "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",

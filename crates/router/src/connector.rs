@@ -27,7 +27,6 @@ pub mod globalpay;
 pub mod globepay;
 pub mod gocardless;
 pub mod gpayments;
-pub mod helcim;
 pub mod iatapay;
 pub mod klarna;
 pub mod mifinity;
@@ -67,6 +66,8 @@ pub mod worldpay;
 pub mod zen;
 pub mod zsl;
 
+pub use hyperswitch_connectors::connectors::{helcim, helcim::Helcim};
+
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
@@ -76,13 +77,12 @@ pub use self::{
     boku::Boku, braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout,
     coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource, datatrans::Datatrans,
     dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim,
-    iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
-    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
-    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
-    paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4,
-    signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio,
-    trustpay::Trustpay, tsys::Tsys, volt::Volt, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, iatapay::Iatapay,
+    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay,
+    netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo,
+    opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone, paypal::Paypal, payu::Payu,
+    placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
+    razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd, square::Square,
+    stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, tsys::Tsys,
+    volt::Volt, wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

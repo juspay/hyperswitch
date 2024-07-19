@@ -1,6 +1,10 @@
 //! API interface
 
+pub mod disputes;
+pub mod files;
+pub mod fraud_check;
 pub mod payments;
+pub mod payouts;
 pub mod refunds;
 
 use common_enums::enums::{CaptureMethod, PaymentMethodType};
@@ -12,8 +16,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::AccessTokenAuth,
-    router_request_types::AccessTokenRequestData,
+    router_flow_types::{mandate_revoke::MandateRevoke, AccessTokenAuth, VerifyWebhookSource},
+    router_request_types::{
+        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+    },
+    router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
 };
 use masking::Maskable;
 use router_env::metrics::add_attributes;
@@ -266,9 +273,25 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     }
 }
 
+/// trait ConnectorMandateRevoke
+pub trait ConnectorMandateRevoke:
+    ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+{
+}
+
 /// trait ConnectorAccessToken
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
+}
+
+/// trait ConnectorVerifyWebhookSource
+pub trait ConnectorVerifyWebhookSource:
+    ConnectorIntegration<
+    VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>
 {
 }
 

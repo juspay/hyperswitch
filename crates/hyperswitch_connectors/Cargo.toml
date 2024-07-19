@@ -5,6 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+default = ["payouts", "frm"]
+frm = []
+payouts = []
+
 [dependencies]
 async-trait = "0.1.79"
 error-stack = "0.4.1"
