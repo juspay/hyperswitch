@@ -8,7 +8,7 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
@@ -214,7 +214,7 @@ where
 
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                     pm_card_details
-                        .async_map(|pm_card| create_encrypted_data(key_store, pm_card))
+                        .async_map(|pm_card| create_encrypted_data(state, key_store, pm_card))
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -223,7 +223,7 @@ where
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,
                 > = payment_method_billing_address
-                    .async_map(|address| create_encrypted_data(key_store, address.clone()))
+                    .async_map(|address| create_encrypted_data(state, key_store, address.clone()))
                     .await
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -310,7 +310,7 @@ where
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
                                         payment_methods::cards::create_payment_method(
-                                            db,
+                                            state,
                                             &payment_method_create_request,
                                             &customer_id,
                                             &resp.payment_method_id,
@@ -407,7 +407,7 @@ where
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
                                             payment_methods::cards::insert_payment_method(
-                                                db,
+                                                state,
                                                 &resp,
                                                 &payment_method_create_request.clone(),
                                                 key_store,
@@ -479,10 +479,8 @@ where
                                         ))?
                                 };
 
-                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(
-                                    &existing_pm,
-                                    key_store.key.peek(),
-                                    state,
+                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state,
+                                    key_store,
                                 )
                                 .await?;
 
@@ -518,7 +516,7 @@ where
                                 let pm_data_encrypted: Option<
                                     Encryptable<Secret<serde_json::Value>>,
                                 > = updated_pmd
-                                    .async_map(|pmd| create_encrypted_data(key_store, pmd))
+                                    .async_map(|pmd| create_encrypted_data(state, key_store, pmd))
                                     .await
                                     .transpose()
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -601,7 +599,7 @@ where
 
                             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                             payment_methods::cards::create_payment_method(
-                                db,
+                                state,
                                 &payment_method_create_request,
                                 &customer_id,
                                 &resp.payment_method_id,
