@@ -47,6 +47,7 @@ pub mod payone;
 pub mod paypal;
 pub mod payu;
 pub mod placetopay;
+pub mod plaid;
 pub mod powertranz;
 pub mod prophetpay;
 pub mod rapyd;
@@ -81,7 +82,7 @@ pub use self::{
     iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
-    paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
+    paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4,
     signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio,
     trustpay::Trustpay, tsys::Tsys, volt::Volt, wise::Wise, worldline::Worldline,

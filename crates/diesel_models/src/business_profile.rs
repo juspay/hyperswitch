@@ -1,7 +1,7 @@
-use common_utils::pii;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
-use crate::{encryption::Encryption, schema::business_profile};
+use crate::schema::business_profile;
 
 #[derive(
     Clone,

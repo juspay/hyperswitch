@@ -120,7 +120,7 @@ pub async fn create_routing_config(
     .await?;
 
     helpers::validate_connectors_in_routing_config(
-        db,
+        &state,
         &key_store,
         &merchant_account.merchant_id,
         &profile_id,
