@@ -112,10 +112,7 @@ pub async fn get_connector_choice(
             payout_data.payout_attempt.routing_info = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: Some(request_straight_through.clone()),
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
@@ -137,10 +134,7 @@ pub async fn get_connector_choice(
         api::ConnectorChoice::Decide => {
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: None,
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
@@ -2379,8 +2373,7 @@ pub async fn make_payout_data(
         validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
-        payouts::PayoutRequest::PayoutRetrieveRequest(_)
-        | payouts::PayoutRequest::PayoutActionRequest(_) => {
+        payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {
                 Some(payout_token) => {
                     let customer_id = customer_details
@@ -2403,6 +2396,7 @@ pub async fn make_payout_data(
                 None => None,
             }
         }
+        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
     let payout_link = payouts

@@ -211,10 +211,6 @@ api_key="API Key"
 certificate="Certificate"
 private_key="Private Key"
 
-
-[ebanx]
-api_key="API Key"
-
 [zsl]
 api_key= "Key"
 key1= "Merchant id"
@@ -246,3 +242,6 @@ api_key="API Key"
 key1 = "Merchant id"
 api_secret = "Razorpay Id"
 key2 = "Razorpay Secret"
+
+[itaubank]
+api_key="API Key"
