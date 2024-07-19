@@ -27,7 +27,7 @@ clippy *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2", "customer_v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
