@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::organization as storage;
 use error_stack::report;
 use router_env::{instrument, tracing};
@@ -14,12 +14,12 @@ pub trait OrganizationInterface {
 
     async fn find_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError>;
 
     async fn update_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError>;
 }
@@ -41,10 +41,10 @@ impl OrganizationInterface for Store {
     #[instrument(skip_all)]
     async fn find_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Organization::find_by_org_id(&conn, org_id.to_string())
+        storage::Organization::find_by_org_id(&conn, org_id.to_owned())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -52,12 +52,12 @@ impl OrganizationInterface for Store {
     #[instrument(skip_all)]
     async fn update_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        storage::Organization::update_by_org_id(&conn, org_id.to_string(), update)
+        storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -90,17 +90,18 @@ impl OrganizationInterface for super::MockDb {
 
     async fn find_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let organizations = self.organizations.lock().await;
 
         organizations
             .iter()
-            .find(|org| org.org_id == org_id)
+            .find(|org| org.org_id == *org_id)
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No organization available for org_id = {org_id}"
+                    "No organization available for org_id = {:?}",
+                    org_id
                 ))
                 .into(),
             )
@@ -108,14 +109,14 @@ impl OrganizationInterface for super::MockDb {
 
     async fn update_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let mut organizations = self.organizations.lock().await;
 
         organizations
             .iter_mut()
-            .find(|org| org.org_id == org_id)
+            .find(|org| org.org_id == *org_id)
             .map(|org| match &update {
                 storage::OrganizationUpdate::Update { org_name } => storage::Organization {
                     org_name: org_name.clone(),
@@ -124,7 +125,8 @@ impl OrganizationInterface for super::MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No organization available for org_id = {org_id}"
+                    "No organization available for org_id = {:?}",
+                    org_id
                 ))
                 .into(),
             )

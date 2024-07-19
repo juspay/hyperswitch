@@ -4,11 +4,11 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-#[cfg(not(feature = "v2"))]
-use common_utils::id_type;
 #[cfg(feature = "keymanager_create")]
 use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
-use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
+use common_utils::{
+    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
+};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -253,7 +253,7 @@ impl NewUserOrganization {
             .attach_printable("Error while inserting organization")
     }
 
-    pub fn get_organization_id(&self) -> String {
+    pub fn get_organization_id(&self) -> id_type::OrganizationId {
         self.0.org_id.clone()
     }
 }
@@ -285,8 +285,10 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     }
 }
 
-impl From<(user_api::CreateInternalUserRequest, String)> for NewUserOrganization {
-    fn from((_value, org_id): (user_api::CreateInternalUserRequest, String)) -> Self {
+impl From<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUserOrganization {
+    fn from(
+        (_value, org_id): (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+    ) -> Self {
         let new_organization = api_org::OrganizationNew {
             org_id,
             org_name: None,
@@ -504,10 +506,12 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant {
+impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
+    fn try_from(
+        value: (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+    ) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
@@ -749,11 +753,11 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUser {
+impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        (value, org_id): (user_api::CreateInternalUserRequest, String),
+        (value, org_id): (user_api::CreateInternalUserRequest, id_type::OrganizationId),
     ) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;

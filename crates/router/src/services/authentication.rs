@@ -7,7 +7,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::date_time;
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -169,7 +169,7 @@ pub struct AuthToken {
     pub merchant_id: String,
     pub role_id: String,
     pub exp: u64,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "olap")]
@@ -179,7 +179,7 @@ impl AuthToken {
         merchant_id: String,
         role_id: String,
         settings: &Settings,
-        org_id: String,
+        org_id: id_type::OrganizationId,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -199,7 +199,7 @@ pub struct UserFromToken {
     pub user_id: String,
     pub merchant_id: String,
     pub role_id: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
 }
 
 pub struct UserIdFromAuth {

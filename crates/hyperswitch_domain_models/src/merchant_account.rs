@@ -3,7 +3,7 @@ use common_utils::{
     date_time,
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
-    pii,
+    id_type, pii,
 };
 use diesel_models::{
     encryption::Encryption, enums::MerchantStorageScheme,
@@ -39,7 +39,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,

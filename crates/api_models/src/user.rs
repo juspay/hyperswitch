@@ -1,5 +1,5 @@
 use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
-use common_utils::{crypto::OptionalEncryptableName, pii};
+use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -164,7 +164,7 @@ pub struct GetUserDetailsResponse {
     // This field is added for audit/debug reasons
     #[serde(skip_serializing)]
     pub user_id: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
     pub is_two_factor_auth_setup: bool,
     pub recovery_codes_left: Option<usize>,
 }
@@ -206,7 +206,7 @@ pub struct UserMerchantAccount {
     pub is_active: bool,
     pub role_id: String,
     pub role_name: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "recon")]

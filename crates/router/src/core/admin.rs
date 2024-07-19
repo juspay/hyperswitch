@@ -139,7 +139,7 @@ pub async fn update_organization(
             message: "organization with the given id does not exist".to_string(),
         })
         .attach_printable(format!(
-            "Failed to update organization with organization_id: {}",
+            "Failed to update organization with organization_id: {:?}",
             org_id.organization_id
         ))
         .map(ForeignFrom::foreign_from)
@@ -369,7 +369,9 @@ enum CreateOrValidateOrganization {
     #[cfg(not(feature = "v2"))]
     Create,
     /// Validates if this organization exists in the records
-    Validate { organization_id: String },
+    Validate {
+        organization_id: id_type::OrganizationId,
+    },
 }
 
 #[cfg(feature = "olap")]
@@ -378,7 +380,7 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<String>) -> Self {
+    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
@@ -388,7 +390,7 @@ impl CreateOrValidateOrganization {
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
-    fn new(organization_id: String) -> Self {
+    fn new(organization_id: id_type::OrganizationId) -> Self {
         Self::Validate { organization_id }
     }
 

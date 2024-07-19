@@ -101,7 +101,7 @@ pub struct MerchantAccountCreate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The id of the organization to which the merchant belongs to, if not passed an organization is created
-    pub organization_id: Option<String>,
+    pub organization_id: Option<id_type::OrganizationId>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
@@ -198,7 +198,7 @@ pub struct MerchantAccountCreate {
     pub metadata: Option<MerchantAccountMetadata>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "v2")]
@@ -401,7 +401,7 @@ pub struct MerchantAccountResponse {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -443,7 +443,7 @@ pub struct MerchantAccountResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization which the merchant is associated with
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,

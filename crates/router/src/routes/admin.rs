@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -33,7 +34,7 @@ pub async fn organization_create(
 pub async fn organization_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    org_id: web::Path<String>,
+    org_id: web::Path<id_type::OrganizationId>,
     json_payload: web::Json<admin::OrganizationRequest>,
 ) -> HttpResponse {
     let flow = Flow::OrganizationUpdate;
@@ -56,7 +57,7 @@ pub async fn organization_update(
 pub async fn organization_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    org_id: web::Path<String>,
+    org_id: web::Path<id_type::OrganizationId>,
 ) -> HttpResponse {
     let flow = Flow::OrganizationRetrieve;
     let organization_id = org_id.into_inner();
