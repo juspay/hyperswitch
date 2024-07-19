@@ -115,10 +115,10 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 128]
         merchant_connector_id -> Varchar,
-        #[max_length = 128]
-        directory_server_id -> Nullable<Varchar>,
         #[max_length = 64]
         ds_trans_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        directory_server_id -> Nullable<Varchar>,
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
     }
@@ -197,12 +197,12 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
+        payout_link_config -> Nullable<Jsonb>,
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
         use_billing_as_payment_method_billing -> Nullable<Bool>,
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
-        payout_link_config -> Nullable<Jsonb>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
     }
@@ -708,8 +708,8 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
-        connector_wallets_details -> Nullable<Bytea>,
         additional_merchant_data -> Nullable<Bytea>,
+        connector_wallets_details -> Nullable<Bytea>,
     }
 }
 
@@ -741,6 +741,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_attempt (attempt_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -806,16 +807,16 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
-        mandate_data -> Nullable<Jsonb>,
-        #[max_length = 64]
-        fingerprint_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        payment_method_billing_address_id -> Nullable<Varchar>,
         external_three_ds_authentication_attempted -> Nullable<Bool>,
         #[max_length = 64]
         authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         authentication_id -> Nullable<Varchar>,
+        mandate_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_billing_address_id -> Nullable<Varchar>,
         #[max_length = 64]
         charge_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -831,6 +832,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payment_intent (payment_id, merchant_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1058,12 +1060,12 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
-        #[max_length = 32]
-        priority -> Nullable<Varchar>,
         #[max_length = 255]
         payout_link_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
+        #[max_length = 32]
+        priority -> Nullable<Varchar>,
     }
 }
 
