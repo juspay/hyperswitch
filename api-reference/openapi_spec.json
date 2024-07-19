@@ -12993,13 +12993,21 @@
           "organization_name": {
             "type": "string",
             "nullable": true
+          },
+          "organization_details": {
+            "nullable": true
+          },
+          "metadata": {
+            "nullable": true
           }
         }
       },
       "OrganizationResponse": {
         "type": "object",
         "required": [
-          "organization_id"
+          "organization_id",
+          "modified_at",
+          "created_at"
         ],
         "properties": {
           "organization_id": {
@@ -13011,6 +13019,20 @@
           "organization_name": {
             "type": "string",
             "nullable": true
+          },
+          "organization_details": {
+            "nullable": true
+          },
+          "metadata": {
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
