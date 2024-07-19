@@ -1,13 +1,12 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
     date_time,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii,
+    types::keymanager::{Identifier, KeyManagerState},
 };
-use diesel_models::{
-    encryption::Encryption, enums,
-    merchant_connector_account::MerchantConnectorAccountUpdateInternal,
-};
+use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -40,6 +39,7 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug)]
@@ -101,20 +101,26 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             },
         )
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
+        let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
-            connector_account_details: Encryptable::decrypt(
+            connector_account_details: Encryptable::decrypt_via_api(
+                state,
                 other.connector_account_details,
+                identifier.clone(),
                 key.peek(),
                 GcmAes256,
             )
@@ -143,11 +149,22 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| types::decrypt(inner, key.peek()))
+                .async_lift(|inner| types::decrypt(state, inner, identifier.clone(), key.peek()))
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),
                 })?,
+            additional_merchant_data: if let Some(data) = other.additional_merchant_data {
+                Some(
+                    Encryptable::decrypt(data, key.peek(), GcmAes256)
+                        .await
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed while decrypting additional_merchant_data".to_string(),
+                        })?,
+                )
+            } else {
+                None
+            },
         })
     }
 
@@ -177,6 +194,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             pm_auth_config: self.pm_auth_config,
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+            additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
         })
     }
 }

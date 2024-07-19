@@ -1,8 +1,10 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
 use common_utils::{
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    types::MinorUnit,
+    pii,
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -175,6 +177,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttempt {
@@ -264,6 +267,7 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentAttemptNew {
@@ -346,6 +350,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -475,8 +480,7 @@ impl ForeignIDRef for PaymentAttempt {
 }
 
 use diesel_models::{
-    encryption::Encryption, PaymentIntent as DieselPaymentIntent,
-    PaymentIntentNew as DieselPaymentIntentNew,
+    PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 
 #[async_trait::async_trait]
@@ -486,6 +490,7 @@ impl behaviour::Conversion for PaymentIntent {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(DieselPaymentIntent {
+            id: None,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
@@ -530,18 +535,30 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| decrypt(inner, key.peek());
+            let inner_decrypt = |inner| {
+                decrypt(
+                    state,
+                    inner,
+                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
+                    key.peek(),
+                )
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -591,6 +608,15 @@ impl behaviour::Conversion for PaymentIntent {
                     .customer_details
                     .async_lift(inner_decrypt)
                     .await?,
+                billing_details: storage_model
+                    .billing_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                merchant_order_reference_id: storage_model.merchant_order_reference_id,
+                shipping_details: storage_model
+                    .shipping_details
+                    .async_lift(inner_decrypt)
+                    .await?,
             })
         }
         .await
@@ -616,8 +642,8 @@ impl behaviour::Conversion for PaymentIntent {
             billing_address_id: self.billing_address_id,
             statement_descriptor_name: self.statement_descriptor_name,
             statement_descriptor_suffix: self.statement_descriptor_suffix,
-            created_at: Some(self.created_at),
-            modified_at: Some(self.modified_at),
+            created_at: self.created_at,
+            modified_at: self.modified_at,
             last_synced: self.last_synced,
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
@@ -645,6 +671,9 @@ impl behaviour::Conversion for PaymentIntent {
             charges: self.charges,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
 }

@@ -306,7 +306,7 @@ where
     )
     .await?;
 
-    payments::call_connector_service(
+    let (router_data, _mca) = payments::call_connector_service(
         state,
         req_state,
         merchant_account,
@@ -323,7 +323,9 @@ where
         business_profile,
         true,
     )
-    .await
+    .await?;
+
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]
@@ -467,6 +469,7 @@ where
 
     payment_data.payment_intent = db
         .update_payment_intent(
+            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.payment_attempt.attempt_id.clone(),
@@ -540,8 +543,8 @@ pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &Str
         .await;
     match config {
         Ok(conf) => conf.config == "true",
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             false
         }
     }

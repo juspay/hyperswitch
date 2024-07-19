@@ -1,7 +1,7 @@
-use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{encryption::Encryption, pii};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_account};
+use crate::{enums as storage_enums, schema::merchant_account};
 
 #[derive(
     Clone,
@@ -10,9 +10,10 @@ use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_acc
     serde::Serialize,
     Identifiable,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_account)]
+#[diesel(table_name = merchant_account, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
     pub id: i32,
     pub merchant_id: String,

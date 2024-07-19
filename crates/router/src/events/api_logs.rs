@@ -15,10 +15,7 @@ use crate::routes::dummy_connector::types::{
 };
 use crate::{
     core::payments::PaymentsRedirectResponseData,
-    services::{
-        authentication::AuthenticationType, kafka::KafkaMessage, ApplicationResponse,
-        GenericLinkFormData, PaymentLinkFormData,
-    },
+    services::{authentication::AuthenticationType, kafka::KafkaMessage},
     types::api::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId, PollId,
     },
@@ -101,22 +98,11 @@ impl KafkaMessage for ApiEvent {
     }
 }
 
-impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        match self {
-            Self::Json(r) => r.get_api_event_type(),
-            Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
-            _ => None,
-        }
-    }
-}
 impl_misc_api_event_type!(
     Config,
     CreateFileRequest,
     FileId,
     AttachEvidenceRequest,
-    PaymentLinkFormData,
-    GenericLinkFormData,
     ConfigUpdate
 );
 

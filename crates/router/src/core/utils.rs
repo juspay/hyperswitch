@@ -209,6 +209,7 @@ pub async fn construct_payout_router_data<'a, F>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -339,6 +340,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_refund_id: refund.connector_refund_id.clone(),
             browser_info,
             charges,
+            integrity_object: None,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -352,11 +354,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: get_connector_request_reference_id(
-            &state.conf,
-            &merchant_account.merchant_id,
-            payment_attempt,
-        ),
+        connector_request_reference_id: refund.refund_id.clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -371,6 +369,7 @@ pub async fn construct_refund_router_data<'a, F>(
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -608,6 +607,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -703,6 +703,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -804,6 +805,7 @@ pub async fn construct_upload_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -902,6 +904,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }
@@ -989,6 +992,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
 }

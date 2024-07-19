@@ -66,7 +66,7 @@ pub enum Assert<'a> {
     IsPresentNow(&'a str),
 }
 
-pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
+pub static CHECKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     fn get_saved_testcases(&self) -> serde_json::Value {
@@ -524,7 +524,7 @@ pub trait SeleniumTest {
         self.complete_actions(
             &web_driver,
             vec![Event::Trigger(Trigger::Goto(&format!(
-                "{CHEKOUT_BASE_URL}/events"
+                "{CHECKOUT_BASE_URL}/events"
             )))],
         )
         .await?;

@@ -38,6 +38,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -46,6 +47,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_recipient_data: Option<types::MerchantRecipientData>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -157,7 +159,14 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_meta_data: if let Some(data) = merchant_recipient_data {
+            let val = serde_json::to_value(data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encoding MerchantRecipientData")?;
+            Some(Secret::new(val))
+        } else {
+            merchant_connector_account.get_metadata()
+        },
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
@@ -195,6 +204,7 @@ where
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)
@@ -879,6 +889,7 @@ where
                 .set_updated(Some(payment_intent.modified_at))
                 .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
+                .set_merchant_order_reference_id(payment_intent.merchant_order_reference_id)
                 .to_owned(),
             headers,
         ))
@@ -907,7 +918,7 @@ where
 {
     // If the operation is confirm, we will send session token response in next action
     if format!("{operation:?}").eq("PaymentConfirm") {
-        payment_attempt
+        let condition1 = payment_attempt
             .connector
             .as_ref()
             .map(|connector| {
@@ -922,7 +933,36 @@ where
                     Some(false)
                 }
             })
-            .unwrap_or(false)
+            .unwrap_or(false);
+
+        // This condition to be triggered for open banking connectors, third party SDK session token will be provided
+        let condition2 = payment_attempt
+            .connector
+            .as_ref()
+            .map(|connector| matches!(connector.as_str(), "plaid"))
+            .and_then(|is_connector_supports_third_party_sdk| {
+                if is_connector_supports_third_party_sdk {
+                    payment_attempt
+                        .payment_method
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::OpenBanking))
+                        .and_then(|first_match| {
+                            payment_attempt
+                                .payment_method_type
+                                .map(|pmt| {
+                                    matches!(
+                                        pmt,
+                                        diesel_models::enums::PaymentMethodType::OpenBankingPIS
+                                    )
+                                })
+                                .map(|second_match| first_match && second_match)
+                        })
+                } else {
+                    Some(false)
+                }
+            })
+            .unwrap_or(false);
+
+        condition1 || condition2
     } else {
         false
     }
@@ -1014,11 +1054,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 match data.parse_value("PaymentMethodDataResponseWithBilling") {
                     Ok(parsed_data) => Some(parsed_data),
                     Err(e) => {
-                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
                         None
                     }
                 }
             }),
+            merchant_order_reference_id: pi.merchant_order_reference_id,
             ..Default::default()
         }
     }
@@ -1294,6 +1335,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .map(|customer| customer.clone().into_inner())
             });
 
+        let customer_id = additional_data
+            .customer_data
+            .as_ref()
+            .map(|data| data.customer_id.clone());
+
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges
                 .peek()
@@ -1303,6 +1349,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .attach_printable("Failed to parse charges in to PaymentCharges")?,
             None => None,
         };
+
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
 
         Ok(Self {
             payment_method_data: From::from(
@@ -1332,7 +1383,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
-            customer_id: None,
+            customer_id,
             surcharge_details: payment_data.surcharge_details,
             request_incremental_authorization: matches!(
                 payment_data
@@ -1349,6 +1400,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
+            merchant_order_reference_id,
+            integrity_object: None,
         })
     }
 }
@@ -1358,7 +1411,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
         Ok(Self {
+            amount,
+            integrity_object: None,
             mandate_id: payment_data.mandate_id.clone(),
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
@@ -1499,6 +1559,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             },
             browser_info,
             metadata: payment_data.payment_intent.metadata,
+            integrity_object: None,
         })
     }
 }
@@ -1650,6 +1711,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             currency: payment_data.currency,
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
+            minor_amount: Some(amount),
             payment_method_data: From::from(
                 payment_data
                     .payment_method_data
@@ -1674,7 +1736,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
-            metadata: payment_data.payment_intent.metadata.clone(),
+            metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
         })
     }
 }
@@ -1774,6 +1836,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
             metadata: payment_data.payment_intent.metadata,
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }

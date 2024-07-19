@@ -12,10 +12,9 @@ pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod pm_auth;
-
+use masking::Secret;
 pub mod storage;
 pub mod transformers;
-
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates};
@@ -43,9 +42,10 @@ pub use hyperswitch_domain_models::{
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, ResponseId, RetrieveFileRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -81,6 +81,8 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<api::PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPostProcessingRouterData =
+    RouterData<api::PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
@@ -164,6 +166,11 @@ pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     PaymentsPreProcessingData,
     PaymentsResponseData,
 >;
+pub type PaymentsPostProcessingType = dyn services::ConnectorIntegration<
+    api::PostProcessing,
+    PaymentsPostProcessingData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
     api::CompleteAuthorize,
     CompleteAuthorizeData,
@@ -232,6 +239,9 @@ pub type PayoutRecipientAccountType =
 #[cfg(feature = "payouts")]
 pub type PayoutQuoteType =
     dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
+pub type PayoutSyncType =
+    dyn services::ConnectorIntegration<api::PoSync, PayoutsData, PayoutsResponseData>;
 
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -607,6 +617,150 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum RecipientIdType {
+    ConnectorId(Secret<String>),
+    LockerId(Secret<String>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantAccountData {
+    Iban {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Bacs {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+}
+
+impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
+    fn foreign_from(from: MerchantAccountData) -> Self {
+        match from {
+            MerchantAccountData::Iban {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Iban {
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+        }
+    }
+}
+
+impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
+    fn from(from: api_models::admin::MerchantAccountData) -> Self {
+        match from {
+            api_models::admin::MerchantAccountData::Iban {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Iban {
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantRecipientData {
+    ConnectorRecipientId(Secret<String>),
+    WalletId(Secret<String>),
+    AccountData(MerchantAccountData),
+}
+
+impl ForeignFrom<MerchantRecipientData> for api_models::admin::MerchantRecipientData {
+    fn foreign_from(value: MerchantRecipientData) -> Self {
+        match value {
+            MerchantRecipientData::ConnectorRecipientId(id) => Self::ConnectorRecipientId(id),
+            MerchantRecipientData::WalletId(id) => Self::WalletId(id),
+            MerchantRecipientData::AccountData(data) => {
+                Self::AccountData(api_models::admin::MerchantAccountData::foreign_from(data))
+            }
+        }
+    }
+}
+
+impl From<api_models::admin::MerchantRecipientData> for MerchantRecipientData {
+    fn from(value: api_models::admin::MerchantRecipientData) -> Self {
+        match value {
+            api_models::admin::MerchantRecipientData::ConnectorRecipientId(id) => {
+                Self::ConnectorRecipientId(id)
+            }
+            api_models::admin::MerchantRecipientData::WalletId(id) => Self::WalletId(id),
+            api_models::admin::MerchantRecipientData::AccountData(data) => {
+                Self::AccountData(data.into())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdditionalMerchantData {
+    OpenBankingRecipientData(MerchantRecipientData),
+}
+
+impl ForeignFrom<api_models::admin::AdditionalMerchantData> for AdditionalMerchantData {
+    fn foreign_from(value: api_models::admin::AdditionalMerchantData) -> Self {
+        match value {
+            api_models::admin::AdditionalMerchantData::OpenBankingRecipientData(data) => {
+                Self::OpenBankingRecipientData(MerchantRecipientData::from(data))
+            }
+        }
+    }
+}
+
+impl ForeignFrom<AdditionalMerchantData> for api_models::admin::AdditionalMerchantData {
+    fn foreign_from(value: AdditionalMerchantData) -> Self {
+        match value {
+            AdditionalMerchantData::OpenBankingRecipientData(data) => {
+                Self::OpenBankingRecipientData(
+                    api_models::admin::MerchantRecipientData::foreign_from(data),
+                )
+            }
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
     fn foreign_from(value: api_models::admin::ConnectorAuthType) -> Self {
         match value {
@@ -790,6 +944,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
+            merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 }
@@ -843,6 +999,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }
@@ -904,6 +1061,7 @@ impl<F1, F2>
             refund_id: None,
             dispute_id: None,
             connector_response: data.connector_response.clone(),
+            integrity_check: Ok(()),
         }
     }
 }

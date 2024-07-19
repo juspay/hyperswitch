@@ -6,21 +6,26 @@ use masking::{PeekInterface, Secret};
 
 use crate::{
     consts::ID_LENGTH,
-    id_type::{CustomerId, MerchantReferenceId},
+    id_type::{CustomerId, LengthId},
 };
 
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+#[allow(missing_docs)] // Todo: add docs
+pub mod encryption;
 pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+#[cfg(feature = "keymanager")]
+pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
+pub mod new_type;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
@@ -28,9 +33,12 @@ pub mod request;
 pub mod signals;
 #[allow(missing_docs)] // Todo: add docs
 pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
 
+/// Used for hashing
+pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 
@@ -205,16 +213,16 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
-/// Generate a MerchantRefId with the default length
-fn generate_merchant_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+/// Generate a ReferenceId with the default length with the given prefix
+fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
     prefix: &str,
-) -> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
-    MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+) -> LengthId<MAX_LENGTH, MIN_LENGTH> {
+    LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
 }
 
-/// Generate a customer id with default length
+/// Generate a customer id with default length, with prefix as `cus`
 pub fn generate_customer_id_of_default_length() -> CustomerId {
-    CustomerId::new(generate_merchant_ref_id_with_default_length("cus"))
+    CustomerId::new(generate_ref_id_with_default_length("cus"))
 }
 
 /// Generate a nanoid with the given prefix and a default length
@@ -270,7 +278,7 @@ mod nanoid_tests {
 
     #[test]
     fn test_generate_merchant_ref_id_with_default_length() {
-        let ref_id = MerchantReferenceId::<
+        let ref_id = LengthId::<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >::from(generate_id_with_default_len("def").into());

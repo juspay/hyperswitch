@@ -55,6 +55,7 @@ impl Default for super::settings::Proxy {
             http_url: Default::default(),
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
+            bypass_proxy_urls: Vec::new(),
         }
     }
 }
@@ -8223,6 +8224,51 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "payment_method_data.wallet.mifinity.language_preference".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.wallet.mifinity.language_preference".to_string(),
+                                                    display_name: "language_preference".to_string(),
+                                                    field_type: enums::FieldType::LanguagePreference{
+                                                        options: vec![
+                                                            "BR".to_string(),
+                                                            "PT_BR".to_string(),
+                                                            "CN".to_string(),
+                                                            "ZH_CN".to_string(),
+                                                            "DE".to_string(),
+                                                            "DK".to_string(),
+                                                            "DA".to_string(),
+                                                            "DA_DK".to_string(),
+                                                            "EN".to_string(),
+                                                            "ES".to_string(),
+                                                            "FI".to_string(),
+                                                            "FR".to_string(),
+                                                            "GR".to_string(),
+                                                            "EL".to_string(),
+                                                            "EL_GR".to_string(),
+                                                            "HR".to_string(),
+                                                            "IT".to_string(),
+                                                            "JP".to_string(),
+                                                            "JA".to_string(),
+                                                            "JA_JP".to_string(),
+                                                            "LA".to_string(),
+                                                            "ES_LA".to_string(),
+                                                            "NL".to_string(),
+                                                            "NO".to_string(),
+                                                            "PL".to_string(),
+                                                            "PT".to_string(),
+                                                            "RU".to_string(),
+                                                            "SV".to_string(),
+                                                            "SE".to_string(),
+                                                            "SV_SE".to_string(),
+                                                            "ZH".to_string(),
+                                                            "TW".to_string(),
+                                                            "ZH_TW".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            ),
                                         ]),
                                     }
                                 ),
@@ -8642,6 +8688,36 @@ impl Default for super::settings::RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::Upi,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::UpiCollect,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Razorpay,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate :  HashMap::new(),
+                                        common : HashMap::from([
+                                            (
+                                                "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.upi.upi_collect.vpa_id".to_string(),
+                                                    display_name: "vpa_id".to_string(),
+                                                    field_type: enums::FieldType::UserVpaId,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                    }
+                                ),
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
                 enums::PaymentMethod::BankDebit,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::Ach,
@@ -8777,6 +8853,18 @@ impl Default for super::settings::ApiKeys {
             // Specifies the number of days before API key expiry when email reminders should be sent
             #[cfg(feature = "email")]
             expiry_reminder_days: vec![7, 3, 1],
+        }
+    }
+}
+
+impl Default for super::settings::KeyManagerConfig {
+    fn default() -> Self {
+        Self {
+            url: String::from("localhost:5000"),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: String::default().into(),
+            #[cfg(feature = "keymanager_mtls")]
+            cert: String::default().into(),
         }
     }
 }
