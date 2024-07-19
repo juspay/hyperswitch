@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(feature = "olap")]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
