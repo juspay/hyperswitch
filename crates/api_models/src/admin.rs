@@ -101,7 +101,7 @@ pub struct MerchantAccountCreate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The id of the organization to which the merchant belongs to, if not passed an organization is created
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: Option<id_type::OrganizationId>,
 
     /// Default payment method collect link config
