@@ -42,9 +42,9 @@ pub struct PixPaymentValue {
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankDebtor {
     #[serde(skip_serializing_if = "Option::is_none")]
-    cpf: Option<Secret<String>>, // CPF is a Brazilian tax identification number
+    cpf: Option<Secret<i64>>, // CPF is a Brazilian tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
-    cnpj: Option<Secret<String>>, // CNPJ is a Brazilian company tax identification number
+    cnpj: Option<Secret<i64>>, // CNPJ is a Brazilian company tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
     nome: Option<Secret<String>>, // name of the debtor
 }
