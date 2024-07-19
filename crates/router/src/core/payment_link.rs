@@ -68,7 +68,7 @@ pub async fn form_payment_link_data(
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
+            &(state).into(),
             &payment_id,
             &merchant_id,
             &key_store,
