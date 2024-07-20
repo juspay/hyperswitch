@@ -149,7 +149,9 @@ impl ConnectorCommon for Iatapay {
             ErrorResponse {
                 status_code: res.status_code,
                 code: response.error,
-                message: response.message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                message: response
+                    .message
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.reason,
                 attempt_status: None,
                 connector_transaction_id: None,
