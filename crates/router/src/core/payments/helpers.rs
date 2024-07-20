@@ -5111,14 +5111,11 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         })
         .collect();
 
-    if let Some(card_network) = card_network {
-        match card_network {
-            enums::CardNetwork::Discover => {
-                for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
-                    connector_mandate_details.0.clone()
-                {
-                    match merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id) {
-                        Some(merchant_connector_account_details) => if let ("cybersource", None) = (
+    for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
+        connector_mandate_details.0.clone()
+    {
+        match (card_network.clone() ,merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id)) {
+                        (Some(enums::CardNetwork::Discover),Some(merchant_connector_account_details)) => if let ("cybersource", None) = (
                           merchant_connector_account_details.connector_name.as_str(),
                         migrating_connector_mandate_details
                             .original_payment_authorized_amount
@@ -5134,7 +5131,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                           ],
                          }).attach_printable(format!("Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id}"))?
                     },
-                        None => {
+                    (_, Some(_)) => (),
+                        (_, None) => {
                             Err(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "merchant_connector_id",
                             })
@@ -5143,23 +5141,6 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                             })?
                         },
                     }
-                }
-            }
-            _ => {
-                for merchant_connector_id in connector_mandate_details.0.keys() {
-                    if !merchant_connector_account_details_hash_map
-                        .contains_key(merchant_connector_id)
-                    {
-                        Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "merchant_connector_id",
-                        })
-                        .attach_printable_lazy(|| {
-                            format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
-                        })?
-                    }
-                }
-            }
-        }
-    };
+    }
     Ok(())
 }

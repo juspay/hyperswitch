@@ -343,7 +343,7 @@ pub async fn populate_bin_details_for_masked_card(
     helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
     let card_number = card_details.card_number.clone();
 
-    let (card_isin, last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
+    let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
         card_number.peek(),
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -355,97 +355,95 @@ pub async fn populate_bin_details_for_masked_card(
         && card_details.card_type.is_some()
         && card_details.card_issuing_country.is_some()
     {
-        api::CardDetailFromLocker {
-            scheme: card_details
-                .card_network
-                .clone()
-                .or(card_details.card_network.clone())
-                .map(|card_network| card_network.to_string()),
-            last4_digits: Some(last4_digits.clone()),
-            issuer_country: card_details
-                .card_issuing_country
-                .clone()
-                .or(card_details.card_issuing_country.clone()),
-            card_number: None,
-            expiry_month: Some(card_details.card_exp_month.clone()),
-            expiry_year: Some(card_details.card_exp_year.clone()),
-            card_token: None,
-            card_fingerprint: None,
-            card_holder_name: card_details.card_holder_name.clone(),
-            nick_name: card_details.nick_name.clone(),
-            card_isin: Some(card_isin.clone()),
-            card_issuer: card_details
-                .card_issuer
-                .clone()
-                .or(card_details.card_issuer.clone()),
-            card_network: card_details
-                .card_network
-                .clone()
-                .or(card_details.card_network.clone()),
-            card_type: card_details
-                .card_type
-                .clone()
-                .or(card_details.card_type.clone()),
-            saved_to_locker: false,
-        }
+        api_models::payment_methods::CardDetailFromLocker::foreign_try_from((card_details, None))?
     } else {
-        db.get_card_info(&card_isin)
+        let card_info = db
+            .get_card_info(&card_isin)
             .await
             .map_err(|error| services::logger::error!(card_info_error=?error))
             .ok()
-            .flatten()
-            .map(|card_info| {
-                logger::debug!("Fetching bin details");
-                api::CardDetailFromLocker {
-                    scheme: card_details
-                        .card_network
-                        .clone()
-                        .or(card_info.card_network.clone())
-                        .map(|card_network| card_network.to_string()),
-                    last4_digits: Some(last4_digits.clone()),
-                    issuer_country: card_details
-                        .card_issuing_country
-                        .clone()
-                        .or(card_info.card_issuing_country),
-                    card_number: None,
-                    expiry_month: Some(card_details.card_exp_month.clone()),
-                    expiry_year: Some(card_details.card_exp_year.clone()),
-                    card_token: None,
-                    card_fingerprint: None,
-                    card_holder_name: card_details.card_holder_name.clone(),
-                    nick_name: card_details.nick_name.clone(),
-                    card_isin: Some(card_isin.clone()),
-                    card_issuer: card_details.card_issuer.clone().or(card_info.card_issuer),
-                    card_network: card_details.card_network.clone().or(card_info.card_network),
-                    card_type: card_details.card_type.clone().or(card_info.card_type),
-                    saved_to_locker: false,
-                }
-            })
-            .unwrap_or_else(|| {
-                logger::debug!("Failed to fetch bin details");
-                api::CardDetailFromLocker {
-                    scheme: card_details
-                        .card_network
-                        .clone()
-                        .map(|card_network| card_network.to_string()),
-                    last4_digits: Some(last4_digits.clone()),
-                    issuer_country: card_details.card_issuing_country.clone(),
-                    card_number: None,
-                    expiry_month: Some(card_details.card_exp_month.clone()),
-                    expiry_year: Some(card_details.card_exp_year.clone()),
-                    card_token: None,
-                    card_fingerprint: None,
-                    card_holder_name: card_details.card_holder_name.clone(),
-                    nick_name: card_details.nick_name.clone(),
-                    card_isin: Some(card_isin.clone()),
-                    card_issuer: card_details.card_issuer.clone(),
-                    card_network: card_details.card_network.clone(),
-                    card_type: card_details.card_type.clone(),
-                    saved_to_locker: false,
-                }
-            })
+            .flatten();
+
+        api_models::payment_methods::CardDetailFromLocker::foreign_try_from((
+            card_details,
+            card_info,
+        ))?
     };
     Ok(card_bin_details)
+}
+
+impl
+    ForeignTryFrom<(
+        &api_models::payment_methods::MigrateCardDetail,
+        Option<diesel_models::CardInfo>,
+    )> for api_models::payment_methods::CardDetailFromLocker
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        (card_details, card_info): (
+            &api_models::payment_methods::MigrateCardDetail,
+            Option<diesel_models::CardInfo>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (card_isin, last4_digits) =
+            get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid card number".to_string(),
+                })?;
+        if let Some(card_bin_info) = card_info {
+            Ok(Self {
+                scheme: card_details
+                    .card_network
+                    .clone()
+                    .or(card_bin_info.card_network.clone())
+                    .map(|card_network| card_network.to_string()),
+                last4_digits: Some(last4_digits.clone()),
+                issuer_country: card_details
+                    .card_issuing_country
+                    .clone()
+                    .or(card_bin_info.card_issuing_country),
+                card_number: None,
+                expiry_month: Some(card_details.card_exp_month.clone()),
+                expiry_year: Some(card_details.card_exp_year.clone()),
+                card_token: None,
+                card_fingerprint: None,
+                card_holder_name: card_details.card_holder_name.clone(),
+                nick_name: card_details.nick_name.clone(),
+                card_isin: Some(card_isin.clone()),
+                card_issuer: card_details
+                    .card_issuer
+                    .clone()
+                    .or(card_bin_info.card_issuer),
+                card_network: card_details
+                    .card_network
+                    .clone()
+                    .or(card_bin_info.card_network),
+                card_type: card_details.card_type.clone().or(card_bin_info.card_type),
+                saved_to_locker: false,
+            })
+        } else {
+            Ok(Self {
+                scheme: card_details
+                    .card_network
+                    .clone()
+                    .map(|card_network| card_network.to_string()),
+                last4_digits: Some(last4_digits.clone()),
+                issuer_country: card_details.card_issuing_country.clone(),
+                card_number: None,
+                expiry_month: Some(card_details.card_exp_month.clone()),
+                expiry_year: Some(card_details.card_exp_year.clone()),
+                card_token: None,
+                card_fingerprint: None,
+                card_holder_name: card_details.card_holder_name.clone(),
+                nick_name: card_details.nick_name.clone(),
+                card_isin: Some(card_isin.clone()),
+                card_issuer: card_details.card_issuer.clone(),
+                card_network: card_details.card_network.clone(),
+                card_type: card_details.card_type.clone(),
+                saved_to_locker: false,
+            })
+        }
+    }
 }
 
 pub async fn skip_locker_call_and_migrate_payment_method(
