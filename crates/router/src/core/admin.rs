@@ -916,6 +916,18 @@ pub async fn merchant_account_update(
         None
     };
 
+    let metadata = req
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            utils::Encode::<admin_types::MerchantAccountMetadata>::encode_to_value(meta)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+
     // Update the business profile, This is for backwards compatibility
     update_business_profile_cascade(state.clone(), req.clone(), merchant_id.to_string()).await?;
 
@@ -969,7 +981,7 @@ pub async fn merchant_account_update(
         payment_response_hash_key: req.payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
-        metadata: req.metadata,
+        metadata,
         publishable_key: None,
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
