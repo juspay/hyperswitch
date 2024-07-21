@@ -1,5 +1,5 @@
-use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{encryption::Encryption, pii};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::business_profile;
 
@@ -10,9 +10,10 @@ use crate::schema::business_profile;
     serde::Serialize,
     Identifiable,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = business_profile, primary_key(profile_id))]
+#[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
     pub profile_id: String,
     pub merchant_id: String,
@@ -42,6 +43,7 @@ pub struct BusinessProfile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -75,6 +77,7 @@ pub struct BusinessProfileNew {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -105,6 +108,7 @@ pub struct BusinessProfileUpdateInternal {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -133,6 +137,7 @@ pub enum BusinessProfileUpdate {
         collect_shipping_details_from_wallet_connector: Option<bool>,
         collect_billing_details_from_wallet_connector: Option<bool>,
         is_connector_agnostic_mit_enabled: Option<bool>,
+        outgoing_webhook_custom_http_headers: Option<Encryption>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -169,6 +174,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers,
             } => Self {
                 profile_name,
                 modified_at,
@@ -193,6 +199,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers,
                 ..Default::default()
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
@@ -243,6 +250,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
                 .collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector: new
                 .collect_billing_details_from_wallet_connector,
+            outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
         }
     }
 }
@@ -274,6 +282,7 @@ impl BusinessProfileUpdate {
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
+            outgoing_webhook_custom_http_headers,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -302,6 +311,7 @@ impl BusinessProfileUpdate {
             use_billing_as_payment_method_billing,
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
+            outgoing_webhook_custom_http_headers,
             ..source
         }
     }

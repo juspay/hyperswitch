@@ -91,6 +91,7 @@ where
             key_store,
             customer,
             &merchant_connector_account,
+            None,
         )
         .await?;
 
@@ -122,7 +123,7 @@ where
 pub async fn should_call_frm<F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
     bool,
@@ -135,6 +136,7 @@ where
 {
     match merchant_account.frm_routing_algorithm.clone() {
         Some(frm_routing_algorithm_value) => {
+            let db = &*state.store;
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .clone()
                 .parse_value("FrmRoutingAlgorithm")
@@ -156,6 +158,7 @@ where
 
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
+                    &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     &key_store,
@@ -320,7 +323,7 @@ where
         .or_else(||
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.payment_intent.metadata.clone().and_then(|meta| {
-                let order_details = meta.peek().get("order_details").to_owned();
+                let order_details = meta.get("order_details").to_owned();
                 order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
@@ -416,7 +419,7 @@ where
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.clone(),
                         payment_data,
@@ -491,7 +494,7 @@ where
                 let mut frm_data = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.to_owned(),
                         payment_data,
@@ -526,7 +529,7 @@ where
                 let updated_frm_data = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.to_owned(),
                         payment_data,
@@ -546,7 +549,6 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn call_frm_before_connector_call<'a, F, Req>(
-    db: &dyn StorageInterface,
     operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -561,13 +563,13 @@ where
     F: Send + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(merchant_account, payment_data, db, key_store.clone()).await?;
+        should_call_frm(merchant_account, payment_data, state, key_store.clone()).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
         frm_routing_algorithm.zip(frm_connector_label)
     {
         if let Some(frm_configs) = frm_configs.clone() {
             let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
-                db,
+                &*state.store,
                 state,
                 merchant_account,
                 payment_data.to_owned(),
@@ -654,6 +656,7 @@ pub async fn frm_fulfillment_core(
     let db = &*state.clone().store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &req.payment_id.clone(),
             &merchant_account.merchant_id,
             &key_store,

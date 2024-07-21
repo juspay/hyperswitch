@@ -11,6 +11,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -23,6 +24,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  datatrans:datatransConnectorDetails
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -99,6 +101,10 @@ export function defaultErrorHandler(response, response_data) {
   ) {
     // Update the default status from 501 to 400 as `unsupported payment method` error is the next common error after `not implemented` error
     response_data = updateDefaultStatusCode();
+  }
+
+  if (response_data.status === 200) {
+    throw new Error("Expecting valid response but got an error response");
   }
 
   expect(response.body).to.have.property("error");

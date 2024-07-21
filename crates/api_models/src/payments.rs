@@ -9,11 +9,13 @@ use common_utils::{
     consts::default_payments_list_limit,
     crypto,
     ext_traits::{ConfigExt, Encode},
+    hashing::HashedString,
     id_type,
-    pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    pii::{self, Email, EmailStrategy},
+    types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
-use masking::{PeekInterface, Secret};
+use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -454,7 +456,7 @@ pub struct PaymentsRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
@@ -516,6 +518,139 @@ pub struct PaymentsRequest {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
+}
+
+/// Checks if the inner values of two options are equal
+/// Returns true if values are not equal, returns false in other cases
+fn are_optional_values_invalid<T: PartialEq>(
+    first_option: Option<&T>,
+    second_option: Option<&T>,
+) -> bool {
+    match (first_option, second_option) {
+        (Some(first_option), Some(second_option)) => first_option != second_option,
+        _ => false,
+    }
+}
+
+impl PaymentsRequest {
+    /// Get the customer id
+    ///
+    /// First check the id for `customer.id`
+    /// If not present, check for `customer_id` at the root level
+    pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
+        self.customer_id
+            .as_ref()
+            .or(self.customer.as_ref().map(|customer| &customer.id))
+    }
+
+    /// Checks if the customer details are passed in both places
+    /// If they are passed in both places, check for both the values to be equal
+    /// Or else, return the field which has inconsistent data
+    pub fn validate_customer_details_in_request(&self) -> Option<Vec<&str>> {
+        if let Some(CustomerDetails {
+            id,
+            name,
+            email,
+            phone,
+            phone_country_code,
+        }) = self.customer.as_ref()
+        {
+            let invalid_fields = [
+                are_optional_values_invalid(self.customer_id.as_ref(), Some(id))
+                    .then_some("customer_id and customer.id"),
+                are_optional_values_invalid(self.email.as_ref(), email.as_ref())
+                    .then_some("email and customer.email"),
+                are_optional_values_invalid(self.name.as_ref(), name.as_ref())
+                    .then_some("name and customer.name"),
+                are_optional_values_invalid(self.phone.as_ref(), phone.as_ref())
+                    .then_some("phone and customer.phone"),
+                are_optional_values_invalid(
+                    self.phone_country_code.as_ref(),
+                    phone_country_code.as_ref(),
+                )
+                .then_some("phone_country_code and customer.phone_country_code"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
+            if invalid_fields.is_empty() {
+                None
+            } else {
+                Some(invalid_fields)
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod payments_request_test {
+    use common_utils::generate_customer_id_of_default_length;
+
+    use super::*;
+
+    #[test]
+    fn test_valid_case_where_customer_details_are_passed_only_once() {
+        let customer_id = generate_customer_id_of_default_length();
+        let payments_request = PaymentsRequest {
+            customer_id: Some(customer_id),
+            ..Default::default()
+        };
+
+        assert!(payments_request
+            .validate_customer_details_in_request()
+            .is_none());
+    }
+
+    #[test]
+    fn test_valid_case_where_customer_id_is_passed_in_both_places() {
+        let customer_id = generate_customer_id_of_default_length();
+
+        let customer_object = CustomerDetails {
+            id: customer_id.clone(),
+            name: None,
+            email: None,
+            phone: None,
+            phone_country_code: None,
+        };
+
+        let payments_request = PaymentsRequest {
+            customer_id: Some(customer_id),
+            customer: Some(customer_object),
+            ..Default::default()
+        };
+
+        assert!(payments_request
+            .validate_customer_details_in_request()
+            .is_none());
+    }
+
+    #[test]
+    fn test_invalid_case_where_customer_id_is_passed_in_both_places() {
+        let customer_id = generate_customer_id_of_default_length();
+        let another_customer_id = generate_customer_id_of_default_length();
+
+        let customer_object = CustomerDetails {
+            id: customer_id.clone(),
+            name: None,
+            email: None,
+            phone: None,
+            phone_country_code: None,
+        };
+
+        let payments_request = PaymentsRequest {
+            customer_id: Some(another_customer_id),
+            customer: Some(customer_object),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            payments_request.validate_customer_details_in_request(),
+            Some(vec!["customer_id and customer.id"])
+        );
+    }
 }
 
 /// Fee information to be charged on the payment being collected
@@ -611,6 +746,7 @@ pub struct HeaderPayload {
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<api_enums::BrowserName>,
     pub x_client_platform: Option<api_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
 }
 
 impl HeaderPayload {
@@ -1467,6 +1603,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
                         payment_method_data_request.serialize(serializer)
                     }
@@ -1524,6 +1661,8 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
     #[schema(title = "CardToken")]
     CardToken(CardToken),
+    #[schema(title = "OpenBanking")]
+    OpenBanking(OpenBankingData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -1547,6 +1686,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
+            | Self::OpenBanking(_)
             | Self::MandatePayment => None,
         }
     }
@@ -1584,6 +1724,7 @@ impl PaymentMethodData {
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(api_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
+            Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -1648,6 +1789,14 @@ impl GetPaymentMethodType for PayLaterData {
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+        }
+    }
+}
+
+impl GetPaymentMethodType for OpenBankingData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
         }
     }
 }
@@ -1850,6 +1999,7 @@ pub enum AdditionalPaymentData {
     Voucher {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2542,6 +2692,12 @@ pub struct SamsungPayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum OpenBankingData {
+    #[serde(rename = "open_banking_pis")]
+    OpenBankingPIS {},
+}
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -2652,6 +2808,7 @@ pub struct SwishQrData {}
 pub struct MifinityData {
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
+    pub language_preference: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2812,6 +2969,7 @@ where
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
+                | PaymentMethodDataResponse::OpenBanking {}
                 | PaymentMethodDataResponse::Voucher {} => {
                     payment_method_data_response.serialize(serializer)
                 }
@@ -2845,6 +3003,7 @@ pub enum PaymentMethodDataResponse {
     GiftCard {},
     CardRedirect {},
     CardToken {},
+    OpenBanking {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3026,6 +3185,72 @@ impl AddressDetails {
         } else {
             self
         }
+    }
+}
+
+pub struct AddressDetailsWithPhone {
+    pub address: Option<AddressDetails>,
+    pub phone_number: Option<Secret<String>>,
+    pub email: Option<Email>,
+}
+
+pub struct EncryptableAddressDetails {
+    pub line1: crypto::OptionalEncryptableSecretString,
+    pub line2: crypto::OptionalEncryptableSecretString,
+    pub line3: crypto::OptionalEncryptableSecretString,
+    pub state: crypto::OptionalEncryptableSecretString,
+    pub zip: crypto::OptionalEncryptableSecretString,
+    pub first_name: crypto::OptionalEncryptableSecretString,
+    pub last_name: crypto::OptionalEncryptableSecretString,
+    pub phone_number: crypto::OptionalEncryptableSecretString,
+    pub email: crypto::OptionalEncryptableEmail,
+}
+
+impl ToEncryptable<EncryptableAddressDetails, Secret<String>, Secret<String>>
+    for AddressDetailsWithPhone
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+    ) -> common_utils::errors::CustomResult<
+        EncryptableAddressDetails,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(EncryptableAddressDetails {
+            line1: hashmap.remove("line1"),
+            line2: hashmap.remove("line2"),
+            line3: hashmap.remove("line3"),
+            state: hashmap.remove("state"),
+            zip: hashmap.remove("zip"),
+            first_name: hashmap.remove("first_name"),
+            last_name: hashmap.remove("last_name"),
+            phone_number: hashmap.remove("phone_number"),
+            email: hashmap.remove("email").map(|x| {
+                let inner: Secret<String, EmailStrategy> = x.clone().into_inner().switch_strategy();
+                crypto::Encryptable::new(inner, x.into_encrypted())
+            }),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Secret<String>> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        self.address.map(|address| {
+            address.line1.map(|x| map.insert("line1".to_string(), x));
+            address.line2.map(|x| map.insert("line2".to_string(), x));
+            address.line3.map(|x| map.insert("line3".to_string(), x));
+            address.state.map(|x| map.insert("state".to_string(), x));
+            address.zip.map(|x| map.insert("zip".to_string(), x));
+            address
+                .first_name
+                .map(|x| map.insert("first_name".to_string(), x));
+            address
+                .last_name
+                .map(|x| map.insert("last_name".to_string(), x));
+        });
+        self.email
+            .map(|x| map.insert("email".to_string(), x.expose().switch_strategy()));
+        self.phone_number
+            .map(|x| map.insert("phone_number".to_string(), x));
+        map
     }
 }
 
@@ -3557,7 +3782,7 @@ pub struct PaymentsResponse {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
 
     /// Additional data related to some connectors
     #[schema(value_type = Option<ConnectorMetadata>)]
@@ -4012,6 +4237,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
             AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
             AdditionalPaymentData::CardToken {} => Self::CardToken {},
+            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
         }
     }
 }
@@ -4397,6 +4623,8 @@ pub enum SessionToken {
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
+    /// Session token for OpenBanking PIS flow
+    OpenBanking(OpenBankingSessionToken),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -4471,6 +4699,13 @@ pub struct PaypalSessionTokenResponse {
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct OpenBankingSessionToken {
+    /// The session token for OpenBanking Connectors
+    pub open_banking_session_token: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4823,6 +5058,10 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
+    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None

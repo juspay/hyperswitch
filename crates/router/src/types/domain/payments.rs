@@ -4,8 +4,8 @@ pub use hyperswitch_domain_models::payment_method_data::{
     CardToken, CashappQr, CryptoData, GcashRedirection, GiftCardData, GiftCardDetails,
     GoPayRedirection, GooglePayPaymentMethodInfo, GooglePayRedirectData,
     GooglePayThirdPartySdkData, GooglePayWalletData, GpayTokenizationData, IndomaretVoucherData,
-    KakaoPayRedirection, MbWayRedirection, MifinityData, PayLaterData, PaymentMethodData,
-    RealTimePaymentData, SamsungPayWalletData, SepaAndBacsBillingDetails, SwishQrData,
-    TouchNGoRedirection, UpiCollectData, UpiData, UpiIntentData, VoucherData, WalletData,
-    WeChatPayQr,
+    KakaoPayRedirection, MbWayRedirection, MifinityData, OpenBankingData, PayLaterData,
+    PaymentMethodData, RealTimePaymentData, SamsungPayWalletData, SepaAndBacsBillingDetails,
+    SwishQrData, TouchNGoRedirection, UpiCollectData, UpiData, UpiIntentData, VoucherData,
+    WalletData, WeChatPayQr,
 };

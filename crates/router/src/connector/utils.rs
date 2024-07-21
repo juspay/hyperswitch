@@ -12,7 +12,7 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     date_time,
-    errors::ReportSwitchExt,
+    errors::{ParsingError, ReportSwitchExt},
     ext_traits::StringExt,
     id_type,
     pii::{self, Email, IpAddress},
@@ -23,7 +23,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
     payments::payment_attempt::PaymentAttempt,
-    router_request_types::{AuthoriseIntegrityObject, SyncIntegrityObject},
+    router_request_types::{
+        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
+        SyncIntegrityObject,
+    },
 };
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -224,7 +227,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.first_name)
+                .and_then(|shipping_details| shipping_details.first_name)
         })
     }
 
@@ -233,7 +236,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.last_name)
+                .and_then(|shipping_details| shipping_details.last_name)
         })
     }
 
@@ -242,7 +245,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.line1)
+                .and_then(|shipping_details| shipping_details.line1)
         })
     }
 
@@ -251,7 +254,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.line2)
+                .and_then(|shipping_details| shipping_details.line2)
         })
     }
 
@@ -260,7 +263,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.city)
+                .and_then(|shipping_details| shipping_details.city)
         })
     }
 
@@ -269,7 +272,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.state)
+                .and_then(|shipping_details| shipping_details.state)
         })
     }
 
@@ -278,7 +281,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.country)
+                .and_then(|shipping_details| shipping_details.country)
         })
     }
 
@@ -287,7 +290,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_address_details| shipping_address_details.zip)
+                .and_then(|shipping_details| shipping_details.zip)
         })
     }
 
@@ -341,7 +344,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.first_name.clone())
+                    .and_then(|billing_details| billing_details.first_name.clone())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
@@ -364,7 +367,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.last_name.clone())
+                    .and_then(|billing_details| billing_details.last_name.clone())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.last_name",
@@ -378,7 +381,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.line1.clone())
+                    .and_then(|billing_details| billing_details.line1.clone())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.line1",
@@ -391,7 +394,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.city)
+                    .and_then(|billing_details| billing_details.city)
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.city",
@@ -421,7 +424,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.line1)
+                    .and_then(|billing_details| billing_details.line1)
             })
     }
 
@@ -432,7 +435,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.line2)
+                    .and_then(|billing_details| billing_details.line2)
             })
     }
 
@@ -443,7 +446,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.city)
+                    .and_then(|billing_details| billing_details.city)
             })
     }
 
@@ -454,7 +457,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.country)
+                    .and_then(|billing_details| billing_details.country)
             })
     }
 
@@ -465,7 +468,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.zip)
+                    .and_then(|billing_details| billing_details.zip)
             })
     }
 
@@ -476,7 +479,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.state)
+                    .and_then(|billing_details| billing_details.state)
             })
     }
 
@@ -487,7 +490,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.first_name)
+                    .and_then(|billing_details| billing_details.first_name)
             })
     }
 
@@ -498,7 +501,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_address_details| billing_address_details.last_name)
+                    .and_then(|billing_details| billing_details.last_name)
             })
     }
 
@@ -615,7 +618,7 @@ impl AddressData for api::Address {
     fn get_optional_country(&self) -> Option<enums::CountryAlpha2> {
         self.address
             .as_ref()
-            .and_then(|billing_address_details| billing_address_details.country)
+            .and_then(|billing_details| billing_details.country)
     }
 
     fn get_optional_full_name(&self) -> Option<Secret<String>> {
@@ -922,16 +925,14 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
-        self.metadata
-            .clone()
-            .and_then(|meta_data| match meta_data.peek() {
-                serde_json::Value::Null
-                | serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_)
-                | serde_json::Value::String(_)
-                | serde_json::Value::Array(_) => None,
-                serde_json::Value::Object(_) => Some(meta_data),
-            })
+        self.metadata.clone().and_then(|meta_data| match meta_data {
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_)
+            | serde_json::Value::Array(_) => None,
+            serde_json::Value::Object(_) => Some(meta_data.into()),
+        })
     }
 
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
@@ -1017,6 +1018,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -1045,6 +1047,17 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -2168,36 +2181,38 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
-    fn get_amount_captured(&self) -> Option<i64>;
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>>;
 }
 
 pub fn construct_captures_response_hashmap<T>(
     capture_sync_response_list: Vec<T>,
-) -> HashMap<String, types::CaptureSyncResponse>
+) -> CustomResult<HashMap<String, types::CaptureSyncResponse>, errors::ConnectorError>
 where
     T: MultipleCaptureSyncResponse,
 {
     let mut hashmap = HashMap::new();
-    capture_sync_response_list
-        .into_iter()
-        .for_each(|capture_sync_response| {
-            let connector_capture_id = capture_sync_response.get_connector_capture_id();
-            if capture_sync_response.is_capture_response() {
-                hashmap.insert(
-                    connector_capture_id.clone(),
-                    types::CaptureSyncResponse::Success {
-                        resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
-                        status: capture_sync_response.get_capture_attempt_status(),
-                        connector_response_reference_id: capture_sync_response
-                            .get_connector_reference_id(),
-                        amount: capture_sync_response
-                            .get_amount_captured()
-                            .map(MinorUnit::new),
-                    },
-                );
-            }
-        });
-    hashmap
+    for capture_sync_response in capture_sync_response_list {
+        let connector_capture_id = capture_sync_response.get_connector_capture_id();
+        if capture_sync_response.is_capture_response() {
+            hashmap.insert(
+                connector_capture_id.clone(),
+                types::CaptureSyncResponse::Success {
+                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                    status: capture_sync_response.get_capture_attempt_status(),
+                    connector_response_reference_id: capture_sync_response
+                        .get_connector_reference_id(),
+                    amount: capture_sync_response
+                        .get_amount_captured()
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
+                },
+            );
+        }
+    }
+
+    Ok(hashmap)
 }
 
 pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
@@ -2655,6 +2670,7 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    OpenBanking,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2835,6 +2851,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
             }
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+            domain::payments::PaymentMethodData::OpenBanking(data) => match data {
+                hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+            },
         }
     }
 }
@@ -2910,5 +2929,40 @@ pub fn get_sync_integrity_object<T>(
     Ok(SyncIntegrityObject {
         amount: Some(amount_in_minor_unit),
         currency: Some(currency_enum),
+    })
+}
+
+pub fn get_capture_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    capture_amount: Option<T>,
+    currency: String,
+) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let capture_amount_in_minor_unit = capture_amount
+        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
+        .transpose()?;
+
+    Ok(CaptureIntegrityObject {
+        capture_amount: capture_amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_refund_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    refund_amount: T,
+    currency: String,
+) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let refund_amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+
+    Ok(RefundIntegrityObject {
+        currency: currency_enum,
+        refund_amount: refund_amount_in_minor_unit,
     })
 }
