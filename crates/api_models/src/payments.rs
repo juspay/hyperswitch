@@ -3559,7 +3559,7 @@ pub struct PaymentsResponse {
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
@@ -4098,7 +4098,7 @@ pub struct TimeRange {
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -4887,7 +4887,7 @@ pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
     /// Merchant connector details used to make payments.

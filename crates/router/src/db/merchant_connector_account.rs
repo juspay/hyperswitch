@@ -368,7 +368,11 @@ impl MerchantConnectorAccountInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                &format!("{}_{}", merchant_id, merchant_connector_id),
+                &format!(
+                    "{}_{}",
+                    merchant_id.get_string_repr(),
+                    merchant_connector_id
+                ),
                 find_call,
                 &cache::ACCOUNTS_CACHE,
             )
@@ -495,10 +499,16 @@ impl MerchantConnectorAccountInterface for Store {
                             format!("{}_{}", _profile_id, _connector_name).into(),
                         ),
                         cache::CacheKind::Accounts(
-                            format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                            format!(
+                                "{}_{}",
+                                _merchant_id.get_string_repr(),
+                                _merchant_connector_id
+                            )
+                            .into(),
                         ),
                         cache::CacheKind::CGraph(
-                            format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                            format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr())
+                                .into(),
                         ),
                     ],
                     || update,
@@ -586,13 +596,22 @@ impl MerchantConnectorAccountInterface for Store {
                         format!("{}_{}", _profile_id, _connector_name).into(),
                     ),
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                        format!(
+                            "{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _merchant_connector_id
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr()).into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        format!(
+                            "pm_filters_cgraph_{}_{_profile_id}",
+                            _merchant_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                 ],
                 update_call,
@@ -646,13 +665,18 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", mca.merchant_id, _profile_id).into(),
+                        format!("{}_{}", mca.merchant_id.get_string_repr(), _profile_id).into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id.get_string_repr())
+                            .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                        format!(
+                            "pm_filters_cgraph_{}_{_profile_id}",
+                            mca.merchant_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                 ],
                 delete_call,
@@ -693,7 +717,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .find(|account| {
-                account.merchant_id == merchant_id
+                account.merchant_id == *merchant_id
                     && account.connector_label == Some(connector.to_string())
             })
             .cloned()
@@ -732,7 +756,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .filter(|account| {
-                account.merchant_id == merchant_id && account.connector_name == connector_name
+                account.merchant_id == *merchant_id && account.connector_name == connector_name
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -800,7 +824,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .find(|account| {
-                account.merchant_id == merchant_id
+                account.merchant_id == *merchant_id
                     && account.merchant_connector_id == merchant_connector_id
             })
             .cloned()
@@ -885,9 +909,9 @@ impl MerchantConnectorAccountInterface for MockDb {
             .iter()
             .filter(|account: &&storage::MerchantConnectorAccount| {
                 if get_disabled {
-                    account.merchant_id == merchant_id
+                    account.merchant_id == *merchant_id
                 } else {
-                    account.merchant_id == merchant_id && account.disabled == Some(false)
+                    account.merchant_id == *merchant_id && account.disabled == Some(false)
                 }
             })
             .cloned()
@@ -958,7 +982,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<bool, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         match accounts.iter().position(|account| {
-            account.merchant_id == merchant_id
+            account.merchant_id == *merchant_id
                 && account.merchant_connector_id == merchant_connector_id
         }) {
             Some(index) => {

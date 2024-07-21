@@ -34,7 +34,7 @@ impl super::behaviour::Conversion for UserKeyStore {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

@@ -649,7 +649,7 @@ impl PaymentMethodInterface for MockDb {
             .iter()
             .filter(|pm| {
                 pm.customer_id == *customer_id
-                    && pm.merchant_id == merchant_id
+                    && pm.merchant_id == *merchant_id
                     && pm.status == status
             })
             .count();
@@ -710,7 +710,7 @@ impl PaymentMethodInterface for MockDb {
         let payment_methods = self.payment_methods.lock().await;
         let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
-            .filter(|pm| pm.customer_id == *customer_id && pm.merchant_id == merchant_id)
+            .filter(|pm| pm.customer_id == *customer_id && pm.merchant_id == *merchant_id)
             .cloned()
             .collect();
 
@@ -737,7 +737,7 @@ impl PaymentMethodInterface for MockDb {
             .iter()
             .filter(|pm| {
                 pm.customer_id == *customer_id
-                    && pm.merchant_id == merchant_id
+                    && pm.merchant_id == *merchant_id
                     && pm.status == status
             })
             .cloned()
@@ -760,7 +760,7 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
         match payment_methods.iter().position(|pm| {
-            pm.merchant_id == merchant_id && pm.payment_method_id == payment_method_id
+            pm.merchant_id == *merchant_id && pm.payment_method_id == payment_method_id
         }) {
             Some(index) => {
                 let deleted_payment_method = payment_methods.remove(index);

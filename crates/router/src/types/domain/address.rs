@@ -123,7 +123,7 @@ impl behaviour::Conversion for PaymentAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -188,7 +188,7 @@ impl behaviour::Conversion for Address {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(

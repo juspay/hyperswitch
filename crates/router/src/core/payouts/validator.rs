@@ -65,7 +65,7 @@ pub async fn validate_create_request(
     };
 
     // Merchant ID
-    let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
+    let predicate = req.merchant_id.as_ref().map(|mid| mid != *merchant_id);
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "merchant_id".to_string(),
@@ -86,7 +86,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {} against merchant_id: {}",
+            "Unique violation while checking payout_id: {} against merchant_id: {:?}",
             payout_id.to_owned(),
             merchant_id
         )

@@ -82,7 +82,6 @@ pub struct MerchantConnectorAccountNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
-    pub merchant_id: Option<id_type::MerchantId>,
     pub connector_type: Option<storage_enums::ConnectorType>,
     pub connector_name: Option<String>,
     pub connector_account_details: Option<Encryption>,
@@ -110,7 +109,7 @@ impl MerchantConnectorAccountUpdateInternal {
         source: MerchantConnectorAccount,
     ) -> MerchantConnectorAccount {
         MerchantConnectorAccount {
-            merchant_id: self.merchant_id.unwrap_or(source.merchant_id),
+            merchant_id: source.merchant_id,
             connector_type: self.connector_type.unwrap_or(source.connector_type),
             connector_account_details: self
                 .connector_account_details

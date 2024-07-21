@@ -109,7 +109,9 @@ impl<'a> super::KafkaMessage for KafkaPaymentAttemptEvent<'a> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",
-            self.merchant_id, self.payment_id, self.attempt_id
+            self.merchant_id.get_string_repr(),
+            self.payment_id,
+            self.attempt_id
         )
     }
 

@@ -57,7 +57,10 @@ impl<'a> super::KafkaMessage for KafkaFraudCheck<'a> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",
-            self.merchant_id, self.payment_id, self.attempt_id, self.frm_id
+            self.merchant_id.get_string_repr(),
+            self.payment_id,
+            self.attempt_id,
+            self.frm_id
         )
     }
 

@@ -702,7 +702,8 @@ pub struct LockerBasedRecipientConnectorList {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
+    pub merchant_ids_send_payment_id_as_connector_request_id:
+        HashSet<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

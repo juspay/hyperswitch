@@ -32,7 +32,7 @@ pub struct MerchantAccount {
     pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<id_type::MerchantId>,
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
@@ -56,6 +56,7 @@ pub struct MerchantAccount {
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
+#[derive(Clone)]
 /// Set the fields of merchant account
 pub struct MerchantAccountSetter {
     pub merchant_id: id_type::MerchantId,
@@ -67,7 +68,7 @@ pub struct MerchantAccountSetter {
     pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<id_type::MerchantId>,
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
@@ -174,7 +175,7 @@ pub enum MerchantAccountUpdate {
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
-        parent_merchant_id: Option<String>,
+        parent_merchant_id: Option<id_type::MerchantId>,
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
@@ -314,7 +315,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

@@ -348,7 +348,7 @@ pub async fn find_mca_from_authentication_id_type(
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
-                merchant_account.get_id().clone(),
+                merchant_account.get_id(),
                 authentication_id,
             )
             .await
@@ -758,7 +758,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             last_name: encryptable_address.last_name,
             phone_number: encryptable_address.phone_number,
             country_code: self.phone_country_code.clone(),
-            merchant_id: merchant_id.get_string_repr(),
+            merchant_id: merchant_id.get_string_repr().to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),

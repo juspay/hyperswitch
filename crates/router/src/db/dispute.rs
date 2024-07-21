@@ -190,7 +190,7 @@ impl DisputeInterface for MockDb {
             .await
             .iter()
             .find(|d| {
-                d.merchant_id == merchant_id
+                d.merchant_id == *merchant_id
                     && d.payment_id == payment_id
                     && d.connector_dispute_id == connector_dispute_id
             })
@@ -206,9 +206,9 @@ impl DisputeInterface for MockDb {
 
         locked_disputes
             .iter()
-            .find(|d| d.merchant_id == merchant_id && d.dispute_id == dispute_id)
+            .find(|d| d.merchant_id == *merchant_id && d.dispute_id == dispute_id)
             .cloned()
-            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id} and dispute_id = {dispute_id}"))
+            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id:?} and dispute_id = {dispute_id}"))
             .into())
     }
 
@@ -222,7 +222,7 @@ impl DisputeInterface for MockDb {
         Ok(locked_disputes
             .iter()
             .filter(|d| {
-                d.merchant_id == merchant_id
+                d.merchant_id == *merchant_id
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
@@ -292,7 +292,7 @@ impl DisputeInterface for MockDb {
 
         Ok(locked_disputes
             .iter()
-            .filter(|d| d.merchant_id == merchant_id && d.payment_id == payment_id)
+            .filter(|d| d.merchant_id == *merchant_id && d.payment_id == payment_id)
             .cloned()
             .collect())
     }

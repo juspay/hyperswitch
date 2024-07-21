@@ -135,7 +135,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
-            merchant_account.get_id().clone(),
+            merchant_account.get_id().get_string_repr().to_owned(),
         )],
     );
     let mut request_details = IncomingWebhookRequestDetails {
@@ -478,7 +478,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             1,
             &[metrics::KeyValue::new(
                 MERCHANT_ID,
-                merchant_account.get_id().clone(),
+                merchant_account.get_id().get_string_repr().to_owned(),
             )],
         );
         WebhookResponseTracker::NoEffect
@@ -1013,7 +1013,7 @@ async fn external_authentication_incoming_webhook_flow(
                     webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => state
                         .store
                         .find_authentication_by_merchant_id_authentication_id(
-                            merchant_account.get_id().clone(),
+                            merchant_account.get_id(),
                             authentication_id.clone(),
                         )
                         .await
@@ -1097,7 +1097,7 @@ async fn external_authentication_incoming_webhook_flow(
                             payments_response.status.foreign_into();
                         // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
                         let poll_id = core_utils::get_poll_id(
-                            merchant_account.get_id().clone(),
+                            merchant_account.get_id(),
                             core_utils::get_external_authentication_request_poll_id(&payment_id),
                         );
                         let redis_conn = state

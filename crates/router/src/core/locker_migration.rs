@@ -149,7 +149,7 @@ pub async fn call_to_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
-                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migration failed for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             ));
 
@@ -164,7 +164,7 @@ pub async fn call_to_locker(
         cards_moved += 1;
 
         logger::info!(
-                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migrated for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             );
     }

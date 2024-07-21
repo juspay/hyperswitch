@@ -489,7 +489,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &session_state,
                     n_request_payment_method_billing_address.as_ref(),
                     n_payment_method_billing_address_id.as_deref(),
-                    m_merchant_id.as_str(),
+                    m_merchant_id,
                     m_payment_intent_customer_id
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
@@ -1398,7 +1398,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             helpers::validate_max_amount(amount)?;
         }
 
-        let request_merchant_id = request.merchant_id.as_deref();
+        let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
@@ -1434,7 +1434,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.get_id(),
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

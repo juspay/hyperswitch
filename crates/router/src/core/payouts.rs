@@ -2548,7 +2548,10 @@ pub async fn create_payout_link(
         .session_expiry
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
-    let url = format!("{base_url}/payout_link/{merchant_id}/{payout_id}");
+    let url = format!(
+        "{base_url}/payout_link/{}/{payout_id}",
+        merchant_id.get_string_repr()
+    );
     let link = url::Url::parse(&url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;

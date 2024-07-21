@@ -153,7 +153,7 @@ pub async fn create_link_token(
 
     let router_data = pm_auth_types::LinkTokenRouterData {
         flow: std::marker::PhantomData,
-        merchant_id: Some(merchant_account.get_id()),
+        merchant_id: Some(merchant_account.get_id().clone()),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::LinkTokenRequest {
             client_name: "HyperSwitch".to_string(),
@@ -241,7 +241,7 @@ pub async fn exchange_token_core(
         )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_account.get_id().clone(),
+            id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
 
     let auth_type = helpers::get_connector_auth_type(merchant_connector_account.clone())?;

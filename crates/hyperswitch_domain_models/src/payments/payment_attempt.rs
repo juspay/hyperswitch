@@ -545,7 +545,7 @@ impl behaviour::Conversion for PaymentIntent {
         state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

@@ -213,7 +213,7 @@ pub async fn save_payout_data_to_locker(
                     card_type: None,
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
-                    merchant_id: merchant_account.get_id().as_ref(),
+                    merchant_id: merchant_account.get_id().clone(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
@@ -266,7 +266,7 @@ pub async fn save_payout_data_to_locker(
                     Ok(hex::encode(e.peek()))
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
-                    merchant_id: merchant_account.get_id().as_ref(),
+                    merchant_id: merchant_account.get_id().to_owned(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -646,7 +646,7 @@ pub async fn get_or_create_customer_details(
 
             let customer = domain::Customer {
                 customer_id,
-                merchant_id: merchant_id.to_owned(),
+                merchant_id: merchant_id.to_owned().clone(),
                 name: encryptable_customer.name,
                 email: encryptable_customer.email,
                 phone: encryptable_customer.phone,

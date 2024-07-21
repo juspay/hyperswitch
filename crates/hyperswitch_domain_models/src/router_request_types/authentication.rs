@@ -109,7 +109,7 @@ pub struct PreAuthenticationData {
     pub threeds_server_transaction_id: String,
     pub message_version: common_utils::types::SemanticVersion,
     pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub acquirer_country_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
 }

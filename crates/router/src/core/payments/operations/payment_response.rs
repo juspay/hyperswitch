@@ -1335,7 +1335,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         async move {
             mandate::update_connector_mandate_id(
                 m_db.as_ref(),
-                m_router_data_merchant_id.clone(),
+                &m_router_data_merchant_id,
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
@@ -1372,7 +1372,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         "connector",
                         payment_data.payment_attempt.connector.unwrap_or_default(),
                     ),
-                    ("merchant_id", payment_data.payment_attempt.merchant_id),
+                    (
+                        "merchant_id",
+                        payment_data
+                            .payment_attempt
+                            .merchant_id
+                            .get_string_repr()
+                            .to_owned(),
+                    ),
                 ]),
             );
             Err(error_stack::Report::new(

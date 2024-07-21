@@ -492,24 +492,6 @@ pub async fn mk_delete_card_request_hs(
     Ok(request)
 }
 
-pub fn mk_delete_card_request(
-    locker: &settings::Locker,
-    merchant_id: &common_utils::id_type::MerchantId,
-    card_id: &'static str,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let delete_card_req = GetCard {
-        merchant_id: merchant_id.get_string_repr(),
-        card_id,
-    };
-    let mut url = locker.host.to_owned();
-    url.push_str("/card/deleteCard");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_default_headers();
-
-    request.set_body(RequestContent::FormUrlEncoded(Box::new(delete_card_req)));
-    Ok(request)
-}
-
 pub fn mk_delete_card_response(
     response: DeleteCardResponse,
 ) -> errors::RouterResult<DeleteCardResp> {

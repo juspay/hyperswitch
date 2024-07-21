@@ -31,6 +31,7 @@ use crate::{
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        let merchant_id = item.get_id().to_owned();
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -41,7 +42,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .transpose()?;
 
         Ok(Self {
-            merchant_id: item.get_id().to_owned(),
+            merchant_id,
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -171,6 +172,7 @@ pub async fn create_business_profile(
 > {
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
+    let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
 
@@ -226,7 +228,7 @@ pub async fn create_business_profile(
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,

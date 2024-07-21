@@ -101,7 +101,7 @@ pub async fn create_routing_config(
 
     let algorithm_id = common_utils::generate_id(
         consts::ROUTING_CONFIG_ID_LENGTH,
-        &format!("routing_{}", &merchant_account.get_id()),
+        &format!("routing_{}", &merchant_account.get_id().get_string_repr()),
     );
 
     let profile_id = request
@@ -132,7 +132,7 @@ pub async fn create_routing_config(
     let algo = RoutingAlgorithm {
         algorithm_id: algorithm_id.clone(),
         profile_id,
-        merchant_id: merchant_account.get_id(),
+        merchant_id: merchant_account.get_id().to_owned(),
         name: name.clone(),
         description: Some(description.clone()),
         kind: algorithm.get_kind().foreign_into(),
@@ -338,9 +338,12 @@ pub async fn update_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
-    let default_config =
-        helpers::get_merchant_default_config(db, &merchant_account.get_id(), transaction_type)
-            .await?;
+    let default_config = helpers::get_merchant_default_config(
+        db,
+        merchant_account.get_id().get_string_repr(),
+        transaction_type,
+    )
+    .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -369,7 +372,7 @@ pub async fn update_default_routing_config(
 
     helpers::update_merchant_default_config(
         db,
-        &merchant_account.get_id(),
+        merchant_account.get_id().get_string_repr(),
         updated_config.clone(),
         transaction_type,
     )
@@ -387,16 +390,16 @@ pub async fn retrieve_default_routing_config(
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
-    helpers::get_merchant_default_config(db, &merchant_account.get_id(), transaction_type)
-        .await
-        .map(|conn_choice| {
-            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[],
-            );
-            service_api::ApplicationResponse::Json(conn_choice)
-        })
+    helpers::get_merchant_default_config(
+        db,
+        &merchant_account.get_id().get_string_repr(),
+        transaction_type,
+    )
+    .await
+    .map(|conn_choice| {
+        metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        service_api::ApplicationResponse::Json(conn_choice)
+    })
 }
 
 pub async fn retrieve_linked_routing_config(

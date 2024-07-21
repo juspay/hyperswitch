@@ -1206,7 +1206,7 @@ pub fn payments_create_request_validation(
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: String,
     db: &dyn StorageInterface,
     amount: api::Amount,

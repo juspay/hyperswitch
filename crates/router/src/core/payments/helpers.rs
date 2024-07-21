@@ -3222,9 +3222,8 @@ pub async fn insert_merchant_connector_creds_to_config(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        let key = merchant_id
-            .merchant_id
-            .get_creds_identifier_key(&merchant_connector_details.creds_identifier);
+        let key =
+            merchant_id.get_creds_identifier_key(&merchant_connector_details.creds_identifier);
 
         redis
             .serialize_and_set_key_with_expiry(
@@ -3331,30 +3330,31 @@ pub async fn get_merchant_connector_account(
     match creds_identifier {
         Some(creds_identifier) => {
             let key = merchant_id.get_creds_identifier_key(&creds_identifier);
+            let cloned_key = key.clone();
             let redis_fetch = || async {
                 db.get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get redis connection")
                     .async_and_then(|redis| async move {
                         redis
-                            .get_and_deserialize_key(key.as_str(), "String")
+                            .get_and_deserialize_key(key.clone().as_str(), "String")
                             .await
                             .change_context(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: key.clone(),
                                 },
                             )
-                            .attach_printable(key + ": Not found in Redis")
+                            .attach_printable(key.clone() + ": Not found in Redis")
                     })
                     .await
             };
 
             let db_fetch = || async {
-                db.find_config_by_key(key.as_str())
+                db.find_config_by_key(cloned_key.as_str())
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: key.to_owned(),
+                            id: cloned_key.to_owned(),
                         },
                     )
             };
@@ -3507,7 +3507,10 @@ pub fn get_attempt_type(
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     &metrics::CONTEXT,
                     1,
-                    &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
+                    &add_attributes([(
+                        "merchant_id",
+                        payment_attempt.merchant_id.get_string_repr().to_owned(),
+                    )]),
                 );
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
@@ -3531,7 +3534,10 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             &metrics::CONTEXT,
                             1,
-                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
+                            &add_attributes([(
+                                "merchant_id",
+                                payment_attempt.merchant_id.get_string_repr().to_owned(),
+                            )]),
                         );
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Payment Attempt unexpected state")
@@ -3543,7 +3549,10 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             &metrics::CONTEXT,
                             1,
-                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
+                            &add_attributes([(
+                                "merchant_id",
+                                payment_attempt.merchant_id.get_string_repr().to_owned(),
+                            )]),
                         );
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message:
@@ -3558,7 +3567,10 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_COUNT.add(
                             &metrics::CONTEXT,
                             1,
-                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
+                            &add_attributes([(
+                                "merchant_id",
+                                payment_attempt.merchant_id.get_string_repr().to_owned(),
+                            )]),
                         );
                         Ok(AttemptType::New)
                     }
@@ -5057,7 +5069,7 @@ pub async fn config_skip_saving_wallet_at_connector(
 ) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
     let config = db
         .find_config_by_key_unwrap_or(
-            format!("skip_saving_wallet_at_connector_{}", merchant_id).as_str(),
+            &merchant_id.get_skip_saving_wallet_at_connector_key(),
             Some("[]".to_string()),
         )
         .await;

@@ -432,10 +432,3 @@ pub fn get_default_config_key(
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
     }
 }
-pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
-    format!("payment_config_id_{merchant_id}")
-}
-
-pub fn get_payment_method_surcharge_routing_id(merchant_id: &str) -> String {
-    format!("payment_method_surcharge_id_{merchant_id}")
-}

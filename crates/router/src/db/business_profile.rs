@@ -196,9 +196,9 @@ impl BusinessProfileInterface for MockDb {
         let mut business_profiles = self.business_profiles.lock().await;
         let index = business_profiles
             .iter()
-            .position(|bp| bp.profile_id == profile_id && bp.merchant_id == merchant_id)
+            .position(|bp| bp.profile_id == profile_id && bp.merchant_id == *merchant_id)
             .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
-                "No business profile found for profile_id = {} and merchant_id = {}",
+                "No business profile found for profile_id = {} and merchant_id = {:?}",
                 profile_id, merchant_id
             )))?;
         business_profiles.remove(index);
@@ -214,7 +214,7 @@ impl BusinessProfileInterface for MockDb {
             .lock()
             .await
             .iter()
-            .filter(|business_profile| business_profile.merchant_id == merchant_id)
+            .filter(|business_profile| business_profile.merchant_id == *merchant_id)
             .cloned()
             .collect();
 

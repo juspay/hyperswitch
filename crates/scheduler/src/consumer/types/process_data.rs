@@ -57,7 +57,7 @@ pub struct OutgoingWebhookRetryProcessTrackerMapping {
     pub default_mapping: RetryMapping,
 
     /// Merchant-specific retry configuration.
-    pub custom_merchant_mapping: HashMap<String, RetryMapping>,
+    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
 }
 
 impl Default for OutgoingWebhookRetryProcessTrackerMapping {

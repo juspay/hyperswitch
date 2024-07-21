@@ -3,7 +3,10 @@
 //! Ids for merchant account are derived from the merchant name
 //! If there are any special characters, they are removed
 
-use std::{borrow::Cow, fmt::Debug};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+};
 
 use diesel::{
     backend::Backend,
@@ -83,6 +86,18 @@ impl MerchantId {
 
         Self(length_id)
     }
+
+    pub fn get_merchant_id_not_found() -> Self {
+        let alphanumeric_id = AlphaNumericId::new_unchecked("MERCHANT_ID_NOT_FOUND".to_string());
+        let length_id = LengthId::new_unchecked(alphanumeric_id);
+        Self(length_id)
+    }
+
+    pub fn get_internal_user_merchant_id(merchant_id: &str) -> Self {
+        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.to_string());
+        let length_id = LengthId::new_unchecked(alphanumeric_id);
+        Self(length_id)
+    }
 }
 
 impl masking::SerializableSecret for MerchantId {}
@@ -113,6 +128,7 @@ where
     }
 }
 
+/// All the keys that can be formed from merchant id
 impl MerchantId {
     /// get step up enabled key
     pub fn get_step_up_enabled_key(&self) -> String {
@@ -161,5 +177,34 @@ impl MerchantId {
 
     pub fn get_poll_id(&self, unique_id: &str) -> String {
         format!("poll_{}_{unique_id}", self.get_string_repr())
+    }
+
+    pub fn get_access_token_key(
+        &self,
+        merchant_connector_id_or_connector_name: impl Display,
+    ) -> String {
+        format!(
+            "access_token_{}_{merchant_connector_id_or_connector_name}",
+            self.get_string_repr()
+        )
+    }
+
+    pub fn get_skip_saving_wallet_at_connector_key(&self) -> String {
+        format!("skip_saving_wallet_at_connector_{}", self.get_string_repr())
+    }
+
+    pub fn get_payment_config_routing_id(&self) -> String {
+        format!("payment_config_id_{}", self.get_string_repr())
+    }
+
+    pub fn get_payment_method_surcharge_routing_id(&self) -> String {
+        format!("payment_method_surcharge_id_{}", self.get_string_repr())
+    }
+
+    pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
+        format!(
+            "whconf_disabled_events_{}_{connector_id}",
+            self.get_string_repr()
+        )
     }
 }

@@ -383,7 +383,7 @@ mod storage {
                 }
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id: merchant_id.to_owned(),
+                        merchant_id: &merchant_id,
                         customer_id: customer_id.get_string_repr(),
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());

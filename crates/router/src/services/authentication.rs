@@ -100,7 +100,7 @@ impl events::EventInfo for AuthenticationType {
 }
 
 impl AuthenticationType {
-    pub fn get_merchant_id(&self) -> Option<&str> {
+    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
         match self {
             Self::ApiKey {
                 merchant_id,
@@ -112,7 +112,7 @@ impl AuthenticationType {
                 merchant_id,
                 user_id: _,
             }
-            | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
@@ -216,17 +216,17 @@ pub struct SinglePurposeOrLoginToken {
 }
 
 pub trait AuthInfo {
-    fn get_merchant_id(&self) -> Option<&str>;
+    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId>;
 }
 
 impl AuthInfo for () {
-    fn get_merchant_id(&self) -> Option<&str> {
+    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
         None
     }
 }
 
 impl AuthInfo for AuthenticationData {
-    fn get_merchant_id(&self) -> Option<&str> {
+    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
         Some(&self.merchant_account.get_id())
     }
 }
@@ -546,7 +546,7 @@ where
             .store()
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                self.0.as_ref(),
+                &self.0,
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
@@ -561,7 +561,7 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(key_manager_state, self.0.as_ref(), &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -754,7 +754,7 @@ where
         authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through path or query param
-        if payload.merchant_id == self.merchant_id_or_profile_id {
+        if payload.merchant_id.get_string_repr() == self.merchant_id_or_profile_id {
             return Ok((
                 (),
                 AuthenticationType::MerchantJwt {
@@ -1281,7 +1281,7 @@ pub struct ReconUser {
 }
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
-    fn get_merchant_id(&self) -> Option<&str> {
+    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
         None
     }
 }

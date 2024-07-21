@@ -94,7 +94,7 @@ pub async fn perform_post_authentication(
     let authentication = state
         .store
         .find_authentication_by_merchant_id_authentication_id(
-            business_profile.merchant_id.clone(),
+            &business_profile.merchant_id,
             authentication_id.clone(),
         )
         .await

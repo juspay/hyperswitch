@@ -168,10 +168,16 @@ pub async fn get_retries(
         None => {
             let key = match retry_type {
                 PayoutRetryType::SingleConnector => {
-                    format!("max_auto_single_connector_payout_retries_enabled_{merchant_id}")
+                    format!(
+                        "max_auto_single_connector_payout_retries_enabled_{}",
+                        merchant_id.get_string_repr()
+                    )
                 }
                 PayoutRetryType::MultiConnector => {
-                    format!("max_auto_multiple_connector_payout_retries_enabled_{merchant_id}")
+                    format!(
+                        "max_auto_multiple_connector_payout_retries_enabled_{}",
+                        merchant_id.get_string_repr()
+                    )
                 }
             };
             let db = &*state.store;
@@ -323,10 +329,16 @@ pub async fn config_should_call_gsm_payout(
 ) -> bool {
     let key = match retry_type {
         PayoutRetryType::SingleConnector => {
-            format!("should_call_gsm_single_connector_payout_{}", merchant_id)
+            format!(
+                "should_call_gsm_single_connector_payout_{}",
+                merchant_id.get_string_repr()
+            )
         }
         PayoutRetryType::MultiConnector => {
-            format!("should_call_gsm_multiple_connector_payout_{}", merchant_id)
+            format!(
+                "should_call_gsm_multiple_connector_payout_{}",
+                merchant_id.get_string_repr()
+            )
         }
     };
     let config = db

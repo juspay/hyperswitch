@@ -1110,7 +1110,9 @@ pub async fn create_internal_user(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -1126,7 +1128,9 @@ pub async fn create_internal_user(
         .store
         .find_merchant_account_by_merchant_id(
             key_manager_state,
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &key_store,
         )
         .await
@@ -1195,7 +1199,7 @@ pub async fn switch_merchant_id(
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                request.merchant_id,
+                &request.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
@@ -1211,7 +1215,7 @@ pub async fn switch_merchant_id(
             .store
             .find_merchant_account_by_merchant_id(
                 key_manager_state,
-                request.merchant_id,
+                &request.merchant_id,
                 &key_store,
             )
             .await
@@ -1294,7 +1298,7 @@ pub async fn create_merchant_account(
     if let Err(e) = role_insertion_res {
         let _ = state
             .store
-            .delete_merchant_account_by_merchant_id(new_merchant.get_merchant_id().as_str())
+            .delete_merchant_account_by_merchant_id(&new_merchant.get_merchant_id())
             .await;
         return Err(e);
     }
@@ -1386,7 +1390,7 @@ pub async fn list_users_for_merchant_account(
 ) -> UserResponse<user_api::ListUsersResponse> {
     let user_roles: HashMap<String, _> = state
         .store
-        .list_user_roles_by_merchant_id(user_from_token.merchant_id)
+        .list_user_roles_by_merchant_id(&user_from_token.merchant_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("No user roles for given merchant id")?

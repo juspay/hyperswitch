@@ -21,7 +21,6 @@ pub async fn generate_sample_data(
     req: SampleDataRequest,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
-    let merchant_id = merchant_id.to_string();
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {

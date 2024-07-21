@@ -2597,10 +2597,10 @@ impl UserRoleInterface for KafkaStore {
 
     async fn list_user_roles_by_merchant_id(
         &self,
-        user_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles_by_merchant_id(user_id)
+            .list_user_roles_by_merchant_id(merchant_id)
             .await
     }
 }
@@ -2872,7 +2872,7 @@ impl AuthenticationInterface for KafkaStore {
 
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: String,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         self.diesel_store

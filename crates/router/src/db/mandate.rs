@@ -143,8 +143,11 @@ mod storage {
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let lookup_id =
-                        format!("mid_{}_conn_mandate_{}", merchant_id, connector_mandate_id);
+                    let lookup_id = format!(
+                        "mid_{}_conn_mandate_{}",
+                        merchant_id.get_string_repr(),
+                        connector_mandate_id
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -227,7 +230,11 @@ mod storage {
                         let rev_lookup = diesel_models::ReverseLookupNew {
                             sk_id: field.clone(),
                             pk_id: key_str.clone(),
-                            lookup_id: format!("mid_{}_conn_mandate_{}", merchant_id, val),
+                            lookup_id: format!(
+                                "mid_{}_conn_mandate_{}",
+                                merchant_id.get_string_repr(),
+                                val
+                            ),
                             source: "mandate".to_string(),
                             updated_by: storage_scheme.to_string(),
                         };
@@ -301,11 +308,11 @@ mod storage {
                     .map_err(|error| report!(errors::StorageError::from(error))),
                 MerchantStorageScheme::RedisKv => {
                     let mandate_id = mandate.mandate_id.clone();
-                    let merchant_id = mandate.merchant_id.clone();
+                    let merchant_id = &mandate.merchant_id.to_owned();
                     let connector_mandate_id = mandate.connector_mandate_id.clone();
 
                     let key = PartitionKey::MerchantIdMandateId {
-                        merchant_id: merchant_id,
+                        merchant_id,
                         mandate_id: mandate_id.as_str(),
                     };
                     let key_str = key.to_string();
@@ -320,8 +327,11 @@ mod storage {
                     };
 
                     if let Some(connector_val) = connector_mandate_id {
-                        let lookup_id =
-                            format!("mid_{}_conn_mandate_{}", merchant_id, connector_val);
+                        let lookup_id = format!(
+                            "mid_{}_conn_mandate_{}",
+                            merchant_id.get_string_repr(),
+                            connector_val
+                        );
 
                         let reverse_lookup_entry = diesel_models::ReverseLookupNew {
                             sk_id: field.clone(),
@@ -479,7 +489,7 @@ impl MandateInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
+            .find(|mandate| mandate.merchant_id == *merchant_id && mandate.mandate_id == mandate_id)
             .cloned()
             .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
             .map_err(|err| err.into())
@@ -496,7 +506,7 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .find(|mandate| {
-                mandate.merchant_id == merchant_id
+                mandate.merchant_id == *merchant_id
                     && mandate.connector_mandate_id == Some(connector_mandate_id.to_string())
             })
             .cloned()
@@ -515,7 +525,7 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .filter(|mandate| {
-                mandate.merchant_id == merchant_id && &mandate.customer_id == customer_id
+                mandate.merchant_id == *merchant_id && &mandate.customer_id == customer_id
             })
             .cloned()
             .collect());
@@ -532,7 +542,7 @@ impl MandateInterface for MockDb {
         let mut mandates = self.mandates.lock().await;
         match mandates
             .iter_mut()
-            .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
+            .find(|mandate| mandate.merchant_id == *merchant_id && mandate.mandate_id == mandate_id)
         {
             Some(mandate) => {
                 let m_update = diesel_models::MandateUpdateInternal::from(mandate_update);

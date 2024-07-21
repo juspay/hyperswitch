@@ -338,7 +338,7 @@ pub fn get_pm_schedule_time(
 
 pub fn get_outgoing_webhook_retry_schedule_time(
     mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
-    merchant_name: &str,
+    merchant_name: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
     let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_name) {

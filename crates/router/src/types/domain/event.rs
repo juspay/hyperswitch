@@ -87,7 +87,7 @@ impl super::behaviour::Conversion for Event {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

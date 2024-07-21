@@ -2,8 +2,6 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
-
-
 use crate::schema::authentication;
 
 #[derive(
@@ -35,7 +33,7 @@ pub struct Authentication {
     pub eci: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub three_ds_method_data: Option<String>,
     pub three_ds_method_url: Option<String>,
     pub acs_url: Option<String>,
@@ -109,7 +107,7 @@ pub enum AuthenticationUpdate {
         three_ds_method_data: Option<String>,
         three_ds_method_url: Option<String>,
         acquirer_bin: Option<String>,
-        acquirer_merchant_id: Option<String>,
+        acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
         connector_metadata: Option<serde_json::Value>,
     },
     PreAuthenticationUpdate {
@@ -122,7 +120,7 @@ pub enum AuthenticationUpdate {
         connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
         acquirer_bin: Option<String>,
-        acquirer_merchant_id: Option<String>,
+        acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
         directory_server_id: Option<String>,
         acquirer_country_code: Option<String>,
     },
@@ -177,7 +175,7 @@ pub struct AuthenticationUpdateInternal {
     pub eci: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub three_ds_method_data: Option<String>,
     pub three_ds_method_url: Option<String>,
     pub acs_url: Option<String>,

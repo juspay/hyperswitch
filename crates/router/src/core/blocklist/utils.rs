@@ -19,21 +19,21 @@ use crate::{
 
 pub async fn delete_entry_from_blocklist(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let blocklist_entry = match request {
         api_blocklist::DeleteFromBlocklistRequest::CardBin(bin) => {
-            delete_card_bin_blocklist_entry(state, &bin, &merchant_id).await?
+            delete_card_bin_blocklist_entry(state, &bin, merchant_id).await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(xbin) => {
-            delete_card_bin_blocklist_entry(state, &xbin, &merchant_id).await?
+            delete_card_bin_blocklist_entry(state, &xbin, merchant_id).await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
             .store
-            .delete_blocklist_entry_by_merchant_id_fingerprint_id(&merchant_id, &fingerprint_id)
+            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, &fingerprint_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "no blocklist record for the given fingerprint id was found".to_string(),
@@ -45,7 +45,7 @@ pub async fn delete_entry_from_blocklist(
 
 pub async fn toggle_blocklist_guard_for_merchant(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = merchant_id.get_blocklist_guard_key();
@@ -95,13 +95,13 @@ pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
 
 pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
     state
         .store
         .list_blocklist_entries_by_merchant_id_data_kind(
-            &merchant_id,
+            merchant_id,
             query.data_kind,
             query.limit.into(),
             query.offset.into(),
@@ -139,7 +139,7 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
 
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
     let blocklist_entry = match &to_block {
@@ -148,7 +148,7 @@ pub async fn insert_entry_into_blocklist(
             duplicate_check_insert_bin(
                 bin,
                 state,
-                &merchant_id,
+                merchant_id,
                 common_enums::BlocklistDataKind::CardBin,
             )
             .await?
@@ -159,7 +159,7 @@ pub async fn insert_entry_into_blocklist(
             duplicate_check_insert_bin(
                 bin,
                 state,
-                &merchant_id,
+                merchant_id,
                 common_enums::BlocklistDataKind::ExtendedCardBin,
             )
             .await?
@@ -168,7 +168,7 @@ pub async fn insert_entry_into_blocklist(
         api_blocklist::AddToBlocklistRequest::Fingerprint(fingerprint_id) => {
             let blocklist_entry_result = state
                 .store
-                .find_blocklist_entry_by_merchant_id_fingerprint_id(&merchant_id, fingerprint_id)
+                .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint_id)
                 .await;
 
             match blocklist_entry_result {
@@ -192,7 +192,7 @@ pub async fn insert_entry_into_blocklist(
             state
                 .store
                 .insert_blocklist_entry(storage::BlocklistNew {
-                    merchant_id: merchant_id.clone(),
+                    merchant_id: merchant_id.to_owned(),
                     fingerprint_id: fingerprint_id.clone(),
                     data_kind: api_models::enums::enums::BlocklistDataKind::PaymentMethod,
                     metadata: None,

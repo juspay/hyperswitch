@@ -285,7 +285,7 @@ async fn trigger_webhook_to_merchant(
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
-            business_profile.merchant_id.clone(),
+            business_profile.merchant_id.get_string_repr().to_owned(),
         )],
     );
     logger::debug!(outgoing_webhook_response=?response);
@@ -812,11 +812,14 @@ async fn update_event_in_storage(
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
-fn increment_webhook_outgoing_received_count(merchant_id: &str) {
+fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.to_owned())],
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_id.get_string_repr().to_owned(),
+        )],
     )
 }
 

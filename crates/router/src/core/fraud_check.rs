@@ -165,7 +165,7 @@ where
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.get_id().clone(),
+                    id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
 

@@ -288,7 +288,7 @@ impl ApiKeyInterface for MockDb {
         // find the key to remove, if it exists
         if let Some(pos) = locked_api_keys
             .iter()
-            .position(|k| k.merchant_id == merchant_id && k.key_id == key_id)
+            .position(|k| k.merchant_id == *merchant_id && k.key_id == key_id)
         {
             // use `remove` instead of `swap_remove` so we have a consistent order, which might
             // matter to someone using limit/offset in `list_api_keys_by_merchant_id`
@@ -309,7 +309,7 @@ impl ApiKeyInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|k| k.merchant_id == merchant_id && k.key_id == key_id)
+            .find(|k| k.merchant_id == *merchant_id && k.key_id == key_id)
             .cloned())
     }
 
@@ -360,7 +360,7 @@ impl ApiKeyInterface for MockDb {
             .lock()
             .await
             .iter()
-            .filter(|k| k.merchant_id == merchant_id)
+            .filter(|k| k.merchant_id == *merchant_id)
             .skip(offset)
             .take(limit)
             .cloned()

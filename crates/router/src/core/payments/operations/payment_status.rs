@@ -274,7 +274,7 @@ async fn get_tracker_for_sync<
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving attempt list for, merchant_id: {}, payment_id: {payment_id_str}",&merchant_account.get_id())
+                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id_str}",&merchant_account.get_id())
                 })?)
         },
         _ => None,
@@ -291,7 +291,7 @@ async fn get_tracker_for_sync<
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving capture list for, merchant_id: {}, payment_id: {payment_id_str}", merchant_account.get_id())
+                    format!("Error while retrieving capture list for, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
                 })?;
         Some(payment_types::MultipleCaptureData::new_for_sync(
             captures,
@@ -311,7 +311,7 @@ async fn get_tracker_for_sync<
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while getting refund list for, payment_id: {}, merchant_id: {}",
+                "Failed while getting refund list for, payment_id: {}, merchant_id: {:?}",
                 &payment_id_str,
                 merchant_account.get_id()
             )
@@ -326,7 +326,7 @@ async fn get_tracker_for_sync<
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while getting authorizations list for, payment_id: {}, merchant_id: {}",
+                "Failed while getting authorizations list for, payment_id: {}, merchant_id: {:?}",
                 &payment_id_str,
                 merchant_account.get_id()
             )
@@ -337,7 +337,7 @@ async fn get_tracker_for_sync<
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving dispute list for, merchant_id: {}, payment_id: {payment_id_str}", &merchant_account.get_id())
+            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id_str}", &merchant_account.get_id())
         })?;
 
     let frm_response = db
@@ -345,7 +345,7 @@ async fn get_tracker_for_sync<
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {payment_id_str}", &merchant_account.get_id())
+            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id_str}", &merchant_account.get_id())
         });
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
@@ -403,7 +403,7 @@ async fn get_tracker_for_sync<
     let merchant_id = payment_intent.merchant_id.clone();
     let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
             db.find_authentication_by_merchant_id_authentication_id(
-                    merchant_id,
+                    &merchant_id,
                     authentication_id.clone(),
                 )
                 .await

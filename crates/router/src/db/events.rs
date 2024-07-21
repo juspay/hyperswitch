@@ -444,7 +444,7 @@ impl EventInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No event available with merchant_id = {merchant_id} and event_id  = {event_id}"
+                    "No event available with merchant_id = {merchant_id:?} and event_id  = {event_id}"
                 ))
                 .into(),
             )

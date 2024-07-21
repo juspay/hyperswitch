@@ -249,7 +249,7 @@ impl DashboardMetadataInterface for MockDb {
                     .clone()
                     .map(|user_id_inner| user_id_inner == user_id)
                     .unwrap_or(false)
-                    && metadata_inner.merchant_id == merchant_id
+                    && metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.org_id == org_id
                     && data_keys.contains(&metadata_inner.data_key)
             })
@@ -259,7 +259,7 @@ impl DashboardMetadataInterface for MockDb {
         if query_result.is_empty() {
             return Err(errors::StorageError::ValueNotFound(format!(
                 "No dashboard_metadata available for user_id = {user_id},\
-                merchant_id = {merchant_id}, org_id = {org_id} and data_keys = {data_keys:?}",
+                merchant_id = {merchant_id:?}, org_id = {org_id} and data_keys = {data_keys:?}",
             ))
             .into());
         }
@@ -277,7 +277,7 @@ impl DashboardMetadataInterface for MockDb {
             .iter()
             .filter(|metadata_inner| {
                 metadata_inner.user_id.is_none()
-                    && metadata_inner.merchant_id == merchant_id
+                    && metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.org_id == org_id
                     && data_keys.contains(&metadata_inner.data_key)
             })
@@ -286,7 +286,7 @@ impl DashboardMetadataInterface for MockDb {
 
         if query_result.is_empty() {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No dashboard_metadata available for merchant_id = {merchant_id},\
+                "No dashboard_metadata available for merchant_id = {merchant_id:?},\
                       org_id = {org_id} and data_keyss = {data_keys:?}",
             ))
             .into());
@@ -308,12 +308,12 @@ impl DashboardMetadataInterface for MockDb {
                 .clone()
                 .map(|user_id_inner| user_id_inner == user_id)
                 .unwrap_or(false)
-                && metadata_inner.merchant_id == merchant_id)
+                && metadata_inner.merchant_id == *merchant_id)
         });
 
         if dashboard_metadata.len() == initial_len {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No user available for user_id = {user_id} and merchant id = {merchant_id}"
+                "No user available for user_id = {user_id} and merchant id = {merchant_id:?}"
             ))
             .into());
         }
@@ -336,7 +336,7 @@ impl DashboardMetadataInterface for MockDb {
                     .user_id
                     .as_deref()
                     .map_or(false, |user_id_inner| user_id_inner == user_id)
-                    && metadata_inner.merchant_id == merchant_id
+                    && metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.data_key == data_key
             })
             .ok_or(errors::StorageError::ValueNotFound(

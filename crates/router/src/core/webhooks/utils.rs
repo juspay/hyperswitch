@@ -29,7 +29,7 @@ pub async fn is_webhook_event_disabled(
     merchant_id: &common_utils::id_type::MerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
     let merchant_webhook_disable_config_result: CustomResult<
         api::MerchantWebhookConfig,
         redis_interface::errors::RedisError,

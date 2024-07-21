@@ -900,7 +900,7 @@ where
         1,
         &add_attributes([
             ("operation", format!("{:?}", operation)),
-            ("merchant", merchant_id),
+            ("merchant", merchant_id.get_string_repr().to_owned()),
             ("payment_method_type", payment_method_type),
             ("payment_method", payment_method),
         ]),

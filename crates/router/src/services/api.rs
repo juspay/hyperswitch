@@ -849,14 +849,13 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or("MERCHANT_ID_NOT_FOUND")
-        .to_string();
+        .unwrap_or(&common_utils::id_type::MerchantId::get_merchant_id_not_found())
 
     app_state.add_merchant_id(Some(merchant_id.clone()));
 
     app_state.add_flow_name(flow.to_string());
 
-    tracing::Span::current().record("merchant_id", &merchant_id);
+    tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
 
     let output = {
         lock_action

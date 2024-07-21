@@ -338,9 +338,17 @@ impl MerchantId {
     }
 }
 
+impl TryFrom<MerchantId> for common_utils::id_type::MerchantId {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
+        common_utils::id_type::MerchantId::from(value.0)
+            .change_context(UserErrors::MerchantIdParsingError)
+    }
+}
+
 #[derive(Clone)]
 pub struct NewUserMerchant {
-    merchant_id: MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
 }
@@ -359,8 +367,8 @@ impl NewUserMerchant {
         self.company_name.clone().map(UserCompanyName::get_secret)
     }
 
-    pub fn get_merchant_id(&self) -> String {
-        self.merchant_id.get_secret()
+    pub fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
+        self.merchant_id.clone()
     }
 
     pub fn get_new_organization(&self) -> NewUserOrganization {
@@ -372,7 +380,7 @@ impl NewUserMerchant {
             .store
             .get_merchant_key_store_by_merchant_id(
                 &(&state).into(),
-                self.get_merchant_id().as_str(),
+                &self.get_merchant_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
@@ -530,7 +538,7 @@ impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant 
 impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
-        let merchant_id = MerchantId::new(value.clone().1.merchant_id)?;
+        let merchant_id = value.clone().1.merchant_id;
         let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,

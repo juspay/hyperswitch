@@ -19,7 +19,7 @@ pub async fn generate_sample_data_for_user(
     req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
-    let sample_data = generate_sample_data(&state, req, user_from_token.merchant_id).await?;
+    let sample_data = generate_sample_data(&state, req, &user_from_token.merchant_id).await?;
 
     let key_store = state
         .store
@@ -79,7 +79,7 @@ pub async fn delete_sample_data_for_user(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            &user_from_token.merchant_id,
+            &merchant_id_del,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -88,17 +88,17 @@ pub async fn delete_sample_data_for_user(
 
     state
         .store
-        .delete_payment_intents_for_sample_data(key_manager_state, merchant_id_del, &key_store)
+        .delete_payment_intents_for_sample_data(key_manager_state, &merchant_id_del, &key_store)
         .await
         .switch()?;
     state
         .store
-        .delete_payment_attempts_for_sample_data(merchant_id_del)
+        .delete_payment_attempts_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
     state
         .store
-        .delete_refunds_for_sample_data(merchant_id_del)
+        .delete_refunds_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
 

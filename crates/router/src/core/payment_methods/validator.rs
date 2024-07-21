@@ -40,7 +40,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
             if err.current_context().is_db_not_found() {
                 Err(err).change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "customer [{}] not found for merchant [{}]",
+                        "customer [{}] not found for merchant [{:?}]",
                         customer_id.get_string_repr(),
                         merchant_id
                     ),
@@ -102,7 +102,8 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         None => default_config.expiry,
     };
     let link = Secret::new(format!(
-        "{domain}/payment_methods/collect/{merchant_id}/{pm_collect_link_id}"
+        "{domain}/payment_methods/collect/{}/{pm_collect_link_id}",
+        merchant_id.get_string_repr()
     ));
     let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
         (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),

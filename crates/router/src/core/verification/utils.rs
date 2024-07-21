@@ -49,7 +49,6 @@ pub async fn check_existence_and_add_domain_to_db(
 
     already_verified_domains.append(&mut new_verified_domains);
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
-        merchant_id: None,
         connector_type: None,
         connector_name: None,
         connector_account_details: None,

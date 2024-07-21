@@ -86,7 +86,7 @@ where
     async fn list_multiple_merchant_accounts(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 }
 
@@ -145,15 +145,20 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
-                .await?
-                .convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
+            cache::get_or_populate_in_memory(
+                self,
+                merchant_id.get_string_repr(),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
         }
     }
 
@@ -358,7 +363,7 @@ impl MerchantAccountInterface for Store {
     async fn list_multiple_merchant_accounts(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
 
@@ -391,7 +396,7 @@ impl MerchantAccountInterface for Store {
                 |merchant_account| async {
                     let key_store = key_stores_by_id.get(&merchant_account.get_id()).ok_or(
                         errors::StorageError::ValueNotFound(format!(
-                            "merchant_key_store with merchant_id = {}",
+                            "merchant_key_store with merchant_id = {:?}",
                             merchant_account.get_id()
                         )),
                     )?;
@@ -478,7 +483,7 @@ impl MerchantAccountInterface for MockDb {
         let accounts = self.merchant_accounts.lock().await;
         let account: Option<domain::MerchantAccount> = accounts
             .iter()
-            .find(|account| account.merchant_id == merchant_id)
+            .find(|account| account.merchant_id == *merchant_id)
             .cloned()
             .async_map(|a| async {
                 a.convert(
@@ -558,7 +563,7 @@ impl MerchantAccountInterface for MockDb {
     async fn list_multiple_merchant_accounts(
         &self,
         _state: &KeyManagerState,
-        _merchant_ids: Vec<String>,
+        _merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

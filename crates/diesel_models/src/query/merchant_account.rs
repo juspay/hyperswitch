@@ -113,7 +113,7 @@ impl MerchantAccount {
 
     pub async fn list_multiple_merchant_accounts(
         conn: &PgPooledConn,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,

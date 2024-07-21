@@ -166,7 +166,7 @@ impl AuthenticationInterface for MockDb {
             .find(|a| a.merchant_id == *merchant_id && a.authentication_id == authentication_id)
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id}"
+                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id:?}"
                 )).into(),
             ).cloned()
     }
@@ -199,7 +199,7 @@ impl AuthenticationInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id}"
+                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id:?}"
                 ))
                 .into(),
             )

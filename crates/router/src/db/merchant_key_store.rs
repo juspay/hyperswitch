@@ -41,7 +41,7 @@ pub trait MerchantKeyStoreInterface {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 
@@ -140,7 +140,8 @@ impl MerchantKeyStoreInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            let key_store_cache_key =
+                format!("merchant_key_store_{}", merchant_id.get_string_repr());
             cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(key_store_cache_key.into()),
@@ -155,7 +156,7 @@ impl MerchantKeyStoreInterface for Store {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let fetch_func = || async {
@@ -218,7 +219,7 @@ impl MerchantKeyStoreInterface for MockDb {
         {
             Err(errors::StorageError::DuplicateValue {
                 entity: "merchant_key_store",
-                key: Some(merchant_key_store.merchant_id.clone()),
+                key: Some(merchant_key_store.merchant_id.get_string_repr().to_owned()),
             })?;
         }
 
@@ -243,7 +244,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|merchant_key| merchant_key.merchant_id == merchant_id)
+            .find(|merchant_key| merchant_key.merchant_id == *merchant_id)
             .cloned()
             .ok_or(errors::StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
@@ -260,9 +261,9 @@ impl MerchantKeyStoreInterface for MockDb {
         let mut merchant_key_stores = self.merchant_key_store.lock().await;
         let index = merchant_key_stores
             .iter()
-            .position(|mks| mks.merchant_id == merchant_id)
+            .position(|mks| mks.merchant_id == *merchant_id)
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No merchant key store found for merchant_id = {}",
+                "No merchant key store found for merchant_id = {:?}",
                 merchant_id
             )))?;
         merchant_key_stores.remove(index);
@@ -273,7 +274,7 @@ impl MerchantKeyStoreInterface for MockDb {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let merchant_key_stores = self.merchant_key_store.lock().await;

@@ -223,7 +223,7 @@ impl UserRoleInterface for Store {
             let new_org_admin_merchant_ids = new_org_admin_user_roles
                 .iter()
                 .map(|user_role| user_role.merchant_id.to_owned())
-                .collect::<HashSet<String>>();
+                .collect::<HashSet<_>>();
 
             let now = common_utils::date_time::now();
 
@@ -322,11 +322,11 @@ impl UserRoleInterface for MockDb {
         let user_roles = self.user_roles.lock().await;
         user_roles
             .iter()
-            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == merchant_id)
+            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == *merchant_id)
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id}"
+                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id:?}"
                 ))
                 .into(),
             )
@@ -341,7 +341,7 @@ impl UserRoleInterface for MockDb {
         let mut user_roles = self.user_roles.lock().await;
         user_roles
             .iter_mut()
-            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == merchant_id)
+            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == *merchant_id)
             .map(|user_role| {
                 *user_role = match &update {
                     storage::UserRoleUpdate::UpdateRole {
@@ -365,7 +365,7 @@ impl UserRoleInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id}"
+                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id:?}"
                 ))
                 .into(),
             )
@@ -441,7 +441,7 @@ impl UserRoleInterface for MockDb {
         let new_org_admin_merchant_ids = new_org_admin_user_roles
             .iter()
             .map(|user_role| user_role.merchant_id.to_owned())
-            .collect::<HashSet<String>>();
+            .collect::<HashSet<_>>();
 
         let now = common_utils::date_time::now();
 
@@ -481,7 +481,7 @@ impl UserRoleInterface for MockDb {
 
         match user_roles
             .iter()
-            .position(|role| role.user_id == user_id && role.merchant_id == merchant_id)
+            .position(|role| role.user_id == user_id && role.merchant_id == *merchant_id)
         {
             Some(index) => Ok(user_roles.remove(index)),
             None => Err(errors::StorageError::ValueNotFound(
@@ -519,7 +519,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .cloned()
             .filter_map(|ele| {
-                if ele.merchant_id == merchant_id {
+                if ele.merchant_id == *merchant_id {
                     return Some(ele);
                 }
                 None

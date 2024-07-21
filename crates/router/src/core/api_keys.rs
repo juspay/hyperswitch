@@ -123,7 +123,7 @@ pub async fn create_api_key(
     store
         .get_merchant_key_store_by_merchant_id(
             &(&state).into(),
-            merchant_id,
+            &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
         .await
@@ -172,7 +172,7 @@ pub async fn create_api_key(
     metrics::API_KEY_CREATED.add(
         &metrics::CONTEXT,
         1,
-        &add_attributes([("merchant", merchant_id)]),
+        &add_attributes([("merchant", merchant_id.get_string_repr().to_owned())]),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
