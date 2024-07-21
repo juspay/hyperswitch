@@ -31,7 +31,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
     state
         .store
         .insert_metadata(DashboardMetadataNew {
-            user_id: None,
+            user_id: user_id.clone(),
             merchant_id,
             org_id,
             data_key: metadata_key,
@@ -64,7 +64,7 @@ pub async fn insert_user_scoped_metadata_to_db(
     state
         .store
         .insert_metadata(DashboardMetadataNew {
-            user_id: Some(user_id.clone()),
+            user_id: user_id.clone(),
             merchant_id,
             org_id,
             data_key: metadata_key,
@@ -135,7 +135,7 @@ pub async fn update_merchant_scoped_metadata(
     state
         .store
         .update_metadata(
-            None,
+            user_id.clone(),
             merchant_id,
             org_id,
             metadata_key,
@@ -163,7 +163,7 @@ pub async fn update_user_scoped_metadata(
     state
         .store
         .update_metadata(
-            Some(user_id.clone()),
+            user_id.clone(),
             merchant_id,
             org_id,
             metadata_key,
@@ -187,16 +187,10 @@ where
         .attach_printable("Error Serializing Metadata from DB")
 }
 
-pub fn separate_metadata_type_based_on_scope(
-    metadata_keys: Vec<DBEnum>,
-) -> (Vec<DBEnum>, Vec<DBEnum>) {
-    let (mut merchant_scoped, mut user_scoped) = (
-        Vec::with_capacity(metadata_keys.len()),
-        Vec::with_capacity(metadata_keys.len()),
-    );
-    for key in metadata_keys {
-        match key {
-            DBEnum::ProductionAgreement
+pub fn is_merchant_scoped_metadata(key: &DBEnum) -> bool {
+    matches!(
+        key,
+        DBEnum::ProductionAgreement
             | DBEnum::SetupProcessor
             | DBEnum::ConfigureEndpoint
             | DBEnum::SetupComplete
@@ -215,14 +209,75 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ConfigureWoocom
             | DBEnum::SetupWoocomWebhook
             | DBEnum::OnboardingSurvey
-            | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
-            DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired => {
-                user_scoped.push(key)
-            }
+            | DBEnum::IsMultipleConfiguration
+    )
+}
+
+pub fn is_user_scoped_metadata(key: &DBEnum) -> bool {
+    matches!(
+        key,
+        DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired
+    )
+}
+
+pub fn separate_metadata_type_based_on_scope(
+    metadata_keys: Vec<DBEnum>,
+) -> (Vec<DBEnum>, Vec<DBEnum>) {
+    let (mut merchant_scoped, mut user_scoped) = (
+        Vec::with_capacity(metadata_keys.len()),
+        Vec::with_capacity(metadata_keys.len()),
+    );
+
+    for key in metadata_keys {
+        if is_merchant_scoped_metadata(&key) {
+            merchant_scoped.push(key);
+        } else if is_user_scoped_metadata(&key) {
+            user_scoped.push(key);
         }
     }
+
     (merchant_scoped, user_scoped)
 }
+
+// pub fn separate_metadata_type_based_on_scope(
+//     metadata_keys: Vec<DBEnum>,
+// ) -> (Vec<DBEnum>, Vec<DBEnum>) {
+//     let (mut merchant_scoped, mut user_scoped) = (
+//         Vec::with_capacity(metadata_keys.len()),
+//         Vec::with_capacity(metadata_keys.len()),
+//     );
+//     for key in metadata_keys {
+//         match key {
+//             DBEnum::ProductionAgreement
+//             | DBEnum::SetupProcessor
+//             | DBEnum::ConfigureEndpoint
+//             | DBEnum::SetupComplete
+//             | DBEnum::FirstProcessorConnected
+//             | DBEnum::SecondProcessorConnected
+//             | DBEnum::ConfiguredRouting
+//             | DBEnum::TestPayment
+//             | DBEnum::IntegrationMethod
+//             | DBEnum::ConfigurationType
+//             | DBEnum::IntegrationCompleted
+//             | DBEnum::StripeConnected
+//             | DBEnum::PaypalConnected
+//             | DBEnum::SpRoutingConfigured
+//             | DBEnum::SpTestPayment
+//             | DBEnum::DownloadWoocom
+//             | DBEnum::ConfigureWoocom
+//             | DBEnum::SetupWoocomWebhook
+//             | DBEnum::OnboardingSurvey
+//             | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
+//             DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired => {
+//                 user_scoped.push(key)
+//             }
+//         }
+//         if is_user_scoped_metadata(key) {
+//             user_scoped
+//         }
+//     }
+//     (merchant_scoped, user_scoped)
+// }
 
 pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     match metadata {

@@ -7,7 +7,7 @@ use crate::{enums, schema::dashboard_metadata};
 #[diesel(table_name = dashboard_metadata, check_for_backend(diesel::pg::Pg))]
 pub struct DashboardMetadata {
     pub id: i32,
-    pub user_id: Option<String>,
+    pub user_id: String,
     pub merchant_id: String,
     pub org_id: String,
     pub data_key: enums::DashboardMetadata,
@@ -23,7 +23,7 @@ pub struct DashboardMetadata {
 )]
 #[diesel(table_name = dashboard_metadata)]
 pub struct DashboardMetadataNew {
-    pub user_id: Option<String>,
+    pub user_id: String,
     pub merchant_id: String,
     pub org_id: String,
     pub data_key: enums::DashboardMetadata,

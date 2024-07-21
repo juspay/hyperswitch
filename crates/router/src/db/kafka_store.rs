@@ -2616,7 +2616,7 @@ impl DashboardMetadataInterface for KafkaStore {
 
     async fn update_metadata(
         &self,
-        user_id: Option<String>,
+        user_id: String,
         merchant_id: String,
         org_id: String,
         data_key: enums::DashboardMetadata,
