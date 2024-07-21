@@ -665,6 +665,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+        use api_models::payments::SortCriteria;
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -674,14 +675,23 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
             )
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(pi_dsl::created_at.desc())
             .into_boxed();
+
 
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List(params) => {
+
+                query = match params.order_by {
+                    Some(SortCriteria::AmountAscending) => query.order(pi_dsl::amount.asc()),
+                    Some(SortCriteria::AmountDescending) => query.order(pi_dsl::amount.desc()),
+                    Some(SortCriteria::CreatedAtAscending) => query.order(pi_dsl::created_at.asc()),
+                    Some(SortCriteria::CreatedAtDescending) => query.order(pi_dsl::created_at.desc()),
+                    None => query.order(pi_dsl::created_at.desc()), // Default ordering
+                };
+
                 if let Some(limit) = params.limit {
                     query = query.limit(limit.into());
                 }

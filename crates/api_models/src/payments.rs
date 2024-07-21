@@ -4042,6 +4042,8 @@ pub struct PaymentListFilterConstraints {
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
     pub merchant_connector_id: Option<Vec<String>>,
+    /// The order in which operations should be sorted
+    pub order_by: Option<SortCriteria>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4080,6 +4082,16 @@ pub struct AmountFilter {
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortCriteria {
+    AmountAscending,
+    AmountDescending,
+    CreatedAtAscending,
+    CreatedAtDescending,
+}
+
 
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
