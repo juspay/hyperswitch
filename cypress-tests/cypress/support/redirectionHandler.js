@@ -9,7 +9,8 @@ export function handleRedirection(
   redirection_type,
   urls,
   connectorId,
-  payment_method_type
+  payment_method_type,
+  handler_metadata
 ) {
   switch (redirection_type) {
     case "bank_redirect":
@@ -25,7 +26,8 @@ export function handleRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type
+        payment_method_type,
+        handler_metadata.next_action_type
       );
       break;
     case "three_ds":
@@ -48,27 +50,53 @@ function bankTransferRedirection(
   redirection_url,
   expected_url,
   connectorId,
-  payment_method_type
+  payment_method_type,
+  next_action_type
 ) {
-  cy.request(redirection_url.href).then((response) => {
-    switch (connectorId) {
-      case "adyen":
-        switch (payment_method_type) {
-          case "pix":
-            expect(response.status).to.eq(200);
-            fetchAndParseQRCode(redirection_url.href).then((qrCodeData) => {
-              expect(qrCodeData).to.eq("TestQRCodeEMVToken");
-            });
+  switch (next_action_type) {
+    case "qr_code_url":
+      cy.request(redirection_url.href).then((response) => {
+        switch (connectorId) {
+          case "adyen":
+            switch (payment_method_type) {
+              case "pix":
+                expect(response.status).to.eq(200);
+                fetchAndParseQRCode(redirection_url.href).then((qrCodeData) => {
+                  expect(qrCodeData).to.eq("TestQRCodeEMVToken");
+                });
+                break;
+              default:
+                verifyReturnUrl(redirection_url, expected_url, true);
+              // expected_redirection can be used here to handle other payment methods
+            }
             break;
           default:
             verifyReturnUrl(redirection_url, expected_url, true);
-          // expected_redirection can be used here to handle other payment methods
         }
-        break;
-      default:
-        verifyReturnUrl(redirection_url, expected_url, true);
-    }
-  });
+      });
+    break;
+    case "image_data_url":
+      switch (connectorId) {
+        case "itaubank": 
+          switch (payment_method_type) {
+            case "pix":
+              fetchAndParseImageData(redirection_url).then((qrCodeData) => {
+                console.log("Imaage_data>>>>>>>>>", qrCodeData)
+                expect(qrCodeData).to.contains('itau.com.br/pix/qr/v2') // image data contains the following value
+              });
+              break;
+            default:
+              verifyReturnUrl(redirection_url, expected_url, true);
+          }
+          break;
+        default:
+          verifyReturnUrl(redirection_url, expected_url, true);
+      }
+      break;
+    default:
+      verifyReturnUrl(redirection_url, expected_url, true);
+  }
+  
 }
 
 function bankRedirectRedirection(
@@ -414,5 +442,34 @@ async function fetchAndParseQRCode(url) {
       image.onerror = reject; // Handle image loading errors
     };
     reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchAndParseImageData(url) {
+  return await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = url;
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const qrCodeData = jsQR(
+        imageData.data,
+        imageData.width,
+        imageData.height
+      );
+
+      if (qrCodeData) {
+        resolve(qrCodeData.data);
+      } else {
+        reject(new Error("Failed to decode QR code"));
+      }
+    };
+    image.onerror = reject; // Handle image loading errors
   });
 }

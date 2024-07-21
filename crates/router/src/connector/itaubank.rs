@@ -252,6 +252,17 @@ impl
         types::PaymentsResponseData,
     > for Itaubank
 {
+    fn build_request(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "setup mandate".to_string(),
+            connector: "itaubank".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>

@@ -97,9 +97,12 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | domain::BankTransferData::DanamonVaBankTransfer {}
                     | domain::BankTransferData::MandiriVaBankTransfer {}
                     | domain::BankTransferData::Pse {}
-                    | domain::BankTransferData::LocalBankTransfer { .. } => Err(
-                        errors::ConnectorError::NotImplemented("Payment method".to_string()).into(),
-                    ),
+                    | domain::BankTransferData::LocalBankTransfer { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            "Selected payment method through itaubank".to_string(),
+                        )
+                        .into())
+                    }
                 }
             }
             domain::PaymentMethodData::Card(_)
@@ -117,7 +120,10 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::OpenBanking(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected payment method through itaubank".to_string(),
+                )
+                .into())
             }
         }
     }
