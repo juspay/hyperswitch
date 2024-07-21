@@ -947,7 +947,51 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             }
             None => None,
         };
-        Ok(Self {
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let response = Self {
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            connector_id: item.merchant_connector_id,
+            connector_account_details: item.connector_account_details.into_inner(),
+            test_mode: item.test_mode,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            frm_configs,
+            connector_webhook_details: item
+                .connector_webhook_details
+                .map(|webhook_details| {
+                    serde_json::Value::parse_value(
+                        webhook_details.expose(),
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_webhook_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
+                        data.expose(),
+                        "AdditionalMerchantData",
+                    )
+                    .attach_printable("Unable to deserialize additional_merchant_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?
+                .map(api_models::admin::AdditionalMerchantData::foreign_from),
+        };
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
+        let response = Self {
             connector_type: item.connector_type,
             connector_name: item.connector_name,
             connector_label: item.connector_label,
@@ -989,7 +1033,8 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
-        })
+        };
+        Ok(response)
     }
 }
 

@@ -52,7 +52,7 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", not(feature = "v2")))]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
@@ -1036,7 +1036,31 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "merchant_connector_account_v2"
+))]
+impl MerchantConnectorAccount {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            use super::admin::*;
+
+            route =
+                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::{errors::IntegrityCheckError, id_type, types::MinorUnit};
+use common_utils::{errors::IntegrityCheckError, ext_traits::OptionExt, id_type, types::MinorUnit};
+use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
@@ -106,6 +107,18 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+impl ConnectorAuthType {
+    pub fn from_option_secret_value(
+        value: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
+        value
+            .parse_value::<Self>("ConnectorAuthType")
+            .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                "ConnectorAuthType",
+            ))
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]

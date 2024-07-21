@@ -8,12 +8,13 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
-    ext_traits::{ConfigExt, Encode},
+    ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
     pii::{self, Email, EmailStrategy},
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
+use error_stack::ResultExt;
 use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
@@ -4504,6 +4505,32 @@ pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
+}
+
+impl ConnectorMetadata {
+    pub fn from_value(
+        value: pii::SecretSerdeValue,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
+        value
+            .parse_value::<Self>("ConnectorMetadata")
+            .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                "Metadata",
+            ))
+    }
+    pub fn get_apple_pay_certificates(self) -> Option<(Secret<String>, Secret<String>)> {
+        self.apple_pay.and_then(|applepay_metadata| {
+            applepay_metadata
+                .session_token_data
+                .map(|session_token_data| {
+                    let SessionTokenInfo {
+                        certificate,
+                        certificate_keys,
+                        ..
+                    } = session_token_data;
+                    (certificate, certificate_keys)
+                })
+        })
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

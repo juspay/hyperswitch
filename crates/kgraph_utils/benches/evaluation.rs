@@ -52,6 +52,29 @@ fn build_test_data(
         });
     }
 
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let stripe_account = MerchantConnectorResponse {
+        connector_type: api_enums::ConnectorType::FizOperations,
+        connector_name: "stripe".to_string(),
+        connector_id: "something".to_string(),
+        connector_account_details: masking::Secret::new(serde_json::json!({})),
+        test_mode: None,
+        metadata: None,
+        payment_methods_enabled: Some(pms_enabled),
+        connector_label: Some("something".to_string()),
+        frm_configs: None,
+        connector_webhook_details: None,
+        profile_id: None,
+        applepay_verified_domains: None,
+        pm_auth_config: None,
+        status: api_enums::ConnectorStatus::Inactive,
+        additional_merchant_data: None,
+    };
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),

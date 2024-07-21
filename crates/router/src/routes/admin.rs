@@ -196,16 +196,27 @@ pub async fn delete_merchant_account(
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     path: web::Path<String>,
     json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsCreate;
+    let payload = json_payload.into_inner();
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let merchant_id = path.into_inner();
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let merchant_id = payload.merchant_id.clone();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, _, req, _| create_payment_connector(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
