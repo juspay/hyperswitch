@@ -69,7 +69,7 @@ crates_with_v1_feature="$(
     --null-input \
     '$crates_with_features[]
     | select( IN("v1"; .features[]))  # Select crates with `v1` feature
-    | { name, features: (.features - ["v1", "v2", "default", "payment_v2", "merchant_account_v2"]) }  # Remove specific features to generate feature combinations
+    | { name, features: (.features - ["v1", "v2", "default", "payment_v2", "merchant_account_v2", "merchant_connector_account_v2"]) }  # Remove specific features to generate feature combinations
     | { name, features: ( .features | map([., "v1"] | join(",")) ) }  # Add `v1` to remaining features and join them by comma
     | .name as $name | .features[] | { $name, features: . }  # Expand nested features object to have package - features combinations
     | "\(.name) \(.features)" # Print out package name and features separated by space'
