@@ -302,7 +302,7 @@ async fn trigger_webhook_to_merchant(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                    .await?;
+                .await?;
                 None
             }
             Ok(response) => {
@@ -355,7 +355,7 @@ async fn trigger_webhook_to_merchant(
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(process_tracker),
                     )
-                        .await?;
+                    .await?;
                     None
                 }
                 Ok(response) => {
@@ -367,7 +367,7 @@ async fn trigger_webhook_to_merchant(
                         &event_id,
                         response,
                     )
-                        .await?;
+                    .await?;
 
                     if status_code.is_success() {
                         success_response_handler(
@@ -403,7 +403,7 @@ async fn trigger_webhook_to_merchant(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                    .await?;
+                .await?;
                 None
             }
             Ok(response) => {
@@ -415,7 +415,7 @@ async fn trigger_webhook_to_merchant(
                     &event_id,
                     response,
                 )
-                    .await?;
+                .await?;
 
                 if status_code.is_success() {
                     increment_webhook_outgoing_received_count(&business_profile.merchant_id);
@@ -449,7 +449,11 @@ fn raise_webhooks_analytics_event(
     let mut error: Option<serde_json::Value> = None;
 
     match trigger_webhook_result {
-        Ok(updated_event) => if let Some(updated_event) = updated_event { event = updated_event }
+        Ok(updated_event) => {
+            if let Some(updated_event) = updated_event {
+                event = updated_event
+            }
+        }
         Err(e) => {
             logger::error!(?error, "Failed to send webhook to merchant");
 

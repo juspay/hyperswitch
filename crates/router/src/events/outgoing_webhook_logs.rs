@@ -1,8 +1,8 @@
 use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::OutgoingWebhookContent};
+use common_enums::WebhookDeliveryAttempt;
 use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
-use common_enums::WebhookDeliveryAttempt;
 
 use super::EventType;
 use crate::services::kafka::KafkaMessage;
@@ -100,7 +100,7 @@ impl OutgoingWebhookEvent {
         error: Option<Value>,
         initial_attempt_id: Option<String>,
         status_code: Option<u16>,
-        delivery_attempt: Option<WebhookDeliveryAttempt>
+        delivery_attempt: Option<WebhookDeliveryAttempt>,
     ) -> Self {
         Self {
             merchant_id,
