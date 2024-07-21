@@ -1,40 +1,13 @@
-use common_utils::pii::EncryptionStrategy;
 use diesel::{
     backend::Backend,
     deserialize::{self, FromSql, Queryable},
+    expression::AsExpression,
     serialize::ToSql,
-    sql_types, AsExpression,
+    sql_types,
 };
 use masking::Secret;
 
-#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-#[diesel(sql_type = sql_types::Binary)]
-#[repr(transparent)]
-pub struct Encryption {
-    inner: Secret<Vec<u8>, EncryptionStrategy>,
-}
-
-impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
-    fn from(value: common_utils::crypto::Encryptable<T>) -> Self {
-        Self::new(value.into_encrypted())
-    }
-}
-
-impl Encryption {
-    pub fn new(item: Secret<Vec<u8>, EncryptionStrategy>) -> Self {
-        Self { inner: item }
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> Secret<Vec<u8>, EncryptionStrategy> {
-        self.inner
-    }
-
-    #[inline]
-    pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStrategy> {
-        &self.inner
-    }
-}
+use crate::{crypto::Encryptable, pii::EncryptionStrategy};
 
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where
@@ -67,5 +40,34 @@ where
     type Row = Secret<Vec<u8>, EncryptionStrategy>;
     fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(Self { inner: row })
+    }
+}
+
+#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[diesel(sql_type = sql_types::Binary)]
+#[repr(transparent)]
+pub struct Encryption {
+    inner: Secret<Vec<u8>, EncryptionStrategy>,
+}
+
+impl<T: Clone> From<Encryptable<T>> for Encryption {
+    fn from(value: Encryptable<T>) -> Self {
+        Self::new(value.into_encrypted())
+    }
+}
+
+impl Encryption {
+    pub fn new(item: Secret<Vec<u8>, EncryptionStrategy>) -> Self {
+        Self { inner: item }
+    }
+
+    #[inline]
+    pub fn into_inner(self) -> Secret<Vec<u8>, EncryptionStrategy> {
+        self.inner
+    }
+
+    #[inline]
+    pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStrategy> {
+        &self.inner
     }
 }

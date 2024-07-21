@@ -128,7 +128,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (id) {
+    blocklist (merchant_id, fingerprint_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -1099,7 +1099,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (id) {
+    refund (merchant_id, refund_id) {
         id -> Int4,
         #[max_length = 64]
         internal_reference_id -> Varchar,
@@ -1168,7 +1168,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    roles (id) {
+    roles (role_id) {
         id -> Int4,
         #[max_length = 64]
         role_name -> Varchar,
@@ -1251,7 +1251,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    user_roles (id) {
+    user_roles (user_id, merchant_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,
@@ -1275,7 +1275,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    users (id) {
+    users (user_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,

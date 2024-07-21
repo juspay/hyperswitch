@@ -110,6 +110,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn session_state(&self) -> SessionState;
 }
 
 impl SessionStateInfo for SessionState {
@@ -129,6 +130,9 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
+    }
+    fn session_state(&self) -> SessionState {
+        self.clone()
     }
 }
 #[derive(Clone)]
@@ -996,7 +1000,7 @@ impl Blocklist {
 
 pub struct MerchantAccount;
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/accounts")
@@ -1005,7 +1009,11 @@ impl MerchantAccount {
     }
 }
 
-#[cfg(all(feature = "olap", not(feature = "v2")))]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
