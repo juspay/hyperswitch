@@ -25,7 +25,7 @@ impl MerchantConnectorAccount {
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            self.merchant_connector_id.to_owned(),
             merchant_connector_account,
         )
         .await

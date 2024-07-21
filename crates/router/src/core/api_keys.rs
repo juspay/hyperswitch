@@ -122,6 +122,7 @@ pub async fn create_api_key(
     // non-existence of a merchant account.
     store
         .get_merchant_key_store_by_merchant_id(
+            &(&state).into(),
             merchant_id.as_str(),
             &store.get_master_key().to_vec().into(),
         )

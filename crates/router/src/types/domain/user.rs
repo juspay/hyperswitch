@@ -4,11 +4,12 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-#[cfg(not(feature = "v2"))]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::id_type;
-#[cfg(feature = "keymanager_create")]
-use common_utils::types::keymanager::{EncryptionCreateRequest, Identifier};
-use common_utils::{crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii};
+use common_utils::{
+    crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii,
+    types::keymanager::Identifier,
+};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -22,6 +23,8 @@ use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
+#[cfg(feature = "keymanager_create")]
+use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
     consts,
@@ -368,6 +371,7 @@ impl NewUserMerchant {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
+                &(&state).into(),
                 self.get_merchant_id().as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -383,7 +387,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
@@ -402,7 +406,10 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(not(feature = "v2"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())
@@ -949,9 +956,14 @@ impl UserFromStorage {
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
+        let key_manager_state = &state.into();
         let key_store_result = state
             .global_store
-            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
+            .get_user_key_store_by_user_id(
+                key_manager_state,
+                self.get_user_id(),
+                &master_key.to_vec().into(),
+            )
             .await;
 
         if let Ok(key_store) = key_store_result {
@@ -966,29 +978,35 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to generate aes 256 key")?;
 
-            let key_store = UserKeyStore {
-                user_id: self.get_user_id().to_string(),
-                key: domain_types::encrypt(key.to_vec().into(), master_key)
-                    .await
-                    .change_context(UserErrors::InternalServerError)?,
-                created_at: common_utils::date_time::now(),
-            };
-
             #[cfg(feature = "keymanager_create")]
             {
-                common_utils::keymanager::create_key_in_key_manager(
-                    &state.into(),
-                    EncryptionCreateRequest {
-                        identifier: Identifier::User(key_store.user_id.clone()),
+                common_utils::keymanager::transfer_key_to_key_manager(
+                    key_manager_state,
+                    EncryptionTransferRequest {
+                        identifier: Identifier::User(self.get_user_id().to_string()),
+                        key: consts::BASE64_ENGINE.encode(key),
                     },
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?;
             }
 
+            let key_store = UserKeyStore {
+                user_id: self.get_user_id().to_string(),
+                key: domain_types::encrypt(
+                    key_manager_state,
+                    key.to_vec().into(),
+                    Identifier::User(self.get_user_id().to_string()),
+                    master_key,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?,
+                created_at: common_utils::date_time::now(),
+            };
+
             state
                 .global_store
-                .insert_user_key_store(key_store, &master_key.to_vec().into())
+                .insert_user_key_store(key_manager_state, key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
         } else {
@@ -1014,18 +1032,21 @@ impl UserFromStorage {
         if self.0.totp_secret.is_none() {
             return Ok(None);
         }
-
+        let key_manager_state = &state.into();
         let user_key_store = state
             .global_store
             .get_user_key_store_by_user_id(
+                key_manager_state,
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::decrypt::<String, masking::WithType>(
+        Ok(domain_types::decrypt_optional::<String, masking::WithType>(
+            key_manager_state,
             self.0.totp_secret.clone(),
+            Identifier::User(user_key_store.user_id.clone()),
             user_key_store.key.peek(),
         )
         .await
@@ -1141,6 +1162,7 @@ impl SignInWithMultipleRolesStrategy {
         let merchant_accounts = state
             .store
             .list_multiple_merchant_accounts(
+                &state.into(),
                 self.user_roles
                     .iter()
                     .map(|role| role.merchant_id.clone())

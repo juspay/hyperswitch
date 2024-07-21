@@ -13,12 +13,6 @@ import {
 } from "../PaymentMethodListUtils/Commons";
 import getConnectorDetails from "../PaymentMethodListUtils/Utils";
 
-// Testing for scenario:
-// MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
-// MCA2 -> Cybersource configured with credit = { currency = "USD" }
-// Payment is done with currency as EUR and no billing address
-// The resultant Payment Method list should only have ideal with stripe
-
 let globalState;
 describe("Payment Method list using Constraint Graph flow tests", () => {
   // Testing for scenario:
@@ -90,7 +84,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have ideal with stripe
       it("payment-method-list-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails("stripe")[
           "pm_list"
         ]["PmListResponse"]["PmListWithStripeForIdeal"];
         cy.paymentMethodListTestLessThanEqualToOnePaymentMethod(
@@ -170,7 +164,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have ideal with stripe
       it("payment-method-list-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails("stripe")[
           "pm_list"
         ]["PmListResponse"]["PmListNull"];
         cy.paymentMethodListTestLessThanEqualToOnePaymentMethod(
@@ -250,7 +244,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have credit with Stripe and Cybersource
       it("payment-method-list-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails("stripe")[
           "pm_list"
         ]["PmListResponse"]["PmListWithCreditTwoConnector"];
         cy.paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit(
@@ -330,7 +324,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which shouldn't have anything
       it("payment-method-list-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails("stripe")[
           "pm_list"
         ]["PmListResponse"]["PmListNull"];
         cy.paymentMethodListTestLessThanEqualToOnePaymentMethod(
@@ -414,7 +408,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should have credit with stripe and cybersource and no ideal
       it("payment-method-list-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        let data = getConnectorDetails("stripe")[
           "pm_list"
         ]["PmListResponse"]["PmListWithCreditTwoConnector"];
         cy.paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit(

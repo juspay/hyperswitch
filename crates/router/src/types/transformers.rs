@@ -21,11 +21,12 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
         X_PAYMENT_CONFIRM_SOURCE,
     },
     services::authentication::get_header_value_by_key,
     types::{
+        self as router_types,
         api::{self as api_types, routing as routing_types},
         storage,
     },
@@ -239,7 +240,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
-            // api_enums::Connector::Datatrans => Self::Datatrans,  added as template code for future use
+            api_enums::Connector::Datatrans => Self::Datatrans,
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -273,11 +274,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
-            api_enums::Connector::Plaid => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "plaid is not a routable connector".to_string(),
-                })?
-            }
+            api_enums::Connector::Plaid => Self::Plaid,
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
@@ -477,6 +474,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::OpenBankingUk
+            | api_enums::PaymentMethodType::OpenBankingPIS
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
@@ -555,6 +553,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
             payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
+            payments::PaymentMethodData::OpenBanking(..) => Ok(Self::OpenBanking),
             payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
@@ -1023,6 +1022,19 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
+                        data.expose(),
+                        "AdditionalMerchantData",
+                    )
+                    .attach_printable("Unable to deserialize additional_merchant_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?
+                .map(api_models::admin::AdditionalMerchantData::foreign_from),
         })
     }
 }
@@ -1187,6 +1199,9 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                     .unwrap_or(api_enums::ClientPlatform::Unknown)
             });
 
+        let x_merchant_domain =
+            get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
+
         Ok(Self {
             payment_confirm_source,
             client_source,
@@ -1194,6 +1209,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             x_hs_latency: Some(x_hs_latency),
             browser_name,
             x_client_platform,
+            x_merchant_domain,
         })
     }
 }

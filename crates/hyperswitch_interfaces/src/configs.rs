@@ -1,8 +1,8 @@
 //! Configs interface
+use common_enums::ApplicationError;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
-use storage_impl::errors::ApplicationError;
 
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
@@ -44,6 +44,7 @@ pub struct Connectors {
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub itaubank: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -61,6 +62,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
+    pub plaid: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,

@@ -53,6 +53,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -97,7 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -107,7 +108,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         .await?;
 
         let billing_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -117,7 +118,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
-            db,
+            state,
             payment_attempt.payment_method_billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -199,7 +200,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b SessionState,
+        state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -224,9 +225,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
             updated_by: storage_scheme.to_string(),
         };
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent,
                 intent_status_update,
                 key_store,
@@ -234,7 +236,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        db.store
+        state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::StatusUpdate {

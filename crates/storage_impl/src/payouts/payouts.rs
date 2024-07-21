@@ -775,8 +775,10 @@ impl DataModelExt for PayoutsNew {
             return_url: self.return_url,
             entity_type: self.entity_type,
             metadata: self.metadata,
-            created_at: self.created_at,
-            last_modified_at: self.last_modified_at,
+            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
+            last_modified_at: self
+                .last_modified_at
+                .unwrap_or_else(common_utils::date_time::now),
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
@@ -804,8 +806,8 @@ impl DataModelExt for PayoutsNew {
             return_url: storage_model.return_url,
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
-            created_at: storage_model.created_at,
-            last_modified_at: storage_model.last_modified_at,
+            created_at: Some(storage_model.created_at),
+            last_modified_at: Some(storage_model.last_modified_at),
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
