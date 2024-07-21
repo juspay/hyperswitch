@@ -100,7 +100,8 @@ impl DashboardMetadata {
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
         // backward compatibily gone to trash here
-        let predicate = dsl::merchant_id.eq(merchant_id)
+        let predicate = dsl::merchant_id
+            .eq(merchant_id)
             .and(dsl::org_id.eq(org_id))
             .and(dsl::data_key.eq_any(data_types));
 
