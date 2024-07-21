@@ -232,7 +232,7 @@ async fn trigger_webhook_to_merchant(
     request_content: OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<Option<domain::Event>, errors::WebhooksFlowError> {
     let webhook_url = match (
         get_webhook_url_from_business_profile(&business_profile),
         process_tracker.clone(),
@@ -290,7 +290,7 @@ async fn trigger_webhook_to_merchant(
     );
     logger::debug!(outgoing_webhook_response=?response);
 
-    match delivery_attempt {
+    let updated_event: Option<domain::Event> = match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
             Err(client_error) => {
                 api_client_error_handler(
@@ -302,11 +302,12 @@ async fn trigger_webhook_to_merchant(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                .await?
+                    .await?;
+                None
             }
             Ok(response) => {
                 let status_code = response.status();
-                let _updated_event = update_event_in_storage(
+                let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
@@ -334,6 +335,8 @@ async fn trigger_webhook_to_merchant(
                     )
                     .await?;
                 }
+
+                Some(updated_event)
             }
         },
         enums::WebhookDeliveryAttempt::AutomaticRetry => {
@@ -352,18 +355,19 @@ async fn trigger_webhook_to_merchant(
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(process_tracker),
                     )
-                    .await?;
+                        .await?;
+                    None
                 }
                 Ok(response) => {
                     let status_code = response.status();
-                    let _updated_event = update_event_in_storage(
+                    let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
                         &event_id,
                         response,
                     )
-                    .await?;
+                        .await?;
 
                     if status_code.is_success() {
                         success_response_handler(
@@ -384,6 +388,7 @@ async fn trigger_webhook_to_merchant(
                         )
                         .await?;
                     }
+                    Some(updated_event)
                 }
             }
         }
@@ -398,18 +403,19 @@ async fn trigger_webhook_to_merchant(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                .await?
+                    .await?;
+                None
             }
             Ok(response) => {
                 let status_code = response.status();
-                let _updated_event = update_event_in_storage(
+                let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
                     &event_id,
                     response,
                 )
-                .await?;
+                    .await?;
 
                 if status_code.is_success() {
                     increment_webhook_outgoing_received_count(&business_profile.merchant_id);
@@ -424,38 +430,46 @@ async fn trigger_webhook_to_merchant(
                     )
                     .await?;
                 }
+                Some(updated_event)
             }
         },
-    }
+    };
 
-    Ok(())
+    Ok(updated_event)
 }
 
 fn raise_webhooks_analytics_event(
     state: SessionState,
-    trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
+    trigger_webhook_result: CustomResult<Option<domain::Event>, errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
     merchant_id: String,
     event: domain::Event,
 ) {
-    let error = if let Err(error) = trigger_webhook_result {
-        logger::error!(?error, "Failed to send webhook to merchant");
+    let mut event = event;
+    let mut error: Option<serde_json::Value> = None;
 
-        serde_json::to_value(error.current_context())
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .map_err(|error| {
-                logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
-                error
-            })
-            .ok()
-    } else {
-        None
-    };
+    match trigger_webhook_result {
+        Ok(updated_event) => if let Some(updated_event) = updated_event { event = updated_event }
+        Err(e) => {
+            logger::error!(?error, "Failed to send webhook to merchant");
+
+            error = serde_json::to_value(e.current_context())
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .map_err(|error| {
+                    logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
+                    error
+                })
+                .ok();
+        }
+    }
 
     let outgoing_webhook_event_content = content
         .as_ref()
         .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
         .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
+
+    // Extract the status_code field from the webhook response
+    let status_code = utils::extract_value_from_response(&event.response, "status_code");
 
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
@@ -464,6 +478,8 @@ fn raise_webhooks_analytics_event(
         outgoing_webhook_event_content,
         error,
         event.initial_attempt_id,
+        status_code,
+        event.delivery_attempt,
     );
     state.event_handler().log_event(&webhook_event);
 }

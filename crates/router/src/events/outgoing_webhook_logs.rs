@@ -2,6 +2,7 @@ use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::Outgoin
 use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
+use common_enums::WebhookDeliveryAttempt;
 
 use super::EventType;
 use crate::services::kafka::KafkaMessage;
@@ -18,6 +19,8 @@ pub struct OutgoingWebhookEvent {
     error: Option<Value>,
     created_at_timestamp: i128,
     initial_attempt_id: Option<String>,
+    status_code: Option<u16>,
+    delivery_attempt: Option<WebhookDeliveryAttempt>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -96,6 +99,8 @@ impl OutgoingWebhookEvent {
         content: Option<OutgoingWebhookEventContent>,
         error: Option<Value>,
         initial_attempt_id: Option<String>,
+        status_code: Option<u16>,
+        delivery_attempt: Option<WebhookDeliveryAttempt>
     ) -> Self {
         Self {
             merchant_id,
@@ -106,6 +111,8 @@ impl OutgoingWebhookEvent {
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             initial_attempt_id,
+            status_code,
+            delivery_attempt,
         }
     }
 }
