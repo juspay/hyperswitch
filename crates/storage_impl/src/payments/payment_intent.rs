@@ -677,18 +677,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .into_boxed();
 
-
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List(params) => {
-
                 query = match params.order_by {
                     Some(SortCriteria::AmountAscending) => query.order(pi_dsl::amount.asc()),
                     Some(SortCriteria::AmountDescending) => query.order(pi_dsl::amount.desc()),
                     Some(SortCriteria::CreatedAtAscending) => query.order(pi_dsl::created_at.asc()),
-                    Some(SortCriteria::CreatedAtDescending) => query.order(pi_dsl::created_at.desc()),
+                    Some(SortCriteria::CreatedAtDescending) => {
+                        query.order(pi_dsl::created_at.desc())
+                    }
                     None => query.order(pi_dsl::created_at.desc()), // Default ordering
                 };
 

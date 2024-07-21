@@ -740,7 +740,6 @@ pub struct PaymentIntentListParams {
     pub order_by: Option<api_models::payments::SortCriteria>,
 }
 
-
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
@@ -811,7 +810,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
-                order_by: value.order_by
+                order_by: value.order_by,
             }))
         }
     }

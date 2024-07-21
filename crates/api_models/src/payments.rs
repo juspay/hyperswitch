@@ -4092,7 +4092,6 @@ pub enum SortCriteria {
     CreatedAtDescending,
 }
 
-
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
 )]
