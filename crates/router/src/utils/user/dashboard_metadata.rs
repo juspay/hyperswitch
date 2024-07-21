@@ -239,46 +239,6 @@ pub fn separate_metadata_type_based_on_scope(
     (merchant_scoped, user_scoped)
 }
 
-// pub fn separate_metadata_type_based_on_scope(
-//     metadata_keys: Vec<DBEnum>,
-// ) -> (Vec<DBEnum>, Vec<DBEnum>) {
-//     let (mut merchant_scoped, mut user_scoped) = (
-//         Vec::with_capacity(metadata_keys.len()),
-//         Vec::with_capacity(metadata_keys.len()),
-//     );
-//     for key in metadata_keys {
-//         match key {
-//             DBEnum::ProductionAgreement
-//             | DBEnum::SetupProcessor
-//             | DBEnum::ConfigureEndpoint
-//             | DBEnum::SetupComplete
-//             | DBEnum::FirstProcessorConnected
-//             | DBEnum::SecondProcessorConnected
-//             | DBEnum::ConfiguredRouting
-//             | DBEnum::TestPayment
-//             | DBEnum::IntegrationMethod
-//             | DBEnum::ConfigurationType
-//             | DBEnum::IntegrationCompleted
-//             | DBEnum::StripeConnected
-//             | DBEnum::PaypalConnected
-//             | DBEnum::SpRoutingConfigured
-//             | DBEnum::SpTestPayment
-//             | DBEnum::DownloadWoocom
-//             | DBEnum::ConfigureWoocom
-//             | DBEnum::SetupWoocomWebhook
-//             | DBEnum::OnboardingSurvey
-//             | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
-//             DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired => {
-//                 user_scoped.push(key)
-//             }
-//         }
-//         if is_user_scoped_metadata(key) {
-//             user_scoped
-//         }
-//     }
-//     (merchant_scoped, user_scoped)
-// }
-
 pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     match metadata {
         Ok(_) => false,
