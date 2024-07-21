@@ -746,7 +746,7 @@ pub async fn payouts_list_core(
                 {
                     Ok(customer) => {
                         match payment_helpers::create_or_find_address_for_payment_by_request(
-                            db,
+                            &state,
                             None,
                             Some(&payouts.address_id.to_owned()),
                             merchant_id,
@@ -858,9 +858,17 @@ pub async fn payouts_filtered_list_core(
                 &key_store.key,
                 key_store.merchant_id.clone(),
             )
-            .await {
+            .await
+            {
                 Ok(domain_cust) => match b {
-                    Some(addr) => match domain::Address::convert_back(addr, &key_store.key).await {
+                    Some(addr) => match domain::Address::convert_back(
+                        &(&state).into(),
+                        addr,
+                        &key_store.key,
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    {
                         Ok(domain_address) => Some((
                             p,
                             pa,
