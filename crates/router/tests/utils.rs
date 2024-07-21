@@ -103,7 +103,7 @@ impl AppClient<Admin> {
     pub async fn create_connector<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         api_key: &str,
     ) -> T
@@ -384,7 +384,7 @@ macro_rules! hlist_pat {
 
 #[derive(Deserialize, Deref)]
 pub struct MerchantId {
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Deserialize, Deref)]

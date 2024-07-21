@@ -252,7 +252,7 @@ where
 
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
     transaction_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -312,7 +312,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 
 async fn ensure_algorithm_cached_v1(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &str,
     profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,

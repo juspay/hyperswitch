@@ -148,13 +148,13 @@ impl PartnerReferralRequest {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct SellerStatusResponse {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub links: Vec<HateoasLink>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 pub struct SellerStatusDetailsResponse {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub primary_email_confirmed: bool,
     pub payments_receivable: bool,
     pub products: Vec<SellerStatusProducts>,

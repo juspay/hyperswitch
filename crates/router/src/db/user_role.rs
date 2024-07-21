@@ -27,13 +27,13 @@ pub trait UserRoleInterface {
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -47,7 +47,7 @@ pub trait UserRoleInterface {
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
@@ -57,7 +57,7 @@ pub trait UserRoleInterface {
 
     async fn list_user_roles_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn transfer_org_ownership_between_users(
@@ -97,7 +97,7 @@ impl UserRoleInterface for Store {
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::find_by_user_id_merchant_id(
@@ -113,7 +113,7 @@ impl UserRoleInterface for Store {
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -149,7 +149,7 @@ impl UserRoleInterface for Store {
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
@@ -176,7 +176,7 @@ impl UserRoleInterface for Store {
     #[instrument(skip_all)]
     async fn list_user_roles_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned())
@@ -317,7 +317,7 @@ impl UserRoleInterface for MockDb {
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
         user_roles
@@ -335,7 +335,7 @@ impl UserRoleInterface for MockDb {
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
@@ -475,7 +475,7 @@ impl UserRoleInterface for MockDb {
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
 
@@ -511,7 +511,7 @@ impl UserRoleInterface for MockDb {
 
     async fn list_user_roles_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
@@ -540,7 +540,7 @@ impl UserRoleInterface for super::KafkaStore {
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -556,7 +556,7 @@ impl UserRoleInterface for super::KafkaStore {
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
@@ -570,7 +570,7 @@ impl UserRoleInterface for super::KafkaStore {
     }
     async fn list_user_roles_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         self.diesel_store
             .list_user_roles_by_merchant_id(merchant_id)

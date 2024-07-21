@@ -151,7 +151,7 @@ pub struct ThreeDsMethodData {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
-    pub acquirer_merchant_id: String,
+    pub acquirer_merchant_id: common_utils::id_type::MerchantId,
     pub acquirer_country_code: Option<String>,
 }
 

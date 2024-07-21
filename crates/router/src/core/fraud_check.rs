@@ -165,7 +165,7 @@ where
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.merchant_id.clone(),
+                    id: merchant_account.get_id().clone(),
                 })
                 .ok();
 
@@ -658,7 +658,7 @@ pub async fn frm_fulfillment_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &req.payment_id.clone(),
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -672,7 +672,7 @@ pub async fn frm_fulfillment_core(
             let existing_fraud_check = db
                 .find_fraud_check_by_payment_id_if_present(
                     req.payment_id.clone(),
-                    merchant_account.merchant_id.clone(),
+                    merchant_account.get_id().clone(),
                 )
                 .await
                 .change_context(invalid_request_error.to_owned())?;
@@ -720,7 +720,7 @@ pub async fn make_fulfillment_api_call(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await

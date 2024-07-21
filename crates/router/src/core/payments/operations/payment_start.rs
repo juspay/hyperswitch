@@ -42,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = &merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -236,10 +236,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         let request_merchant_id = Some(&request.merchant_id[..]);
-        helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
+        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
@@ -250,7 +250,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: &merchant_account.get_id(),
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

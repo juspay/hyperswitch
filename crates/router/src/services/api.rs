@@ -938,7 +938,7 @@ where
     metrics::request::status_code_metrics(
         status_code.to_string(),
         flow.to_string(),
-        merchant_id.to_string(),
+        merchant_id.to_owned(),
     );
 
     output

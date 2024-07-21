@@ -79,7 +79,7 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRou
 #[derive(Deserialize, PartialEq)]
 pub struct GpaymentsMetaData {
     pub endpoint_prefix: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for GpaymentsMetaData {

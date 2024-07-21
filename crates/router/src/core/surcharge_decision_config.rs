@@ -50,7 +50,7 @@ pub async fn upsert_surcharge_decision_config(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let key = get_payment_method_surcharge_routing_id(merchant_account.merchant_id.as_str());
+    let key = get_payment_method_surcharge_routing_id(merchant_account.get_id().as_str());
     let read_config_key = db.find_config_by_key(&key).await;
 
     ast::lowering::lower_program(program.clone())
@@ -147,7 +147,7 @@ pub async fn delete_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
     let db = state.store.as_ref();
-    let key = get_payment_method_surcharge_routing_id(&merchant_account.merchant_id);
+    let key = get_payment_method_surcharge_routing_id(&merchant_account.get_id());
     let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -175,8 +175,7 @@ pub async fn retrieve_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<SurchargeDecisionManagerResponse> {
     let db = state.store.as_ref();
-    let algorithm_id =
-        get_payment_method_surcharge_routing_id(merchant_account.merchant_id.as_str());
+    let algorithm_id = get_payment_method_surcharge_routing_id(merchant_account.get_id().as_str());
     let algo_config = db
         .find_config_by_key(&algorithm_id)
         .await

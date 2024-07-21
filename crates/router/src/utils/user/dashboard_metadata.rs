@@ -19,7 +19,7 @@ use crate::{
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
@@ -52,7 +52,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
 pub async fn insert_user_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
@@ -85,7 +85,7 @@ pub async fn insert_user_scoped_metadata_to_db(
 
 pub async fn get_merchant_scoped_metadata_from_db(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
@@ -99,7 +99,7 @@ pub async fn get_merchant_scoped_metadata_from_db(
 pub async fn get_user_scoped_metadata_from_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
@@ -123,7 +123,7 @@ pub async fn get_user_scoped_metadata_from_db(
 pub async fn update_merchant_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
@@ -151,7 +151,7 @@ pub async fn update_merchant_scoped_metadata(
 pub async fn update_user_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     org_id: String,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,

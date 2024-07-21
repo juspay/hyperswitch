@@ -25,13 +25,13 @@ pub trait FraudCheckInterface {
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
 
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         payment_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError>;
 }
 
@@ -64,7 +64,7 @@ impl FraudCheckInterface for Store {
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
@@ -76,7 +76,7 @@ impl FraudCheckInterface for Store {
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         payment_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
@@ -103,7 +103,7 @@ impl FraudCheckInterface for MockDb {
     async fn find_fraud_check_by_payment_id(
         &self,
         _payment_id: String,
-        _merchant_id: String,
+        _merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -111,7 +111,7 @@ impl FraudCheckInterface for MockDb {
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         _payment_id: String,
-        _merchant_id: String,
+        _merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

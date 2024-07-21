@@ -634,7 +634,7 @@ pub async fn toggle_connector_agnostic_mit(
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyFetch;
     let merchant_id = path.into_inner();

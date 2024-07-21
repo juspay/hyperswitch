@@ -29,7 +29,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -52,7 +52,7 @@ where
         }
 
         query_builder
-            .add_filter_clause("merchant_id", merchant_id)
+            .add_filter_clause("merchant_id", merchant_id.get_string_repr())
             .switch()?;
 
         query_builder

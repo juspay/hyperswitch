@@ -69,7 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = &merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, payment_attempt);
 
@@ -235,7 +235,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 create_payment_link(
                     request,
                     payment_link_config,
-                    merchant_id.clone(),
+                    merchant_id.to_owned(),
                     payment_id.clone(),
                     db,
                     amount,
@@ -391,7 +391,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_account.merchant_id.as_str(),
+                    merchant_account.get_id(),
                     mcd,
                 )
                 .await
@@ -696,7 +696,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         helpers::validate_customer_information(request)?;
 
@@ -717,8 +717,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             errors::ApiErrorResponse::PaymentNotFound
         ))?;
 
-        let request_merchant_id = request.merchant_id.as_deref();
-        helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
+        let request_merchant_id = request.merchant_id.as_ref();
+        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         helpers::validate_request_amount_and_amount_to_capture(
@@ -781,7 +781,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
@@ -798,7 +798,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
         payment_method_type: Option<enums::PaymentMethodType>,
@@ -923,7 +923,7 @@ impl PaymentCreate {
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_string(),
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 attempt_id,
                 status,
                 currency,
@@ -1115,7 +1115,7 @@ impl PaymentCreate {
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
-            merchant_id: merchant_account.merchant_id.to_string(),
+            merchant_id: merchant_account.get_id().to_owned(),
             status,
             amount: MinorUnit::from(amount),
             currency,
@@ -1177,7 +1177,7 @@ impl PaymentCreate {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
                 customer_id.clone(),
-                merchant_account.merchant_id.clone(),
+                merchant_account.get_id(),
             )
             .await
             .ok()
@@ -1206,7 +1206,7 @@ pub fn payments_create_request_validation(
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
     db: &dyn StorageInterface,
     amount: api::Amount,
@@ -1220,7 +1220,7 @@ async fn create_payment_link(
     let payment_link = format!(
         "{}/payment_link/{}/{}",
         domain_name,
-        merchant_id.clone(),
+        merchant_id.get_string_repr(),
         payment_id.clone()
     );
 

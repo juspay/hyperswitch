@@ -16,7 +16,7 @@ pub trait CaptureInterface {
 
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         authorized_attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
@@ -80,7 +80,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             payment_id: &str,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
@@ -151,7 +151,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             payment_id: &str,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
@@ -215,7 +215,7 @@ impl CaptureInterface for MockDb {
     }
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payment_id: &str,
         _authorized_attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,

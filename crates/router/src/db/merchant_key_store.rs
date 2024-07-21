@@ -28,13 +28,13 @@ pub trait MerchantKeyStoreInterface {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
 
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     #[cfg(feature = "olap")]
@@ -79,7 +79,7 @@ impl MerchantKeyStoreInterface for Store {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         let fetch_func = || async {
@@ -121,7 +121,7 @@ impl MerchantKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let delete_func = || async {
             let conn = connection::pg_connection_write(self).await?;
@@ -236,7 +236,7 @@ impl MerchantKeyStoreInterface for MockDb {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         self.merchant_key_store
@@ -255,7 +255,7 @@ impl MerchantKeyStoreInterface for MockDb {
 
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut merchant_key_stores = self.merchant_key_store.lock().await;
         let index = merchant_key_stores

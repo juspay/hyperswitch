@@ -1,5 +1,5 @@
 use api_models::analytics::{outgoing_webhook_event::OutgoingWebhookLogsRequest, Granularity};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, id_type};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -10,7 +10,7 @@ use crate::{
 pub trait OutgoingWebhookLogsFilterAnalytics: LoadRow<OutgoingWebhookLogsResult> {}
 
 pub async fn get_outgoing_webhook_event<T>(
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     query_param: OutgoingWebhookLogsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<OutgoingWebhookLogsResult>>
@@ -72,7 +72,7 @@ where
 }
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct OutgoingWebhookLogsResult {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub event_id: String,
     pub event_type: String,
     pub outgoing_webhook_event_type: String,

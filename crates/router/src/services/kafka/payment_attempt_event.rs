@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub attempt_id: &'a String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,

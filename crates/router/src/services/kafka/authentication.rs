@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaAuthentication<'a> {
     pub authentication_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub authentication_connector: &'a String,
     pub connector_authentication_id: Option<&'a String>,
     pub authentication_data: Option<serde_json::Value>,
@@ -88,7 +88,11 @@ impl<'a> KafkaAuthentication<'a> {
 
 impl<'a> super::KafkaMessage for KafkaAuthentication<'a> {
     fn key(&self) -> String {
-        format!("{}_{}", self.merchant_id, self.authentication_id)
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.authentication_id
+        )
     }
 
     fn event_type(&self) -> crate::events::EventType {

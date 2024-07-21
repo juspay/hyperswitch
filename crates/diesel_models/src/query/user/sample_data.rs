@@ -63,7 +63,7 @@ pub async fn insert_refunds(
 
 pub async fn delete_payment_intents(
     conn: &PgPooledConn,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<PaymentIntent>> {
     let query = diesel::delete(<PaymentIntent>::table())
         .filter(payment_intent_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -88,7 +88,7 @@ pub async fn delete_payment_intents(
 }
 pub async fn delete_payment_attempts(
     conn: &PgPooledConn,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<PaymentAttempt>> {
     let query = diesel::delete(<PaymentAttempt>::table())
         .filter(payment_attempt_dsl::merchant_id.eq(merchant_id.to_owned()))

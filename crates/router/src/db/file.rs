@@ -17,13 +17,13 @@ pub trait FileMetadataInterface {
 
     async fn find_file_metadata_by_merchant_id_file_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 
     async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
@@ -50,7 +50,7 @@ impl FileMetadataInterface for Store {
     #[instrument(skip_all)]
     async fn find_file_metadata_by_merchant_id_file_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -62,7 +62,7 @@ impl FileMetadataInterface for Store {
     #[instrument(skip_all)]
     async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -96,7 +96,7 @@ impl FileMetadataInterface for MockDb {
 
     async fn find_file_metadata_by_merchant_id_file_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         // TODO: Implement function for `MockDb`
@@ -105,7 +105,7 @@ impl FileMetadataInterface for MockDb {
 
     async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // TODO: Implement function for `MockDb`

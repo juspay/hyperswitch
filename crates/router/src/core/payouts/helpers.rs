@@ -50,7 +50,7 @@ pub async fn make_payout_method_data<'a>(
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     payout_type: Option<api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
     payout_data: Option<&mut PayoutData>,
@@ -213,7 +213,7 @@ pub async fn save_payout_data_to_locker(
                     card_type: None,
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
-                    merchant_id: merchant_account.merchant_id.as_ref(),
+                    merchant_id: merchant_account.get_id().as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
@@ -266,7 +266,7 @@ pub async fn save_payout_data_to_locker(
                     Ok(hex::encode(e.peek()))
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
-                    merchant_id: merchant_account.merchant_id.as_ref(),
+                    merchant_id: merchant_account.get_id().as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -506,7 +506,7 @@ pub async fn save_payout_data_to_locker(
             &payout_attempt.customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             None,
             None,
             card_details_encrypted.clone().map(Into::into),
@@ -535,7 +535,7 @@ pub async fn save_payout_data_to_locker(
         cards::delete_card_from_hs_locker(
             state,
             &payout_attempt.customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             card_reference,
         )
         .await
@@ -559,7 +559,7 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
-                &merchant_account.merchant_id,
+                &merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
             .await
@@ -611,7 +611,7 @@ pub async fn get_or_create_customer_details(
         .clone()
         .unwrap_or_else(generate_customer_id_of_default_length);
 
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = &merchant_account.get_id();
     let key = key_store.key.get_inner().peek();
     let key_manager_state = &state.into();
 
@@ -646,7 +646,7 @@ pub async fn get_or_create_customer_details(
 
             let customer = domain::Customer {
                 customer_id,
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 name: encryptable_customer.name,
                 email: encryptable_customer.email,
                 phone: encryptable_customer.phone,
@@ -964,7 +964,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
     let result = db

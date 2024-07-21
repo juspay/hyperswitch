@@ -17,7 +17,7 @@ impl DisputeNew {
 impl Dispute {
     pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         connector_dispute_id: &str,
     ) -> StorageResult<Option<Self>> {
@@ -33,7 +33,7 @@ impl Dispute {
 
     pub async fn find_by_merchant_id_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -47,7 +47,7 @@ impl Dispute {
 
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<

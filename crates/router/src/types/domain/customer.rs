@@ -17,7 +17,7 @@ use crate::errors::{CustomResult, ValidationError};
 pub struct Customer {
     pub id: Option<i32>,
     pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: crypto::OptionalEncryptableName,
     pub email: crypto::OptionalEncryptableEmail,
     pub phone: crypto::OptionalEncryptablePhone,

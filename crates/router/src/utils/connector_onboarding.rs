@@ -43,7 +43,7 @@ pub fn is_enabled(
 pub async fn check_if_connector_exists(
     state: &SessionState,
     connector_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<()> {
     let key_manager_state = &state.into();
     let key_store = state

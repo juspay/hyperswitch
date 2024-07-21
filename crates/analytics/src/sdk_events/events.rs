@@ -14,7 +14,7 @@ use crate::{
 pub trait SdkEventsFilterAnalytics: LoadRow<SdkEventsResult> {}
 
 pub async fn get_sdk_event<T>(
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     request: SdkEventsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<SdkEventsResult>>
@@ -57,7 +57,7 @@ where
 }
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SdkEventsResult {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub event_name: Option<String>,
     pub log_type: Option<String>,

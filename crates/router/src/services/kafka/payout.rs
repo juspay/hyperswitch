@@ -7,7 +7,7 @@ use time::OffsetDateTime;
 pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub customer_id: &'a id_type::CustomerId,
     pub address_id: &'a String,
     pub profile_id: &'a String,
@@ -79,7 +79,11 @@ impl<'a> KafkaPayout<'a> {
 
 impl<'a> super::KafkaMessage for KafkaPayout<'a> {
     fn key(&self) -> String {
-        format!("{}_{}", self.merchant_id, self.payout_attempt_id)
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.payout_attempt_id
+        )
     }
 
     fn event_type(&self) -> crate::events::EventType {

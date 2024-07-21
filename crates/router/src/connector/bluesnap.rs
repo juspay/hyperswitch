@@ -1075,7 +1075,7 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp =
@@ -1343,7 +1343,7 @@ impl ConnectorErrorTypeMapping for Bluesnap {
 
 fn get_url_with_merchant_transaction_id(
     base_url: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_transaction_id: String,
 ) -> CustomResult<String, errors::ConnectorError> {
     Ok(format!(

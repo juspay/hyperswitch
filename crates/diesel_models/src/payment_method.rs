@@ -13,8 +13,8 @@ use crate::{enums as storage_enums, schema::payment_methods};
 #[diesel(table_name = payment_methods, check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
     pub id: i32,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<storage_enums::Currency>)]
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
@@ -52,8 +52,8 @@ pub struct PaymentMethod {
 )]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,

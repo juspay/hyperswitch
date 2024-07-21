@@ -11,7 +11,7 @@ use crate::{connection::PgPooledConn, logger};
 pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
@@ -20,7 +20,7 @@ pub trait DisputeDbExt: Sized {
 impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()

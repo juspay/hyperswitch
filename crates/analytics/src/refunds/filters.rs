@@ -2,7 +2,7 @@ use api_models::analytics::{
     refunds::{RefundDimensions, RefundType},
     Granularity, TimeRange,
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, id_type};
 use diesel_models::enums::{Currency, RefundStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -18,7 +18,7 @@ pub trait RefundFilterAnalytics: LoadRow<RefundFilterRow> {}
 
 pub async fn get_refund_filter_for_dimension<T>(
     dimension: RefundDimensions,
-    merchant: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<RefundFilterRow>>
@@ -39,7 +39,7 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant)
+        .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
     query_builder.set_distinct();

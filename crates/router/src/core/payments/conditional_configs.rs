@@ -21,7 +21,7 @@ pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 pub async fn perform_decision_management<F: Clone>(
     state: &routes::SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_data: &mut payments::PaymentData<F>,
 ) -> ConditionalConfigResult<ConditionalConfigs> {
     let algorithm_id = if let Some(id) = algorithm_ref.config_algo_id {
@@ -31,7 +31,7 @@ pub async fn perform_decision_management<F: Clone>(
     };
     let db = &*state.store;
 
-    let key = format!("dsl_{merchant_id}");
+    let key = merchant_id.get_dsl_config();
 
     let find_key_from_db = || async {
         let config = db.find_config_by_key(&algorithm_id).await?;

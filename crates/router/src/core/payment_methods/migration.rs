@@ -12,7 +12,7 @@ use crate::{
 pub async fn migrate_payment_methods(
     state: routes::SessionState,
     payment_methods: Vec<PaymentMethodRecord>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {

@@ -48,7 +48,7 @@ pub struct EventListItemResponse {
 
     /// The identifier for the Merchant Account.
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the Business Profile.
     #[schema(max_length = 64, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
@@ -97,7 +97,11 @@ pub struct EventRetrieveResponse {
 impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.event_information.merchant_id.clone(),
+            merchant_id_or_profile_id: self
+                .event_information
+                .merchant_id
+                .get_string_repr()
+                .to_owned(),
         })
     }
 }

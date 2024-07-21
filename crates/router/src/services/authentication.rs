@@ -56,12 +56,12 @@ pub struct AuthenticationData {
 )]
 pub enum AuthenticationType {
     ApiKey {
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         key_id: String,
     },
     AdminApiKey,
     MerchantJwt {
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         user_id: Option<String>,
     },
     UserJwt {
@@ -77,13 +77,13 @@ pub enum AuthenticationType {
         role_id: Option<String>,
     },
     MerchantId {
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     },
     PublishableKey {
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     },
     WebhookAuth {
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     },
     NoAuth,
 }
@@ -166,7 +166,7 @@ impl SinglePurposeToken {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AuthToken {
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub role_id: String,
     pub exp: u64,
     pub org_id: String,
@@ -176,7 +176,7 @@ pub struct AuthToken {
 impl AuthToken {
     pub async fn new_token(
         user_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         role_id: String,
         settings: &Settings,
         org_id: String,
@@ -197,7 +197,7 @@ impl AuthToken {
 #[derive(Clone)]
 pub struct UserFromToken {
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub role_id: String,
     pub org_id: String,
 }
@@ -227,7 +227,7 @@ impl AuthInfo for () {
 
 impl AuthInfo for AuthenticationData {
     fn get_merchant_id(&self) -> Option<&str> {
-        Some(&self.merchant_account.merchant_id)
+        Some(&self.merchant_account.get_id())
     }
 }
 
@@ -349,7 +349,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 key_id: stored_api_key.key_id,
             },
         ))
@@ -529,7 +529,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct MerchantIdAuth(pub String);
+pub struct MerchantIdAuth(pub common_utils::id_type::MerchantId);
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
@@ -578,7 +578,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantId {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
             },
         ))
     }
@@ -615,7 +615,7 @@ where
                 (
                     auth.clone(),
                     AuthenticationType::PublishableKey {
-                        merchant_id: auth.merchant_account.merchant_id.clone(),
+                        merchant_id: auth.merchant_account.get_id().clone(),
                     },
                 )
             })
@@ -694,7 +694,7 @@ where
 }
 
 pub struct JWTAuthMerchantFromRoute {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub required_permission: Permission,
 }
 
@@ -856,7 +856,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: None,
             },
         ))
@@ -911,7 +911,7 @@ where
         Ok((
             (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: None,
             },
         ))
@@ -1011,7 +1011,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: Some(payload.user_id),
             },
         ))

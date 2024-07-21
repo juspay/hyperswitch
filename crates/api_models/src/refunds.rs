@@ -103,7 +103,7 @@ pub struct RefundManualUpdateRequest {
     #[serde(skip)]
     pub refund_id: String,
     /// Merchant ID
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     /// The status for refund
     pub status: Option<RefundStatus>,
     /// The code for the error

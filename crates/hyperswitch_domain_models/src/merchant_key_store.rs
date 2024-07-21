@@ -12,7 +12,7 @@ use crate::type_encryption::decrypt;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryptable<Secret<Vec<u8>>>,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -34,7 +34,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_store_ref_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

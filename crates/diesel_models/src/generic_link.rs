@@ -1,5 +1,5 @@
 use common_utils::{
-    consts, id_type,
+    consts,
     link_utils::{
         EnabledPaymentMethod, GenericLinkStatus, GenericLinkUiConfig, PaymentMethodCollectStatus,
         PayoutLinkData, PayoutLinkStatus,
@@ -19,7 +19,7 @@ use crate::{enums as storage_enums, schema::generic_link};
 pub struct GenericLink {
     pub link_id: String,
     pub primary_reference: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -37,7 +37,7 @@ pub struct GenericLink {
 pub struct GenericLinkState {
     pub link_id: String,
     pub primary_reference: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -65,7 +65,7 @@ pub struct GenericLinkState {
 pub struct GenericLinkNew {
     pub link_id: String,
     pub primary_reference: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -86,7 +86,7 @@ impl Default for GenericLinkNew {
         Self {
             link_id: String::default(),
             primary_reference: String::default(),
-            merchant_id: String::default(),
+            merchant_id: common_utils::id_type::MerchantId::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
             expiry: now + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY),
@@ -125,7 +125,7 @@ impl GenericLinkData {
 pub struct PaymentMethodCollectLink {
     pub link_id: String,
     pub primary_reference: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -142,7 +142,7 @@ pub struct PaymentMethodCollectLink {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentMethodCollectLinkData {
     pub pm_collect_link_id: String,
-    pub customer_id: id_type::CustomerId,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub link: Secret<String>,
     pub client_secret: Secret<String>,
     pub session_expiry: u32,
@@ -157,7 +157,7 @@ pub struct PaymentMethodCollectLinkData {
 pub struct PayoutLink {
     pub link_id: String,
     pub primary_reference: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]

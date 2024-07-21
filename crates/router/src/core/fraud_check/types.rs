@@ -43,7 +43,7 @@ pub struct PaymentDetails {
 }
 #[derive(Clone, Default, Debug)]
 pub struct FrmMerchantAccount {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Clone, Debug)]

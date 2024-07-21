@@ -191,13 +191,9 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::payments::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -229,7 +225,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::payment_intents::get_metrics(
                     &state.pool,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -263,13 +259,9 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::refunds::get_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::refunds::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -299,7 +291,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::frm::get_metrics(&state.pool, &auth.merchant_account.merchant_id, req)
+                analytics::frm::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -370,7 +362,7 @@ pub mod routes {
                 analytics::active_payments::get_metrics(
                     &state.pool,
                     &auth.merchant_account.publishable_key,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -406,7 +398,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::auth_events::get_metrics(
                     &state.pool,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_account.get_id(),
                     &auth.merchant_account.publishable_key,
                     req,
                 )
@@ -431,13 +423,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::payments::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -460,7 +448,7 @@ pub mod routes {
                 analytics::payment_intents::get_filters(
                     &state.pool,
                     req,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_account.get_id(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -483,13 +471,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
-                analytics::refunds::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::refunds::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -509,7 +493,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetFrmFilterRequest, _| async move {
-                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.merchant_id)
+                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -557,7 +541,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                api_events_core(&state.pool, req, auth.merchant_account.merchant_id)
+                api_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -581,7 +565,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.merchant_id)
+                outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -635,7 +619,7 @@ pub mod routes {
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.merchant_id.to_string(),
+                    merchant_id: auth.merchant_account.get_id().to_owned(),
                     email: user_email,
                 };
 
@@ -677,7 +661,7 @@ pub mod routes {
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.merchant_id.to_string(),
+                    merchant_id: auth.merchant_account.get_id().to_owned(),
                     email: user_email,
                 };
 
@@ -719,7 +703,7 @@ pub mod routes {
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.merchant_id.to_string(),
+                    merchant_id: auth.merchant_account.get_id().to_owned(),
                     email: user_email,
                 };
 
@@ -763,7 +747,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_api_event_metrics(
                     &state.pool,
-                    &auth.merchant_account.merchant_id,
+                    &auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -787,13 +771,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::api_event::get_filters(
-                    &state.pool,
-                    req,
-                    auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::api_event::get_filters(&state.pool, req, auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -813,7 +793,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                connector_events_core(&state.pool, req, auth.merchant_account.merchant_id)
+                connector_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -915,13 +895,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::disputes::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::disputes::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -950,13 +926,9 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::disputes::get_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::disputes::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

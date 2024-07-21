@@ -229,7 +229,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -262,7 +262,7 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =

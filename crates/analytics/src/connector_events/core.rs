@@ -8,7 +8,7 @@ use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 pub async fn connector_events_core(
     pool: &AnalyticsProvider,
     req: ConnectorEventsRequest,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(

@@ -22,7 +22,7 @@ impl Role {
     pub async fn find_by_role_id_in_merchant_scope(
         conn: &PgPooledConn,
         role_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         org_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -64,7 +64,7 @@ impl Role {
 
     pub async fn list_roles(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         org_id: &str,
     ) -> StorageResult<Vec<Self>> {
         let predicate = dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id

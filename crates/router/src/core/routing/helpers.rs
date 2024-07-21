@@ -39,7 +39,7 @@ pub async fn get_merchant_routing_dictionary(
 
         Err(e) if e.current_context().is_db_not_found() => {
             let new_dictionary = routing_types::RoutingDictionary {
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 active_id: None,
                 records: Vec::new(),
             };
@@ -72,6 +72,7 @@ pub async fn get_merchant_routing_dictionary(
 /// manner and chooses the first of them
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
+    // Cannot make this as merchant id domain type because, we are passing profile id also here
     merchant_id: &str,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -253,8 +254,13 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let profile_id = current_business_profile.profile_id.clone();
 
-    let routing_cache_key =
-        cache::CacheKind::Routing(format!("routing_config_{merchant_id}_{profile_id}").into());
+    let routing_cache_key = cache::CacheKind::Routing(
+        format!(
+            "routing_config_{}_{profile_id}",
+            merchant_id.get_string_repr()
+        )
+        .into(),
+    );
 
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(ref_val), None),
@@ -304,7 +310,7 @@ pub async fn update_business_profile_active_algorithm_ref(
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &str,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
@@ -318,7 +324,7 @@ pub async fn validate_connectors_in_routing_config(
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_id.to_string(),
+            id: merchant_id.get_string_repr().to_owned(),
         })?;
 
     let name_mca_id_set = all_mcas

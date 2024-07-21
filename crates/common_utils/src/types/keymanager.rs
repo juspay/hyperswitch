@@ -17,6 +17,7 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
@@ -33,7 +34,7 @@ pub struct KeyManagerState {
 #[serde(tag = "data_identifier", content = "key_identifier")]
 pub enum Identifier {
     User(String),
-    Merchant(String),
+    Merchant(id_type::MerchantId),
     UserAuth(String),
 }
 

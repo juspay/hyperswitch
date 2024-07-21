@@ -19,7 +19,10 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
-use common_utils::errors::{CustomResult, ParsingError};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    id_type,
+};
 use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
@@ -352,6 +355,12 @@ where
 
 pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
 }
 
 /// Implement `ToSql` on arrays of types that impl `ToString`.

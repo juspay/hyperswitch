@@ -1450,7 +1450,7 @@ pub async fn retrieve_extended_card_info(
         &req,
         payment_id,
         |state, auth, payment_id, _| {
-            payments::get_extended_card_info(state, auth.merchant_account.merchant_id, payment_id)
+            payments::get_extended_card_info(state, auth.merchant_account.get_id(), payment_id)
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,

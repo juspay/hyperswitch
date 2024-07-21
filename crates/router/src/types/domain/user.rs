@@ -412,7 +412,7 @@ impl NewUserMerchant {
     ))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
-            merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())
+            merchant_id: common_utils::id_type::MerchantId::from(self.get_merchant_id().into())
                 .change_context(UserErrors::MerchantIdParsingError)
                 .attach_printable(
                     "Unable to convert to MerchantId type because of constraint violations",
@@ -923,7 +923,7 @@ impl UserFromStorage {
     pub async fn get_role_from_db_by_merchant_id(
         &self,
         state: &SessionState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store

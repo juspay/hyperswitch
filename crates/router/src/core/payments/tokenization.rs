@@ -189,7 +189,7 @@ where
                 )
                 .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                let merchant_id = &merchant_account.merchant_id;
+                let merchant_id = &merchant_account.get_id();
                 let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
                     skip_saving_card_in_locker(
                         merchant_account,
@@ -411,7 +411,7 @@ where
                                                 &resp,
                                                 &payment_method_create_request.clone(),
                                                 key_store,
-                                                &merchant_account.merchant_id,
+                                                &merchant_account.get_id(),
                                                 &customer_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
@@ -641,7 +641,7 @@ async fn skip_saving_card_in_locker(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = &merchant_account.get_id();
     let customer_id = payment_method_request
         .clone()
         .customer_id
@@ -679,7 +679,7 @@ async fn skip_saving_card_in_locker(
                 saved_to_locker: false,
             };
             let pm_resp = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
@@ -701,7 +701,7 @@ async fn skip_saving_card_in_locker(
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
@@ -731,7 +731,7 @@ pub async fn save_in_locker(
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     payment_method_request.validate()?;
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = &merchant_account.get_id();
     let customer_id = payment_method_request
         .customer_id
         .clone()
@@ -751,7 +751,7 @@ pub async fn save_in_locker(
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,

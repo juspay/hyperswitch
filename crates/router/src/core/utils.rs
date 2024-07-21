@@ -56,7 +56,7 @@ pub async fn get_mca_for_payout<'a>(
         None => {
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
-                merchant_account.merchant_id.as_str(),
+                merchant_account.get_id(),
                 None,
                 key_store,
                 &payout_data.profile_id,
@@ -150,7 +150,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.to_owned(),
+        merchant_id: merchant_account.get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
@@ -243,7 +243,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         creds_identifier,
         key_store,
         &profile_id,
@@ -268,7 +268,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
-        &merchant_account.merchant_id,
+        &merchant_account.get_id(),
         &connector_id.to_string(),
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -306,7 +306,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -538,7 +538,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -557,7 +557,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: dispute.connector.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -590,7 +590,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -637,7 +637,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -656,7 +656,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -687,7 +687,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -734,7 +734,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -753,7 +753,7 @@ pub async fn construct_upload_file_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -789,7 +789,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -835,7 +835,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -854,7 +854,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -888,7 +888,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -928,7 +928,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         profile_id,
@@ -944,7 +944,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
@@ -999,7 +999,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
     conf: &Settings,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {
     let config_map = &conf
         .connector_request_reference_id_config
@@ -1009,7 +1009,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 
 pub fn get_connector_request_reference_id(
     conf: &Settings,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
     let is_config_enabled_for_merchant =
@@ -1026,7 +1026,7 @@ pub fn get_connector_request_reference_id(
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
     profile_id: Option<&String>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
     profile_id
         .async_map(|profile_id| async {
@@ -1108,7 +1108,7 @@ pub async fn get_profile_id_from_business_details(
                 let _ = validate_and_get_business_profile(
                     db,
                     Some(profile_id),
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                 )
                 .await?;
             }
@@ -1120,7 +1120,7 @@ pub async fn get_profile_id_from_business_details(
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
                         &profile_name,
-                        &merchant_account.merchant_id,
+                        &merchant_account.get_id(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
@@ -1136,8 +1136,8 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-pub fn get_poll_id(merchant_id: String, unique_id: String) -> String {
-    format!("poll_{}_{}", merchant_id, unique_id)
+pub fn get_poll_id(merchant_id: common_utils::id_type::MerchantId, unique_id: String) -> String {
+    merchant_id.get_poll_id()
 }
 
 pub fn get_external_authentication_request_poll_id(payment_id: &String) -> String {

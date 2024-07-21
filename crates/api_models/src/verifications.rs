@@ -27,7 +27,7 @@ pub struct ApplepayMerchantResponse {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApplepayGetVerifiedDomainsParam {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub merchant_connector_account_id: String,
 }
 /// Response to be sent for derivation of the already verified domains

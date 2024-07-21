@@ -8,7 +8,7 @@ use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 pub async fn outgoing_webhook_events_core(
     pool: &AnalyticsProvider,
     req: OutgoingWebhookLogsRequest,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<Vec<OutgoingWebhookLogsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(

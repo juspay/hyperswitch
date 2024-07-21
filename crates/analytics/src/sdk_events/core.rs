@@ -7,7 +7,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, MetricsResponse,
     SdkEventFiltersResponse,
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, id_type};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
@@ -26,17 +26,17 @@ use crate::{
 pub async fn sdk_events_core(
     pool: &AnalyticsProvider,
     req: SdkEventsRequest,
-    publishable_key: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<Vec<SdkEventsResult>> {
     match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
             "SDK Events not implemented for SQLX",
         ))
         .attach_printable("SQL Analytics is not implemented for Sdk Events"),
-        AnalyticsProvider::Clickhouse(pool) => get_sdk_event(publishable_key, req, pool).await,
+        AnalyticsProvider::Clickhouse(pool) => get_sdk_event(merchant_id, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
-            get_sdk_event(publishable_key, req, ckh_pool).await
+            get_sdk_event(merchant_id, req, ckh_pool).await
         }
     }
     .switch()

@@ -27,7 +27,7 @@ use crate::schema_v2::merchant_account;
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
     pub id: i32,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -69,7 +69,7 @@ pub struct MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -101,7 +101,7 @@ pub struct MerchantAccount {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,

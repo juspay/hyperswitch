@@ -19,8 +19,7 @@ pub async fn generate_sample_data_for_user(
     req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
-    let sample_data =
-        generate_sample_data(&state, req, user_from_token.merchant_id.as_str()).await?;
+    let sample_data = generate_sample_data(&state, req, user_from_token.merchant_id).await?;
 
     let key_store = state
         .store
@@ -74,7 +73,7 @@ pub async fn delete_sample_data_for_user(
     _req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
-    let merchant_id_del = user_from_token.merchant_id.as_str();
+    let merchant_id_del = user_from_token.merchant_id;
     let key_manager_state = &(&state).into();
     let key_store = state
         .store

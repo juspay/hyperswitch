@@ -29,7 +29,7 @@ where
 {
     async fn load_metrics(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

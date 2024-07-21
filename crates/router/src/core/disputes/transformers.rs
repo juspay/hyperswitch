@@ -210,7 +210,7 @@ pub async fn get_dispute_evidence_block(
 ) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
     let file_metadata = state
         .store
-        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_id)
+        .find_file_metadata_by_merchant_id_file_id(&merchant_account.get_id(), &file_id)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;

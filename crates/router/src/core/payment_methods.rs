@@ -189,7 +189,7 @@ pub async fn create_pm_collect_db_entry(
             .customer_id
             .get_string_repr()
             .to_string(),
-        merchant_id: merchant_account.merchant_id.to_string(),
+        merchant_id: merchant_account.get_id().to_owned(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
@@ -380,7 +380,7 @@ pub async fn add_payment_method_status_update_task(
     payment_method: &diesel_models::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> Result<(), errors::ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
@@ -390,7 +390,7 @@ pub async fn add_payment_method_status_update_task(
         payment_method_id: payment_method.payment_method_id.clone(),
         prev_status,
         curr_status,
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;

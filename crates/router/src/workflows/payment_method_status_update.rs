@@ -35,7 +35,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id.as_str(),
+                &merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;

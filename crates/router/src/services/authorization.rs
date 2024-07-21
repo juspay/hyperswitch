@@ -78,7 +78,7 @@ fn get_permissions_from_predefined_roles(role_id: &str) -> Option<Vec<permission
 async fn get_permissions_from_db<A>(
     state: &A,
     role_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     org_id: &str,
 ) -> RouterResult<Vec<permissions::Permission>>
 where

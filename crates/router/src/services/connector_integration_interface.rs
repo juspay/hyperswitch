@@ -113,7 +113,7 @@ impl api::IncomingWebhook for ConnectorEnum {
     async fn decode_webhook_body(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_name: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -153,7 +153,7 @@ impl api::IncomingWebhook for ConnectorEnum {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
@@ -195,7 +195,7 @@ impl api::IncomingWebhook for ConnectorEnum {
     fn get_webhook_source_verification_message(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         match self {
@@ -215,7 +215,7 @@ impl api::IncomingWebhook for ConnectorEnum {
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
         connector_name: &str,

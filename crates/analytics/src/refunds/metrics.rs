@@ -51,7 +51,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -72,7 +72,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

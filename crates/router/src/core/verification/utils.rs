@@ -11,7 +11,7 @@ use crate::{
 
 pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_connector_id: String,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {

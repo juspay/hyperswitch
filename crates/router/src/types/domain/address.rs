@@ -37,7 +37,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub updated_by: String,
     pub email: crypto::OptionalEncryptableEmail,
 }
@@ -77,7 +77,7 @@ impl behaviour::Conversion for CustomerAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_store_ref_id: id_type::MerchantId,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other

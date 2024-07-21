@@ -101,7 +101,7 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            user_role_to_be_updated.merchant_id.as_str(),
+            user_role_to_be_updated.merchant_id,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
@@ -335,7 +335,7 @@ pub async fn delete_user_role(
 
     match user_roles
         .iter()
-        .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
+        .find(|&role| role.merchant_id == user_from_token.merchant_id)
     {
         Some(user_role) => {
             let role_info = roles::RoleInfo::from_role_id(
@@ -362,7 +362,7 @@ pub async fn delete_user_role(
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
+                user_from_token.merchant_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -379,7 +379,7 @@ pub async fn delete_user_role(
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
+                user_from_token.merchant_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)

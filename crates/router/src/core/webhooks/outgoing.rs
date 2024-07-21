@@ -435,7 +435,7 @@ fn raise_webhooks_analytics_event(
     state: SessionState,
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
 ) {
     let error = if let Err(error) = trigger_webhook_result {
@@ -649,7 +649,7 @@ enum ScheduleWebhookRetry {
 async fn update_event_if_client_error(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     error_message: String,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
@@ -698,7 +698,7 @@ async fn update_event_if_client_error(
 async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     client_error: error_stack::Report<errors::ApiClientError>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -739,7 +739,7 @@ async fn api_client_error_handler(
 async fn update_event_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     response: reqwest::Response,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
@@ -822,7 +822,7 @@ fn increment_webhook_outgoing_received_count(merchant_id: &str) {
 
 async fn success_response_handler(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     process_tracker: Option<storage::ProcessTracker>,
     business_status: &'static str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -843,7 +843,7 @@ async fn success_response_handler(
 
 async fn error_response_handler(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     status_code: u16,
     log_message: &'static str,

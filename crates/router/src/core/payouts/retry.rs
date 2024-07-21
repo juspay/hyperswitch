@@ -49,7 +49,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -121,7 +121,7 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -160,7 +160,7 @@ pub async fn do_gsm_single_connector_actions(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
     match retries {
@@ -318,7 +318,7 @@ pub async fn modify_trackers(
 
 pub async fn config_should_call_gsm_payout(
     db: &dyn StorageInterface,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> bool {
     let key = match retry_type {

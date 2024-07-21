@@ -707,7 +707,7 @@ pub async fn backfill_metadata(
 
 pub async fn get_merchant_connector_account_by_name(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {

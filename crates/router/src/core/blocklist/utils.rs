@@ -19,7 +19,7 @@ use crate::{
 
 pub async fn delete_entry_from_blocklist(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let blocklist_entry = match request {
@@ -45,10 +45,10 @@ pub async fn delete_entry_from_blocklist(
 
 pub async fn toggle_blocklist_guard_for_merchant(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
-    let key = get_blocklist_guard_key(merchant_id.as_str());
+    let key = merchant_id.get_blocklist_guard_key();
     let maybe_guard = state.store.find_config_by_key(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
@@ -95,7 +95,7 @@ pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
 
 pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
     state
@@ -139,7 +139,7 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
 
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
     let blocklist_entry = match &to_block {
@@ -208,9 +208,9 @@ pub async fn insert_entry_into_blocklist(
 
 pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<String> {
-    let key = utils::get_merchant_fingerprint_secret_key(merchant_id);
+    let key = merchant_id.get_merchant_fingerprint_secret_key();
     let config_fetch_result = state.store.find_config_by_key(&key).await;
 
     match config_fetch_result {
@@ -243,7 +243,7 @@ pub async fn get_merchant_fingerprint_secret(
 async fn duplicate_check_insert_bin(
     bin: &str,
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
     let blocklist_entry_result = state
@@ -271,7 +271,7 @@ async fn duplicate_check_insert_bin(
     state
         .store
         .insert_blocklist_entry(storage::BlocklistNew {
-            merchant_id: merchant_id.to_string(),
+            merchant_id: merchant_id.to_owned(),
             fingerprint_id: bin.to_string(),
             data_kind,
             metadata: None,
@@ -285,7 +285,7 @@ async fn duplicate_check_insert_bin(
 async fn delete_card_bin_blocklist_entry(
     state: &SessionState,
     bin: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<storage::Blocklist> {
     state
         .store
@@ -306,9 +306,8 @@ where
     F: Send + Clone,
 {
     let db = &state.store;
-    let merchant_id = &merchant_account.merchant_id;
-    let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, merchant_id.as_str()).await?;
+    let merchant_id = &merchant_account.get_id();
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint = if let Some(api_models::payments::PaymentMethodData::Card(card)) =
@@ -452,7 +451,7 @@ where
 
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_method_data: Option<crate::types::api::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;

@@ -27,14 +27,14 @@ pub trait PayoutAttemptInterface {
 
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
 
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _connector_payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
@@ -42,7 +42,7 @@ pub trait PayoutAttemptInterface {
     async fn get_filters_for_payouts(
         &self,
         payout: &[Payouts],
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
 }
@@ -60,7 +60,7 @@ pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
     pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -85,7 +85,7 @@ pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
     pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -111,7 +111,7 @@ impl Default for PayoutAttemptNew {
             payout_attempt_id: String::default(),
             payout_id: String::default(),
             customer_id: generate_customer_id_of_default_length(),
-            merchant_id: String::default(),
+            merchant_id: id_type::MerchantId::default(),
             address_id: String::default(),
             connector: None,
             connector_payout_id: Some(String::default()),

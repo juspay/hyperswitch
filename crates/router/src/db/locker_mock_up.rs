@@ -141,7 +141,7 @@ mod tests {
         pub struct LockerMockUpIds {
             card_id: String,
             external_id: String,
-            merchant_id: String,
+            merchant_id: common_utils::id_type::MerchantId,
             customer_id: id_type::CustomerId,
         }
 

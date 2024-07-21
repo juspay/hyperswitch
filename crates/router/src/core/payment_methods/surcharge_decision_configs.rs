@@ -368,10 +368,10 @@ fn get_surcharge_details_from_surcharge_output(
 #[instrument(skip_all)]
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &str,
 ) -> ConditionalConfigResult<VirInterpreterBackendCacheWrapper> {
-    let key = format!("surcharge_dsl_{merchant_id}");
+    let key = merchant_id.get_surcharge_dsk_key();
 
     let value_to_cache = || async {
         let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;

@@ -41,7 +41,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .transpose()?;
 
         Ok(Self {
-            merchant_id: item.merchant_id,
+            merchant_id: item.get_id().to_owned(),
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -226,7 +226,7 @@ pub async fn create_business_profile(
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: merchant_account.merchant_id,
+        merchant_id: merchant_account.get_id().to_owned(),
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,

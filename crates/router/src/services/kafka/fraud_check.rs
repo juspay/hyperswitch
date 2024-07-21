@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 pub struct KafkaFraudCheck<'a> {
     pub frm_id: &'a String,
     pub payment_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub attempt_id: &'a String,
     #[serde(with = "time::serde::timestamp")]
     pub created_at: OffsetDateTime,

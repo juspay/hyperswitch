@@ -1,17 +1,15 @@
-use common_utils::id_type;
-
 pub struct EphemeralKeyNew {
     pub id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub secret: String,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EphemeralKey {
     pub id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub created_at: i64,
     pub expires: i64,
     pub secret: String,

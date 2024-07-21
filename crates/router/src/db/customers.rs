@@ -24,14 +24,14 @@ where
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError>;
@@ -41,7 +41,7 @@ where
         &self,
         state: &KeyManagerState,
         customer_id: id_type::CustomerId,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         customer: domain::Customer,
         customer_update: storage_types::CustomerUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -52,7 +52,7 @@ where
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError>;
@@ -60,7 +60,7 @@ where
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError>;
 
@@ -111,7 +111,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
@@ -180,7 +180,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: id_type::CustomerId,
-            merchant_id: String,
+            merchant_id: common_utils::id_type::MerchantId,
             customer: domain::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -201,7 +201,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
             let key = PartitionKey::MerchantIdCustomerId {
-                merchant_id: merchant_id.as_str(),
+                merchant_id: &merchant_id,
                 customer_id: customer_id.get_string_repr(),
             };
             let field = format!("cust_{}", customer_id.get_string_repr());
@@ -262,7 +262,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Customer, errors::StorageError> {
@@ -325,7 +325,7 @@ mod storage {
         async fn list_customers_by_merchant_id(
             &self,
             state: &KeyManagerState,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -383,7 +383,7 @@ mod storage {
                 }
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id: merchant_id.as_str(),
+                        merchant_id: merchant_id.to_owned(),
                         customer_id: customer_id.get_string_repr(),
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());
@@ -434,7 +434,7 @@ mod storage {
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
         ) -> CustomResult<bool, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Customer::delete_by_customer_id_merchant_id(
@@ -480,7 +480,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
@@ -517,7 +517,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: id_type::CustomerId,
-            merchant_id: String,
+            merchant_id: common_utils::id_type::MerchantId,
             _customer: domain::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -545,7 +545,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Customer, errors::StorageError> {
@@ -576,7 +576,7 @@ mod storage {
         async fn list_customers_by_merchant_id(
             &self,
             state: &KeyManagerState,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -631,7 +631,7 @@ mod storage {
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
         ) -> CustomResult<bool, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Customer::delete_by_customer_id_merchant_id(
@@ -652,7 +652,7 @@ impl CustomerInterface for MockDb {
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
@@ -660,7 +660,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.customer_id == *customer_id && customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
             })
             .cloned();
         customer
@@ -680,7 +680,7 @@ impl CustomerInterface for MockDb {
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
@@ -688,7 +688,7 @@ impl CustomerInterface for MockDb {
         let customers = try_join_all(
             customers
                 .iter()
-                .filter(|customer| customer.merchant_id == merchant_id)
+                .filter(|customer| customer.merchant_id == *merchant_id)
                 .map(|customer| async {
                     customer
                         .to_owned()
@@ -711,7 +711,7 @@ impl CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _customer_id: id_type::CustomerId,
-        _merchant_id: String,
+        _merchant_id: common_utils::id_type::MerchantId,
         _customer: domain::Customer,
         _customer_update: storage_types::CustomerUpdate,
         _key_store: &domain::MerchantKeyStore,
@@ -725,7 +725,7 @@ impl CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _customer_id: &id_type::CustomerId,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
@@ -762,7 +762,7 @@ impl CustomerInterface for MockDb {
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: &id_type::CustomerId,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

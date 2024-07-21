@@ -16,7 +16,7 @@ use crate::schema_v2::payment_attempt;
 #[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentAttempt {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
@@ -88,7 +88,7 @@ pub struct PaymentAttempt {
 pub struct PaymentAttempt {
     pub id: Option<i32>,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
@@ -172,7 +172,7 @@ pub struct PaymentListFilters {
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,

@@ -12,7 +12,7 @@ pub struct RetryMapping {
 #[derive(Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
-    pub custom_merchant_mapping: HashMap<String, RetryMapping>,
+    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
     pub max_retries_count: i32,
 }
 

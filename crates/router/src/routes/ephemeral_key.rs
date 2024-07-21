@@ -22,7 +22,7 @@ pub async fn ephemeral_key_create(
         &req,
         payload,
         |state, auth, req, _| {
-            helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.merchant_id)
+            helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.get_id())
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,

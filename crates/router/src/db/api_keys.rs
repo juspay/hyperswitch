@@ -19,20 +19,20 @@ pub trait ApiKeyInterface {
 
     async fn update_api_key(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError>;
 
     async fn revoke_api_key(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError>;
 
@@ -43,7 +43,7 @@ pub trait ApiKeyInterface {
 
     async fn list_api_keys_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError>;
@@ -66,7 +66,7 @@ impl ApiKeyInterface for Store {
     #[instrument(skip_all)]
     async fn update_api_key(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
@@ -114,7 +114,7 @@ impl ApiKeyInterface for Store {
     #[instrument(skip_all)]
     async fn revoke_api_key(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -156,7 +156,7 @@ impl ApiKeyInterface for Store {
     #[instrument(skip_all)]
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -198,7 +198,7 @@ impl ApiKeyInterface for Store {
     #[instrument(skip_all)]
     async fn list_api_keys_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError> {
@@ -239,7 +239,7 @@ impl ApiKeyInterface for MockDb {
 
     async fn update_api_key(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
@@ -281,7 +281,7 @@ impl ApiKeyInterface for MockDb {
 
     async fn revoke_api_key(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut locked_api_keys = self.api_keys.lock().await;
@@ -301,7 +301,7 @@ impl ApiKeyInterface for MockDb {
 
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         Ok(self
@@ -328,7 +328,7 @@ impl ApiKeyInterface for MockDb {
 
     async fn list_api_keys_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError> {

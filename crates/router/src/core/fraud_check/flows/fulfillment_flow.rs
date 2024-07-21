@@ -40,7 +40,7 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -60,7 +60,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     )?;
     let router_data = RouterData {
         flow: std::marker::PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector,
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -95,7 +95,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]

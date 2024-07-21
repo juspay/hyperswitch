@@ -30,7 +30,7 @@ where
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

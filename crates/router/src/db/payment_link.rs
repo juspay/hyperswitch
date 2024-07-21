@@ -23,7 +23,7 @@ pub trait PaymentLinkInterface {
 
     async fn list_payment_link_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>;
 }
@@ -56,7 +56,7 @@ impl PaymentLinkInterface for Store {
     #[instrument(skip_all)]
     async fn list_payment_link_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -86,7 +86,7 @@ impl PaymentLinkInterface for MockDb {
 
     async fn list_payment_link_by_merchant_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         // TODO: Implement function for `MockDb`x

@@ -37,7 +37,7 @@ pub async fn list_initial_delivery_attempts(
             match account {
                 MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_primary_object_id(key_manager_state,
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     &object_id,
                     &key_store,
                 )
@@ -74,7 +74,7 @@ pub async fn list_initial_delivery_attempts(
             match account {
                 MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     created_after,
                     created_before,
                     limit,
@@ -122,7 +122,7 @@ pub async fn list_delivery_attempts(
             store
                 .list_events_by_merchant_id_initial_attempt_id(
                     key_manager_state,
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     &initial_attempt_id,
                     &key_store,
                 )

@@ -43,7 +43,7 @@ pub async fn validate_file_upload(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, dispute_id)
+                .find_dispute_by_merchant_id_dispute_id(&merchant_account.get_id(), dispute_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
                     dispute_id: dispute_id.to_string(),
@@ -87,7 +87,7 @@ pub async fn delete_file_using_file_id(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
-        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
+        .find_file_metadata_by_merchant_id_file_id(&merchant_account.get_id(), &file_key)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
     let (provider, provider_file_id) = match (
@@ -181,7 +181,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
         Some(file_key) => {
             let file_metadata_object = state
                 .store
-                .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
+                .find_file_metadata_by_merchant_id_file_id(&merchant_account.get_id(), &file_key)
                 .await
                 .change_context(errors::ApiErrorResponse::FileNotFound)?;
             let (provider, provider_file_id) = match (
@@ -248,7 +248,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+                .find_dispute_by_merchant_id_dispute_id(&merchant_account.get_id(), &dispute_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound { dispute_id })?;
             let connector_data = api::ConnectorData::get_connector_by_name(
@@ -263,7 +263,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &state.into(),
                         &dispute.payment_id,
-                        &merchant_account.merchant_id,
+                        &merchant_account.get_id(),
                         key_store,
                         merchant_account.storage_scheme,
                     )
@@ -273,7 +273,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .store
                     .find_payment_attempt_by_attempt_id_merchant_id(
                         &dispute.attempt_id,
-                        &merchant_account.merchant_id,
+                        &merchant_account.get_id(),
                         merchant_account.storage_scheme,
                     )
                     .await

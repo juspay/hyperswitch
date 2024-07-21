@@ -230,7 +230,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
@@ -274,7 +274,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             state,
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
-            merchant_id.to_string(),
+            merchant_id.to_owned(),
         )
         .await
         .change_context(StorageError::DecryptionError)
@@ -291,7 +291,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
                     &conn,
-                    payment.merchant_id.as_str(),
+                    &payment.merchant_id,
                     attempt_id.as_str(),
                 )
                 .await
@@ -311,7 +311,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -331,7 +331,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -351,7 +351,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -370,7 +370,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
@@ -454,7 +454,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         state: &KeyManagerState,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
@@ -491,7 +491,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
                     &conn,
-                    payment.merchant_id.as_str(),
+                    &payment.merchant_id,
                     attempt_id.as_str(),
                 )
                 .await
@@ -512,7 +512,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -638,7 +638,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -660,7 +660,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -811,7 +811,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         state,
                         pi,
                         merchant_key_store.key.get_inner(),
-                        merchant_id.to_string(),
+                        merchant_id.to_owned(),
                     )
                     .map(|payment_intent| {
                         payment_intent.map(|payment_intent| {
@@ -834,7 +834,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {

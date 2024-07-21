@@ -64,7 +64,7 @@ pub async fn add_access_token<
         .connector_name
         .supports_access_token(router_data.payment_method)
     {
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = &merchant_account.get_id();
         let store = &*state.store;
 
         // `merchant_connector_id` may not be present in the below cases
@@ -89,7 +89,7 @@ pub async fn add_access_token<
             Some(access_token) => {
                 router_env::logger::debug!(
                     "Access token found in redis for merchant_id: {}, payment_id: {}, connector: {} which has expiry of: {} seconds",
-                    merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     router_data.payment_id,
                     connector.connector_name,
                     access_token.expires

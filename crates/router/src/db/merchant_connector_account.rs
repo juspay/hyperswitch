@@ -28,13 +28,13 @@ use crate::{
 pub trait ConnectorAccessToken {
     async fn get_access_token(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
 
     async fn set_access_token(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError>;
@@ -45,7 +45,7 @@ impl ConnectorAccessToken for Store {
     #[instrument(skip_all)]
     async fn get_access_token(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         //TODO: Handle race condition
@@ -75,7 +75,7 @@ impl ConnectorAccessToken for Store {
     #[instrument(skip_all)]
     async fn set_access_token(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
@@ -98,7 +98,7 @@ impl ConnectorAccessToken for Store {
 impl ConnectorAccessToken for MockDb {
     async fn get_access_token(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         Ok(None)
@@ -106,7 +106,7 @@ impl ConnectorAccessToken for MockDb {
 
     async fn set_access_token(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _merchant_connector_id_or_connector_name: &str,
         _access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
@@ -125,7 +125,7 @@ where
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
@@ -141,7 +141,7 @@ where
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
@@ -156,7 +156,7 @@ where
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
@@ -164,7 +164,7 @@ where
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
@@ -187,7 +187,7 @@ where
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 }
@@ -198,7 +198,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -302,7 +302,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
@@ -336,7 +336,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -413,7 +413,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
@@ -609,7 +609,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -683,7 +683,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -722,7 +722,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
@@ -790,7 +790,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -874,7 +874,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
@@ -953,7 +953,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
@@ -1073,7 +1073,7 @@ mod merchant_connector_account_cache_tests {
 
         let mca = domain::MerchantConnectorAccount {
             id: Some(1),
-            merchant_id: merchant_id.to_string(),
+            merchant_id: merchant_id.to_owned(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::encrypt(
                 key_manager_state,

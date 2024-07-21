@@ -24,7 +24,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = merchant_account.merchant_id.clone();
+    let merchant_id = merchant_account.get_id().clone();
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),

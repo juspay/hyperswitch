@@ -18,13 +18,13 @@ pub trait AuthorizationInterface {
 
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError>;
 
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError>;
@@ -47,7 +47,7 @@ impl AuthorizationInterface for Store {
     #[instrument(skip_all)]
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -59,7 +59,7 @@ impl AuthorizationInterface for Store {
     #[instrument(skip_all)]
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
@@ -109,7 +109,7 @@ impl AuthorizationInterface for MockDb {
 
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let authorizations = self.authorizations.lock().await;
@@ -124,7 +124,7 @@ impl AuthorizationInterface for MockDb {
 
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::MerchantStorageScheme;
 use error_stack::report;
 use redis_interface::errors::RedisError;
@@ -24,26 +24,26 @@ pub trait KvStorePartition {
 #[derive(Clone)]
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
-        merchant_id: &'a str,
+        merchant_id: &'a common_utils::id_type::MerchantId,
         payment_id: &'a str,
     },
     CombinationKey {
         combination: &'a str,
     },
     MerchantIdCustomerId {
-        merchant_id: &'a str,
+        merchant_id: &'a common_utils::id_type::MerchantId,
         customer_id: &'a str,
     },
     MerchantIdPayoutId {
-        merchant_id: &'a str,
+        merchant_id: &'a common_utils::id_type::MerchantId,
         payout_id: &'a str,
     },
     MerchantIdPayoutAttemptId {
-        merchant_id: &'a str,
+        merchant_id: &'a common_utils::id_type::MerchantId,
         payout_attempt_id: &'a str,
     },
     MerchantIdMandateId {
-        merchant_id: &'a str,
+        merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
 }
@@ -54,24 +54,39 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
             PartitionKey::MerchantIdPaymentId {
                 merchant_id,
                 payment_id,
-            } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
+            } => f.write_str(&format!(
+                "mid_{}_pid_{payment_id}",
+                merchant_id.get_string_repr()
+            )),
             PartitionKey::CombinationKey { combination } => f.write_str(combination),
             PartitionKey::MerchantIdCustomerId {
                 merchant_id,
                 customer_id,
-            } => f.write_str(&format!("mid_{merchant_id}_cust_{customer_id}")),
+            } => f.write_str(&format!(
+                "mid_{}_cust_{customer_id}",
+                merchant_id.get_string_repr()
+            )),
             PartitionKey::MerchantIdPayoutId {
                 merchant_id,
                 payout_id,
-            } => f.write_str(&format!("mid_{merchant_id}_po_{payout_id}")),
+            } => f.write_str(&format!(
+                "mid_{}_po_{payout_id}",
+                merchant_id.get_string_repr()
+            )),
             PartitionKey::MerchantIdPayoutAttemptId {
                 merchant_id,
                 payout_attempt_id,
-            } => f.write_str(&format!("mid_{merchant_id}_poa_{payout_attempt_id}")),
+            } => f.write_str(&format!(
+                "mid_{}_poa_{payout_attempt_id}",
+                merchant_id.get_string_repr()
+            )),
             PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
-            } => f.write_str(&format!("mid_{merchant_id}_mandate_{mandate_id}")),
+            } => f.write_str(&format!(
+                "mid_{}_mandate_{mandate_id}",
+                merchant_id.get_string_repr()
+            )),
         }
     }
 }

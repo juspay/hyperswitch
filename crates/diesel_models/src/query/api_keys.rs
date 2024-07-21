@@ -17,7 +17,7 @@ impl ApiKeyNew {
 impl ApiKey {
     pub async fn update_by_merchant_id_key_id(
         conn: &PgPooledConn,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         key_id: String,
         api_key_update: ApiKeyUpdate,
     ) -> StorageResult<Self> {
@@ -56,7 +56,7 @@ impl ApiKey {
 
     pub async fn revoke_by_merchant_id_key_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
@@ -70,7 +70,7 @@ impl ApiKey {
 
     pub async fn find_optional_by_merchant_id_key_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
@@ -95,7 +95,7 @@ impl ApiKey {
 
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> StorageResult<Vec<Self>> {

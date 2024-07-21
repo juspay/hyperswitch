@@ -6,6 +6,7 @@ use api_models::analytics::{
     AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
     GetFrmMetricRequest, MetricsResponse,
 };
+use common_utils::id_type;
 use error_stack::ResultExt;
 use router_env::{
     logger,
@@ -25,7 +26,7 @@ use crate::{
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetFrmMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<FrmMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<FrmMetricsBucketIdentifier, FrmMetricsAccumulator> =
@@ -114,7 +115,7 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetFrmFilterRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<FrmFiltersResponse> {
     let mut res = FrmFiltersResponse::default();
     for dim in req.group_by_names {

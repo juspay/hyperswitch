@@ -114,7 +114,7 @@ pub struct ReportRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GenerateReportRequest {
     pub request: ReportRequest,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub email: Secret<String, EmailStrategy>,
 }
 

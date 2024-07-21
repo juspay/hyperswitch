@@ -8,7 +8,7 @@ pub struct KafkaRefundEvent<'a> {
     pub internal_reference_id: &'a String,
     pub refund_id: &'a String, //merchant_reference id
     pub payment_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub connector_transaction_id: &'a String,
     pub connector: &'a String,
     pub connector_refund_id: Option<&'a String>,

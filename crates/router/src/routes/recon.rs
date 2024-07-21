@@ -89,13 +89,13 @@ pub async fn send_recon_request(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            merchant_id.as_str(),
+            merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

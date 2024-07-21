@@ -65,7 +65,10 @@ pub enum AuthRuleType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Identifiers {
     /// [`ApiKey`] is an authentication method that uses an API key. This is used with [`ApiKey`]
-    ApiKey { merchant_id: String, key_id: String },
+    ApiKey {
+        merchant_id: common_utils::id_type::MerchantId,
+        key_id: String,
+    },
     /// [`PublishableKey`] is an authentication method that uses a publishable key. This is used with [`PublishableKey`]
     PublishableKey { merchant_id: String },
 }
@@ -76,7 +79,7 @@ pub enum Identifiers {
 pub async fn add_api_key(
     state: &SessionState,
     api_key: Secret<String>,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     key_id: String,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
@@ -104,7 +107,7 @@ pub async fn add_api_key(
 pub async fn add_publishable_key(
     state: &SessionState,
     api_key: Secret<String>,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
     let decision_config = if let Some(config) = &state.conf.decision {

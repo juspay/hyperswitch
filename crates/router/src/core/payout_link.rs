@@ -32,7 +32,7 @@ pub async fn initiate_payout_link(
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = &merchant_account.get_id();
     // Fetch payout
     let payout = db
         .find_payout_by_merchant_id_payout_id(
@@ -270,7 +270,7 @@ pub async fn filter_payout_methods(
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             false,
             key_store,
         )

@@ -26,7 +26,7 @@ use crate::{
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
@@ -56,7 +56,7 @@ pub async fn validate_create_request(
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = &merchant_account.get_id();
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
@@ -109,7 +109,7 @@ pub async fn validate_create_request(
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
                 &customer_id,
-                &merchant_account.merchant_id,
+                &merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
                 None,

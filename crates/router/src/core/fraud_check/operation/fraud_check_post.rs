@@ -84,7 +84,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
                 payment_data.payment_intent.payment_id.clone(),
-                payment_data.merchant_account.merchant_id.clone(),
+                payment_data.merchant_account.get_id().clone(),
             )
             .await
             .ok();
@@ -94,7 +94,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
                     payment_id: payment_data.payment_intent.payment_id.clone(),
-                    merchant_id: payment_data.merchant_account.merchant_id.clone(),
+                    merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
                     frm_name: frm_connector_details.connector_name,

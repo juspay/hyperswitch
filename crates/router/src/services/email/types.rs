@@ -47,7 +47,7 @@ pub enum EmailBody {
     },
     ProFeatureRequest {
         feature_name: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         user_name: String,
         user_email: String,
     },
@@ -325,7 +325,7 @@ pub struct InviteUser {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub auth_id: Option<String>,
 }
 
@@ -366,7 +366,7 @@ pub struct InviteRegisteredUser {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub auth_id: Option<String>,
 }
 
@@ -476,7 +476,7 @@ impl EmailData for BizEmailProd {
 pub struct ProFeatureRequest {
     pub recipient_email: domain::UserEmail,
     pub feature_name: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,

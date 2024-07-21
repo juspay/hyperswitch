@@ -9,7 +9,7 @@ use crate::schema::file_metadata;
 #[serde(deny_unknown_fields)]
 pub struct FileMetadataNew {
     pub file_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub file_name: Option<String>,
     pub file_size: i32,
     pub file_type: String,
@@ -26,7 +26,7 @@ pub struct FileMetadataNew {
 pub struct FileMetadata {
     #[serde(skip_serializing)]
     pub file_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub file_name: Option<String>,
     pub file_size: i32,
     pub file_type: String,

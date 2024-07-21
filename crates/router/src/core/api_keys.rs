@@ -112,7 +112,7 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     state: SessionState,
     api_key: api::CreateApiKeyRequest,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let api_key_config = state.conf.api_keys.get_inner();
     let store = state.store.as_ref();
@@ -123,7 +123,7 @@ pub async fn create_api_key(
     store
         .get_merchant_key_store_by_merchant_id(
             &(&state).into(),
-            merchant_id.as_str(),
+            merchant_id,
             &store.get_master_key().to_vec().into(),
         )
         .await
@@ -266,7 +266,7 @@ pub async fn add_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let store = state.store.as_ref();
@@ -438,7 +438,7 @@ pub async fn update_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
@@ -525,7 +525,7 @@ pub async fn revoke_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn list_api_keys(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> RouterResponse<Vec<api::RetrieveApiKeyResponse>> {

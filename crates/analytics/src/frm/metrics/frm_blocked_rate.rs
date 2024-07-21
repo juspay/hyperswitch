@@ -27,7 +27,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[FrmDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &FrmFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

@@ -41,8 +41,8 @@ pub async fn create_customer(
         .clone()
         .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
 
-    let merchant_id = &merchant_account.merchant_id;
-    merchant_id.clone_into(&mut customer_data.merchant_id);
+    let merchant_id = merchant_account.get_id();
+    customer_data.merchant_id = merchant_id.clone();
     let key_manager_state = &(&state).into();
 
     // We first need to validate whether the customer with the given customer id already exists
@@ -116,7 +116,7 @@ pub async fn create_customer(
         .change_context(errors::CustomersErrorResponse::InternalServerError)?;
     let new_customer = domain::Customer {
         customer_id: customer_id.to_owned(),
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
         name: encryptable_customer.name,
         email: encryptable_customer.email,
         phone: encryptable_customer.phone,
@@ -162,7 +162,7 @@ pub async fn retrieve_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -184,7 +184,7 @@ pub async fn retrieve_customer(
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
@@ -215,7 +215,7 @@ pub async fn delete_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -223,7 +223,7 @@ pub async fn delete_customer(
         .switch()?;
 
     let customer_mandates = db
-        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
+        .find_mandate_by_merchant_id_customer_id(&merchant_account.get_id(), &req.customer_id)
         .await
         .switch()?;
 
@@ -236,7 +236,7 @@ pub async fn delete_customer(
     match db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             None,
         )
         .await
@@ -248,14 +248,14 @@ pub async fn delete_customer(
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
-                        &merchant_account.merchant_id,
+                        &merchant_account.get_id(),
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
-                    &merchant_account.merchant_id,
+                    &merchant_account.get_id(),
                     &pm.payment_method_id,
                 )
                 .await
@@ -312,7 +312,7 @@ pub async fn delete_customer(
         .update_address_by_merchant_id_customer_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             update_address,
             &key_store,
         )
@@ -352,7 +352,7 @@ pub async fn delete_customer(
     db.update_customer_by_customer_id_merchant_id(
         key_manager_state,
         req.customer_id.clone(),
-        merchant_account.merchant_id,
+        merchant_account.get_id().to_owned(),
         customer_orig,
         updated_customer,
         &key_store,
@@ -392,7 +392,7 @@ pub async fn update_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_account.merchant_id,
+            &merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -411,7 +411,7 @@ pub async fn update_customer(
                         customer_address,
                         key,
                         merchant_account.storage_scheme,
-                        merchant_account.merchant_id.clone(),
+                        merchant_account.get_id().clone(),
                     )
                     .await
                     .switch()
@@ -421,8 +421,9 @@ pub async fn update_customer(
                         .await
                         .switch()
                         .attach_printable(format!(
-                            "Failed while updating address: merchant_id: {}, customer_id: {:?}",
-                            merchant_account.merchant_id, customer_id
+                            "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
+                            merchant_account.get_id(),
+                            customer_id
                         ))?,
                 )
             }
@@ -433,7 +434,7 @@ pub async fn update_customer(
                     .get_domain_address(
                         &state,
                         customer_address,
-                        &merchant_account.merchant_id,
+                        &merchant_account.get_id(),
                         &customer.customer_id,
                         key,
                         merchant_account.storage_scheme,
@@ -478,7 +479,7 @@ pub async fn update_customer(
         .update_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id.to_owned(),
-            merchant_account.merchant_id.to_owned(),
+            merchant_account.get_id().to_owned(),
             customer,
             storage::CustomerUpdate::Update {
                 name: encryptable_customer.name,

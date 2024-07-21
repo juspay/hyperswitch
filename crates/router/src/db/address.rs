@@ -64,7 +64,7 @@ where
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -75,7 +75,7 @@ where
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         address: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError>;
@@ -130,7 +130,7 @@ mod storage {
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             state: &KeyManagerState,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             payment_id: &str,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -273,7 +273,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
@@ -358,7 +358,7 @@ mod storage {
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             state: &KeyManagerState,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             payment_id: &str,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -662,7 +662,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
@@ -731,7 +731,7 @@ impl AddressInterface for MockDb {
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
         state: &KeyManagerState,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -887,7 +887,7 @@ impl AddressInterface for MockDb {
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {

@@ -207,7 +207,7 @@ pub struct IncomingWebhookDetails {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique event id for each webhook
     pub event_id: String,

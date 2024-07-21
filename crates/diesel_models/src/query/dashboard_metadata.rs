@@ -21,7 +21,7 @@ impl DashboardMetadata {
     pub async fn update(
         conn: &PgPooledConn,
         user_id: Option<String>,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         org_id: String,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: DashboardMetadataUpdate,
@@ -61,7 +61,7 @@ impl DashboardMetadata {
     pub async fn find_user_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         org_id: String,
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
@@ -83,7 +83,7 @@ impl DashboardMetadata {
 
     pub async fn find_merchant_scoped_dashboard_metadata(
         conn: &PgPooledConn,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         org_id: String,
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
@@ -106,7 +106,7 @@ impl DashboardMetadata {
     pub async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -120,7 +120,7 @@ impl DashboardMetadata {
     pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(

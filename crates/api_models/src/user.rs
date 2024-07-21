@@ -1,5 +1,5 @@
 use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
-use common_utils::{crypto::OptionalEncryptableName, pii};
+use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -28,7 +28,7 @@ pub type SignUpResponse = DashboardEntryResponse;
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct DashboardEntryResponse {
     pub token: Secret<String>,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub name: Secret<String>,
     pub email: pii::Email,
     pub verification_days_left: Option<i64>,
@@ -71,7 +71,7 @@ pub struct AuthorizeResponse {
     pub user_id: String,
     //this field is added for audit/debug reasons
     #[serde(skip_serializing)]
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -125,7 +125,7 @@ pub struct AcceptInviteFromEmailRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -156,7 +156,7 @@ pub struct UserDetails {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct GetUserDetailsResponse {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub name: Secret<String>,
     pub email: pii::Email,
     pub verification_days_left: Option<i64>,
@@ -201,7 +201,7 @@ pub struct SendVerifyEmailRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserMerchantAccount {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
     pub is_active: bool,
     pub role_id: String,
@@ -212,7 +212,7 @@ pub struct UserMerchantAccount {
 #[cfg(feature = "recon")]
 #[derive(serde::Serialize, Debug)]
 pub struct VerifyTokenResponse {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub user_email: pii::Email,
 }
 

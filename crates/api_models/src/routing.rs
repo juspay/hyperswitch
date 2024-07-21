@@ -445,7 +445,7 @@ pub struct RoutingDictionaryRecord {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub active_id: Option<String>,
     pub records: Vec<RoutingDictionaryRecord>,
 }

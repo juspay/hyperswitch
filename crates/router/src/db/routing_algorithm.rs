@@ -27,7 +27,7 @@ pub trait RoutingAlgorithmInterface {
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
         algorithm_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
@@ -45,14 +45,14 @@ pub trait RoutingAlgorithmInterface {
 
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
 
     async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &common_enums::TransactionType,
         limit: i64,
         offset: i64,
@@ -93,7 +93,7 @@ impl RoutingAlgorithmInterface for Store {
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
         algorithm_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
@@ -139,7 +139,7 @@ impl RoutingAlgorithmInterface for Store {
     #[instrument(skip_all)]
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
@@ -156,7 +156,7 @@ impl RoutingAlgorithmInterface for Store {
 
     async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &common_enums::TransactionType,
         limit: i64,
         offset: i64,
@@ -194,7 +194,7 @@ impl RoutingAlgorithmInterface for MockDb {
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
         _algorithm_id: &str,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -218,7 +218,7 @@ impl RoutingAlgorithmInterface for MockDb {
 
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _limit: i64,
         _offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
@@ -227,7 +227,7 @@ impl RoutingAlgorithmInterface for MockDb {
 
     async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _transaction_type: &common_enums::TransactionType,
         _limit: i64,
         _offset: i64,

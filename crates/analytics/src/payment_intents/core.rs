@@ -43,7 +43,7 @@ pub enum TaskType {
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetPaymentIntentMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -149,7 +149,7 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentIntentFiltersRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<PaymentIntentFiltersResponse> {
     let mut res = PaymentIntentFiltersResponse::default();
 

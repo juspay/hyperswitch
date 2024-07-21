@@ -17,7 +17,7 @@ use super::{
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
     pub test_mode: Option<bool>,

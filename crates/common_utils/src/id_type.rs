@@ -37,7 +37,7 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
         .find(|char| !is_valid_id_character(char))
 }
 
-#[derive(Debug, PartialEq, Serialize, Clone, Eq)]
+#[derive(Debug, PartialEq, Serialize, Clone, Eq, Hash)]
 /// A type for alphanumeric ids
 pub(crate) struct AlphaNumericId(String);
 
@@ -83,7 +83,7 @@ impl AlphaNumericId {
 }
 
 /// A common type of id that can be used for reference ids with length constraint
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, AsExpression)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, AsExpression, Hash)]
 #[diesel(sql_type = sql_types::Text)]
 pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 

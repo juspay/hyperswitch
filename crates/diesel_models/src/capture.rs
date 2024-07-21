@@ -3,6 +3,8 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+
+
 use crate::{enums as storage_enums, schema::captures};
 
 #[derive(
@@ -12,7 +14,7 @@ use crate::{enums as storage_enums, schema::captures};
 pub struct Capture {
     pub capture_id: String,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
@@ -37,7 +39,7 @@ pub struct Capture {
 pub struct CaptureNew {
     pub capture_id: String,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,

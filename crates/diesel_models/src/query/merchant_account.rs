@@ -43,7 +43,7 @@ impl MerchantAccount {
 
     pub async fn update_with_specific_fields(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
@@ -61,7 +61,7 @@ impl MerchantAccount {
 
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -72,7 +72,7 @@ impl MerchantAccount {
 
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,

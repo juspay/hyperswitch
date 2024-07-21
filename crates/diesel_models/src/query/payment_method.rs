@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::id_type;
+
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     QueryDsl, Table,
@@ -34,7 +34,7 @@ impl PaymentMethod {
 
     pub async fn delete_by_merchant_id_payment_method_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_method_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
@@ -67,7 +67,7 @@ impl PaymentMethod {
 
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -86,8 +86,8 @@ impl PaymentMethod {
 
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -104,8 +104,8 @@ impl PaymentMethod {
 
     pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
         let filter = <Self as HasTable>::table()
@@ -131,8 +131,8 @@ impl PaymentMethod {
 
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
         status: storage_enums::PaymentMethodStatus,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
