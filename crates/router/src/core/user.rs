@@ -1930,6 +1930,7 @@ pub async fn generate_recovery_codes(
 
 pub async fn transfer_user_key_store_keymanager(
     state: SessionState,
+    req: user_api::UserKeyTransferRequest,
 ) -> UserResponse<user_api::UserTransferKeyResponse> {
     let db = &state.global_store;
 
@@ -1937,6 +1938,8 @@ pub async fn transfer_user_key_store_keymanager(
         .get_all_user_key_store(
             &(&state).into(),
             &state.store.get_master_key().to_vec().into(),
+            req.from,
+            req.limit,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;

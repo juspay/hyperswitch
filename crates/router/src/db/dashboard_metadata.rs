@@ -276,8 +276,7 @@ impl DashboardMetadataInterface for MockDb {
         let query_result = dashboard_metadata
             .iter()
             .filter(|metadata_inner| {
-                metadata_inner.user_id.is_none()
-                    && metadata_inner.merchant_id == *merchant_id
+                metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.org_id == org_id
                     && data_keys.contains(&metadata_inner.data_key)
             })

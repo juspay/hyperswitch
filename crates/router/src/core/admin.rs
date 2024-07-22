@@ -2531,6 +2531,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             iatapay::transformers::IatapayAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Itaubank => {
+            itaubank::transformers::ItaubankAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
@@ -2757,8 +2761,9 @@ pub(crate) fn validate_connector_auth_type(
 
 pub async fn transfer_key_store_to_key_manager(
     state: SessionState,
+    req: admin_types::MerchantKeyTransferRequest,
 ) -> RouterResponse<admin_types::TransferKeyResponse> {
-    let resp = transfer_encryption_key(&state).await?;
+    let resp = transfer_encryption_key(&state, req).await?;
 
     Ok(service_api::ApplicationResponse::Json(
         admin_types::TransferKeyResponse {

@@ -1,6 +1,6 @@
 use actix_web::HttpRequest;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
-use common_utils::impl_misc_api_event_type;
+use common_utils::impl_api_event_type;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -98,24 +98,30 @@ impl KafkaMessage for ApiEvent {
     }
 }
 
-impl_misc_api_event_type!(
-    Config,
-    CreateFileRequest,
-    FileId,
-    AttachEvidenceRequest,
-    ConfigUpdate
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        Config,
+        CreateFileRequest,
+        FileId,
+        AttachEvidenceRequest,
+        ConfigUpdate
+    )
 );
 
 #[cfg(feature = "dummy_connector")]
-impl_misc_api_event_type!(
-    DummyConnectorPaymentCompleteRequest,
-    DummyConnectorPaymentRequest,
-    DummyConnectorPaymentResponse,
-    DummyConnectorPaymentRetrieveRequest,
-    DummyConnectorPaymentConfirmRequest,
-    DummyConnectorRefundRetrieveRequest,
-    DummyConnectorRefundResponse,
-    DummyConnectorRefundRequest
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        DummyConnectorPaymentCompleteRequest,
+        DummyConnectorPaymentRequest,
+        DummyConnectorPaymentResponse,
+        DummyConnectorPaymentRetrieveRequest,
+        DummyConnectorPaymentConfirmRequest,
+        DummyConnectorRefundRetrieveRequest,
+        DummyConnectorRefundResponse,
+        DummyConnectorRefundRequest
+    )
 );
 
 impl ApiEventMetric for PaymentsRedirectResponseData {

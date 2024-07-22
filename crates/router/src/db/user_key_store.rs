@@ -37,6 +37,8 @@ pub trait UserKeyStoreInterface {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError>;
 }
 
@@ -84,16 +86,17 @@ impl UserKeyStoreInterface for Store {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
 
-        let fetch_func = || async {
-            diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(&conn)
-                .await
-                .map_err(|err| report!(errors::StorageError::from(err)))
-        };
-
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+        let key_stores = diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(
+            &conn, from, limit,
+        )
+        .await
+        .map_err(|err| report!(errors::StorageError::from(err)))?;
+        futures::future::try_join_all(key_stores.into_iter().map(|key_store| async {
             let user_id = key_store.user_id.clone();
             key_store
                 .convert(state, key, keymanager::Identifier::User(user_id))
@@ -140,6 +143,8 @@ impl UserKeyStoreInterface for MockDb {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        _from: u32,
+        _limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         let user_key_store = self.user_key_store.lock().await;
 

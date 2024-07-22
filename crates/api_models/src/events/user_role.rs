@@ -10,19 +10,22 @@ use crate::user_role::{
     MerchantSelectRequest, TransferOrgOwnershipRequest, UpdateUserRoleRequest,
 };
 
-common_utils::impl_misc_api_event_type!(
-    RoleInfoWithPermissionsResponse,
-    GetRoleRequest,
-    AuthorizationInfoResponse,
-    UpdateUserRoleRequest,
-    MerchantSelectRequest,
-    AcceptInvitationRequest,
-    DeleteUserRoleRequest,
-    TransferOrgOwnershipRequest,
-    CreateRoleRequest,
-    UpdateRoleRequest,
-    ListRolesResponse,
-    RoleInfoResponse,
-    GetRoleFromTokenResponse,
-    RoleInfoWithGroupsResponse
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        RoleInfoWithPermissionsResponse,
+        GetRoleRequest,
+        AuthorizationInfoResponse,
+        UpdateUserRoleRequest,
+        MerchantSelectRequest,
+        AcceptInvitationRequest,
+        DeleteUserRoleRequest,
+        TransferOrgOwnershipRequest,
+        CreateRoleRequest,
+        UpdateRoleRequest,
+        ListRolesResponse,
+        RoleInfoResponse,
+        GetRoleFromTokenResponse,
+        RoleInfoWithGroupsResponse
+    )
 );

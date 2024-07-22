@@ -1003,6 +1003,7 @@ impl Default for PaymentSyncType {
             payment_experience: None,
             amount: MinorUnit::new(100),
             integrity_object: None,
+            browser_info: None,
         };
         Self(data)
     }
