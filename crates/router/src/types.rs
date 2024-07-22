@@ -84,7 +84,7 @@ pub use hyperswitch_interfaces::types::{
     VerifyWebhookSourceType,
 };
 #[cfg(feature = "payouts")]
-use hyperswitch_interfaces::types::{
+pub use hyperswitch_interfaces::types::{
     PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType, PayoutQuoteType,
     PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
 };

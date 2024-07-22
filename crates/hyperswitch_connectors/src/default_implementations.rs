@@ -3,15 +3,6 @@
 // impl api::PaymentsPreProcessing for Helcim {}
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    payouts::{
-        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-        PoSync,
-    },
-    router_request_types::PayoutsData,
-    router_response_types::PayoutsResponseData,
-};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
@@ -20,6 +11,15 @@ use hyperswitch_domain_models::{
         FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -45,6 +45,16 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData,
     },
 };
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::api::fraud_check::{
+    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
+    FraudCheckTransaction,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::api::payouts::{
+    PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
+    PayoutRecipientAccount, PayoutSync,
+};
 use hyperswitch_interfaces::api::{
     self,
     disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
@@ -55,16 +65,6 @@ use hyperswitch_interfaces::api::{
         PaymentsPostProcessing, PaymentsPreProcessing,
     },
     ConnectorIntegration, ConnectorMandateRevoke,
-};
-#[cfg(feature = "frm")]
-use hyperswitch_interfaces::fraud_check::{
-    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-    FraudCheckTransaction,
-};
-#[cfg(feature = "payouts")]
-use hyperswitch_interfaces::payouts::{
-    PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
-    PayoutRecipientAccount, PayoutSync,
 };
 
 macro_rules! default_imp_for_authorize_session_token {
