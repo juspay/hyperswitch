@@ -117,10 +117,7 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
-    use {
-        base64::Engine,
-        common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
-    };
+    use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
 
     let db = state.store.as_ref();
 
