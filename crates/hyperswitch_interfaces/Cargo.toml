@@ -7,7 +7,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["dummy_connector", "payouts", "frm"]
+default = ["dummy_connector", "frm", "payouts"]
 dummy_connector = []
 payouts = ["hyperswitch_domain_models/payouts"]
 frm = ["hyperswitch_domain_models/frm"]

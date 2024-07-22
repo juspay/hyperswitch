@@ -1,12 +1,11 @@
 //! Payouts interface
 
+use hyperswitch_domain_models::router_flow_types::payouts::{
+    PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
+};
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::payouts::{
-        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-        PoSync,
-    },
-    router_request_types::PayoutsData,
-    router_response_types::PayoutsResponseData,
+    router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
 };
 
 use crate::api::ConnectorIntegration;

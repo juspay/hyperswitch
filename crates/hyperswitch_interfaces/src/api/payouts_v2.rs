@@ -1,11 +1,10 @@
 //! Payouts V2 interface
+use hyperswitch_domain_models::router_flow_types::payouts::{
+    PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
+};
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::PayoutFlowData,
-    router_flow_types::payouts::{
-        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-        PoSync,
-    },
-    router_request_types::PayoutsData,
+    router_data_v2::flow_common_types::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
 

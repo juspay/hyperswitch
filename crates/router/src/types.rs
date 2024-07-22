@@ -79,11 +79,14 @@ pub use hyperswitch_interfaces::types::{
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
     PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
     PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
-    PaymentsVoidType, PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType,
-    PayoutQuoteType, PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
-    RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
-    SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
+    PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
+    RetrieveFileType, SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
     VerifyWebhookSourceType,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{
+    PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType, PayoutQuoteType,
+    PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
 };
 
 pub use crate::core::payments::CustomerDetails;

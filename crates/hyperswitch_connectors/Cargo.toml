@@ -6,9 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["payouts", "frm"]
-frm = []
-payouts = []
+frm = ["hyperswitch_domain_models/frm"]
+payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts"]
 
 [dependencies]
 async-trait = "0.1.79"
@@ -19,7 +18,7 @@ serde_json = "1.0.115"
 strum = { version = "0.26", features = ["derive"] }
 
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] , default-features = false}
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }

@@ -3,57 +3,68 @@
 // impl api::PaymentsPreProcessing for Helcim {}
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+};
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::{
+    router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
+        FraudCheckSaleData, FraudCheckTransactionData,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
 use hyperswitch_domain_models::{
     router_flow_types::{
         dispute::{Accept, Defend, Evidence},
         files::{Retrieve, Upload},
-        fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CompleteAuthorize, CreateConnectorCustomer,
             IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
         },
-        payouts::{
-            PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-            PoSync,
-        },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
-        fraud_check::{
-            FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-            FraudCheckSaleData, FraudCheckTransactionData,
-        },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PayoutsData, RetrieveFileRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, RetrieveFileRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
-        MandateRevokeResponseData, PaymentsResponseData, PayoutsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, UploadFileResponse, VerifyWebhookSourceResponseData,
+        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 use hyperswitch_interfaces::api::{
     self,
     disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
     files::{FileUpload, RetrieveFile, UploadFile},
-    fraud_check::{
-        FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-        FraudCheckTransaction,
-    },
     payments::{
         ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
         PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
         PaymentsPostProcessing, PaymentsPreProcessing,
     },
-    payouts::{
-        PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
-        PayoutRecipientAccount, PayoutSync,
-    },
     ConnectorIntegration, ConnectorMandateRevoke,
+};
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::fraud_check::{
+    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
+    FraudCheckTransaction,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::payouts::{
+    PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
+    PayoutRecipientAccount, PayoutSync,
 };
 
 macro_rules! default_imp_for_authorize_session_token {

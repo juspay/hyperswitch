@@ -11,10 +11,6 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PreProcessing, Session, SetupMandate, Void,
         },
-        payouts::{
-            PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-            PoSync,
-        },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
     },
@@ -24,15 +20,23 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PayoutsData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, PayoutsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, UploadFileResponse, VerifyWebhookSourceResponseData,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        UploadFileResponse, VerifyWebhookSourceResponseData,
     },
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 
 use crate::api::ConnectorIntegration;
