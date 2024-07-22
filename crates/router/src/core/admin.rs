@@ -61,7 +61,7 @@ pub fn create_merchant_publishable_key() -> String {
 
 pub async fn insert_merchant_configs(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> RouterResult<()> {
     db.insert_config(configs::ConfigNew {
         key: merchant_id.get_requires_cvv_key(),
@@ -690,7 +690,7 @@ pub async fn create_business_profile_from_business_labels(
     state: &SessionState,
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     new_business_details: Vec<admin_types::PrimaryBusinessDetails>,
 ) -> RouterResult<()> {
     let key_manager_state = &state.into();
@@ -758,7 +758,7 @@ pub async fn create_business_profile_from_business_labels(
 pub async fn update_business_profile_cascade(
     state: SessionState,
     merchant_account_update: api::MerchantAccountUpdate,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResult<()> {
     if merchant_account_update.return_url.is_some()
         || merchant_account_update.webhook_details.is_some()
@@ -825,7 +825,7 @@ pub async fn update_business_profile_cascade(
 
 pub async fn merchant_account_update(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
@@ -1005,7 +1005,7 @@ pub async fn merchant_account_update(
 
 pub async fn merchant_account_delete(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
@@ -1076,7 +1076,7 @@ pub async fn merchant_account_delete(
 async fn get_parent_merchant(
     state: &SessionState,
     sub_merchants_enabled: Option<bool>,
-    parent_merchant: Option<&common_utils::id_type::MerchantId>,
+    parent_merchant: Option<&id_type::MerchantId>,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<id_type::MerchantId>> {
     Ok(match sub_merchants_enabled {
@@ -1103,7 +1103,7 @@ async fn get_parent_merchant(
 
 async fn validate_merchant_id(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::MerchantAccount> {
     let db = &*state.store;
@@ -1150,7 +1150,7 @@ fn validate_certificate_in_mca_metadata(
 pub async fn create_payment_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1482,7 +1482,7 @@ pub async fn create_payment_connector(
 async fn validate_pm_auth(
     val: serde_json::Value,
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     profile_id: &Option<String>,
@@ -1528,7 +1528,7 @@ async fn validate_pm_auth(
 
 pub async fn retrieve_payment_connector(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -1564,7 +1564,7 @@ pub async fn retrieve_payment_connector(
 
 pub async fn list_payment_connectors(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1604,7 +1604,7 @@ pub async fn list_payment_connectors(
 
 pub async fn update_payment_connector(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -1754,7 +1754,7 @@ pub async fn update_payment_connector(
 
 pub async fn delete_payment_connector(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     merchant_connector_id: String,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
@@ -1805,7 +1805,7 @@ pub async fn delete_payment_connector(
 
 pub async fn kv_for_merchant(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
@@ -1909,7 +1909,7 @@ pub async fn toggle_kv_for_all_merchants(
 
 pub async fn check_merchant_account_kv_status(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1989,7 +1989,7 @@ pub async fn create_and_insert_business_profile(
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     if let Some(session_expiry) = &request.session_expiry {
         helpers::validate_session_expiry(session_expiry.to_owned())?;
@@ -2053,7 +2053,7 @@ pub async fn create_business_profile(
 
 pub async fn list_business_profile(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
@@ -2084,7 +2084,7 @@ pub async fn list_business_profile(
 pub async fn retrieve_business_profile(
     state: SessionState,
     profile_id: String,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     let db = state.store.as_ref();
     let key_store = db
@@ -2113,7 +2113,7 @@ pub async fn retrieve_business_profile(
 pub async fn delete_business_profile(
     state: SessionState,
     profile_id: String,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<bool> {
     let db = state.store.as_ref();
     let delete_result = db
@@ -2129,7 +2129,7 @@ pub async fn delete_business_profile(
 pub async fn update_business_profile(
     state: SessionState,
     profile_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let db = state.store.as_ref();
@@ -2321,7 +2321,7 @@ pub async fn extended_card_info_toggle(
 
 pub async fn connector_agnostic_mit_toggle(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     profile_id: &str,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
@@ -2828,7 +2828,7 @@ pub fn validate_status_and_disabled(
 
 async fn process_open_banking_connectors(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     auth: &types::ConnectorAuthType,
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
@@ -2992,7 +2992,7 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
 
 async fn connector_recipient_create_call(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     connector_name: String,
     auth: &types::ConnectorAuthType,
     data: &types::MerchantAccountData,
@@ -3077,7 +3077,7 @@ async fn connector_recipient_create_call(
 
 async fn locker_recipient_create_call(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     data: &types::MerchantAccountData,
 ) -> RouterResult<String> {
     let enc_data = serde_json::to_string(data)

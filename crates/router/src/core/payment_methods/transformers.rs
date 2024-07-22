@@ -37,7 +37,7 @@ impl StoreLockerReq {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requestor_card_reference: Option<String>,
@@ -47,7 +47,7 @@ pub struct StoreCardReq {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreGenericReq {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
@@ -77,7 +77,7 @@ pub enum DataDuplicationCheck {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
     pub card_reference: String,
 }
@@ -110,7 +110,7 @@ pub struct AddCardRequest {
     pub customer_id: id_type::CustomerId,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub email_address: Option<Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
@@ -124,7 +124,7 @@ pub struct AddCardResponse {
     pub card_fingerprint: Secret<String>,
     pub card_global_fingerprint: Secret<String>,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
@@ -140,7 +140,7 @@ pub struct AddPaymentMethodResponse {
     pub payment_method_id: String,
     pub external_id: String,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub nickname: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
@@ -317,7 +317,7 @@ pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
     req: api::PaymentMethodCreate,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -341,7 +341,7 @@ pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
     req: api::PaymentMethodCreate,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     let card_number = card.card_number.clone();
     let last4_digits = card_number.get_last4();
@@ -390,7 +390,7 @@ pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &id_type::CustomerId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -462,7 +462,7 @@ pub async fn mk_delete_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &id_type::CustomerId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();

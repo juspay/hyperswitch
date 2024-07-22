@@ -109,7 +109,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_manager_identifier: common_utils::types::keymanager::Identifier,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {

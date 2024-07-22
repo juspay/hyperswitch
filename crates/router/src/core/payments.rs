@@ -854,7 +854,7 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,
     pub param: Option<String>,
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub json_payload: Option<serde_json::Value>,
     pub resource_id: api::PaymentIdType,
     pub force_sync: bool,
@@ -4231,7 +4231,7 @@ pub async fn payment_external_authentication(
 #[instrument(skip_all)]
 pub async fn get_extended_card_info(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     payment_id: String,
 ) -> RouterResponse<payments_api::ExtendedCardInfoResponse> {
     let redis_conn = state

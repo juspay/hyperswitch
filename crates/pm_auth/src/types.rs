@@ -10,7 +10,7 @@ use masking::Secret;
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
     pub flow: PhantomData<F>,
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub connector: Option<String>,
     pub request: Request,
     pub response: Result<Response, ErrorResponse>,

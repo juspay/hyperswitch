@@ -5,7 +5,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
-    types::keymanager::{self, Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
@@ -37,7 +37,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub updated_by: String,
     pub email: crypto::OptionalEncryptableEmail,
 }
@@ -77,7 +77,7 @@ impl behaviour::Conversion for CustomerAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_manager_identifier: keymanager::Identifier,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -123,7 +123,7 @@ impl behaviour::Conversion for PaymentAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_manager_identifier: keymanager::Identifier,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -188,7 +188,7 @@ impl behaviour::Conversion for Address {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_manager_identifier: keymanager::Identifier,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(

@@ -172,7 +172,7 @@ pub async fn revoke_mandate(
 #[instrument(skip(db))]
 pub async fn update_connector_mandate_id(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     mandate_ids_opt: Option<String>,
     payment_method_id: Option<String>,
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
@@ -278,7 +278,7 @@ pub async fn update_mandate_procedure<F, FData>(
     state: &SessionState,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     mandate: Mandate,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     pm_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>

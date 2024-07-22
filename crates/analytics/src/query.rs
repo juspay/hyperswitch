@@ -21,7 +21,6 @@ use api_models::{
 };
 use common_utils::{
     errors::{CustomResult, ParsingError},
-    id_type,
 };
 use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;

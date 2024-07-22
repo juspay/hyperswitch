@@ -7,7 +7,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, MetricsResponse,
     SdkEventFiltersResponse,
 };
-use common_utils::{errors::ReportSwitchExt, id_type};
+use common_utils::{errors::ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 

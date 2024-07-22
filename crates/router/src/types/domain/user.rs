@@ -4,8 +4,6 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-#[cfg(any(feature = "v1", feature = "v2"))]
-use common_utils::id_type;
 use common_utils::{
     crypto::Encryptable, errors::CustomResult, new_type::MerchantName, pii,
     types::keymanager::Identifier,

@@ -11,27 +11,27 @@ use crate::{
 pub trait MandateInterface {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError>;
 
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         connector_mandate_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError>;
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         mandate_update: storage_types::MandateUpdate,
         mandate: storage_types::Mandate,
@@ -40,7 +40,7 @@ pub trait MandateInterface {
 
     async fn find_mandates_by_merchant_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
@@ -77,7 +77,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -123,7 +123,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_connector_mandate_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             connector_mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -178,7 +178,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_customer_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -190,7 +190,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             mandate_update: storage_types::MandateUpdate,
             mandate: storage_types::Mandate,
@@ -278,7 +278,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandates_by_merchant_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             mandate_constraints: api_models::mandates::MandateListConstraints,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -481,7 +481,7 @@ mod storage {
 impl MandateInterface for MockDb {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -497,7 +497,7 @@ impl MandateInterface for MockDb {
 
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         connector_mandate_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -516,7 +516,7 @@ impl MandateInterface for MockDb {
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         return Ok(self
@@ -533,7 +533,7 @@ impl MandateInterface for MockDb {
 
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         mandate_update: storage_types::MandateUpdate,
         _mandate: storage_types::Mandate,
@@ -557,7 +557,7 @@ impl MandateInterface for MockDb {
 
     async fn find_mandates_by_merchant_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         mandate_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         let mandates = self.mandates.lock().await;

@@ -7,7 +7,7 @@ use time::OffsetDateTime;
 pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
-    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub merchant_id: &'a id_type::MerchantId,
     pub customer_id: &'a id_type::CustomerId,
     pub address_id: &'a String,
     pub profile_id: &'a String,

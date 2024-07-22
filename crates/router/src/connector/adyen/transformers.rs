@@ -1817,7 +1817,7 @@ fn get_social_security_number(voucher_data: &domain::VoucherData) -> Option<Secr
 
 fn build_shopper_reference(
     customer_id: &Option<id_type::CustomerId>,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) -> Option<String> {
     customer_id.clone().map(|c_id| {
         format!(

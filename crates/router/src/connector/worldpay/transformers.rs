@@ -149,7 +149,6 @@ impl
                         .router_data
                         .merchant_id
                         .get_string_repr()
-                        .clone()
                         .replace('_', "-"),
                     ..Default::default()
                 },

@@ -15,7 +15,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, Queryable,
 };
-use error_stack::{Report, Result, ResultExt};
+use error_stack::{Result, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{

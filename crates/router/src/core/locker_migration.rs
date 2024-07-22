@@ -14,7 +14,7 @@ use crate::{
 
 pub async fn rust_locker_migration(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -79,7 +79,7 @@ pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
     customer_id: &id_type::CustomerId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;

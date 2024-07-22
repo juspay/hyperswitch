@@ -86,7 +86,7 @@ pub async fn migrate_payment_method_api(
 
 async fn get_merchant_account(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
     let key_manager_state = &state.into();
     let key_store = state
@@ -367,7 +367,7 @@ pub async fn initiate_pm_collect_link_flow(
 pub async fn render_pm_collect_link(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodCollectLink;
     let (merchant_id, pm_collect_link_id) = path.into_inner();

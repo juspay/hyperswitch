@@ -2,7 +2,7 @@ use api_models::analytics::{
     refunds::{RefundDimensions, RefundType},
     Granularity, TimeRange,
 };
-use common_utils::{errors::ReportSwitchExt, id_type};
+use common_utils::{errors::ReportSwitchExt};
 use diesel_models::enums::{Currency, RefundStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;

@@ -20,9 +20,11 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = common_utils::id_type::MerchantId::from("aci").unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
+        merchant_id,
         customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -131,9 +133,11 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = common_utils::id_type::MerchantId::from("aci").unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
+        merchant_id,
         customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),

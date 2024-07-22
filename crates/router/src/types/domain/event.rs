@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::OptionalEncryptableSecretString,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
