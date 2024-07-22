@@ -1609,6 +1609,13 @@ api_secret="Client Secret"
 [iatapay.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[itaubank]
+[[itaubank.bank_transfer]]
+  payment_method_type = "pix"
+[itaubank.connector_auth.BodyKey]
+key1="Client Id"
+api_key="Client Secret"
+
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
