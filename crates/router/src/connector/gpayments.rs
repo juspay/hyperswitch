@@ -257,7 +257,7 @@ impl
         req: &types::authentication::ConnectorAuthenticationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gpayments::GpaymentsRouterData::try_from((0, req))?;
+        let connector_router_data = gpayments::GpaymentsRouterData::from((MinorUnit::zero(), req));
         let req_obj =
             gpayments_types::GpaymentsAuthenticationRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
