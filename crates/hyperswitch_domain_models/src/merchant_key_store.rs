@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::Encryptable,
     custom_serde, date_time,
     errors::{CustomResult, ValidationError},
     types::keymanager::{Identifier, KeyManagerState},
@@ -8,7 +8,7 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::type_encryption::TypeEncryption;
+use crate::type_encryption::decrypt;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
@@ -41,7 +41,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     {
         let identifier = Identifier::Merchant(item.merchant_id.clone());
         Ok(Self {
-            key: Encryptable::decrypt_via_api(state, item.key, identifier, key.peek(), GcmAes256)
+            key: decrypt(state, item.key, identifier, key.peek())
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

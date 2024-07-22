@@ -67,8 +67,8 @@ where
 
     async fn insert_customer(
         &self,
-        customer_data: customer::Customer,
         state: &KeyManagerState,
+        customer_data: customer::Customer,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;

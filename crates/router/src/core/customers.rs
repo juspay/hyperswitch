@@ -1,9 +1,6 @@
 use api_models::customers::CustomerRequestWithEmail;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{
-    crypto::{Encryptable, GcmAes256},
-    ext_traits::OptionExt,
-};
+use common_utils::{crypto::Encryptable, ext_traits::OptionExt};
 use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::AsyncExt,
@@ -11,6 +8,7 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::type_encryption::encrypt;
 use masking::{Secret, SwitchStrategy};
 #[cfg(any(feature = "v1", feature = "v2"))]
 use router_env::{instrument, tracing};
@@ -31,10 +29,7 @@ use crate::{
 use crate::{
     core::payment_methods::cards,
     routes::metrics,
-    types::{
-        domain::types::TypeEncryption,
-        storage::{self, enums},
-    },
+    types::storage::{self, enums},
     utils::CustomerAddress,
 };
 
@@ -490,12 +485,11 @@ pub async fn delete_customer(
 
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let redacted_encrypted_value: Encryptable<Secret<_>> = Encryptable::encrypt_via_api(
+    let redacted_encrypted_value: Encryptable<Secret<_>> = encrypt(
         key_manager_state,
         REDACTED.to_string().into(),
         identifier.clone(),
         key,
-        GcmAes256,
     )
     .await
     .switch()?;
@@ -549,12 +543,11 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            Encryptable::encrypt_via_api(
+            encrypt(
                 key_manager_state,
                 REDACTED.to_string().into(),
                 identifier,
                 key,
-                GcmAes256,
             )
             .await
             .switch()?,
