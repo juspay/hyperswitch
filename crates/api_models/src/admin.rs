@@ -986,9 +986,9 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
+    pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
     #[schema(example = json!(consts::FRM_CONFIGS_EG))]

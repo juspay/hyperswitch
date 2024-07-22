@@ -711,7 +711,7 @@ mod tests {
             connector_id: "something".to_string(),
             connector_label: Some("something".to_string()),
             connector_account_details: masking::Secret::new(serde_json::json!({})),
-            test_mode: None,
+            disabled: None,
             metadata: None,
             payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
                 payment_method: api_enums::PaymentMethod::Card,

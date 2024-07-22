@@ -955,7 +955,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             connector_label: item.connector_label,
             connector_id: item.merchant_connector_id,
             connector_account_details: item.connector_account_details.into_inner(),
-            test_mode: item.test_mode,
+            disabled: item.disabled,
             payment_methods_enabled,
             metadata: item.metadata,
             frm_configs,
