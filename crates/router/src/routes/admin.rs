@@ -658,14 +658,15 @@ pub async fn merchant_account_kv_status(
 pub async fn merchant_account_transfer_keys(
     state: web::Data<AppState>,
     req: HttpRequest,
+    payload: web::Json<api_models::admin::MerchantKeyTransferRequest>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyFetch;
     api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, _, _, _| transfer_key_store_to_key_manager(state),
+        payload.into_inner(),
+        |state, _, req, _| transfer_key_store_to_key_manager(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

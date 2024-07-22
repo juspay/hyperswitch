@@ -14,7 +14,11 @@ impl UserKeyStoreNew {
 }
 
 impl UserKeyStore {
-    pub async fn get_all_user_key_stores(conn: &PgPooledConn) -> StorageResult<Vec<Self>> {
+    pub async fn get_all_user_key_stores(
+        conn: &PgPooledConn,
+        from: u32,
+        limit: u32,
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
@@ -23,8 +27,8 @@ impl UserKeyStore {
         >(
             conn,
             dsl::user_id.ne_all(vec!["".to_string()]),
-            None,
-            None,
+            Some(limit.into()),
+            Some(from.into()),
             None,
         )
         .await

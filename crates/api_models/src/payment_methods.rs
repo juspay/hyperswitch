@@ -1526,12 +1526,8 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
             PaymentsMandateReferenceRecord {
                 connector_mandate_id: record.payment_instrument_id.peek().to_string(),
                 payment_method_type: record.payment_method_type,
-                original_payment_authorized_amount: record
-                    .original_transaction_amount
-                    .or(Some(1000)),
-                original_payment_authorized_currency: record
-                    .original_transaction_currency
-                    .or(Some(common_enums::Currency::USD)),
+                original_payment_authorized_amount: record.original_transaction_amount,
+                original_payment_authorized_currency: record.original_transaction_currency,
             },
         );
         Self {

@@ -13,7 +13,7 @@ pub use hyperswitch_domain_models::router_request_types::{
     AuthenticationData, PaymentCharges, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts as router_consts,
@@ -319,6 +319,7 @@ impl SurchargeMetadata {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to write to redis")?;
+            logger::debug!("Surcharge results stored in redis with key = {}", redis_key);
         }
         Ok(())
     }
@@ -335,9 +336,15 @@ impl SurchargeMetadata {
             .attach_printable("Failed to get redis connection")?;
         let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
         let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
-        redis_conn
+        let result = redis_conn
             .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
-            .await
+            .await;
+        logger::debug!(
+            "Surcharge result fetched from redis with key = {} and {}",
+            redis_key,
+            value_key
+        );
+        result
     }
 }
 
