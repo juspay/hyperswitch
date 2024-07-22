@@ -12,7 +12,7 @@ pub struct Organization {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
-// #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = organization, primary_key(org_id))]
 pub struct OrganizationNew {
