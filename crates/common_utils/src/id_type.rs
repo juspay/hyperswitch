@@ -167,12 +167,6 @@ where
     }
 }
 
-// impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display for LengthId<MAX_LENGTH, MIN_LENGTH> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", self.0. 0)
-//     }
-// }
-
 impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
     for LengthId<MAX_LENGTH, MIN_LENGTH>
 where

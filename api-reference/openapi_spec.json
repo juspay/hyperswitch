@@ -6623,7 +6623,29 @@
             ],
             "properties": {
               "pix": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "pix_key": {
+                    "type": "string",
+                    "description": "Unique key for pix transfer",
+                    "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
+                    "nullable": true
+                  },
+                  "cpf": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CPF is a Brazilian tax identification number",
+                    "example": "10599054689",
+                    "nullable": true
+                  },
+                  "cnpj": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CNPJ is a Brazilian company tax identification number",
+                    "example": "74469027417312",
+                    "nullable": true
+                  }
+                }
               }
             }
           },
@@ -7888,6 +7910,7 @@
           "gpayments",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -19862,6 +19885,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",

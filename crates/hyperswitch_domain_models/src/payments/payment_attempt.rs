@@ -555,7 +555,7 @@ impl behaviour::Conversion for PaymentIntent {
     {
         async {
             let inner_decrypt = |inner| {
-                decrypt(
+                decrypt_optional(
                     state,
                     inner,
                     common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
