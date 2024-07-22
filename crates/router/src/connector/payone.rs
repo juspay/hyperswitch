@@ -3,9 +3,8 @@ pub mod transformers;
 use base64::Engine;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
-use common_utils::types::AmountConvertor;
-use common_utils::types::MinorUnit;
-use common_utils::types::MinorUnitForConnector;
+#[cfg(feature = "payouts")]
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
@@ -13,6 +12,8 @@ use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as payone;
+#[cfg(feature = "payouts")]
+use crate::connector::utils::convert_amount;
 #[cfg(feature = "payouts")]
 use crate::get_formatted_date_time;
 #[cfg(feature = "payouts")]
@@ -40,13 +41,14 @@ use crate::{
 };
 #[derive(Clone)]
 pub struct Payone {
+    #[cfg(feature = "payouts")]
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
-
 
 impl Payone {
     pub fn new() -> &'static Self {
         &Self {
+            #[cfg(feature = "payouts")]
             amount_converter: &MinorUnitForConnector,
         }
     }
@@ -300,7 +302,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.destination_currency,

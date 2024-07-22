@@ -27,7 +27,7 @@ use crate::{
 #[cfg(not(feature = "payouts"))]
 use crate::{
     core::errors,
-    types::{self, api, storage::enums as storage_enums},
+    types,
 };
 
 pub struct PayoneRouterData<T> {
@@ -36,12 +36,7 @@ pub struct PayoneRouterData<T> {
 }
 
 impl<T> From<(MinorUnit, T)> for PayoneRouterData<T> {
-    fn from(
-        ( amount, item): (
-            MinorUnit,
-            T,
-        ),
-    ) -> Self {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
