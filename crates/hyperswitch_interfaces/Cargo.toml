@@ -9,8 +9,8 @@ license.workspace = true
 [features]
 default = ["dummy_connector", "payouts", "frm"]
 dummy_connector = []
-payouts = []
-frm = []
+payouts = ["hyperswitch_domain_models/payouts"]
+frm = ["hyperswitch_domain_models/frm"]
 
 [dependencies]
 actix-web = "4.5.1"
