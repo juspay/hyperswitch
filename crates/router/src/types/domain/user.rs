@@ -4,6 +4,8 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
+#[cfg(any(feature = "v1", feature = "v2"))]
+use common_utils::id_type;
 #[cfg(feature = "keymanager_create")]
 use common_utils::types::keymanager::EncryptionCreateRequest;
 use common_utils::{
@@ -387,7 +389,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
@@ -406,7 +408,10 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(not(feature = "v2"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: id_type::MerchantId::from(self.get_merchant_id().into())

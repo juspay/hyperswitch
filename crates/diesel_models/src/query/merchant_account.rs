@@ -1,10 +1,16 @@
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+use crate::schema::merchant_account::dsl;
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+use crate::schema_v2::merchant_account::dsl;
 use crate::{
     errors,
     merchant_account::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal},
-    schema::merchant_account::dsl,
     PgPooledConn, StorageResult,
 };
 
