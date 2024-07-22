@@ -7,7 +7,7 @@ use api_models::{
 use common_utils::{ext_traits::Encode, request::RequestContent, types::keymanager::Identifier};
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::type_encryption::decrypt;
+use hyperswitch_domain_models::type_encryption::decrypt_optional;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -575,7 +575,7 @@ pub(crate) async fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let custom_headers = decrypt::<serde_json::Value, masking::WithType>(
+        let custom_headers = decrypt_optional::<serde_json::Value, masking::WithType>(
             &state.into(),
             business_profile
                 .outgoing_webhook_custom_http_headers

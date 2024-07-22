@@ -4,8 +4,6 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-#[cfg(feature = "keymanager_create")]
-use common_utils::types::keymanager::EncryptionCreateRequest;
 use common_utils::{
     crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
     types::keymanager::Identifier,
@@ -23,6 +21,8 @@ use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
+#[cfg(feature = "keymanager_create")]
+use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
     consts,
@@ -980,6 +980,19 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to generate aes 256 key")?;
 
+            #[cfg(feature = "keymanager_create")]
+            {
+                common_utils::keymanager::transfer_key_to_key_manager(
+                    key_manager_state,
+                    EncryptionTransferRequest {
+                        identifier: Identifier::User(self.get_user_id().to_string()),
+                        key: consts::BASE64_ENGINE.encode(key),
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+            }
+
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
                 key: domain_types::encrypt(
@@ -992,18 +1005,6 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
-
-            #[cfg(feature = "keymanager_create")]
-            {
-                common_utils::keymanager::create_key_in_key_manager(
-                    key_manager_state,
-                    EncryptionCreateRequest {
-                        identifier: Identifier::User(key_store.user_id.clone()),
-                    },
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-            }
 
             state
                 .global_store
@@ -1044,7 +1045,7 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::decrypt::<String, masking::WithType>(
+        Ok(domain_types::decrypt_optional::<String, masking::WithType>(
             key_manager_state,
             self.0.totp_secret.clone(),
             Identifier::User(user_key_store.user_id.clone()),

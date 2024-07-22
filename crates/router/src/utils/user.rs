@@ -285,7 +285,7 @@ pub async fn decrypt_oidc_private_config(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
+    let private_config = domain::types::decrypt_optional::<serde_json::Value, masking::WithType>(
         &state.into(),
         encrypted_config,
         Identifier::UserAuth(id),

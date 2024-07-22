@@ -159,7 +159,7 @@ pub async fn get_organization(
         CreateOrValidateOrganization::new(Some(org_id.organization_id))
             .create_or_validate(state.store.as_ref())
             .await
-            .map(|org| ForeignFrom::foreign_from(org))
+            .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
     }
     #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
@@ -178,7 +178,10 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
-    use common_utils::keymanager;
+    use {
+        base64::Engine,
+        common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
+    };
 
     let db = state.store.as_ref();
 
@@ -191,13 +194,13 @@ pub async fn create_merchant_account(
     let key_manager_state = &(&state).into();
     let merchant_id = req.get_merchant_reference_id().get_string_repr().to_owned();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
-
     #[cfg(feature = "keymanager_create")]
     {
-        keymanager::create_key_in_key_manager(
+        keymanager::transfer_key_to_key_manager(
             key_manager_state,
-            km_types::EncryptionCreateRequest {
+            EncryptionTransferRequest {
                 identifier: identifier.clone(),
+                key: consts::BASE64_ENGINE.encode(key),
             },
         )
         .await

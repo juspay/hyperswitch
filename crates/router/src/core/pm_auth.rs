@@ -45,7 +45,7 @@ use crate::{
     services::{pm_auth as pm_auth_services, ApplicationResponse},
     types::{
         self,
-        domain::{self, types::decrypt},
+        domain::{self, types::decrypt_optional},
         storage,
         transformers::ForeignTryFrom,
     },
@@ -327,7 +327,7 @@ async fn store_bank_details_in_payment_methods(
 
     for pm in payment_methods {
         if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
-            let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
+            let bank_details_pm_data = decrypt_optional::<serde_json::Value, masking::WithType>(
                 &(&state).into(),
                 pm.payment_method_data.clone(),
                 Identifier::Merchant(key_store.merchant_id.clone()),
