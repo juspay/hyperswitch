@@ -7,13 +7,11 @@ use common_utils::{
     metrics::utils::record_operation_time,
     types::keymanager::{Identifier, KeyManagerState},
 };
+use encrypt::TypeEncryption;
 use masking::Secret;
 use rustc_hash::FxHashMap;
 
-use encrypt::TypeEncryption;
-
 mod encrypt {
-    use super::metrics;
     use async_trait::async_trait;
     use common_utils::{
         crypto,
@@ -22,8 +20,7 @@ mod encrypt {
         types::keymanager::{Identifier, KeyManagerState},
     };
     use error_stack::ResultExt;
-    use masking::PeekInterface;
-    use masking::Secret;
+    use masking::{PeekInterface, Secret};
     use router_env::{instrument, tracing};
     use rustc_hash::FxHashMap;
     #[cfg(feature = "encryption_service")]
@@ -40,6 +37,8 @@ mod encrypt {
         http::Method,
         router_env::logger,
     };
+
+    use super::metrics;
 
     #[async_trait]
     pub trait TypeEncryption<
