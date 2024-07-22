@@ -18,7 +18,7 @@ pub mod payout_attempt;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod redis_conn;
-#[cfg(feature = "payouts")]
+#[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 
 #[derive(Clone)]
@@ -109,8 +109,8 @@ impl MockDb {
     }
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(not(feature = "payouts"))]
 impl PayoutsInterface for MockDb {}
 
-#[cfg(feature = "payouts")]
+#[cfg(not(feature = "payouts"))]
 impl PayoutAttemptInterface for MockDb {}
