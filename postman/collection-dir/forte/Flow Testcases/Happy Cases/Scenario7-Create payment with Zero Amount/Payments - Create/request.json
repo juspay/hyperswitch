@@ -30,10 +30,6 @@
       "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
-      "routing": {
-        "type": "single",
-        "data": "forte"
-      },
       "return_url": "https://duck.com",
       "payment_method": "card",
       "payment_method_data": {

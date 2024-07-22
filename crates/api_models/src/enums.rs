@@ -101,6 +101,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
+    // Itaubank, template code for future usage
     Klarna,
     Mifinity,
     Mollie,
@@ -617,7 +618,6 @@ pub enum LockerChoice {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]

@@ -195,6 +195,10 @@ api_key= "Login"
 key1= "Trankey"
 
 
+[plaid]
+api_key="Client Id"
+key1= "Secret"
+
 [threedsecureio]
 api_key="API Key"
 
@@ -210,10 +214,6 @@ api_key="API Key"
 [netcetera]
 certificate="Certificate"
 private_key="Private Key"
-
-
-[ebanx]
-api_key="API Key"
 
 [zsl]
 api_key= "Key"
@@ -246,3 +246,6 @@ api_key="API Key"
 key1 = "Merchant id"
 api_secret = "Razorpay Id"
 key2 = "Razorpay Secret"
+
+[itaubank]
+api_key="API Key"

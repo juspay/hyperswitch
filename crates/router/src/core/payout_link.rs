@@ -1,5 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
+use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
     ext_traits::{Encode, OptionExt},
@@ -8,14 +12,15 @@ use common_utils::{
 };
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::payments::helpers,
+    core::{payments::helpers, payouts::validator},
     errors,
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks},
+    services,
     types::domain,
 };
 
@@ -24,6 +29,7 @@ pub async fn initiate_payout_link(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
@@ -58,6 +64,8 @@ pub async fn initiate_payout_link(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payout link not found".to_string(),
         })?;
+
+    validator::validate_payout_link_render_request(request_headers, &payout_link)?;
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
@@ -97,7 +105,10 @@ pub async fn initiate_payout_link(
             }
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::ExpiredLink(expired_link_data),
+                GenericLinks {
+                    allowed_domains: (link_data.allowed_domains),
+                    data: GenericLinksData::ExpiredLink(expired_link_data),
+                },
             )))
         }
 
@@ -111,6 +122,7 @@ pub async fn initiate_payout_link(
             // Fetch customer
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
+                    &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
                     &key_store,
@@ -146,9 +158,17 @@ pub async fn initiate_payout_link(
             };
             // Fetch enabled payout methods from the request. If not found, fetch the enabled payout methods from MCA,
             // If none are configured for merchant connector accounts, fetch them from the default enabled payout methods.
-            let enabled_payment_methods = link_data
+            let mut enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
+
+            // Sort payment methods (cards first)
+            enabled_payment_methods.sort_by(|a, b| match (a.payment_method, b.payment_method) {
+                (_, common_enums::PaymentMethod::Card) => Ordering::Greater,
+                (common_enums::PaymentMethod::Card, _) => Ordering::Less,
+                _ => Ordering::Equal,
+            });
+
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: masking::Secret::new(merchant_account.publishable_key),
                 client_secret: link_data.client_secret.clone(),
@@ -186,7 +206,10 @@ pub async fn initiate_payout_link(
                 html_meta_tags: String::new(),
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PayoutLink(generic_form_data),
+                GenericLinks {
+                    allowed_domains: (link_data.allowed_domains),
+                    data: GenericLinksData::PayoutLink(generic_form_data),
+                },
             )))
         }
 
@@ -225,7 +248,10 @@ pub async fn initiate_payout_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PayoutLinkStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: (link_data.allowed_domains),
+                    data: GenericLinksData::PayoutLinkStatus(generic_status_data),
+                },
             )))
         }
     }
@@ -238,10 +264,12 @@ pub async fn filter_payout_methods(
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
-    let db: &dyn StorageInterface = &*state.store;
+    let db = &*state.store;
+    let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            key_manager_state,
             &merchant_account.merchant_id,
             false,
             key_store,
@@ -257,7 +285,7 @@ pub async fn filter_payout_methods(
         common_enums::ConnectorType::PayoutProcessor,
     );
     let address = db
-        .find_address_by_address_id(&payout.address_id.clone(), key_store)
+        .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {

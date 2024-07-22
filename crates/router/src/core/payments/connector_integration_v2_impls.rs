@@ -663,6 +663,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -698,7 +699,8 @@ default_imp_for_new_connector_integration_payment!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -747,6 +749,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -782,7 +785,8 @@ default_imp_for_new_connector_integration_refund!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -826,6 +830,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -861,7 +866,8 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -927,6 +933,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -962,7 +969,8 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -1010,6 +1018,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1045,7 +1054,8 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 default_imp_for_new_connector_integration_submit_evidence!(
     connector::Aci,
@@ -1077,6 +1087,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1112,7 +1123,8 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -1171,6 +1183,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1206,7 +1219,8 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_payouts {
@@ -1247,6 +1261,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1282,7 +1297,8 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1333,6 +1349,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1368,7 +1385,8 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1419,6 +1437,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1454,7 +1473,8 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1505,6 +1525,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1540,7 +1561,8 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1591,6 +1613,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1626,7 +1649,8 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1677,6 +1701,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1712,7 +1737,8 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1763,6 +1789,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1798,7 +1825,8 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1849,6 +1877,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1884,7 +1913,8 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1935,6 +1965,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1970,7 +2001,8 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -2019,6 +2051,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2054,7 +2087,8 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_frm {
@@ -2095,6 +2129,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2130,7 +2165,8 @@ default_imp_for_new_connector_integration_frm!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2181,6 +2217,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2216,7 +2253,8 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2267,6 +2305,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2302,7 +2341,8 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2353,6 +2393,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2388,7 +2429,8 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2439,6 +2481,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2474,7 +2517,8 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2525,6 +2569,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2560,7 +2605,8 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -2608,6 +2654,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2643,7 +2690,8 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_authentication {
@@ -2719,6 +2767,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2754,5 +2803,6 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
