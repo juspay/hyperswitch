@@ -34,6 +34,7 @@ v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "stor
 v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
 merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2", "hyperswitch_domain_models/merchant_account_v2"]
 payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2"]
+payment_methods_v2 = ["api_models/payment_methods_v2"]
 
 [dependencies]
 actix-cors = "0.6.5"

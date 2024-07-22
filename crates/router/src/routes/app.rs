@@ -455,13 +455,33 @@ impl DummyConnector {
 
 pub struct Payments;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "payment_v2"
+))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
-        #[cfg(not(feature = "v2"))]
-        let mut route = web::scope("/payments").app_data(web::Data::new(state));
-        #[cfg(feature = "v2")]
         let mut route = web::scope("v2/payments").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{payment_id}/saved_payment_methods")
+                .route(web::get().to(list_customer_payment_method_for_payment)),
+        );
+
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "payment_v2")
+))]
+impl Payments {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payments").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -548,13 +568,6 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 )
-        }
-        #[cfg(all(feature = "oltp", feature = "v2"))]
-        {
-            route = route.service(
-                web::resource("/{payment_id}/saved_payment_methods")
-                    .route(web::get().to(list_customer_payment_method_for_payment)),
-            )
         }
         route
     }
@@ -802,7 +815,11 @@ impl Routing {
 
 pub struct Customers;
 
-#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "v2")))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("customers").app_data(web::Data::new(state));
@@ -845,7 +862,11 @@ impl Customers {
     }
 }
 
-#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_methods_v2"
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("v2/customers").app_data(web::Data::new(state));

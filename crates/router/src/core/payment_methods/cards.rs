@@ -50,7 +50,10 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(not(feature = "connector_choice_mca_id"))]
 use crate::core::utils::get_connector_label;
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
@@ -3618,7 +3621,7 @@ fn filter_recurring_based(
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn list_customer_payment_method_util(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3627,13 +3630,12 @@ pub async fn list_customer_payment_method_util(
     customer_id: Option<id_type::CustomerId>,
     is_payment_associated: bool,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
-    let db = state.store.as_ref();
     let limit = req.as_ref().and_then(|pml_req| pml_req.limit);
 
     let (customer_id, payment_intent) = if is_payment_associated {
         let cloned_secret = req.and_then(|r| r.client_secret.clone());
         let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-            db,
+            &state,
             &merchant_account,
             &key_store,
             cloned_secret,
@@ -3672,7 +3674,10 @@ pub async fn list_customer_payment_method_util(
     Ok(resp)
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3744,7 +3749,10 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3995,11 +4003,9 @@ async fn get_pm_list_context(
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
-    let key = key_store.key.get_inner().peek();
-
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
-            let card_details = get_card_details_with_locker_fallback(pm, key, state).await?;
+            let card_details = get_card_details_with_locker_fallback(pm, state, key_store).await?;
 
             card_details.as_ref().map(|card| PaymentMethodListContext {
                 card_details: Some(card.clone()),
@@ -4017,7 +4023,7 @@ async fn get_pm_list_context(
 
         enums::PaymentMethod::BankDebit => {
             // Retrieve the pm_auth connector details so that it can be tokenized
-            let bank_account_token_data = get_bank_account_connector_details(pm, key)
+            let bank_account_token_data = get_bank_account_connector_details(state, pm, key_store)
                 .await
                 .unwrap_or_else(|err| {
                     logger::error!(error=?err);
@@ -4119,7 +4125,128 @@ async fn perform_surcharge_ops(
     Ok(())
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+struct SavedPMLPaymentsInfo {
+    pub payment_intent: storage::PaymentIntent,
+    pub business_profile: Option<BusinessProfile>,
+    pub requires_cvv: bool,
+    pub off_session_payment_flag: bool,
+    pub is_connector_agnostic_mit_enabled: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl SavedPMLPaymentsInfo {
+    pub async fn form_payments_info(
+        payment_intent: storage::PaymentIntent,
+        merchant_account: &domain::MerchantAccount,
+        db: &dyn db::StorageInterface,
+    ) -> errors::RouterResult<Self> {
+        let requires_cvv = db
+            .find_config_by_key_unwrap_or(
+                format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
+                Some("true".to_string()),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch requires_cvv config")?
+            .config
+            != "false";
+
+        let off_session_payment_flag = matches!(
+            payment_intent.setup_future_usage,
+            Some(common_enums::FutureUsage::OffSession)
+        );
+
+        let profile_id = core_utils::get_profile_id_from_business_details(
+            payment_intent.business_country,
+            payment_intent.business_label.as_ref(),
+            &merchant_account,
+            payment_intent.profile_id.as_ref(),
+            db,
+            false,
+        )
+        .await
+        .attach_printable("Could not find profile id from business details")?;
+
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            Some(profile_id).as_ref(),
+            &merchant_account.merchant_id,
+        )
+        .await?;
+
+        let is_connector_agnostic_mit_enabled = business_profile
+            .as_ref()
+            .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
+            .unwrap_or(false);
+
+        Ok(Self {
+            payment_intent,
+            business_profile,
+            requires_cvv,
+            off_session_payment_flag,
+            is_connector_agnostic_mit_enabled,
+        })
+    }
+
+    pub async fn perform_payment_ops(
+        &self,
+        state: &routes::SessionState,
+        parent_payment_method_token: Option<String>,
+        pma: &api::CustomerPaymentMethod,
+        pm_list_context: PaymentMethodListContext,
+    ) -> errors::RouterResult<()> {
+        let token = parent_payment_method_token
+            .as_ref()
+            .get_required_value("parent_payment_method_token")?;
+        let hyperswitch_token_data = pm_list_context
+            .hyperswitch_token_data
+            .get_required_value("PaymentTokenData")?;
+
+        let intent_fulfillment_time = self
+            .business_profile
+            .as_ref()
+            .and_then(|b_profile| b_profile.intent_fulfillment_time)
+            .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+        ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
+            .insert(intent_fulfillment_time, hyperswitch_token_data, state)
+            .await?;
+
+        if let Some(metadata) = pma.metadata.clone() {
+            let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
+                .parse_value("PaymentMethodMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to deserialize metadata to PaymentmethodMetadata struct",
+                )?;
+
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
+            for pm_metadata in pm_metadata_vec.payment_method_tokenization {
+                let key = format!(
+                    "pm_token_{}_{}_{}",
+                    token, pma.payment_method, pm_metadata.0
+                );
+
+                redis_conn
+                    .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add data in redis")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -4130,19 +4257,12 @@ pub async fn list_customer_payment_method(
     is_payment_associated: bool,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    let off_session_payment_flag = is_payment_associated
-        && payment_intent
-            .as_ref()
-            .map(|pi| {
-                matches!(
-                    pi.setup_future_usage,
-                    Some(common_enums::FutureUsage::OffSession)
-                )
-            })
-            .unwrap_or(false);
+    let key_manager_state = &(state).into();
+    // let key = key_store.key.get_inner().peek();
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
+            key_manager_state,
             customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -4151,24 +4271,12 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let key = key_store.key.get_inner().peek();
+    let payments_info = payment_intent
+        .async_map(|pi| SavedPMLPaymentsInfo::form_payments_info(pi, &merchant_account, db))
+        .await
+        .transpose()?;
 
-    let requires_cvv = if is_payment_associated {
-        let is_requires_cvv = db
-            .find_config_by_key_unwrap_or(
-                format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
-                Some("true".to_string()),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch requires_cvv config")?;
-
-        is_requires_cvv.config != "false"
-    } else {
-        false
-    };
-
-    let resp = db
+    let saved_payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
             &merchant_account.merchant_id,
@@ -4178,35 +4286,10 @@ pub async fn list_customer_payment_method(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
-    let profile_id = payment_intent
-        .as_ref()
-        .async_map(|payment_intent| async {
-            core_utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
-        })
-        .await
-        .transpose()?;
 
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        profile_id.as_ref(),
-        &merchant_account.merchant_id,
-    )
-    .await?;
-
-    let mut customer_pms = Vec::new();
-    for pm in resp.into_iter() {
+    let mut filtered_saved_payment_methods_ctx = Vec::new();
+    for pm in saved_payment_methods.into_iter() {
         let payment_method = pm.payment_method.get_required_value("payment_method")?;
-
         let parent_payment_method_token =
             is_payment_associated.then(|| generate_id(consts::ID_LENGTH, "token"));
 
@@ -4220,147 +4303,165 @@ pub async fn list_customer_payment_method(
         )
         .await?;
 
-        if pm_list_context.is_none() {
-            continue;
+        if let Some(ctx) = pm_list_context {
+            filtered_saved_payment_methods_ctx.push((ctx, parent_payment_method_token, pm));
         }
+    }
 
-        let pm_list_context = pm_list_context.get_required_value("PaymentMethodListContext")?;
+    let pm_list_futures = filtered_saved_payment_methods_ctx
+        .into_iter()
+        .map(|ctx| {
+            generate_saved_pm_response(
+                state,
+                &key_store,
+                &merchant_account,
+                ctx,
+                &customer,
+                payments_info.as_ref(),
+            )
+        })
+        .collect::<Vec<_>>();
 
-        let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
-            get_masked_bank_details(&pm, key)
-                .await
-                .unwrap_or_else(|err| {
-                    logger::error!(error=?err);
-                    None
-                })
-        } else {
-            None
-        };
+    let final_result = futures::future::join_all(pm_list_futures).await;
 
-        let payment_method_billing = decrypt_generic_data::<api_models::payments::Address>(
-            pm.payment_method_billing_address,
-            key,
-        )
-        .await
-        .attach_printable("unable to decrypt payment method billing address details")?;
-
-        let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|val| {
-                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
-        let mca_enabled = get_mca_status(
-            state,
-            &key_store,
-            &merchant_account.merchant_id,
-            connector_mandate_details,
-        )
-        .await?;
-
-        #[cfg(not(feature = "payouts"))]
-        let pmd = pm_list_context
-            .card_details
-            .map(api::PaymentMethodListData::Card);
-        #[cfg(feature = "payouts")]
-        let pmd = pm_list_context
-            .bank_transfer_details
-            .map(api::PaymentMethodListData::Bank);
-
-        let pma = api::CustomerPaymentMethod {
-            payment_token: parent_payment_method_token.clone(),
-            payment_method_id: pm.payment_method_id.clone(),
-            customer_id: pm.customer_id,
-            payment_method,
-            payment_method_type: pm.payment_method_type,
-            payment_method_issuer: pm.payment_method_issuer,
-            payment_method_data: pmd,
-            metadata: pm.metadata,
-            payment_method_issuer_code: pm.payment_method_issuer_code,
-            recurring_enabled: mca_enabled,
-            installment_payment_enabled: false,
-            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
-            created: Some(pm.created_at),
-            bank: bank_details,
-            surcharge_details: None,
-            requires_cvv: requires_cvv
-                && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
-            last_used_at: Some(pm.last_used_at),
-            default_payment_method_set: customer.default_payment_method_id.is_some()
-                && customer.default_payment_method_id == Some(pm.payment_method_id),
-            billing: payment_method_billing,
-        };
-        customer_pms.push(pma.to_owned());
-
-        if is_payment_associated {
-            let token = parent_payment_method_token
-                .as_ref()
-                .get_required_value("parent_payment_method_token")?;
-            let hyperswitch_token_data = pm_list_context
-                .hyperswitch_token_data
-                .get_required_value("PaymentTokenData")?;
-
-            let intent_fulfillment_time = business_profile
-                .as_ref()
-                .and_then(|b_profile| b_profile.intent_fulfillment_time)
-                .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
-
-            ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
-                .insert(intent_fulfillment_time, hyperswitch_token_data, state)
-                .await?;
-
-            if let Some(metadata) = pma.metadata {
-                let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
-                    .parse_value("PaymentMethodMetadata")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to deserialize metadata to PaymentmethodMetadata struct",
-                    )?;
-
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-
-                for pm_metadata in pm_metadata_vec.payment_method_tokenization {
-                    let key = format!(
-                        "pm_token_{}_{}_{}",
-                        token, pma.payment_method, pm_metadata.0
-                    );
-
-                    redis_conn
-                        .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
-                        .await
-                        .change_context(errors::StorageError::KVError)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to add data in redis")?;
-                }
-            }
-        }
+    let mut customer_pms = Vec::new();
+    for result in final_result.into_iter() {
+        let pma = result.attach_printable("saved pm list failed")?;
+        customer_pms.push(pma);
     }
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
-        is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
+        is_guest_customer: Some(is_payment_associated), //to return this key only when the request is tied to a payment intent
     };
 
     if is_payment_associated {
         Box::pin(perform_surcharge_ops(
-            payment_intent,
+            payments_info.as_ref().map(|pi| pi.payment_intent.clone()),
             state,
             merchant_account,
             key_store,
-            business_profile,
+            payments_info.and_then(|pi| pi.business_profile),
             &mut response,
         ))
         .await?;
     }
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn generate_saved_pm_response(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    merchant_account: &domain::MerchantAccount,
+    pm_list_context: (
+        PaymentMethodListContext,
+        Option<String>,
+        diesel_models::PaymentMethod,
+    ),
+    customer: &domain::Customer,
+    payment_info: Option<&SavedPMLPaymentsInfo>,
+) -> Result<api::CustomerPaymentMethod, error_stack::Report<errors::ApiErrorResponse>> {
+    let (pm_list_context, parent_payment_method_token, pm) = pm_list_context;
+    let payment_method = pm.payment_method.get_required_value("payment_method")?;
+
+    let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
+        get_masked_bank_details(state, &pm, key_store)
+            .await
+            .unwrap_or_else(|err| {
+                logger::error!(error=?err);
+                None
+            })
+    } else {
+        None
+    };
+
+    let payment_method_billing = decrypt_generic_data::<api_models::payments::Address>(
+        state,
+        pm.payment_method_billing_address,
+        key_store,
+    )
+    .await
+    .attach_printable("unable to decrypt payment method billing address details")?;
+
+    let connector_mandate_details = pm
+        .connector_mandate_details
+        .clone()
+        .map(|val| val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+
+    let (is_connector_agnostic_mit_enabled, requires_cvv, off_session_payment_flag) = payment_info
+        .map(|pi| {
+            (
+                pi.is_connector_agnostic_mit_enabled,
+                pi.requires_cvv,
+                pi.off_session_payment_flag,
+            )
+        })
+        .unwrap_or((false, false, false));
+
+    let mca_enabled = get_mca_status(
+        state,
+        key_store,
+        &merchant_account.merchant_id,
+        is_connector_agnostic_mit_enabled,
+        connector_mandate_details,
+        pm.network_transaction_id.as_ref(),
+    )
+    .await?;
+
+    let requires_cvv = if is_connector_agnostic_mit_enabled {
+        requires_cvv
+            && !(off_session_payment_flag
+                && (pm.connector_mandate_details.is_some() || pm.network_transaction_id.is_some()))
+    } else {
+        requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
+    };
+    #[cfg(not(feature = "payouts"))]
+    let pmd = pm_list_context
+        .card_details
+        .clone()
+        .map(api::PaymentMethodListData::Card);
+    #[cfg(feature = "payouts")]
+    let pmd = pm_list_context
+        .bank_transfer_details
+        .clone()
+        .map(api::PaymentMethodListData::Bank);
+    let pma = api::CustomerPaymentMethod {
+        payment_token: parent_payment_method_token.clone(),
+        payment_method_id: pm.payment_method_id.clone(),
+        customer_id: pm.customer_id,
+        payment_method,
+        payment_method_type: pm.payment_method_type,
+        payment_method_issuer: pm.payment_method_issuer,
+        payment_method_data: pmd,
+        metadata: pm.metadata,
+        payment_method_issuer_code: pm.payment_method_issuer_code,
+        recurring_enabled: mca_enabled,
+        installment_payment_enabled: false,
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        created: Some(pm.created_at),
+        bank: bank_details,
+        surcharge_details: None,
+        requires_cvv: requires_cvv
+            && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
+        last_used_at: Some(pm.last_used_at),
+        default_payment_method_set: customer.default_payment_method_id.is_some()
+            && customer.default_payment_method_id == Some(pm.payment_method_id),
+        billing: payment_method_billing,
+    };
+
+    payment_info
+        .async_map(|pi| {
+            pi.perform_payment_ops(state, parent_payment_method_token, &pma, pm_list_context)
+        })
+        .await
+        .transpose()?;
+
+    Ok(pma)
 }
 
 pub async fn get_mca_status(
