@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.19.0-hotfix1
+
+### Miscellaneous Tasks
+
+- Add customer, shipping and billing details to payment_response for payment list api ([#5406](https://github.com/juspay/hyperswitch/pull/5406)) ([`e436967`](https://github.com/juspay/hyperswitch/commit/e4369676781079619442cc1e517fe69cfdea7795))
+
+- - -
+
 ## 2024.07.19.0
 
 ### Features
