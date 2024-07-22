@@ -25,10 +25,7 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
-use crate::{
-    core::errors,
-    types,
-};
+use crate::{core::errors, types};
 
 pub struct PayoneRouterData<T> {
     pub amount: MinorUnit,
