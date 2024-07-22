@@ -79,6 +79,7 @@ pub mod headers {
     pub const CONTENT_LENGTH: &str = "Content-Length";
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
+    pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
 }
 
 pub mod pii {
@@ -192,7 +193,11 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker, &conf.proxy.bypass_proxy_urls),
+            services::proxy_bypass_urls(
+                conf.key_manager.get_inner(),
+                &conf.locker,
+                &conf.proxy.bypass_proxy_urls,
+            ),
         )
         .map_err(|error| {
             errors::ApplicationError::ApiClientError(error.current_context().clone())

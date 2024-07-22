@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -19,6 +19,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
+        _state: &KeyManagerState,
         _merchant_id: &str,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
@@ -30,6 +31,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
+        _state: &KeyManagerState,
         _merchant_id: &str,
         _time_range: &api_models::payments::TimeRange,
         _key_store: &MerchantKeyStore,
@@ -51,6 +53,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
+        _state: &KeyManagerState,
         _merchant_id: &str,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
@@ -63,6 +66,7 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_payment_intent(
         &self,
+        _state: &KeyManagerState,
         new: PaymentIntent,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -76,6 +80,7 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
+        state: &KeyManagerState,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
         key_store: &MerchantKeyStore,
@@ -95,8 +100,10 @@ impl PaymentIntentInterface for MockDb {
             .change_context(StorageError::EncryptionError)?;
 
         *payment_intent = PaymentIntent::convert_back(
+            state,
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
+            key_store.merchant_id.clone(),
         )
         .await
         .change_context(StorageError::DecryptionError)?;
@@ -108,6 +115,7 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
+        _state: &KeyManagerState,
         payment_id: &str,
         merchant_id: &str,
         _key_store: &MerchantKeyStore,

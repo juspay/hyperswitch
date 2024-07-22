@@ -128,7 +128,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (id) {
+    blocklist (merchant_id, fingerprint_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -336,7 +336,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dispute (id) {
+    dispute (dispute_id) {
         id -> Int4,
         #[max_length = 64]
         dispute_id -> Varchar,
@@ -587,7 +587,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    mandate (id) {
+    mandate (mandate_id) {
         id -> Int4,
         #[max_length = 64]
         mandate_id -> Varchar,
@@ -633,8 +633,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_account (id) {
-        id -> Int4,
+    merchant_account (merchant_id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 255]
@@ -677,7 +676,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (id) {
+    merchant_connector_account (merchant_connector_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -1097,7 +1096,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (id) {
+    refund (merchant_id, refund_id) {
         id -> Int4,
         #[max_length = 64]
         internal_reference_id -> Varchar,
@@ -1166,7 +1165,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    roles (id) {
+    roles (role_id) {
         id -> Int4,
         #[max_length = 64]
         role_name -> Varchar,
@@ -1249,7 +1248,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    user_roles (id) {
+    user_roles (user_id, merchant_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,
@@ -1273,7 +1272,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    users (id) {
+    users (user_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,

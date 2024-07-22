@@ -21,7 +21,7 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
         X_PAYMENT_CONFIRM_SOURCE,
     },
     services::authentication::get_header_value_by_key,
@@ -274,11 +274,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
-            api_enums::Connector::Plaid => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "plaid is not a routable connector".to_string(),
-                })?
-            }
+            api_enums::Connector::Plaid => Self::Plaid,
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
@@ -1157,6 +1153,9 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                     .unwrap_or(api_enums::ClientPlatform::Unknown)
             });
 
+        let x_merchant_domain =
+            get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
+
         Ok(Self {
             payment_confirm_source,
             client_source,
@@ -1164,6 +1163,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             x_hs_latency: Some(x_hs_latency),
             browser_name,
             x_client_platform,
+            x_merchant_domain,
         })
     }
 }
