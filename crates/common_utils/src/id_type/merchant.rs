@@ -103,12 +103,14 @@ impl MerchantId {
         Self(length_id)
     }
 
+    /// Get a merchant id with the const value of `MERCHANT_ID_NOT_FOUND`
     pub fn get_merchant_id_not_found() -> Self {
         let alphanumeric_id = AlphaNumericId::new_unchecked("MERCHANT_ID_NOT_FOUND".to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
         Self(length_id)
     }
 
+    /// Get a mercahnt id for internal use only
     pub fn get_internal_user_merchant_id(merchant_id: &str) -> Self {
         let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
@@ -125,6 +127,7 @@ impl MerchantId {
         Self(length_id)
     }
 
+    /// Get a merchant id with a value of `irrelevant_merchant_id`
     pub fn get_irrelevant_merchant_id() -> Self {
         let alphanumeric_id = AlphaNumericId::new_unchecked("irrelevant_merchant_id".to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
@@ -213,10 +216,12 @@ impl MerchantId {
         format!("mcd_{}_{creds_identifier}", self.get_string_repr())
     }
 
+    /// get_poll_id
     pub fn get_poll_id(&self, unique_id: &str) -> String {
         format!("poll_{}_{unique_id}", self.get_string_repr())
     }
 
+    /// get_access_token_key
     pub fn get_access_token_key(
         &self,
         merchant_connector_id_or_connector_name: impl Display,
@@ -227,18 +232,22 @@ impl MerchantId {
         )
     }
 
+    /// get_skip_saving_wallet_at_connector_key
     pub fn get_skip_saving_wallet_at_connector_key(&self) -> String {
         format!("skip_saving_wallet_at_connector_{}", self.get_string_repr())
     }
 
+    /// get_payment_config_routing_id
     pub fn get_payment_config_routing_id(&self) -> String {
         format!("payment_config_id_{}", self.get_string_repr())
     }
 
+    /// get_payment_method_surcharge_routing_id
     pub fn get_payment_method_surcharge_routing_id(&self) -> String {
         format!("payment_method_surcharge_id_{}", self.get_string_repr())
     }
 
+    /// get_webhook_config_disabled_events_key
     pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
         format!(
             "whconf_disabled_events_{}_{connector_id}",
