@@ -932,7 +932,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_methods (id) {
+    payment_methods (payment_method_id) {
         id -> Int4,
         #[max_length = 64]
         customer_id -> Varchar,
