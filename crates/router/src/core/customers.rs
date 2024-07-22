@@ -67,7 +67,7 @@ pub async fn create_customer(
         .verify_if_customer_not_present_by_optional_merchant_reference_id(db)
         .await?;
 
-    customer_data
+    let domain_customer = customer_data
         .create_domain_model_from_request(
             db,
             &key_store,
@@ -76,7 +76,19 @@ pub async fn create_customer(
             key_manager_state,
             &state,
         )
+        .await?;
+
+    let customer = db
+        .insert_customer(
+            domain_customer,
+            key_manager_state,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
         .await
+        .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
+
+    customer_data.generate_response(&customer)
 }
 
 #[async_trait::async_trait]
@@ -89,14 +101,17 @@ trait CustomerCreateBridge {
         merchant_account: &'a domain::MerchantAccount,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse>;
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
-    // type ResponseGenerator = (Customer, Address);
-
     async fn create_domain_model_from_request<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
@@ -105,7 +120,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         merchant_account: &'a domain::MerchantAccount,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
-    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         // Setting default billing address to Db
         let address = self.get_address();
         let merchant_id = &merchant_account.merchant_id;
@@ -143,7 +158,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        let domain_customer = domain::Customer {
+        Ok(domain::Customer {
             customer_id: merchant_reference_id
                 .to_owned()
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
@@ -161,22 +176,18 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-        };
+        })
+    }
 
-        let customer = db
-            .insert_customer(
-                domain_customer,
-                key_manager_state,
-                key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
-
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+        let address = self.get_address();
         let address_details = address.map(api_models::payments::AddressDetails::from);
 
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer, address_details)),
+            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
         ))
     }
 }
@@ -184,8 +195,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
-    // type ResponseGenerator = (Customer)
-
     async fn create_domain_model_from_request<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
@@ -194,7 +203,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         merchant_account: &'a domain::MerchantAccount,
         key_state: &KeyManagerState,
         state: &'a SessionState,
-    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let _default_customer_billing_address = self.get_default_customer_billing_address();
         let _default_customer_shipping_address = self.get_default_customer_shipping_address();
         let merchant_id = merchant_account.merchant_id.clone();
@@ -217,7 +226,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        let domain_customer = Customer {
+        Ok(Customer {
             customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
             name: encryptable_customer.name,
@@ -237,18 +246,13 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             // default_shipping_address: default_customer_shipping_address,
             // merchant_reference_id,
             // status: Some(customer_domain::SoftDeleteStatus::Active)
-        };
+        })
+    }
 
-        let customer = db
-            .insert_customer(
-                key_state,
-                domain_customer,
-                key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
-
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
             customers::CustomerResponse::foreign_from(customer),
         ))
