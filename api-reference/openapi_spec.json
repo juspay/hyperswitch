@@ -11263,8 +11263,7 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_id",
-          "organization_id"
+          "merchant_id"
         ],
         "properties": {
           "merchant_id": {
@@ -11378,6 +11377,7 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
             "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
