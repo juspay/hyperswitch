@@ -61,7 +61,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         auth_flow: services::AuthFlow,
         payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (currency, amount);
 
@@ -78,7 +78,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
-                m_merchant_id.as_str(),
+                &m_merchant_id,
                 key_store,
                 storage_scheme,
             )
@@ -168,7 +168,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 store
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                         m_payment_id.as_str(),
-                        m_merchant_id.as_str(),
+                        &m_merchant_id,
                         attempt_id.as_str(),
                         storage_scheme,
                     )
@@ -193,7 +193,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &session_state,
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
-                    m_merchant_id.as_str(),
+                    &m_merchant_id,
                     m_payment_intent_customer_id
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
@@ -221,7 +221,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &session_state,
                     m_request_billing.as_ref(),
                     m_payment_intent_billing_address_id.as_deref(),
-                    m_merchant_id.as_ref(),
+                    &m_merchant_id,
                     m_payment_intent_customer_id
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
@@ -244,7 +244,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .async_map(|mcd| async {
                         helpers::insert_merchant_connector_creds_to_config(
                             store.as_ref(),
-                            m_merchant_id.as_str(),
+                            &m_merchant_id,
                             mcd,
                         )
                         .await
@@ -489,7 +489,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &session_state,
                     n_request_payment_method_billing_address.as_ref(),
                     n_payment_method_billing_address_id.as_deref(),
-                    m_merchant_id,
+                    &m_merchant_id,
                     m_payment_intent_customer_id
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),

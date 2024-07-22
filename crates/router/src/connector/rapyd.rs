@@ -793,7 +793,10 @@ impl api::IncomingWebhook for Rapyd {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let host = connector_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
-        let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
+        let url_path = format!(
+            "https://{host}/webhooks/{}/{connector}",
+            merchant_id.get_string_repr()
+        );
         let salt = connector_utils::get_header_key_value("salt", request.headers)?;
         let timestamp = connector_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())

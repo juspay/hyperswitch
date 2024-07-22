@@ -1,5 +1,5 @@
 use api_models::analytics::{outgoing_webhook_event::OutgoingWebhookLogsRequest, Granularity};
-use common_utils::{errors::ReportSwitchExt, id_type};
+use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 

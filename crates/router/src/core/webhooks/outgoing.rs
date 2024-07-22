@@ -855,7 +855,10 @@ async fn error_response_handler(
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.to_owned())],
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_id.get_string_repr().to_owned(),
+        )],
     );
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);

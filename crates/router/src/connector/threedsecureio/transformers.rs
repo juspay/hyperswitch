@@ -526,7 +526,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator,
     pub three_dsrequestor_url: String,
     pub acquirer_bin: String,
-    pub acquirer_merchant_id: common_utils::id_type::MerchantId,
+    pub acquirer_merchant_id: String,
     pub card_expiry_date: String,
     pub bill_addr_city: String,
     pub bill_addr_country: Secret<String>,

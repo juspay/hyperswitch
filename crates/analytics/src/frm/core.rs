@@ -6,7 +6,6 @@ use api_models::analytics::{
     AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
     GetFrmMetricRequest, MetricsResponse,
 };
-use common_utils::id_type;
 use error_stack::ResultExt;
 use router_env::{
     logger,

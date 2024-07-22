@@ -27,7 +27,7 @@ fn get_default_router_data<F, Req, Resp>(
 ) -> RouterData<F, Req, Resp> {
     RouterData {
         flow: std::marker::PhantomData,
-        merchant_id: get_irrelevant_id_string("merchant_id", flow_name),
+        merchant_id: common_utils::id_type::MerchantId::get_irrelevant_merchant_id(),
         customer_id: None,
         connector_customer: None,
         connector: get_irrelevant_id_string("connector", flow_name),

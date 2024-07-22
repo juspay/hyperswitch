@@ -15,14 +15,15 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, Queryable,
 };
-use error_stack::{Result, ResultExt};
+use error_stack::{Report, Result, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     consts::{MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH},
-    errors, generate_id_with_default_len, generate_ref_id_with_default_length,
+    date_time, errors, generate_id_with_default_len, generate_ref_id_with_default_length,
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
+    types::keymanager,
 };
 
 /// A type for merchant_id that can be used for merchant ids
@@ -36,6 +37,21 @@ pub struct MerchantId(
 impl Debug for MerchantId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("MerchantId").field(&self.0 .0 .0).finish()
+    }
+}
+
+/// This should be temporary, we should not have direct impl of Display for merchant id
+impl Display for MerchantId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_string_repr())
+    }
+}
+
+/// This is implemented so that we can use merchant id directly as attribute in metrics
+impl Into<opentelemetry::Value> for MerchantId {
+    fn into(self) -> opentelemetry::Value {
+        let string_value = self.0 .0 .0;
+        opentelemetry::Value::String(opentelemetry::StringValue::from(string_value))
     }
 }
 
@@ -97,6 +113,28 @@ impl MerchantId {
         let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
         Self(length_id)
+    }
+
+    /// Create a new merchant_id from unix timestamp, of the format `merchant_{timestamp}`
+    pub fn new_from_unix_timestamp() -> Self {
+        let merchant_id = format!("merchant_{}", date_time::now_unix_timestamp());
+
+        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.into());
+        let length_id = LengthId::new_unchecked(alphanumeric_id);
+
+        Self(length_id)
+    }
+
+    pub fn get_irrelevant_merchant_id() -> Self {
+        let alphanumeric_id = AlphaNumericId::new_unchecked("irrelevant_merchant_id".to_string());
+        let length_id = LengthId::new_unchecked(alphanumeric_id);
+        Self(length_id)
+    }
+}
+
+impl From<MerchantId> for keymanager::Identifier {
+    fn from(value: MerchantId) -> Self {
+        Self::Merchant(value)
     }
 }
 

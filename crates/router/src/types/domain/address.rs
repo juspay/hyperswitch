@@ -5,7 +5,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{self, Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
@@ -77,7 +77,7 @@ impl behaviour::Conversion for CustomerAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -87,7 +87,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
+        let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
 
         Ok(Self {
             address,
@@ -123,7 +123,7 @@ impl behaviour::Conversion for PaymentAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: common_utils::id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -134,7 +134,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
+        let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
 
         Ok(Self {
             address,
@@ -188,7 +188,7 @@ impl behaviour::Conversion for Address {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: common_utils::id_type::MerchantId,
+        _key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(

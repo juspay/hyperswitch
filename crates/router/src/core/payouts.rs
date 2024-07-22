@@ -827,7 +827,7 @@ pub async fn payouts_filtered_list_core(
             &(&state).into(),
             c,
             &key_store.key,
-            key_store.merchant_id.clone(),
+            key_store.merchant_id.clone().into(),
         )
         .await
         {

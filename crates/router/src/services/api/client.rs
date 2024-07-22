@@ -184,7 +184,6 @@ where
 
     fn add_request_id(&mut self, request_id: RequestId);
     fn get_request_id(&self) -> Option<String>;
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
 }
 
@@ -368,8 +367,6 @@ impl ApiClient for ProxyClient {
         self.request_id.clone()
     }
 
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
-
     fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
@@ -420,8 +417,6 @@ impl ApiClient for MockApiClient {
         // [#2066]: Add Mock implementation for ApiClient
         None
     }
-
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
 
     fn add_flow_name(&mut self, _flow_name: String) {}
 }

@@ -4610,7 +4610,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             merchant_account: auth_type.merchant_account,
             payment_method: payout_method_data,
             reference: item.router_data.connector_request_reference_id.clone(),
-            shopper_reference: item.router_data.merchant_id.clone(),
+            shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
         })
     }
 }

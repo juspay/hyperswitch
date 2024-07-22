@@ -197,7 +197,7 @@ pub async fn signin(
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
-                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .get_role_from_db_by_merchant_id(&state, &preferred_merchant_id)
                 .await
                 .to_not_found_response(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;

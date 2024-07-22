@@ -11,9 +11,7 @@ use error_stack::ResultExt;
 use euclid::frontend::ast;
 use storage_impl::redis::cache;
 
-use super::routing::helpers::{
-    get_payment_method_surcharge_routing_id, update_merchant_active_algorithm_ref,
-};
+use super::routing::helpers::update_merchant_active_algorithm_ref;
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,

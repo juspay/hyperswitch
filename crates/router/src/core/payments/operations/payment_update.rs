@@ -820,7 +820,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             .clone()
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
-        let request_merchant_id = request.merchant_id.as_deref();
+        let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),

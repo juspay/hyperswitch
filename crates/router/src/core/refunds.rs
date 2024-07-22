@@ -298,7 +298,7 @@ pub async fn trigger_refund_to_gateway(
                             ("connector", connector.connector_name.to_string()),
                             (
                                 "merchant_id",
-                                merchant_account.get_id().to_string_repr().to_owned(),
+                                merchant_account.get_id().get_string_repr().to_owned(),
                             ),
                         ]),
                     );

@@ -355,7 +355,7 @@ pub async fn get_domain_address(
                     .and_then(|phone| phone.number.clone()),
                 email: address.email.clone(),
             }),
-            Identifier::Merchant(merchant_id),
+            Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
         .await?;
@@ -775,7 +775,7 @@ pub async fn get_token_for_recurring_mandate(
 /// and merchant id in the merchant account are same.
 pub fn validate_merchant_id(
     merchant_id: &common_utils::id_type::MerchantId,
-    request_merchant_id: Option<&str>,
+    request_merchant_id: Option<&common_utils::id_type::MerchantId>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     // Get Merchant Id from the merchant
     // or get from merchant account

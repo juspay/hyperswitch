@@ -215,7 +215,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     state,
                     diesel_intent,
                     merchant_key_store.key.get_inner(),
-                    merchant_id,
+                    merchant_id.into(),
                 )
                 .await
                 .change_context(StorageError::DecryptionError)?;
@@ -274,7 +274,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             state,
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
-            merchant_id.to_owned(),
+            merchant_id.to_owned().into(),
         )
         .await
         .change_context(StorageError::DecryptionError)
@@ -410,7 +410,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             state,
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone(),
+            merchant_key_store.merchant_id.clone().into(),
         )
         .await
         .change_context(StorageError::DecryptionError)
@@ -443,7 +443,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             state,
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone(),
+            merchant_key_store.merchant_id.clone().into(),
         )
         .await
         .change_context(StorageError::DecryptionError)
@@ -471,7 +471,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     state,
                     diesel_payment_intent,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(StorageError::DecryptionError)
@@ -619,7 +619,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     state,
                     diesel_payment_intent,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
             }))
             .map(|join_result| join_result.change_context(StorageError::DecryptionError))
@@ -811,7 +811,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         state,
                         pi,
                         merchant_key_store.key.get_inner(),
-                        merchant_id.to_owned(),
+                        merchant_id.to_owned().into(),
                     )
                     .map(|payment_intent| {
                         payment_intent.map(|payment_intent| {

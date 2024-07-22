@@ -758,7 +758,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             last_name: encryptable_address.last_name,
             phone_number: encryptable_address.phone_number,
             country_code: self.phone_country_code.clone(),
-            merchant_id: merchant_id.get_string_repr().to_owned(),
+            merchant_id: merchant_id.to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),

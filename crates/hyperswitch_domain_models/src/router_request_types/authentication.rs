@@ -109,7 +109,7 @@ pub struct PreAuthenticationData {
     pub threeds_server_transaction_id: String,
     pub message_version: common_utils::types::SemanticVersion,
     pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub acquirer_merchant_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
 }
@@ -151,7 +151,7 @@ pub struct ThreeDsMethodData {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
-    pub acquirer_merchant_id: common_utils::id_type::MerchantId,
+    pub acquirer_merchant_id: String,
     pub acquirer_country_code: Option<String>,
 }
 

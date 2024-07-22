@@ -38,7 +38,7 @@ pub struct LockingInput {
 }
 
 impl LockingInput {
-    fn get_redis_locking_key(&self, merchant_id: common_utils::id_type::MerchantID) -> String {
+    fn get_redis_locking_key(&self, merchant_id: common_utils::id_type::MerchantId) -> String {
         format!(
             "{}_{}_{}_{}",
             API_LOCK_PREFIX,
@@ -116,7 +116,11 @@ impl LockAction {
     }
 
     #[instrument(skip_all)]
-    pub async fn free_lock_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
+    pub async fn free_lock_action<A>(
+        self,
+        state: &A,
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> RouterResult<()>
     where
         A: SessionStateInfo,
     {

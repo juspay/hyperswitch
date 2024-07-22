@@ -103,7 +103,7 @@ impl PaymentIntentInterface for MockDb {
             state,
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
-            key_store.merchant_id.clone(),
+            key_store.merchant_id.clone().into(),
         )
         .await
         .change_context(StorageError::DecryptionError)?;

@@ -14,7 +14,7 @@ use crate::{
 pub trait SdkEventsFilterAnalytics: LoadRow<SdkEventsResult> {}
 
 pub async fn get_sdk_event<T>(
-    merchant_id: &common_utils::id_type::MerchantId,
+    publishable_key: &String,
     request: SdkEventsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<SdkEventsResult>>
@@ -34,7 +34,7 @@ where
     query_builder.add_select_column("*").switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant_id)
+        .add_filter_clause("merchant_id", publishable_key)
         .switch()?;
     query_builder
         .add_filter_clause("payment_id", request.payment_id)

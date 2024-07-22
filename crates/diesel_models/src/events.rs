@@ -21,7 +21,7 @@ pub struct EventNew {
     pub primary_object_id: String,
     pub primary_object_type: storage_enums::EventObjectType,
     pub created_at: PrimitiveDateTime,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub business_profile_id: Option<String>,
     pub primary_object_created_at: Option<PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,

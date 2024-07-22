@@ -849,9 +849,8 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or(&common_utils::id_type::MerchantId::get_merchant_id_not_found())
-
-    app_state.add_merchant_id(Some(merchant_id.clone()));
+        .cloned()
+        .unwrap_or(common_utils::id_type::MerchantId::get_merchant_id_not_found());
 
     app_state.add_flow_name(flow.to_string());
 

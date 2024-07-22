@@ -316,7 +316,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}api/gateway/payment-status/payment_validation_key_{}_{}",
             self.base_url(connectors),
-            merchant_id,
+            merchant_id.get_string_repr(),
             payment_id
         ))
     }

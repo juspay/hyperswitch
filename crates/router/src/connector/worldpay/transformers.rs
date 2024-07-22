@@ -145,7 +145,12 @@ impl
                     currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
+                    line1: item
+                        .router_data
+                        .merchant_id
+                        .get_string_repr()
+                        .clone()
+                        .replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(

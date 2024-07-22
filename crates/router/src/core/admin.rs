@@ -252,7 +252,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let parent_merchant_id = get_parent_merchant(
             state,
             self.sub_merchants_enabled,
-            self.parent_merchant_id,
+            self.parent_merchant_id.as_ref(),
             &key_store,
         )
         .await?;
@@ -3086,7 +3086,7 @@ async fn locker_recipient_create_call(
 
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
-    let cust_id = id_type::CustomerId::from(merchant_id_str.into())
+    let cust_id = id_type::CustomerId::from(merchant_id_string.into())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert to CustomerId")?;
 

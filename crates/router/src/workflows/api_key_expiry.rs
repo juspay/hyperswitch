@@ -33,7 +33,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_satte,
-                tracking_data.merchant_id,
+                &tracking_data.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;

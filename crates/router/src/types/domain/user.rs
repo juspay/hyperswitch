@@ -341,8 +341,9 @@ impl MerchantId {
 impl TryFrom<MerchantId> for common_utils::id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
-        common_utils::id_type::MerchantId::from(value.0)
+        common_utils::id_type::MerchantId::from(value.0.into())
             .change_context(UserErrors::MerchantIdParsingError)
+            .attach_printable("Could not convert user merchant_id to merchant_id type")
     }
 }
 
@@ -387,7 +388,7 @@ impl NewUserMerchant {
             .is_ok()
         {
             return Err(UserErrors::MerchantAccountCreationError(format!(
-                "Merchant with {} already exists",
+                "Merchant with {:?} already exists",
                 self.get_merchant_id()
             ))
             .into());
@@ -420,11 +421,7 @@ impl NewUserMerchant {
     ))]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
-            merchant_id: common_utils::id_type::MerchantId::from(self.get_merchant_id().into())
-                .change_context(UserErrors::MerchantIdParsingError)
-                .attach_printable(
-                    "Unable to convert to MerchantId type because of constraint violations",
-                )?,
+            merchant_id: self.get_merchant_id(),
             metadata: None,
             locker_id: None,
             return_url: None,
@@ -472,10 +469,8 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
-        let merchant_id = MerchantId::new(format!(
-            "merchant_{}",
-            common_utils::date_time::now_unix_timestamp()
-        ))?;
+        let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
+
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
@@ -490,10 +485,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
-        let merchant_id = MerchantId::new(format!(
-            "merchant_{}",
-            common_utils::date_time::now_unix_timestamp()
-        ))?;
+        let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
@@ -513,7 +505,7 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
 
         Ok(Self {
             company_name,
-            merchant_id,
+            merchant_id: common_utils::id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
         })
     }
@@ -523,8 +515,10 @@ impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant 
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
-        let merchant_id =
-            MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
+        let merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+        );
+
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
@@ -924,7 +918,7 @@ impl UserFromStorage {
         Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
-    pub fn get_preferred_merchant_id(&self) -> Option<String> {
+    pub fn get_preferred_merchant_id(&self) -> Option<common_utils::id_type::MerchantId> {
         self.0.preferred_merchant_id.clone()
     }
 

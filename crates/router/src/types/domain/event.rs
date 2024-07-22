@@ -87,7 +87,7 @@ impl super::behaviour::Conversion for Event {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: common_utils::id_type::MerchantId,
+        key_manager_identifier: common_utils::types::keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -98,7 +98,7 @@ impl super::behaviour::Conversion for Event {
                 request: item.request.clone(),
                 response: item.response.clone(),
             }),
-            Identifier::Merchant(key_store_ref_id.clone()),
+            key_manager_identifier,
             key.peek(),
         )
         .await

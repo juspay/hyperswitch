@@ -140,7 +140,7 @@ pub struct AddPaymentMethodResponse {
     pub payment_method_id: String,
     pub external_id: String,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub nickname: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,

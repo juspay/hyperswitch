@@ -4,7 +4,10 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type, pii,
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::{
+        keymanager::{self, KeyManagerState},
+        MinorUnit,
+    },
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -545,7 +548,7 @@ impl behaviour::Conversion for PaymentIntent {
         state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
-        key_store_ref_id: common_utils::id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -741,20 +744,14 @@ impl behaviour::Conversion for PaymentIntent {
         state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| {
-                decrypt_optional(
-                    state,
-                    inner,
-                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
-                    key.peek(),
-                )
-            };
+            let inner_decrypt =
+                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

@@ -21,7 +21,7 @@ pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::errors::CustomResult;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,

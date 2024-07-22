@@ -1348,7 +1348,10 @@ fn get_url_with_merchant_transaction_id(
 ) -> CustomResult<String, errors::ConnectorError> {
     Ok(format!(
         "{}{}{},{}",
-        base_url, "services/2/transactions/", merchant_transaction_id, merchant_id
+        base_url,
+        "services/2/transactions/",
+        merchant_transaction_id,
+        merchant_id.get_string_repr()
     ))
 }
 

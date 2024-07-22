@@ -487,7 +487,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,
     )> {
-        let request_merchant_id = request.merchant_id.as_deref();
+        let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
@@ -497,7 +497,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.get_id(),
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: request.resource_id.clone(),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

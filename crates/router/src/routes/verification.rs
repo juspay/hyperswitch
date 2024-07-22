@@ -13,7 +13,7 @@ pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<verifications::ApplepayMerchantVerificationRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> impl Responder {
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();

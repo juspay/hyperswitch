@@ -2021,6 +2021,7 @@ dependencies = [
  "nanoid",
  "nutype",
  "once_cell",
+ "opentelemetry",
  "phonenumber",
  "proptest",
  "quick-xml 0.31.0",

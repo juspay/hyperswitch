@@ -2079,7 +2079,7 @@ pub async fn mock_get_payment_method<'a>(
             .payment_method_id
             .unwrap_or(locker_mock_up.card_id),
         external_id: locker_mock_up.external_id,
-        merchant_id: Some(locker_mock_up.merchant_id.get_string_repr().to_owned()),
+        merchant_id: Some(locker_mock_up.merchant_id.to_owned()),
         nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,

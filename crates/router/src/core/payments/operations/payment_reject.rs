@@ -271,7 +271,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsCancelRequest> for PaymentRejec
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.get_id(),
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

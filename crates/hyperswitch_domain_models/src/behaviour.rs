@@ -1,7 +1,7 @@
 use common_utils::{
     errors::{CustomResult, ValidationError},
     id_type,
-    types::keymanager::KeyManagerState,
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use masking::Secret;
 
@@ -16,7 +16,7 @@ pub trait Conversion {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized;
@@ -30,7 +30,7 @@ pub trait ReverseConversion<SrcType: Conversion> {
         self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<SrcType, ValidationError>;
 }
 
@@ -40,8 +40,8 @@ impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
         self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<U, ValidationError> {
-        U::convert_back(state, self, key, key_store_ref_id).await
+        U::convert_back(state, self, key, key_manager_identifier).await
     }
 }

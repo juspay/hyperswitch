@@ -8,7 +8,6 @@ use api_models::analytics::{
     AnalyticsMetadata, DisputeFilterValue, DisputeFiltersResponse, GetDisputeFilterRequest,
     GetDisputeMetricRequest, MetricsResponse,
 };
-use common_utils::id_type;
 use error_stack::ResultExt;
 use router_env::{
     logger,

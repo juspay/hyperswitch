@@ -325,7 +325,9 @@ impl EventInterface for Store {
                         .convert(
                             state,
                             merchant_key_store.key.get_inner(),
-                            merchant_key_store.merchant_id.clone(),
+                            common_utils::types::keymanager::Identifier::Merchant(
+                                merchant_key_store.merchant_id.clone(),
+                            ),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,

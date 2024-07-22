@@ -83,7 +83,7 @@ pub async fn sync_onboarding_status(
                     api_key: connector_onboarding_conf.paypal.client_secret.clone(),
                     key1: connector_onboarding_conf.paypal.client_id.clone(),
                     api_secret: Secret::new(
-                        paypal_onboarding_data.payer_id.get_string_repr().clone(),
+                        paypal_onboarding_data.payer_id.get_string_repr().to_owned(),
                     ),
                 };
                 let update_mca_data = paypal::update_mca(

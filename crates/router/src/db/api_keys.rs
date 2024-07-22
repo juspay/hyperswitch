@@ -392,10 +392,12 @@ mod tests {
             .await
             .expect("Failed to create Mock store");
 
+        let merchant_id = common_utils::id_type::MerchantId::from("merchant1".into()).unwrap();
+
         let key1 = mockdb
             .insert_api_key(storage::ApiKeyNew {
                 key_id: "key_id1".into(),
-                merchant_id: "merchant1".into(),
+                merchant_id: merchant_id.clone(),
                 name: "Key 1".into(),
                 description: None,
                 hashed_api_key: "hashed_key1".to_string().into(),
@@ -410,7 +412,7 @@ mod tests {
         mockdb
             .insert_api_key(storage::ApiKeyNew {
                 key_id: "key_id2".into(),
-                merchant_id: "merchant1".into(),
+                merchant_id: merchant_id.clone(),
                 name: "Key 2".into(),
                 description: None,
                 hashed_api_key: "hashed_key2".to_string().into(),
@@ -423,20 +425,20 @@ mod tests {
             .unwrap();
 
         let found_key1 = mockdb
-            .find_api_key_by_merchant_id_key_id_optional("merchant1", "key_id1")
+            .find_api_key_by_merchant_id_key_id_optional(&merchant_id, "key_id1")
             .await
             .unwrap()
             .unwrap();
         assert_eq!(found_key1.key_id, key1.key_id);
         assert!(mockdb
-            .find_api_key_by_merchant_id_key_id_optional("merchant1", "does_not_exist")
+            .find_api_key_by_merchant_id_key_id_optional(&merchant_id, "does_not_exist")
             .await
             .unwrap()
             .is_none());
 
         mockdb
             .update_api_key(
-                "merchant1".into(),
+                merchant_id.clone(),
                 "key_id1".into(),
                 storage::ApiKeyUpdate::LastUsedUpdate {
                     last_used: datetime!(2023-02-04 1:11),
@@ -445,7 +447,7 @@ mod tests {
             .await
             .unwrap();
         let updated_key1 = mockdb
-            .find_api_key_by_merchant_id_key_id_optional("merchant1", "key_id1")
+            .find_api_key_by_merchant_id_key_id_optional(&merchant_id, "key_id1")
             .await
             .unwrap()
             .unwrap();
@@ -453,16 +455,19 @@ mod tests {
 
         assert_eq!(
             mockdb
-                .list_api_keys_by_merchant_id("merchant1", None, None)
+                .list_api_keys_by_merchant_id(&merchant_id, None, None)
                 .await
                 .unwrap()
                 .len(),
             2
         );
-        mockdb.revoke_api_key("merchant1", "key_id1").await.unwrap();
+        mockdb
+            .revoke_api_key(&merchant_id, "key_id1")
+            .await
+            .unwrap();
         assert_eq!(
             mockdb
-                .list_api_keys_by_merchant_id("merchant1", None, None)
+                .list_api_keys_by_merchant_id(&merchant_id, None, None)
                 .await
                 .unwrap()
                 .len(),
@@ -473,6 +478,8 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_api_keys_cache() {
+        let merchant_id = common_utils::id_type::MerchantId::from("test_merchant".into()).unwrap();
+
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
@@ -484,10 +491,9 @@ mod tests {
             .await
             .unwrap();
 
-        let merchant_id = "test_merchant";
         let api = storage::ApiKeyNew {
             key_id: "test_key".into(),
-            merchant_id: merchant_id.into(),
+            merchant_id: merchant_id.clone(),
             name: "My test key".into(),
             description: None,
             hashed_api_key: "a_hashed_key".to_string().into(),
@@ -506,19 +512,28 @@ mod tests {
         };
         let _: Option<storage::ApiKey> = cache::get_or_populate_in_memory(
             &db,
-            &format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()),
+            &format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                hashed_api_key.clone().into_inner()
+            ),
             find_call,
             &ACCOUNTS_CACHE,
         )
         .await
         .unwrap();
 
-        let delete_call = || async { db.revoke_api_key(merchant_id, &api.key_id).await };
+        let delete_call = || async { db.revoke_api_key(&merchant_id, &api.key_id).await };
 
         cache::publish_and_redact(
             &db,
             CacheKind::Accounts(
-                format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()).into(),
+                format!(
+                    "{}_{}",
+                    merchant_id.get_string_repr(),
+                    hashed_api_key.clone().into_inner()
+                )
+                .into(),
             ),
             delete_call,
         )
@@ -527,7 +542,11 @@ mod tests {
 
         assert!(ACCOUNTS_CACHE
             .get_val::<storage::ApiKey>(CacheKey {
-                key: format!("{}_{}", merchant_id, hashed_api_key.into_inner()),
+                key: format!(
+                    "{}_{}",
+                    merchant_id.get_string_repr(),
+                    hashed_api_key.into_inner()
+                ),
                 prefix: String::default(),
             },)
             .await

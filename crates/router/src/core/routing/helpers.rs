@@ -23,50 +23,50 @@ use crate::{
 /// provides the complete merchant routing dictionary that is basically a list of all the routing
 /// configs a merchant configured with an active_id field that specifies the current active routing
 /// config
-pub async fn get_merchant_routing_dictionary(
-    db: &dyn StorageInterface,
-    merchant_id: &str,
-) -> RouterResult<routing_types::RoutingDictionary> {
-    let key = get_routing_dictionary_key(merchant_id);
-    let maybe_dict = db.find_config_by_key(&key).await;
+// pub async fn get_merchant_routing_dictionary(
+//     db: &dyn StorageInterface,
+//     merchant_id: &str,
+// ) -> RouterResult<routing_types::RoutingDictionary> {
+//     let key = get_routing_dictionary_key(merchant_id);
+//     let maybe_dict = db.find_config_by_key(&key).await;
 
-    match maybe_dict {
-        Ok(config) => config
-            .config
-            .parse_struct("RoutingDictionary")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant routing dictionary has invalid structure"),
+//     match maybe_dict {
+//         Ok(config) => config
+//             .config
+//             .parse_struct("RoutingDictionary")
+//             .change_context(errors::ApiErrorResponse::InternalServerError)
+//             .attach_printable("Merchant routing dictionary has invalid structure"),
 
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_dictionary = routing_types::RoutingDictionary {
-                merchant_id: merchant_id.to_owned(),
-                active_id: None,
-                records: Vec::new(),
-            };
+//         Err(e) if e.current_context().is_db_not_found() => {
+//             let new_dictionary = routing_types::RoutingDictionary {
+//                 merchant_id: merchant_id.to_owned(),
+//                 active_id: None,
+//                 records: Vec::new(),
+//             };
 
-            let serialized = new_dictionary
-                .encode_to_string_of_json()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error serializing newly created merchant dictionary")?;
+//             let serialized = new_dictionary
+//                 .encode_to_string_of_json()
+//                 .change_context(errors::ApiErrorResponse::InternalServerError)
+//                 .attach_printable("Error serializing newly created merchant dictionary")?;
 
-            let new_config = configs::ConfigNew {
-                key,
-                config: serialized,
-            };
+//             let new_config = configs::ConfigNew {
+//                 key,
+//                 config: serialized,
+//             };
 
-            db.insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error inserting new routing dictionary for merchant")?;
+//             db.insert_config(new_config)
+//                 .await
+//                 .change_context(errors::ApiErrorResponse::InternalServerError)
+//                 .attach_printable("Error inserting new routing dictionary for merchant")?;
 
-            Ok(new_dictionary)
-        }
+//             Ok(new_dictionary)
+//         }
 
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error fetching routing dictionary for merchant"),
-    }
-}
+//         Err(e) => Err(e)
+//             .change_context(errors::ApiErrorResponse::InternalServerError)
+//             .attach_printable("Error fetching routing dictionary for merchant"),
+//     }
+// }
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them

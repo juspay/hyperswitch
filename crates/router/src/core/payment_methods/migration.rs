@@ -58,7 +58,8 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
 }
 pub fn get_payment_method_records(
     form: PaymentMethodsMigrateForm,
-) -> Result<(String, Vec<PaymentMethodRecord>), errors::ApiErrorResponse> {
+) -> Result<(common_utils::id_type::MerchantId, Vec<PaymentMethodRecord>), errors::ApiErrorResponse>
+{
     match parse_csv(form.file.data.to_bytes()) {
         Ok(records) => {
             if let Some(first_record) = records.first() {

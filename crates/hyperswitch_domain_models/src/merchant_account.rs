@@ -315,7 +315,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: common_utils::id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -451,7 +451,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: id_type::MerchantId,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -461,7 +461,6 @@ impl super::behaviour::Conversion for MerchantAccount {
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
-        let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
@@ -473,13 +472,13 @@ impl super::behaviour::Conversion for MerchantAccount {
                 merchant_name: item
                     .merchant_name
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 merchant_details: item
                     .merchant_details
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 webhook_details: item.webhook_details,

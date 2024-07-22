@@ -102,6 +102,7 @@ macro_rules! impl_misc_api_event_type {
 
 impl_misc_api_event_type!(
     String,
+    id_type::MerchantId,
     (&String, &String),
     (Option<i64>, Option<i64>, String),
     bool
