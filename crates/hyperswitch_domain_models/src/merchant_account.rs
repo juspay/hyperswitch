@@ -255,11 +255,13 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
+                    .async_lift(|inner| (state, inner, identifier.clone(), key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
+                    .async_lift(|inner| {
+                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
