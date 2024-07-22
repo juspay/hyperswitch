@@ -103,7 +103,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
-    // Itaubank, template code for future usage
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -184,6 +184,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -229,6 +230,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+            | Self::Itaubank
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie

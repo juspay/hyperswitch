@@ -1578,6 +1578,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Itaubank => {
+                itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -3517,8 +3521,9 @@ pub async fn connector_agnostic_mit_toggle(
 
 pub async fn transfer_key_store_to_key_manager(
     state: SessionState,
+    req: admin_types::MerchantKeyTransferRequest,
 ) -> RouterResponse<admin_types::TransferKeyResponse> {
-    let resp = transfer_encryption_key(&state).await?;
+    let resp = transfer_encryption_key(&state, req).await?;
 
     Ok(service_api::ApplicationResponse::Json(
         admin_types::TransferKeyResponse {
