@@ -7,9 +7,10 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["dummy_connector", "payouts"]
+default = ["dummy_connector", "payouts", "frm"]
 dummy_connector = []
 payouts = []
+frm = []
 
 [dependencies]
 actix-web = "4.5.1"

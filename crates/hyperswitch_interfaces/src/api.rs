@@ -5,10 +5,12 @@ pub mod disputes_v2;
 pub mod files;
 pub mod files_v2;
 pub mod fraud_check;
+#[cfg(feature = "frm")]
 pub mod fraud_check_v2;
 pub mod payments;
 pub mod payments_v2;
 pub mod payouts;
+#[cfg(feature = "payouts")]
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
