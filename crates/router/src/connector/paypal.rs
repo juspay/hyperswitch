@@ -79,6 +79,8 @@ impl api::Payouts for Paypal {}
 impl api::PayoutCreate for Paypal {}
 #[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Paypal {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Paypal {}
 
 impl Paypal {
     pub fn get_order_error_response(
@@ -522,6 +524,79 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        let response: paypal::PaypalFulfillResponse = res
+            .response
+            .parse_struct("PaypalFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData> for Paypal {
+    fn get_url(
+        &self,
+        req: &types::PayoutsRouterData<api::PoSync>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let batch_id = req.request.connector_payout_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_payout_id",
+            },
+        )?;
+        Ok(format!(
+            "{}v1/payments/payouts/{}",
+            self.base_url(connectors),
+            batch_id
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PoSync>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PoSync>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Get)
+            .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PoSync>, errors::ConnectorError> {
         let response: paypal::PaypalFulfillResponse = res
             .response
             .parse_struct("PaypalFulfillResponse")

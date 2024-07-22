@@ -65,6 +65,9 @@ pub enum PaymentsResponseData {
         error_code: Option<String>,
         error_message: Option<String>,
     },
+    PostProcessingResponse {
+        session_token: Option<api_models::payments::OpenBankingSessionToken>,
+    },
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -189,6 +192,8 @@ pub struct PayoutsResponseData {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub should_add_next_step_to_process_tracker: bool,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone)]

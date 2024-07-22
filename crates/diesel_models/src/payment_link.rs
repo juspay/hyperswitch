@@ -1,13 +1,12 @@
 use common_utils::types::MinorUnit;
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payment_link};
 
-#[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_link)]
-#[diesel(primary_key(payment_link_id))]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
+#[diesel(table_name = payment_link, primary_key(payment_link_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentLink {
     pub payment_link_id: String,
     pub payment_id: String,

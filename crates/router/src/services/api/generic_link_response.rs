@@ -1,25 +1,27 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::api::{
+    GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinksData,
+};
 use tera::{Context, Tera};
 
-use super::{GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinks};
 use crate::core::errors;
 
 pub fn build_generic_link_html(
-    boxed_generic_link_data: GenericLinks,
+    boxed_generic_link_data: GenericLinksData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     match boxed_generic_link_data {
-        GenericLinks::ExpiredLink(link_data) => build_generic_expired_link_html(&link_data),
+        GenericLinksData::ExpiredLink(link_data) => build_generic_expired_link_html(&link_data),
 
-        GenericLinks::PaymentMethodCollect(pm_collect_data) => {
+        GenericLinksData::PaymentMethodCollect(pm_collect_data) => {
             build_pm_collect_link_html(&pm_collect_data)
         }
-        GenericLinks::PaymentMethodCollectStatus(pm_collect_data) => {
+        GenericLinksData::PaymentMethodCollectStatus(pm_collect_data) => {
             build_pm_collect_link_status_html(&pm_collect_data)
         }
-        GenericLinks::PayoutLink(payout_link_data) => build_payout_link_html(&payout_link_data),
+        GenericLinksData::PayoutLink(payout_link_data) => build_payout_link_html(&payout_link_data),
 
-        GenericLinks::PayoutLinkStatus(pm_collect_data) => {
+        GenericLinksData::PayoutLinkStatus(pm_collect_data) => {
             build_payout_link_status_html(&pm_collect_data)
         }
     }

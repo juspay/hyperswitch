@@ -23,7 +23,7 @@ pub async fn generate_sample_data(
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let merchant_id = merchant_id.to_string();
     let sample_data_size: usize = req.record.unwrap_or(100);
-
+    let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
         return Err(SampleDataError::InvalidRange.into());
     }
@@ -31,6 +31,7 @@ pub async fn generate_sample_data(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id.as_str(),
             &state.store.get_master_key().to_vec().into(),
         )
@@ -39,7 +40,7 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id.as_str(), &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
@@ -263,14 +264,49 @@ pub async fn generate_sample_data(
                 _ => None,
             },
             confirm: true,
-            created_at: Some(created_at),
-            modified_at: Some(modified_at),
+            created_at,
+            modified_at,
             last_synced: Some(last_synced),
             amount_to_capture: Some(amount * 100),
             connector_response_reference_id: Some(attempt_id.clone()),
             updated_by: merchant_from_db.storage_scheme.to_string(),
-
-            ..Default::default()
+            save_to_locker: None,
+            offer_amount: None,
+            surcharge_amount: None,
+            tax_amount: None,
+            payment_method_id: None,
+            capture_method: None,
+            capture_on: None,
+            cancellation_reason: None,
+            mandate_id: None,
+            browser_info: None,
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            business_sub_label: None,
+            straight_through_algorithm: None,
+            preprocessing_step_id: None,
+            mandate_details: None,
+            error_reason: None,
+            multiple_capture_count: None,
+            amount_capturable: i64::default(),
+            merchant_connector_id: None,
+            authentication_data: None,
+            encoded_data: None,
+            unified_code: None,
+            unified_message: None,
+            net_amount: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            mandate_data: None,
+            payment_method_billing_address_id: None,
+            fingerprint_id: None,
+            charge_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -285,8 +321,8 @@ pub async fn generate_sample_data(
                 connector_transaction_id: attempt_id.clone(),
                 connector_refund_id: None,
                 description: Some("This is a sample refund".to_string()),
-                created_at: Some(created_at),
-                modified_at: Some(modified_at),
+                created_at,
+                modified_at,
                 refund_reason: Some("Sample Refund".to_string()),
                 connector: payment_attempt
                     .connector

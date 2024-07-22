@@ -342,6 +342,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
@@ -521,6 +522,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
@@ -579,6 +581,7 @@ impl
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
@@ -1062,7 +1065,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1160,7 +1163,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1307,7 +1310,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
             errors.first().map(|error| types::ErrorResponse {
                 code: error.error_code.clone(),
                 message: error.error_text.clone(),
-                reason: None,
+                reason: Some(error.error_text.clone()),
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1589,7 +1592,7 @@ fn get_err_response(
     Ok(types::ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
-        reason: None,
+        reason: Some(response_message.text.clone()),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,

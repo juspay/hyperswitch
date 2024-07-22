@@ -124,27 +124,76 @@ key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[adyen.metadata]
-endpoint_prefix="Live endpoint prefix"
+[[adyen.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[adyen.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[adyen.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
-[adyen.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[adyen.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[adyen.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
 
-[adyen.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[adyen.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
+[adyen.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Live endpoint prefix"
+placeholder="Enter Live endpoint prefix"
+required=true
+type="Text"
 
 
 [airwallex]
@@ -238,24 +287,76 @@ body_type="BodyKey"
 [authorizedotnet.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="Transaction Key"
-[authorizedotnet.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
-[authorizedotnet.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[authorizedotnet.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-[authorizedotnet.connector_webhook_details]
-merchant_secret="Source verification key"
+
+[[authorizedotnet.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[authorizedotnet.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[authorizedotnet.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+[[authorizedotnet.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [bitpay]
 [[bitpay.crypto]]
@@ -312,25 +413,82 @@ key1="Username"
 [bluesnap.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[bluesnap.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[bluesnap.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[bluesnap.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
-[bluesnap.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[bluesnap.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-[bluesnap.metadata]
-merchant_id="Merchant Id"
+[[bluesnap.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bluesnap.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bluesnap.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+
+[bluesnap.metadata.merchant_id]
+name="merchant_id"
+label="Merchant Id"
+placeholder="Enter Merchant Id"
+required=false
+type="Text"
 
 [braintree]
 [[braintree.credit]]
@@ -378,9 +536,20 @@ key1="Merchant Id"
 api_secret="Private Key"
 [braintree.connector_webhook_details]
 merchant_secret="Source verification key"
-[braintree.metadata]
-merchant_account_id="Merchant Account Id"
-merchant_config_currency="Currency"
+
+[braintree.metadata.merchant_account_id]
+name="merchant_account_id"
+label="Merchant Account Id"
+placeholder="Enter Merchant Account Id"
+required=true
+type="Text"
+[braintree.metadata.merchant_config_currency]
+name="merchant_config_currency"
+label="Currency"
+placeholder="Enter Currency"
+required=true
+type="Select"
+options=[]
 
 [bambora]
 [[bambora.credit]]
@@ -422,6 +591,48 @@ merchant_config_currency="Currency"
 [bambora.connector_auth.BodyKey]
 api_key="Passcode"
 key1="Merchant Id"
+
+[bamboraapac]
+[[bamboraapac.credit]]
+  payment_method_type = "Mastercard"
+[[bamboraapac.credit]]
+  payment_method_type = "Visa"
+[[bamboraapac.credit]]
+  payment_method_type = "Interac"
+[[bamboraapac.credit]]
+  payment_method_type = "AmericanExpress"
+[[bamboraapac.credit]]
+  payment_method_type = "JCB"
+[[bamboraapac.credit]]
+  payment_method_type = "DinersClub"
+[[bamboraapac.credit]]
+  payment_method_type = "Discover"
+[[bamboraapac.credit]]
+  payment_method_type = "CartesBancaires"
+[[bamboraapac.credit]]
+  payment_method_type = "UnionPay"
+[[bamboraapac.debit]]
+  payment_method_type = "Mastercard"
+[[bamboraapac.debit]]
+  payment_method_type = "Visa"
+[[bamboraapac.debit]]
+  payment_method_type = "Interac"
+[[bamboraapac.debit]]
+  payment_method_type = "AmericanExpress"
+[[bamboraapac.debit]]
+  payment_method_type = "JCB"
+[[bamboraapac.debit]]
+  payment_method_type = "DinersClub"
+[[bamboraapac.debit]]
+  payment_method_type = "Discover"
+[[bamboraapac.debit]]
+  payment_method_type = "CartesBancaires"
+[[bamboraapac.debit]]
+  payment_method_type = "UnionPay"
+[bamboraapac.connector_auth.SignatureKey]
+api_key="Username"
+key1="Account Number"
+api_secret="Password"
 
 [bankofamerica]
 [[bankofamerica.credit]]
@@ -472,23 +683,75 @@ api_secret="Shared Secret"
 [bankofamerica.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[bankofamerica.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[bankofamerica.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+[[bankofamerica.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[bankofamerica.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[bankofamerica.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
-[bankofamerica.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[bankofamerica.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -643,24 +906,75 @@ api_secret="Checkout API Secret Key"
 [checkout.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[checkout.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[checkout.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[checkout.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[checkout.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
-[checkout.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[checkout.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-
+[[checkout.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[checkout.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[checkout.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 
 [coinbase]
@@ -719,23 +1033,75 @@ api_secret="Shared Secret"
 [cybersource.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[cybersource.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[cybersource.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+[[cybersource.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[cybersource.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[cybersource.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
-[cybersource.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[cybersource.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[cybersource.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[cybersource.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [dlocal]
 [[dlocal.credit]]
@@ -825,8 +1191,13 @@ key1="Merchant ID"
 api_secret="API Secret"
 [fiserv.connector_webhook_details]
 merchant_secret="Source verification key"
-[fiserv.metadata]
-terminal_id="Terminal ID"
+
+[fiserv.metadata.terminal_id]
+name="terminal_id"
+label="Terminal ID"
+placeholder="Enter Terminal ID"
+required=true
+type="Text"
 
 [forte]
 [[forte.credit]]
@@ -928,12 +1299,32 @@ api_key="Global App Key"
 key1="Global App ID"
 [globalpay.connector_webhook_details]
 merchant_secret="Source verification key"
-[globalpay.metadata]
-account_name="Account Name"
-[globalpay.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+
+[[globalpay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[globalpay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[globalpay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+
+[globalpay.metadata.account_name]
+name="account_name"
+label="Account Name"
+placeholder="Enter Account Name"
+required=true
+type="Text"
 
 
 [globepay]
@@ -963,17 +1354,31 @@ merchant_secret="Source verification key"
 [klarna.connector_auth.BodyKey]
 key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
-[klarna.metadata]
-klarna_region=["Europe","NorthAmerica","Oceania"]
+[klarna.metadata.klarna_region]
+name="klarna_region"
+label="Region of your Klarna Merchant Account"
+placeholder="Enter Region of your Klarna Merchant Account"
+required=true
+type="Select"
+options=["Europe","NorthAmerica","Oceania"]
 
 [mifinity]
 [[mifinity.wallet]]
   payment_method_type = "mifinity"
 [mifinity.connector_auth.HeaderKey]
 api_key="key"
-[mifinity.metadata]
-brand_id="Brand ID"
-destination_account_number="Destination Account Number"
+[mifinity.metadata.brand_id]
+name="brand_id"
+label="Merchant Brand ID"
+placeholder="Enter Brand ID"
+required=true
+type="Text"
+[mifinity.metadata.destination_account_number]
+name="destination_account_number"
+label="Destination Account Number"
+placeholder="Enter Destination Account Number"
+required=true
+type="Text"
 
 [razorpay]
 [[razorpay.upi]]
@@ -1130,20 +1535,57 @@ merchant_secret="Source verification key"
 [nexinets.connector_auth.BodyKey]
 api_key="API Key"
 key1="Merchant ID"
-[nexinets.connector_webhook_details]
-merchant_secret="Source verification key"
-[nexinets.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[nexinets.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+
+[[nexinets.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[nexinets.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[nexinets.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [nmi]
 [[nmi.credit]]
@@ -1340,10 +1782,24 @@ key1="Merchant POS ID"
 [payu.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[payu.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[payu.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[payu.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[payu.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [rapyd]
 [[rapyd.credit]]
@@ -1390,18 +1846,56 @@ key1="API Secret"
 [rapyd.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[rapyd.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[rapyd.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+[[rapyd.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[rapyd.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[rapyd.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [shift4]
 [[shift4.credit]]
@@ -1525,22 +2019,76 @@ is_verifiable = true
 api_key="Secret Key"
 [stripe.connector_webhook_details]
 merchant_secret="Source verification key"
-[stripe.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-stripe_publishable_key="Stripe Publishable Key"
-merchant_id="Google Pay Merchant ID"
-[stripe.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[stripe.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+
+[[stripe.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[stripe.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[stripe.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+[[stripe.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[stripe.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[stripe.metadata.google_pay]]
+name="stripe:publishableKey"
+label="Stripe Publishable Key"
+placeholder="Enter Stripe Publishable Key"
+required=true
+type="Text"
 
 
 
@@ -1602,18 +2150,76 @@ key1="Project ID"
 api_secret="Secret Key"
 [trustpay.connector_webhook_details]
 merchant_secret="Source verification key"
-[trustpay.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[trustpay.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
+
+[[trustpay.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[trustpay.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[trustpay.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+[[trustpay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[trustpay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[trustpay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [worldline]
 [[worldline.credit]]
@@ -1707,25 +2313,76 @@ merchant_secret="Source verification key"
 [worldpay.connector_auth.BodyKey]
 api_key="Username"
 key1="Password"
-[worldpay.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
-[worldpay.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="web"
-initiative_context="Domain Name"
-payment_processing_details_at="Connector"
-[worldpay.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-[worldpay.connector_webhook_details]
-merchant_secret="Source verification key"
 
+[[worldpay.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[worldpay.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[worldpay.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+[[worldpay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 
 [payme]
@@ -1934,9 +2591,32 @@ merchant_secret="Source verification key"
 [zen.metadata.apple_pay]
 terminal_uuid="Terminal UUID"
 pay_wall_secret="Pay Wall Secret"
-[zen.metadata.google_pay]
-terminal_uuid="Terminal UUID"
-pay_wall_secret="Pay Wall Secret"
+
+[[zen.metadata.apple_pay]]
+name="terminal_uuid"
+label="Terminal UUID"
+placeholder="Enter Terminal UUID"
+required=true
+type="Text"
+[[zen.metadata.apple_pay]]
+name="pay_wall_secret"
+label="Pay Wall Secret"
+placeholder="Enter Pay Wall Secret"
+required=true
+type="Text"
+
+[[zen.metadata.google_pay]]
+name="terminal_uuid"
+label="Terminal UUID"
+placeholder="Enter Terminal UUID"
+required=true
+type="Text"
+[[zen.metadata.google_pay]]
+name="pay_wall_secret"
+label="Pay Wall Secret"
+placeholder="Enter Pay Wall Secret"
+required=true
+type="Text"
 
 [zsl]
 [[zsl.bank_transfer]]
@@ -1985,3 +2665,44 @@ key1 = "Merchant ID"
 [billwerk.connector_auth.BodyKey]
 api_key="Private Api Key"
 key1="Public Api Key"
+
+[datatrans]
+[[datatrans.credit]]
+  payment_method_type = "Mastercard"
+[[datatrans.credit]]
+  payment_method_type = "Visa"
+[[datatrans.credit]]
+  payment_method_type = "Interac"
+[[datatrans.credit]]
+  payment_method_type = "AmericanExpress"
+[[datatrans.credit]]
+  payment_method_type = "JCB"
+[[datatrans.credit]]
+  payment_method_type = "DinersClub"
+[[datatrans.credit]]
+  payment_method_type = "Discover"
+[[datatrans.credit]]
+  payment_method_type = "CartesBancaires"
+[[datatrans.credit]]
+  payment_method_type = "UnionPay"
+[[datatrans.debit]]
+  payment_method_type = "Mastercard"
+[[datatrans.debit]]
+  payment_method_type = "Visa"
+[[datatrans.debit]]
+  payment_method_type = "Interac"
+[[datatrans.debit]]
+  payment_method_type = "AmericanExpress"
+[[datatrans.debit]]
+  payment_method_type = "JCB"
+[[datatrans.debit]]
+  payment_method_type = "DinersClub"
+[[datatrans.debit]]
+  payment_method_type = "Discover"
+[[datatrans.debit]]
+  payment_method_type = "CartesBancaires"
+[[datatrans.debit]]
+  payment_method_type = "UnionPay"
+[datatrans.connector_auth.BodyKey]
+api_key = "Passcode"
+key1 = "datatrans MerchantId"

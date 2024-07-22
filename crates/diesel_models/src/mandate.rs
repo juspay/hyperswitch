@@ -1,13 +1,15 @@
 use common_enums::MerchantStorageScheme;
 use common_utils::{id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::mandate};
 
-#[derive(Clone, Debug, Identifiable, Queryable, serde::Serialize, serde::Deserialize)]
-#[diesel(table_name = mandate)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
+#[diesel(table_name = mandate, check_for_backend(diesel::pg::Pg))]
 pub struct Mandate {
     pub id: i32,
     pub mandate_id: String,

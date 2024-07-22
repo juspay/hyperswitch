@@ -57,6 +57,7 @@ pub async fn refund_create_core(
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &req.payment_id,
             merchant_id,
             &key_store,
@@ -415,6 +416,7 @@ pub async fn refund_retrieve_core(
     let payment_id = refund.payment_id.as_str();
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             payment_id,
             merchant_id,
             &key_store,
@@ -804,8 +806,8 @@ pub async fn validate_and_create_refund(
         .set_total_amount(payment_attempt.amount)
         .set_refund_amount(refund_amount)
         .set_currency(currency)
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_modified_at(Some(common_utils::date_time::now()))
+        .set_created_at(common_utils::date_time::now())
+        .set_modified_at(common_utils::date_time::now())
         .set_refund_status(enums::RefundStatus::Pending)
         .set_metadata(req.metadata)
         .set_description(req.reason.clone())
@@ -836,13 +838,7 @@ pub async fn validate_and_create_refund(
         }
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
-                db.find_refund_by_merchant_id_refund_id(
-                    merchant_account.merchant_id.as_str(),
-                    refund_id.as_str(),
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?
+                Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
                     .change_context(errors::ApiErrorResponse::RefundNotFound)
@@ -930,9 +926,11 @@ pub async fn refund_manual_update(
     state: SessionState,
     req: api_models::refunds::RefundManualUpdateRequest,
 ) -> RouterResponse<serde_json::Value> {
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &req.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -941,7 +939,7 @@ pub async fn refund_manual_update(
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &req.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -1036,7 +1034,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
-            updated_at: Some(refund.updated_at),
+            updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
             charges: refund.charges,
@@ -1131,6 +1129,7 @@ pub async fn sync_refund_with_gateway_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
+    let key_manager_state = &state.into();
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1144,6 +1143,7 @@ pub async fn sync_refund_with_gateway_workflow(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &refund_core.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1151,7 +1151,11 @@ pub async fn sync_refund_with_gateway_workflow(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &refund_core.merchant_id,
+            &key_store,
+        )
         .await?;
 
     let response = Box::pin(refund_retrieve_core(
@@ -1226,17 +1230,22 @@ pub async fn trigger_refund_execute_workflow(
                     refund_tracker.tracking_data
                 )
             })?;
-
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &refund_core.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &refund_core.merchant_id,
+            &key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1251,7 +1260,11 @@ pub async fn trigger_refund_execute_workflow(
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let merchant_account = db
-                .find_merchant_account_by_merchant_id(&refund.merchant_id, &key_store)
+                .find_merchant_account_by_merchant_id(
+                    key_manager_state,
+                    &refund.merchant_id,
+                    &key_store,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1267,6 +1280,7 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
+                    &(state.into()),
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
                     &key_store,
@@ -1452,7 +1466,7 @@ pub async fn get_refund_sync_process_schedule_time(
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(err) => {
-            logger::error!("Error: while getting connector mapping: {}", err);
+            logger::error!("Error: while getting connector mapping: {err:?}");
             process_data::ConnectorPTMapping::default()
         }
     };

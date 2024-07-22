@@ -515,7 +515,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"amount\":10000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":10000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}},\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                  "raw": "{\"amount\":10000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":10000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
@@ -743,7 +743,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}},\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -994,7 +994,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":false,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":false,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
