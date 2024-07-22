@@ -928,7 +928,11 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    any(feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));

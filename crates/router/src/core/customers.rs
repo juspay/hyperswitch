@@ -8,9 +8,10 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::encrypt;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{Secret, SwitchStrategy};
-#[cfg(any(feature = "v1", feature = "v2"))]
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -197,12 +198,12 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        db: &'a dyn StorageInterface,
+        _db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_account: &'a domain::MerchantAccount,
-        key_state: &KeyManagerState,
-        state: &'a SessionState,
+        key_state: &'a KeyManagerState,
+        _state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let _default_customer_billing_address = self.get_default_customer_billing_address();
         let _default_customer_shipping_address = self.get_default_customer_shipping_address();
@@ -212,9 +213,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encrypted_data = types::batch_encrypt(
             key_state,
             CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: customer_data.name.clone(),
-                email: customer_data.email.clone(),
-                phone: customer_data.phone.clone(),
+                name: Some(self.name.clone()),
+                email: Some(self.email.clone()),
+                phone: self.phone.clone(),
             }),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
@@ -226,15 +227,17 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        Ok(Customer {
-            customer_id: customer_id.to_owned(),
+        Ok(domain::Customer {
+            customer_id: merchant_reference_id
+                .to_owned()
+                .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // doing this to make it compile, will remove once we start moving to domain models
             merchant_id: merchant_id.to_string(),
             name: encryptable_customer.name,
             email: encryptable_customer.email,
             phone: encryptable_customer.phone,
-            description: customer_data.description,
-            phone_country_code: customer_data.phone_country_code,
-            metadata: customer_data.metadata,
+            description: self.description.clone(),
+            phone_country_code: self.phone_country_code.clone(),
+            metadata: self.metadata.clone(),
             id: None,
             connector_customer: None,
             address_id: None,
@@ -254,7 +257,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from(customer),
+            customers::CustomerResponse::foreign_from(customer.clone()),
         ))
     }
 }
