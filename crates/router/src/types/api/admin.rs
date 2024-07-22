@@ -8,17 +8,26 @@ pub use api_models::admin::{
     MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::keymanager::Identifier,
+};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
+    routes::SessionState,
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -59,7 +68,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -84,25 +93,29 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 }
 
 pub async fn business_profile_response(
+    state: &SessionState,
     item: storage::business_profile::BusinessProfile,
     key_store: &MerchantKeyStore,
 ) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
-    let outgoing_webhook_custom_http_headers = decrypt::<serde_json::Value, masking::WithType>(
-        item.outgoing_webhook_custom_http_headers.clone(),
-        key_store.key.get_inner().peek(),
-    )
-    .await
-    .change_context(errors::ParsingError::StructParseFailure(
-        "Outgoing webhook custom HTTP headers",
-    ))
-    .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
-    .map(|decrypted_value| {
-        decrypted_value
-            .into_inner()
-            .expose()
-            .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-    })
-    .transpose()?;
+    let outgoing_webhook_custom_http_headers =
+        decrypt_optional::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            item.outgoing_webhook_custom_http_headers.clone(),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::ParsingError::StructParseFailure(
+            "Outgoing webhook custom HTTP headers",
+        ))
+        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+        .map(|decrypted_value| {
+            decrypted_value
+                .into_inner()
+                .expose()
+                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+        })
+        .transpose()?;
 
     Ok(BusinessProfileResponse {
         merchant_id: item.merchant_id,
@@ -146,7 +159,9 @@ pub async fn business_profile_response(
     })
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn create_business_profile(
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,
     key_store: &MerchantKeyStore,
@@ -188,7 +203,7 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(key_store, headers))
+        .async_map(|headers| create_encrypted_data(state, key_store, headers))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)

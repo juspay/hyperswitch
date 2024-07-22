@@ -164,7 +164,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
-            &*state.store,
+            state,
             &mut payment_data,
             customer_details,
             &key_store,
@@ -208,8 +208,6 @@ where
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
         let mut frm_info = None;
-        #[cfg(feature = "frm")]
-        let db = &*state.store;
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
@@ -217,7 +215,6 @@ where
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
             Box::pin(frm_core::call_frm_before_connector_call(
-                db,
                 &operation,
                 &merchant_account,
                 &mut payment_data,
@@ -663,6 +660,7 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
+        logger::debug!("payment_intent.surcharge_applicable = true");
         if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
             // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
             let surcharge_details =
@@ -710,6 +708,7 @@ where
                 .payment_attempt
                 .get_surcharge_details()
                 .map(|surcharge_details| {
+                    logger::debug!("surcharge sent in payments create request");
                     types::SurchargeDetails::from((
                         &surcharge_details,
                         &payment_data.payment_attempt,
@@ -1203,6 +1202,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 &merchant_id,
                 &merchant_key_store,
@@ -2883,7 +2883,7 @@ pub async fn list_payments(
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
-        db,
+        &state,
         &constraints,
         merchant_id,
         &key_store,
@@ -2955,6 +2955,7 @@ pub async fn apply_filters_on_payments(
     let db = state.store.as_ref();
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
+            &(&state).into(),
             &merchant.merchant_id,
             &constraints.clone().into(),
             &merchant_key_store,
@@ -3008,6 +3009,7 @@ pub async fn get_filters_for_payments(
     let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
+            &(&state).into(),
             &merchant.merchant_id,
             &time_range,
             &merchant_key_store,
@@ -3298,10 +3300,9 @@ where
 
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),
-        #[cfg(feature = "connector_choice_mca_id")]
+
         merchant_connector_id: payment_data.payment_attempt.merchant_connector_id.clone(),
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
+
         algorithm: request_straight_through.clone(),
         routing_info: payment_data
             .payment_attempt
@@ -3337,14 +3338,8 @@ where
         .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
-    #[cfg(feature = "connector_choice_mca_id")]
-    {
-        payment_data.payment_attempt.merchant_connector_id = routing_data.merchant_connector_id;
-    }
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    {
-        payment_data.payment_attempt.business_sub_label = routing_data.business_sub_label;
-    }
+
+    payment_data.payment_attempt.merchant_connector_id = routing_data.merchant_connector_id;
     payment_data.payment_attempt.straight_through_algorithm = Some(encoded_info);
 
     Ok(decided_connector)
@@ -3388,21 +3383,17 @@ where
             &state.conf.connectors,
             &mandate_connector_details.connector,
             api::GetToken::Connector,
-            #[cfg(feature = "connector_choice_mca_id")]
             mandate_connector_details.merchant_connector_id.clone(),
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            None,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(mandate_connector_details.connector.clone());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data
-                .merchant_connector_id
-                .clone_from(&mandate_connector_details.merchant_connector_id);
-        }
+
+        routing_data
+            .merchant_connector_id
+            .clone_from(&mandate_connector_details.merchant_connector_id);
+
         return Ok(ConnectorCallType::PreDetermined(connector_data));
     }
 
@@ -3432,26 +3423,17 @@ where
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
             routing_data.routed_through = Some(first_routable_connector.connector.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data
-                    .merchant_connector_id
-                    .clone_from(&first_routable_connector.merchant_connector_id);
-            }
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            {
-                routing_data.business_sub_label = first_routable_connector.sub_label.clone();
-            }
+
+            routing_data
+                .merchant_connector_id
+                .clone_from(&first_routable_connector.merchant_connector_id);
 
             for connector_choice in routable_connector_list.clone() {
                 let connector_data = api::ConnectorData::get_connector_by_name(
                     &state.conf.connectors,
                     &connector_choice.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     connector_choice.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid connector name received")?;
@@ -3459,11 +3441,11 @@ where
                 pre_routing_connector_data_list.push(connector_data);
             }
 
-            #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
+            #[cfg(feature = "retry")]
             let should_do_retry =
                 retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
 
-            #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
+            #[cfg(feature = "retry")]
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
                 && should_do_retry
@@ -3510,11 +3492,7 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            #[cfg(feature = "business_profile_routing")]
             let profile_id = payment_data.payment_intent.profile_id.clone();
-
-            #[cfg(not(feature = "business_profile_routing"))]
-            let _profile_id: Option<String> = None;
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
@@ -3522,7 +3500,6 @@ where
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 profile_id,
             )
             .await
@@ -3537,10 +3514,7 @@ where
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     conn.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -3567,11 +3541,7 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            #[cfg(feature = "business_profile_routing")]
             let profile_id = payment_data.payment_intent.profile_id.clone();
-
-            #[cfg(not(feature = "business_profile_routing"))]
-            let _profile_id: Option<String> = None;
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
@@ -3579,7 +3549,6 @@ where
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 profile_id,
             )
             .await
@@ -3594,10 +3563,7 @@ where
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     conn.merchant_connector_id,
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -3769,19 +3735,10 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 .attach_printable("no eligible connector found for token-based MIT payment")?;
 
             routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data
-                    .merchant_connector_id
-                    .clone_from(&chosen_connector_data.merchant_connector_id);
-            }
-            routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data
-                    .merchant_connector_id
-                    .clone_from(&chosen_connector_data.merchant_connector_id);
-            }
+
+            routing_data
+                .merchant_connector_id
+                .clone_from(&chosen_connector_data.merchant_connector_id);
 
             payment_data.mandate_id = Some(payments_api::MandateIds {
                 mandate_id: None,
@@ -3800,10 +3757,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 .clone();
 
             routing_data.routed_through = Some(first_choice.connector_name.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data.merchant_connector_id = first_choice.merchant_connector_id;
-            }
+
+            routing_data.merchant_connector_id = first_choice.merchant_connector_id;
 
             Ok(ConnectorCallType::Retryable(connectors))
         }
@@ -3939,22 +3894,6 @@ where
 
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    for mut connector_data in connectors {
-        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
-            final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
-            let routing_choice = choice
-                .first()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
-                connector_data.business_sub_label = routing_choice.sub_label.clone();
-                final_list.push(connector_data);
-            }
-        }
-    }
-
-    #[cfg(feature = "connector_choice_mca_id")]
     for connector_data in connectors {
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
@@ -3987,27 +3926,15 @@ where
 {
     #[allow(unused_variables)]
     let (profile_id, routing_algorithm) = match &transaction_data {
-        TransactionData::Payment(payment_data) => {
-            if cfg!(feature = "business_profile_routing") {
-                (
-                    payment_data.payment_intent.profile_id.clone(),
-                    business_profile.routing_algorithm.clone(),
-                )
-            } else {
-                (None, merchant_account.routing_algorithm.clone())
-            }
-        }
+        TransactionData::Payment(payment_data) => (
+            payment_data.payment_intent.profile_id.clone(),
+            business_profile.routing_algorithm.clone(),
+        ),
         #[cfg(feature = "payouts")]
-        TransactionData::Payout(payout_data) => {
-            if cfg!(feature = "business_profile_routing") {
-                (
-                    Some(payout_data.payout_attempt.profile_id.clone()),
-                    business_profile.payout_routing_algorithm.clone(),
-                )
-            } else {
-                (None, merchant_account.payout_routing_algorithm.clone())
-            }
-        }
+        TransactionData::Payout(payout_data) => (
+            Some(payout_data.payout_attempt.profile_id.clone()),
+            business_profile.payout_routing_algorithm.clone(),
+        ),
     };
 
     let algorithm_ref = routing_algorithm
@@ -4032,7 +3959,6 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        #[cfg(feature = "business_profile_routing")]
         profile_id,
     )
     .await
@@ -4053,10 +3979,7 @@ where
                 &state.conf.connectors,
                 &conn.connector.to_string(),
                 api::GetToken::Connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 conn.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
             )
         })
         .collect::<CustomResult<Vec<_>, _>>()
@@ -4080,14 +4003,7 @@ where
         TransactionData::Payout(_) => {
             routing_data.routed_through = Some(first_connector_choice.connector.to_string());
 
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-            }
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            {
-                routing_data.business_sub_label = first_connector_choice.sub_label;
-            }
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
 
             Ok(ConnectorCallType::Retryable(connector_data))
         }
@@ -4107,6 +4023,7 @@ pub async fn payment_external_authentication(
     let payment_id = req.payment_id;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             merchant_id,
             &key_store,
@@ -4140,6 +4057,7 @@ pub async fn payment_external_authentication(
             state
                 .store
                 .find_customer_by_customer_id_merchant_id(
+                    &(&state).into(),
                     customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
@@ -4162,7 +4080,7 @@ pub async fn payment_external_authentication(
     let currency = payment_attempt.currency.get_required_value("currency")?;
     let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.shipping_address_id.as_deref(),
         merchant_id,
@@ -4173,7 +4091,7 @@ pub async fn payment_external_authentication(
     )
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.billing_address_id.as_deref(),
         merchant_id,
@@ -4345,9 +4263,11 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
     } = req;
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -4356,7 +4276,7 @@ pub async fn payments_manual_update(
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -4376,6 +4296,7 @@ pub async fn payments_manual_update(
     let payment_intent = state
         .store
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -4431,6 +4352,7 @@ pub async fn payments_manual_update(
         state
             .store
             .update_payment_intent(
+                &(&state).into(),
                 payment_intent,
                 payment_intent_update,
                 &key_store,

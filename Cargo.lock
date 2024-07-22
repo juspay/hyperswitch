@@ -344,7 +344,6 @@ dependencies = [
  "common_utils",
  "diesel_models",
  "error-stack",
- "external_services",
  "futures 0.3.30",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
@@ -449,8 +448,6 @@ dependencies = [
  "common_utils",
  "error-stack",
  "euclid",
- "frunk",
- "frunk_core",
  "masking",
  "mime",
  "reqwest",
@@ -1996,8 +1993,6 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "frunk",
- "frunk_core",
  "router_derive",
  "serde",
  "serde_json",
@@ -2011,6 +2006,7 @@ name = "common_utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.0",
  "blake3",
  "bytes 1.6.0",
  "common_enums",
@@ -2032,11 +2028,9 @@ dependencies = [
  "regex",
  "reqwest",
  "ring 0.17.8",
- "router_derive",
  "router_env",
  "rust_decimal",
  "rustc-hash",
- "rusty-money",
  "semver 1.0.22",
  "serde",
  "serde_json",
@@ -2708,11 +2702,10 @@ dependencies = [
  "common_utils",
  "diesel",
  "error-stack",
- "frunk",
- "frunk_core",
  "masking",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "strum 0.26.2",
@@ -2966,10 +2959,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "criterion",
- "erased-serde 0.4.4",
  "euclid_macros",
- "frunk",
- "frunk_core",
  "hyperswitch_constraint_graph",
  "nom",
  "once_cell",
@@ -3223,58 +3213,6 @@ dependencies = [
  "tracing-futures",
  "url",
  "urlencoding",
-]
-
-[[package]]
-name = "frunk"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11a351b59e12f97b4176ee78497dff72e4276fb1ceb13e19056aca7fa0206287"
-dependencies = [
- "frunk_core",
- "frunk_derives",
- "frunk_proc_macros",
-]
-
-[[package]]
-name = "frunk_core"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af2469fab0bd07e64ccf0ad57a1438f63160c69b2e57f04a439653d68eb558d6"
-
-[[package]]
-name = "frunk_derives"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0fa992f1656e1707946bbba340ad244f0814009ef8c0118eb7b658395f19a2e"
-dependencies = [
- "frunk_proc_macro_helpers",
- "quote",
- "syn 2.0.57",
-]
-
-[[package]]
-name = "frunk_proc_macro_helpers"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35b54add839292b743aeda6ebedbd8b11e93404f902c56223e51b9ec18a13d2c"
-dependencies = [
- "frunk_core",
- "proc-macro2",
- "quote",
- "syn 2.0.57",
-]
-
-[[package]]
-name = "frunk_proc_macros"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71b85a1d4a9a6b300b41c05e8e13ef2feca03e0334127f29eca9506a7fe13a93"
-dependencies = [
- "frunk_core",
- "frunk_proc_macro_helpers",
- "quote",
- "syn 2.0.57",
 ]
 
 [[package]]
@@ -3900,7 +3838,6 @@ dependencies = [
  "graphviz-rust",
  "rustc-hash",
  "serde",
- "serde_json",
  "strum 0.25.0",
  "thiserror",
 ]
@@ -3923,6 +3860,7 @@ dependencies = [
  "mime",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "serde_with",
@@ -3954,7 +3892,6 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
- "storage_impl",
  "thiserror",
  "time",
 ]
@@ -5483,8 +5420,6 @@ dependencies = [
  "http 0.2.12",
  "masking",
  "mime",
- "router_derive",
- "router_env",
  "serde",
  "serde_json",
  "strum 0.26.2",
@@ -6123,7 +6058,6 @@ dependencies = [
  "digest",
  "dyn-clone",
  "encoding_rs",
- "erased-serde 0.4.4",
  "error-stack",
  "euclid",
  "events",
@@ -6179,7 +6113,6 @@ dependencies = [
  "serde_with",
  "serial_test",
  "sha1",
- "sqlx",
  "storage_impl",
  "strum 0.26.2",
  "tera",
@@ -6221,7 +6154,6 @@ name = "router_env"
 version = "0.1.0"
 dependencies = [
  "cargo_metadata 0.18.1",
- "common_enums",
  "config",
  "error-stack",
  "gethostname",
@@ -6548,7 +6480,6 @@ dependencies = [
  "external_services",
  "futures 0.3.30",
  "hyperswitch_domain_models",
- "masking",
  "num_cpus",
  "once_cell",
  "rand",
@@ -7235,7 +7166,6 @@ dependencies = [
 name = "storage_impl"
 version = "0.1.0"
 dependencies = [
- "actix-web",
  "api_models",
  "async-bb8-diesel",
  "async-trait",
@@ -7250,10 +7180,8 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "futures 0.3.30",
- "http 0.2.12",
  "hyperswitch_domain_models",
  "masking",
- "mime",
  "moka",
  "once_cell",
  "redis_interface",

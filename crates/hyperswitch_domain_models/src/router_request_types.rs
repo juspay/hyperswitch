@@ -342,6 +342,7 @@ pub struct PaymentsPostProcessingData {
     pub payment_method_data: PaymentMethodData,
     pub customer_id: Option<id_type::CustomerId>,
     pub connector_transaction_id: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -362,6 +363,11 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
                 _ => None,
             },
             customer_id: data.request.customer_id,
+            country: data
+                .address
+                .get_payment_billing()
+                .and_then(|bl| bl.address.as_ref())
+                .and_then(|address| address.country),
         })
     }
 }
@@ -408,6 +414,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub browser_info: Option<BrowserInformation>,
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,

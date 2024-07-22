@@ -666,10 +666,26 @@ Cypress.Commands.add(
               expect(response.body)
                 .to.have.property("next_action")
                 .to.have.property("qr_code_url");
-              globalState.set(
-                "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                response.body.next_action.qr_code_url
-              );
+              if (response.body.next_action.qr_code_url !== null) {
+                globalState.set(
+                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                  response.body.next_action.qr_code_url
+                );
+                globalState.set(
+                  "nextActionType",
+                  "qr_code_url"
+                );
+              }
+              else{
+                globalState.set(
+                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                  response.body.next_action.image_data_url
+                );
+                globalState.set(
+                  "nextActionType", 
+                  "image_data_url"
+                );
+              }
               break;
             default:
               expect(response.body)
@@ -1327,12 +1343,14 @@ Cypress.Commands.add(
     let connectorId = globalState.get("connectorId");
     let expected_url = new URL(expected_redirection);
     let redirection_url = new URL(globalState.get("nextActionUrl"));
+    let next_action_type = globalState.get("nextActionType")
     cy.log(payment_method_type);
     handleRedirection(
       "bank_transfer",
       { redirection_url, expected_url },
       connectorId,
-      payment_method_type
+      payment_method_type,
+      { next_action_type }
     );
   }
 );

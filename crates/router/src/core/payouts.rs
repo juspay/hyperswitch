@@ -112,10 +112,7 @@ pub async fn get_connector_choice(
             payout_data.payout_attempt.routing_info = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: Some(request_straight_through.clone()),
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
@@ -137,10 +134,7 @@ pub async fn get_connector_choice(
         api::ConnectorChoice::Decide => {
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
                 algorithm: None,
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
@@ -738,6 +732,7 @@ pub async fn payouts_list_core(
             Ok(payout_attempt) => {
                 match db
                     .find_customer_by_customer_id_merchant_id(
+                        &(&state).into(),
                         &payouts.customer_id,
                         merchant_id,
                         &key_store,
@@ -828,7 +823,14 @@ pub async fn payouts_filtered_list_core(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
-        match domain::Customer::convert_back(c, &key_store.key).await {
+        match domain::Customer::convert_back(
+            &(&state).into(),
+            c,
+            &key_store.key,
+            key_store.merchant_id.clone(),
+        )
+        .await
+        {
             Ok(domain_cust) => Some((p, pa, domain_cust)),
             Err(err) => {
                 logger::warn!(
@@ -1090,6 +1092,7 @@ pub async fn create_recipient(
                     {
                         payout_data.customer_details = Some(
                             db.update_customer_by_customer_id_merchant_id(
+                                &state.into(),
                                 customer_id,
                                 merchant_id,
                                 customer,
@@ -2190,7 +2193,7 @@ pub async fn payout_create_db_entries(
 
     // Get or create address
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
-        db,
+        state,
         req.billing.as_ref(),
         None,
         merchant_id,
@@ -2351,7 +2354,7 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
-        db,
+        state,
         None,
         Some(&payouts.address_id.to_owned()),
         merchant_id,
@@ -2364,6 +2367,7 @@ pub async fn make_payout_data(
 
     let customer_details = db
         .find_customer_optional_by_customer_id_merchant_id(
+            &state.into(),
             &payouts.customer_id.to_owned(),
             merchant_id,
             key_store,
@@ -2379,8 +2383,7 @@ pub async fn make_payout_data(
         validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
-        payouts::PayoutRequest::PayoutRetrieveRequest(_)
-        | payouts::PayoutRequest::PayoutActionRequest(_) => {
+        payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {
                 Some(payout_token) => {
                     let customer_id = customer_details
@@ -2403,6 +2406,7 @@ pub async fn make_payout_data(
                 None => None,
             }
         }
+        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
     let payout_link = payouts

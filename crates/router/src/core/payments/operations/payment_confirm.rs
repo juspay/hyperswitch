@@ -7,7 +7,10 @@ use api_models::{
     payments::{AdditionalPaymentData, ExtendedCardInfo},
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
+    types::keymanager::Identifier,
+};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
@@ -30,14 +33,13 @@ use crate::{
         },
         utils as core_utils,
     },
-    db::StorageInterface,
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self, types::decrypt},
+        domain::{self, types::decrypt_optional},
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -74,6 +76,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         // Parallel calls - level 0
         let mut payment_intent = store
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 m_merchant_id.as_str(),
                 key_store,
@@ -181,13 +184,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
-        let store = state.clone().store;
         let m_key_store = key_store.clone();
+        let session_state = state.clone();
 
         let shipping_address_fut = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    store.as_ref(),
+                    &session_state,
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
                     m_merchant_id.as_str(),
@@ -209,13 +212,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let store = state.clone().store;
         let m_key_store = key_store.clone();
+        let session_state = state.clone();
 
         let billing_address_fut = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    store.as_ref(),
+                    &session_state,
                     m_request_billing.as_ref(),
                     m_payment_intent_billing_address_id.as_deref(),
                     m_merchant_id.as_ref(),
@@ -306,7 +309,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             request,
                             payment_intent,
                             payment_attempt,
-                            &*state.store,
+                            state,
                             key_store,
                             storage_scheme,
                         )
@@ -467,8 +470,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .in_current_span(),
         );
 
-        let store = state.clone().store;
-
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
         let n_request_payment_method_billing_address = request
@@ -480,11 +481,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_key_store = key_store.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_merchant_id = merchant_id.clone();
+        let session_state = state.clone();
 
         let payment_method_billing_future = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    store.as_ref(),
+                    &session_state,
                     n_request_payment_method_billing_address.as_ref(),
                     n_payment_method_billing_address_id.as_deref(),
                     m_merchant_id.as_str(),
@@ -688,7 +690,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
@@ -701,8 +703,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
+            state,
             Box::new(self),
-            db,
             payment_data,
             request,
             &key_store.merchant_id,
@@ -1077,12 +1079,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
+        let key_manager_state = &state.into();
         let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
             let key = key_store.key.get_inner().peek();
 
             let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                decrypt::<serde_json::Value, masking::WithType>(
+                decrypt_optional::<serde_json::Value, masking::WithType>(
+                    key_manager_state,
                     pm.payment_method_data.clone(),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
                     key,
                 )
                 .await
@@ -1243,7 +1248,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let billing_address = payment_data.address.get_payment_billing();
         let billing_details = billing_address
-            .async_map(|billing_details| create_encrypted_data(key_store, billing_details))
+            .async_map(|billing_details| create_encrypted_data(state, key_store, billing_details))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1251,7 +1256,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let shipping_address = payment_data.address.get_shipping();
         let shipping_details = shipping_address
-            .async_map(|shipping_details| create_encrypted_data(key_store, shipping_details))
+            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1273,10 +1278,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
+        let key_manager_state = state.into();
 
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
+                    &key_manager_state,
                     m_payment_data_payment_intent,
                     storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                         amount: payment_data.payment_intent.amount,
@@ -1320,10 +1327,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 let m_customer_merchant_id = customer.merchant_id.to_owned();
                 let m_key_store = key_store.clone();
                 let m_updated_customer = updated_customer.clone();
-                let m_db = state.clone().store;
+                let session_state = state.clone();
+                let m_db = session_state.store.clone();
+                let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
                         m_db.update_customer_by_customer_id_merchant_id(
+                            &key_manager_state,
                             m_customer_customer_id,
                             m_customer_merchant_id,
                             customer,

@@ -438,6 +438,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Itaubank => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
+                }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
@@ -500,8 +503,10 @@ impl ConnectorData {
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(&connector::Volt))),
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
+                enums::Connector::Plaid => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
+                }
                 enums::Connector::Signifyd
-                | enums::Connector::Plaid
                 | enums::Connector::Riskified
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio => {
