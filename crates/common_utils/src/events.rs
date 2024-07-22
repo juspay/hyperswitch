@@ -28,7 +28,7 @@ pub enum ApiEventsType {
         payment_method_type: Option<PaymentMethodType>,
     },
     Customer {
-        customer_id: Option<id_type::CustomerId>,
+        customer_id: id_type::CustomerId,
     },
     User {
         user_id: String,

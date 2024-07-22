@@ -1,7 +1,7 @@
-#[cfg(
-    all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")),
-    any(feature = "olap", feature = "oltp")
-)]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type};
@@ -25,10 +25,10 @@ use crate::{
     },
     utils::Encode,
 };
-#[cfg(
-    all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")),
-    any(feature = "olap", feature = "oltp")
-)]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 use crate::{
     core::{customers, payment_methods::migration},
     types::api::customers::CustomerRequest,
