@@ -1,16 +1,14 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::Encryptable,
     date_time,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::type_encryption::decrypt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::{
-    errors::{CustomResult, ValidationError},
-    types::domain::types::TypeEncryption,
-};
+use crate::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct UserKeyStore {
@@ -43,7 +41,7 @@ impl super::behaviour::Conversion for UserKeyStore {
     {
         let identifier = Identifier::User(item.user_id.clone());
         Ok(Self {
-            key: Encryptable::decrypt_via_api(state, item.key, identifier, key.peek(), GcmAes256)
+            key: decrypt(state, item.key, identifier, key.peek())
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

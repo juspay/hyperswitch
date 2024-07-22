@@ -3,13 +3,16 @@ use diesel::{associations::HasTable, debug_query, ExpressionMethods, TextExpress
 use error_stack::ResultExt;
 use router_env::logger;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::{
+    payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
+};
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::{
+    payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
+};
 use crate::{
-    errors,
-    schema::{
-        payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
-        refund::dsl as refund_dsl,
-    },
-    user::sample_data::PaymentAttemptBatchNew,
+    errors, schema::refund::dsl as refund_dsl, user::sample_data::PaymentAttemptBatchNew,
     PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn, Refund, RefundNew,
     StorageResult,
 };
