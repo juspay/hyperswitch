@@ -1069,7 +1069,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                     }
                 }
             ),
-            billing: pi.billing_details.and_then(|billing_details| 
+            billing: pi.billing_details.and_then(|billing_details|
                 match billing_details.into_inner().expose().parse_value::<Address>("Address") {
                     Ok(parsed_data) => Some(parsed_data),
                     Err(e) => {
@@ -1078,7 +1078,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                     }
                 }
             ),
-            shipping: pi.shipping_details.and_then(|shipping_details| 
+            shipping: pi.shipping_details.and_then(|shipping_details|
                 match shipping_details.into_inner().expose().parse_value::<Address>("Address") {
                     Ok(parsed_data) => Some(parsed_data),
                     Err(e) => {
