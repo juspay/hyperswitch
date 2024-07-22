@@ -88,9 +88,8 @@ impl DashboardMetadata {
         org_id: id_type::OrganizationId,
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
-        let predicate = dsl::user_id
-            .is_null()
-            .and(dsl::merchant_id.eq(merchant_id))
+        let predicate = dsl::merchant_id
+            .eq(merchant_id)
             .and(dsl::org_id.eq(org_id))
             .and(dsl::data_key.eq_any(data_types));
 
