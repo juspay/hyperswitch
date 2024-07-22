@@ -7,6 +7,7 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     services::Store,
+    utils::{self},
 };
 
 #[async_trait::async_trait]
@@ -18,7 +19,7 @@ pub trait DashboardMetadataInterface {
 
     async fn update_metadata(
         &self,
-        user_id: Option<String>,
+        user_id: String,
         merchant_id: String,
         org_id: String,
         data_key: enums::DashboardMetadata,
@@ -71,23 +72,42 @@ impl DashboardMetadataInterface for Store {
     #[instrument(skip_all)]
     async fn update_metadata(
         &self,
-        user_id: Option<String>,
+        user_id: String,
         merchant_id: String,
         org_id: String,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::DashboardMetadata::update(
-            &conn,
-            user_id,
-            merchant_id,
-            org_id,
-            data_key,
-            dashboard_metadata_update,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+
+        if utils::user::dashboard_metadata::is_user_scoped_metadata(&data_key) {
+            storage::DashboardMetadata::update_user_scoped_dashboard_metadata(
+                &conn,
+                user_id,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        } else if utils::user::dashboard_metadata::is_merchant_scoped_metadata(&data_key) {
+            storage::DashboardMetadata::update_merchant_scoped_dashboard_metadata(
+                &conn,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        } else {
+            Err(errors::StorageError::ValueNotFound(format!(
+                "No dashboard_metadata available for user_id = {user_id},\
+                merchant_id = {merchant_id}, org_id = {org_id} and data_key = {data_key}",
+            ))
+            .into())
+        }
     }
 
     #[instrument(skip_all)]
@@ -200,7 +220,7 @@ impl DashboardMetadataInterface for MockDb {
 
     async fn update_metadata(
         &self,
-        user_id: Option<String>,
+        user_id: String,
         merchant_id: String,
         org_id: String,
         data_key: enums::DashboardMetadata,
@@ -208,14 +228,27 @@ impl DashboardMetadataInterface for MockDb {
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
 
-        let dashboard_metadata_to_update = dashboard_metadata
-            .iter_mut()
-            .find(|metadata| {
-                metadata.user_id == user_id
-                    && metadata.merchant_id == merchant_id
-                    && metadata.org_id == org_id
-                    && metadata.data_key == data_key
-            })
+        let dashboard_metadata_to_update =
+            if utils::user::dashboard_metadata::is_user_scoped_metadata(&data_key) {
+                dashboard_metadata.iter_mut().find(|metadata| {
+                    metadata.user_id == user_id
+                        && metadata.merchant_id == merchant_id
+                        && metadata.org_id == org_id
+                        && metadata.data_key == data_key
+                })
+            } else if utils::user::dashboard_metadata::is_merchant_scoped_metadata(&data_key) {
+                dashboard_metadata.iter_mut().find(|metadata| {
+                    metadata.merchant_id == merchant_id
+                        && metadata.org_id == org_id
+                        && metadata.data_key == data_key
+                })
+            } else {
+                return Err(errors::StorageError::ValueNotFound(format!(
+                    "No dashboard_metadata available for user_id = {user_id},\
+                    merchant_id = {merchant_id}, org_id = {org_id} and data_key = {data_key}",
+                ))
+                .into());
+            }
             .ok_or(errors::StorageError::MockDbError)?;
 
         match dashboard_metadata_update {
@@ -244,11 +277,7 @@ impl DashboardMetadataInterface for MockDb {
         let query_result = dashboard_metadata
             .iter()
             .filter(|metadata_inner| {
-                metadata_inner
-                    .user_id
-                    .clone()
-                    .map(|user_id_inner| user_id_inner == user_id)
-                    .unwrap_or(false)
+                metadata_inner.user_id == user_id
                     && metadata_inner.merchant_id == merchant_id
                     && metadata_inner.org_id == org_id
                     && data_keys.contains(&metadata_inner.data_key)
@@ -276,8 +305,7 @@ impl DashboardMetadataInterface for MockDb {
         let query_result = dashboard_metadata
             .iter()
             .filter(|metadata_inner| {
-                metadata_inner.user_id.is_none()
-                    && metadata_inner.merchant_id == merchant_id
+                metadata_inner.merchant_id == merchant_id
                     && metadata_inner.org_id == org_id
                     && data_keys.contains(&metadata_inner.data_key)
             })
@@ -303,12 +331,7 @@ impl DashboardMetadataInterface for MockDb {
         let initial_len = dashboard_metadata.len();
 
         dashboard_metadata.retain(|metadata_inner| {
-            !(metadata_inner
-                .user_id
-                .clone()
-                .map(|user_id_inner| user_id_inner == user_id)
-                .unwrap_or(false)
-                && metadata_inner.merchant_id == merchant_id)
+            !(metadata_inner.user_id == user_id && metadata_inner.merchant_id == merchant_id)
         });
 
         if dashboard_metadata.len() == initial_len {
@@ -332,10 +355,7 @@ impl DashboardMetadataInterface for MockDb {
         let index_to_remove = dashboard_metadata
             .iter()
             .position(|metadata_inner| {
-                metadata_inner
-                    .user_id
-                    .as_deref()
-                    .map_or(false, |user_id_inner| user_id_inner == user_id)
+                metadata_inner.user_id == user_id
                     && metadata_inner.merchant_id == merchant_id
                     && metadata_inner.data_key == data_key
             })

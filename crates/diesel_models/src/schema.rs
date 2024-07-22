@@ -316,7 +316,7 @@ diesel::table! {
     dashboard_metadata (id) {
         id -> Int4,
         #[max_length = 64]
-        user_id -> Nullable<Varchar>,
+        user_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
