@@ -10,8 +10,7 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 #[cfg(feature = "encryption_service")]
