@@ -121,7 +121,9 @@ pub async fn add_publishable_key(
         expiry,
         variant: AuthRuleType::ApiKey {
             api_key,
-            identifiers: Identifiers::PublishableKey { merchant_id },
+            identifiers: Identifiers::PublishableKey {
+                merchant_id: merchant_id.get_string_repr().to_owned(),
+            },
         },
     };
 

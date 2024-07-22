@@ -235,7 +235,7 @@ impl MerchantConnectorAccountInterface for Store {
                 item.convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
@@ -270,7 +270,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
@@ -289,7 +289,7 @@ impl MerchantConnectorAccountInterface for Store {
                 item.convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
@@ -321,7 +321,7 @@ impl MerchantConnectorAccountInterface for Store {
                     item.convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
@@ -358,7 +358,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
@@ -380,7 +380,7 @@ impl MerchantConnectorAccountInterface for Store {
             .convert(
                 state,
                 key_store.key.get_inner(),
-                key_store.merchant_id.clone(),
+                key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -405,7 +405,7 @@ impl MerchantConnectorAccountInterface for Store {
                 item.convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
@@ -432,7 +432,7 @@ impl MerchantConnectorAccountInterface for Store {
                         item.convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
@@ -578,7 +578,7 @@ impl MerchantConnectorAccountInterface for Store {
                     item.convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
@@ -726,7 +726,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
@@ -767,7 +767,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
@@ -800,7 +800,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
@@ -833,7 +833,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
@@ -889,7 +889,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .convert(
                 state,
                 key_store.key.get_inner(),
-                key_store.merchant_id.clone(),
+                key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -924,7 +924,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
@@ -957,7 +957,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
@@ -1062,7 +1062,8 @@ mod merchant_connector_account_cache_tests {
             .await
             .unwrap();
 
-        let merchant_id = "test_merchant";
+        let merchant_id = common_utils::id_type::MerchantId::from("test_merchant".into()).unwrap();
+
         let connector_label = "stripe_USA";
         let merchant_connector_id = "simple_merchant_connector_id";
         let profile_id = "pro_max_ultra";
@@ -1070,11 +1071,11 @@ mod merchant_connector_account_cache_tests {
         db.insert_merchant_key_store(
             key_manager_state,
             domain::MerchantKeyStore {
-                merchant_id: merchant_id.into(),
+                merchant_id: merchant_id.clone(),
                 key: domain::types::encrypt(
                     key_manager_state,
                     services::generate_aes256_key().unwrap().to_vec().into(),
-                    Identifier::Merchant(merchant_id.to_string()),
+                    Identifier::Merchant(merchant_id.clone().into()),
                     master_key,
                 )
                 .await
@@ -1089,7 +1090,7 @@ mod merchant_connector_account_cache_tests {
         let merchant_key = db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 &master_key.to_vec().into(),
             )
             .await
@@ -1167,7 +1168,7 @@ mod merchant_connector_account_cache_tests {
 
         let delete_call = || async {
             db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-                merchant_id,
+                &merchant_id,
                 merchant_connector_id,
             )
             .await

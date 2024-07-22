@@ -122,7 +122,7 @@ impl EventInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -143,7 +143,7 @@ impl EventInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -173,7 +173,7 @@ impl EventInterface for Store {
                         .convert(
                             state,
                             merchant_key_store.key.get_inner(),
-                            merchant_key_store.merchant_id.clone(),
+                            merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
@@ -214,7 +214,7 @@ impl EventInterface for Store {
                         .convert(
                             state,
                             merchant_key_store.key.get_inner(),
-                            merchant_key_store.merchant_id.clone(),
+                            merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
@@ -249,7 +249,7 @@ impl EventInterface for Store {
                         .convert(
                             state,
                             merchant_key_store.key.get_inner(),
-                            merchant_key_store.merchant_id.clone(),
+                            merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
@@ -284,7 +284,7 @@ impl EventInterface for Store {
                         .convert(
                             state,
                             merchant_key_store.key.get_inner(),
-                            merchant_key_store.merchant_id.clone(),
+                            merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
@@ -326,7 +326,7 @@ impl EventInterface for Store {
                             state,
                             merchant_key_store.key.get_inner(),
                             common_utils::types::keymanager::Identifier::Merchant(
-                                merchant_key_store.merchant_id.clone(),
+                                merchant_key_store.merchant_id.clone().into(),
                             ),
                         )
                         .await
@@ -358,7 +358,7 @@ impl EventInterface for Store {
                             .convert(
                                 state,
                                 merchant_key_store.key.get_inner(),
-                                merchant_key_store.merchant_id.clone(),
+                                merchant_key_store.merchant_id.clone().into(),
                             )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
@@ -385,7 +385,7 @@ impl EventInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -412,7 +412,7 @@ impl EventInterface for MockDb {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -437,7 +437,7 @@ impl EventInterface for MockDb {
                     .convert(
                         state,
                         merchant_key_store.key.get_inner(),
-                        merchant_key_store.merchant_id.clone(),
+                        merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
@@ -477,7 +477,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -547,7 +547,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -580,7 +580,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -615,7 +615,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -685,7 +685,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -718,7 +718,7 @@ impl EventInterface for MockDb {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
@@ -759,7 +759,7 @@ impl EventInterface for MockDb {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -806,7 +806,7 @@ mod tests {
         let state = &Arc::new(app_state)
             .get_session_state("public", || {})
             .unwrap();
-        let merchant_id = "merchant1";
+        let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
         let business_profile_id = "profile1";
         let payment_id = "test_payment_id";
         let key_manager_state = &state.into();
@@ -815,11 +815,11 @@ mod tests {
             .insert_merchant_key_store(
                 key_manager_state,
                 domain::MerchantKeyStore {
-                    merchant_id: merchant_id.into(),
+                    merchant_id: merchant_id.clone(),
                     key: domain::types::encrypt(
                         key_manager_state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
-                        Identifier::Merchant(merchant_id.to_string()),
+                        Identifier::Merchant(merchant_id.to_owned()),
                         master_key,
                     )
                     .await
@@ -833,7 +833,7 @@ mod tests {
         let merchant_key_store = mockdb
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 &master_key.to_vec().into(),
             )
             .await
@@ -872,7 +872,7 @@ mod tests {
         let updated_event = mockdb
             .update_event_by_merchant_id_event_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 event_id,
                 domain::EventUpdate::UpdateResponse {
                     is_webhook_notified: true,

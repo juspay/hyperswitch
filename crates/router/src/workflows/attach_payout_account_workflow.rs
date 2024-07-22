@@ -35,7 +35,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id.as_ref(),
+                &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;

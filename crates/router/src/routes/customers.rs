@@ -75,7 +75,11 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
         &req,
         (),
         |state, auth, _, _| {
-            list_customers(state, auth.merchant_account.get_id(), auth.key_store)
+            list_customers(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                auth.key_store,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,

@@ -2625,7 +2625,7 @@ pub fn make_merchant_url_with_response(
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::CustomerId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");

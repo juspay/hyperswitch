@@ -160,7 +160,7 @@ pub async fn create_payment_method(
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
             state,
-            merchant_id.to_owned(),
+            &merchant_id,
             key_store.clone(),
             customer_id,
             payment_method_id.to_owned(),
@@ -544,7 +544,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
             &state,
-            merchant_id.to_owned(),
+            &merchant_id,
             key_store.clone(),
             &customer_id,
             payment_method_id.to_owned(),
@@ -832,7 +832,7 @@ pub async fn add_payment_method_data(
                         if customer.default_payment_method_id.is_none() {
                             let _ = set_default_payment_method(
                                 &state,
-                                merchant_account.get_id().clone(),
+                                merchant_account.get_id(),
                                 key_store.clone(),
                                 &customer_id,
                                 pm_id,
@@ -4298,7 +4298,7 @@ async fn get_bank_account_connector_details(
 }
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
@@ -4312,7 +4312,7 @@ pub async fn set_default_payment_method(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_id,
+            merchant_id,
             &key_store,
             storage_scheme,
         )
@@ -4328,7 +4328,7 @@ pub async fn set_default_payment_method(
         .get_required_value("payment_method")?;
 
     utils::when(
-        &payment_method.customer_id != customer_id || payment_method.merchant_id != merchant_id,
+        &payment_method.customer_id != customer_id || payment_method.merchant_id != *merchant_id,
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "The payment_method_id is not valid".to_string(),

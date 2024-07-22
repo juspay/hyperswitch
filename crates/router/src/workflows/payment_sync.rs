@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_get_default_schedule_time() {
-        let merchant_id = common_utils::id_type::MerchantId::from("-").unwrap();
+        let merchant_id = common_utils::id_type::MerchantId::from("-".into()).unwrap();
         let schedule_time_delta = scheduler_utils::get_schedule_time(
             process_data::ConnectorPTMapping::default(),
             &merchant_id,

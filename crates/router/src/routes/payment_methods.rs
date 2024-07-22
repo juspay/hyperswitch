@@ -124,27 +124,31 @@ pub async fn migrate_payment_methods(
         state,
         &req,
         records,
-        |state, _, req, _| async move {
-            let (key_store, merchant_account) = get_merchant_account(&state, merchant_id).await?;
-            // Create customers if they are not already present
-            customers::migrate_customers(
-                state.clone(),
-                req.iter()
-                    .map(|e| CustomerRequest::from(e.clone()))
-                    .collect(),
-                merchant_account.clone(),
-                key_store.clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            Box::pin(migration::migrate_payment_methods(
-                state,
-                req,
-                merchant_id,
-                &merchant_account,
-                &key_store,
-            ))
-            .await
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                // Create customers if they are not already present
+                customers::migrate_customers(
+                    state.clone(),
+                    req.iter()
+                        .map(|e| CustomerRequest::from(e.clone()))
+                        .collect(),
+                    merchant_account.clone(),
+                    key_store.clone(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                Box::pin(migration::migrate_payment_methods(
+                    state,
+                    req,
+                    &merchant_id,
+                    &merchant_account,
+                    &key_store,
+                ))
+                .await
+            }
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -363,7 +367,7 @@ pub async fn initiate_pm_collect_link_flow(
 pub async fn render_pm_collect_link(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodCollectLink;
     let (merchant_id, pm_collect_link_id) = path.into_inner();

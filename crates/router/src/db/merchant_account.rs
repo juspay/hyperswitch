@@ -110,7 +110,7 @@ impl MerchantAccountInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -155,7 +155,7 @@ impl MerchantAccountInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -187,7 +187,7 @@ impl MerchantAccountInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -218,7 +218,7 @@ impl MerchantAccountInterface for Store {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -267,7 +267,7 @@ impl MerchantAccountInterface for Store {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?,
@@ -312,7 +312,7 @@ impl MerchantAccountInterface for Store {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -379,7 +379,7 @@ impl MerchantAccountInterface for Store {
                 state,
                 encrypted_merchant_accounts
                     .iter()
-                    .map(|merchant_account| &merchant_account.get_id())
+                    .map(|merchant_account| merchant_account.get_id())
                     .cloned()
                     .collect(),
                 &db_master_key,
@@ -404,7 +404,7 @@ impl MerchantAccountInterface for Store {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -467,7 +467,7 @@ impl MerchantAccountInterface for MockDb {
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone(),
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -489,7 +489,7 @@ impl MerchantAccountInterface for MockDb {
                 a.convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone(),
+                    merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
@@ -591,7 +591,7 @@ async fn publish_and_redact_merchant_account_cache(
     });
 
     let mut cache_keys = vec![CacheKind::Accounts(
-        merchant_account.get_id().as_str().into(),
+        merchant_account.get_id().get_string_repr().into(),
     )];
 
     cache_keys.extend(publishable_key.into_iter());
@@ -606,7 +606,9 @@ async fn publish_and_redact_all_merchant_account_cache(
     store: &dyn super::StorageInterface,
     merchant_accounts: &[storage::MerchantAccount],
 ) -> CustomResult<(), errors::StorageError> {
-    let merchant_ids = merchant_accounts.iter().map(|m| m.merchant_id.clone());
+    let merchant_ids = merchant_accounts
+        .iter()
+        .map(|m| m.merchant_id.get_string_repr().to_string());
     let publishable_keys = merchant_accounts
         .iter()
         .filter_map(|m| m.publishable_key.clone());

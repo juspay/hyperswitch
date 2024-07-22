@@ -1177,7 +1177,7 @@ impl PaymentCreate {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
                 customer_id.clone(),
-                merchant_account.get_id(),
+                merchant_account.get_id().to_owned().clone(),
             )
             .await
             .ok()

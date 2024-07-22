@@ -118,7 +118,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -171,7 +171,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -202,7 +202,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -232,7 +232,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -260,7 +260,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -406,7 +406,7 @@ mod storage {
                     state,
                     key_store.key.get_inner(),
                     common_utils::types::keymanager::Identifier::Merchant(
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     ),
                 )
                 .await
@@ -430,7 +430,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -475,7 +475,7 @@ mod storage {
                                 .convert(
                                     state,
                                     key_store.key.get_inner(),
-                                    key_store.merchant_id.clone(),
+                                    key_store.merchant_id.clone().into(),
                                 )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
@@ -516,7 +516,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -557,7 +557,7 @@ mod storage {
                                 .convert(
                                     state,
                                     key_store.key.get_inner(),
-                                    key_store.merchant_id.clone(),
+                                    key_store.merchant_id.clone().into(),
                                 )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
@@ -621,7 +621,7 @@ mod storage {
                             .convert(
                                 state,
                                 key_store.key.get_inner(),
-                                key_store.merchant_id.clone(),
+                                key_store.merchant_id.clone().into(),
                             )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?),
@@ -651,7 +651,7 @@ mod storage {
                         .convert(
                             state,
                             key_store.key.get_inner(),
-                            key_store.merchant_id.clone(),
+                            key_store.merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
@@ -685,7 +685,7 @@ mod storage {
                             .convert(
                                 state,
                                 key_store.key.get_inner(),
-                                key_store.merchant_id.clone(),
+                                key_store.merchant_id.clone().into(),
                             )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
@@ -718,7 +718,7 @@ impl AddressInterface for MockDb {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
@@ -751,7 +751,7 @@ impl AddressInterface for MockDb {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
@@ -787,7 +787,7 @@ impl AddressInterface for MockDb {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
@@ -824,7 +824,7 @@ impl AddressInterface for MockDb {
                 .convert(
                     state,
                     key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
+                    key_store.merchant_id.clone().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
@@ -855,7 +855,7 @@ impl AddressInterface for MockDb {
             .convert(
                 state,
                 key_store.key.get_inner(),
-                key_store.merchant_id.clone(),
+                key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -879,7 +879,7 @@ impl AddressInterface for MockDb {
             .convert(
                 state,
                 key_store.key.get_inner(),
-                key_store.merchant_id.clone(),
+                key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -914,7 +914,7 @@ impl AddressInterface for MockDb {
                     .convert(
                         state,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?;

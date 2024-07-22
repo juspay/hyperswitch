@@ -3048,7 +3048,7 @@ pub async fn get_payment_filters(
     merchant: domain::MerchantAccount,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id()).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned()).await?
     {
         data
     } else {

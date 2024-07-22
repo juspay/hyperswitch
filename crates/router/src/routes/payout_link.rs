@@ -15,7 +15,7 @@ use crate::{
 pub async fn render_payout_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PayoutLinkInitiate;
     let (merchant_id, payout_id) = path.into_inner();

@@ -170,7 +170,7 @@ pub async fn payments_create(
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsStart;
     let (payment_id, merchant_id, attempt_id) = path.into_inner();
@@ -661,7 +661,7 @@ pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
     let (payment_id, merchant_id, connector) = path.into_inner();
@@ -723,7 +723,7 @@ pub async fn payments_redirect_response(
 pub async fn payments_redirect_response_with_creds_identifier(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String, String)>,
 ) -> impl Responder {
     let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
     let param_string = req.query_string();
@@ -767,7 +767,7 @@ pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
     let (payment_id, merchant_id, connector) = path.into_inner();
@@ -1365,7 +1365,7 @@ pub async fn post_3ds_payments_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsAuthorize;
 
@@ -1450,7 +1450,11 @@ pub async fn retrieve_extended_card_info(
         &req,
         payment_id,
         |state, auth, payment_id, _| {
-            payments::get_extended_card_info(state, auth.merchant_account.get_id(), payment_id)
+            payments::get_extended_card_info(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                payment_id,
+            )
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,

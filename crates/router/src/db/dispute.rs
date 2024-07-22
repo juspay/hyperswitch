@@ -417,11 +417,13 @@ mod tests {
                 .await
                 .expect("Failed to create a mock DB");
 
+            let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
+
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))

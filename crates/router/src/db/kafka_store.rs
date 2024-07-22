@@ -927,7 +927,7 @@ impl MerchantAccountInterface for KafkaStore {
     async fn list_multiple_merchant_accounts(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         self.diesel_store
             .list_multiple_merchant_accounts(state, merchant_ids)
@@ -2182,7 +2182,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         self.diesel_store

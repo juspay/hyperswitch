@@ -81,7 +81,7 @@ impl BatchSampleDataInterface for Store {
                         state,
                         payment_intent,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                 }))
                 .map(|join_result| join_result.change_context(StorageError::DecryptionError))
@@ -135,7 +135,7 @@ impl BatchSampleDataInterface for Store {
                         state,
                         payment_intent,
                         key_store.key.get_inner(),
-                        key_store.merchant_id.clone(),
+                        key_store.merchant_id.clone().into(),
                     )
                 }))
                 .map(|join_result| join_result.change_context(StorageError::DecryptionError))

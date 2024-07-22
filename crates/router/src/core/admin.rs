@@ -1564,14 +1564,14 @@ pub async fn retrieve_payment_connector(
 
 pub async fn list_payment_connectors(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            merchant_id,
+            &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
         .await
@@ -1579,14 +1579,14 @@ pub async fn list_payment_connectors(
 
     // Validate merchant account
     store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            merchant_id,
+            &merchant_id,
             true,
             &key_store,
         )
