@@ -1,7 +1,9 @@
 pub mod api;
+pub mod behaviour;
 pub mod errors;
 pub mod mandates;
 pub mod merchant_account;
+pub mod merchant_key_store;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payments;
@@ -12,11 +14,9 @@ pub mod router_data_v2;
 pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
-
-pub mod behaviour;
-pub mod merchant_key_store;
+#[cfg(feature = "v2")]
+pub mod routing;
 pub mod type_encryption;
-
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
 

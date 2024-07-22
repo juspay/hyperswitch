@@ -17,7 +17,7 @@ use super::payouts;
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResponse, StorageErrorExt},
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         metrics, utils as core_utils,
     },
     routes::SessionState,
@@ -67,6 +67,89 @@ pub async fn retrieve_merchant_routing_dictionary(
     ))
 }
 
+struct RoutingHelpers<'a> {
+    req: &'a routing_types::RoutingConfigRequest,
+    transaction_type: &'a enums::TransactionType,
+}
+
+impl<'a> RoutingHelpers<'a> {
+    fn get_required_field_from_requests<T>(
+        &self,
+        func: impl Fn(&routing_types::RoutingConfigRequest) -> Option<T>,
+        field_name: &'static str,
+    ) -> RouterResult<T> {
+        func(self.req)
+            .get_required_value(field_name)
+            .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+pub async fn create_routing_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    request: routing_types::RoutingConfigRequest,
+    transaction_type: &enums::TransactionType,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+    let rpu_helper = RoutingHelpers {
+        req: &request,
+        transaction_type,
+    };
+    let name = rpu_helper.get_required_field_from_requests(|r| r.name.clone(), "name")?;
+    let description =
+        rpu_helper.get_required_field_from_requests(|r| r.description.clone(), "description")?;
+
+    let algorithm = rpu_helper.get_required_field_from_requests(|r| r.algorithm.clone(), "algo")?;
+    let profile_id =
+        rpu_helper.get_required_field_from_requests(|r| r.profile_id.clone(), "profile_id")?;
+    let algorithm_id = common_utils::generate_id(
+        consts::ROUTING_CONFIG_ID_LENGTH,
+        &format!("routing_{}", &merchant_account.merchant_id),
+    );
+
+    core_utils::validate_and_get_business_profile(
+        db,
+        Some(&profile_id),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
+    let mer_helper = helpers::MerchantHelpers {
+        merchant_id: &merchant_account.merchant_id,
+        key_store: &key_store,
+        profile_id: &profile_id,
+        routing_algorithm: &algorithm,
+    };
+    mer_helper.validate_connectors_in_routing_config(db).await?;
+
+    let timestamp = common_utils::date_time::now();
+    let algo = RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id,
+        merchant_id: merchant_account.merchant_id,
+        name: name.clone(),
+        description: Some(description.clone()),
+        kind: algorithm.get_kind().foreign_into(),
+        algorithm_data: serde_json::json!(algorithm),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: transaction_type.to_owned(),
+    };
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let new_record = record.foreign_into();
+
+    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 pub async fn create_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -151,7 +234,6 @@ pub async fn create_routing_config(
     metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
-
 pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

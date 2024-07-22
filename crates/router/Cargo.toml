@@ -29,7 +29,9 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_mod
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = ["api_models/v2"]
+v1 = ["api_models/v1","diesel_models/v1"]
+v2 = ["api_models/v2","diesel_models/v2"]
+routing_v2 = ["api_models/routing_v2","diesel_models/routing_v2"]
 
 [dependencies]
 actix-cors = "0.6.5"
