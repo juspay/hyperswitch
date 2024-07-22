@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest,
-    PaymentChargeResponse, RequestSurchargeDetails,
+    PaymentChargeResponse, RequestSurchargeDetails, Address,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
@@ -1060,6 +1060,33 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 }
             }),
             merchant_order_reference_id: pi.merchant_order_reference_id,
+            customer: pi.customer_details.and_then(|customer_details|
+                match customer_details.into_inner().expose().parse_value::<CustomerDetailsResponse>("CustomerDetailsResponse"){
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
+            billing: pi.billing_details.and_then(|billing_details| 
+                match billing_details.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'BillingAddress' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
+            shipping: pi.shipping_details.and_then(|shipping_details| 
+                match shipping_details.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'ShippingAddress' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
             ..Default::default()
         }
     }
