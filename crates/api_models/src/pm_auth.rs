@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -49,9 +49,12 @@ pub struct PaymentMethodAuthConnectorChoice {
     pub mca_id: String,
 }
 
-impl_misc_api_event_type!(
-    LinkTokenCreateRequest,
-    LinkTokenCreateResponse,
-    ExchangeTokenCreateRequest,
-    ExchangeTokenCreateResponse
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        LinkTokenCreateRequest,
+        LinkTokenCreateResponse,
+        ExchangeTokenCreateRequest,
+        ExchangeTokenCreateResponse
+    )
 );
