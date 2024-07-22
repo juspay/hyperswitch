@@ -393,7 +393,9 @@ impl ConnectorData {
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
                 }
-                enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(connector::Dlocal::new()))),
+                enums::Connector::Dlocal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Dlocal::new())))
+                }
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<1>,

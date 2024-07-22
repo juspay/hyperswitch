@@ -219,19 +219,23 @@ impl TryFrom<&types::PaymentsCancelRouterData> for DlocalPaymentsCancelRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsCaptureRequest {
     pub authorization_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub order_id: String,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest {
+impl TryFrom<&DlocalRouterData<&types::PaymentsCaptureRouterData>>
+    for DlocalPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &&DlocalRouterData<ypes::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            authorization_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.amount_to_capture,
-            currency: item.request.currency.to_string(),
-            order_id: item.connector_request_reference_id.clone(),
+            authorization_id: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            order_id: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
