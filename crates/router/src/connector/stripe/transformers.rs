@@ -1255,10 +1255,12 @@ fn create_stripe_payment_method(
                     Some(StripePaymentMethodType::CustomerBalance),
                     billing_address,
                 )),
-                domain::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                )
-                .into()),
+                domain::BankTransferData::Pix { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into())
+                }
                 domain::BankTransferData::Pse {}
                 | domain::BankTransferData::LocalBankTransfer { .. }
                 | domain::BankTransferData::PermataBankTransfer { .. }
@@ -2389,10 +2391,11 @@ impl<F, T>
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = match item.response.latest_charge.as_ref() {
             Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
-                .payment_method_details.clone()
+                .payment_method_details
+                .as_ref()
                 .and_then(|payment_method_details| match payment_method_details {
                     StripePaymentMethodDetailsResponse::Card { card } => {
-                        card.network_transaction_id
+                        card.network_transaction_id.clone()
                     }
                     _ => None,
                 }),
@@ -3724,7 +3727,7 @@ impl
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                     })),
                 )),
-                domain::BankTransferData::Pix {}
+                domain::BankTransferData::Pix { .. }
                 | domain::BankTransferData::Pse {}
                 | domain::BankTransferData::PermataBankTransfer { .. }
                 | domain::BankTransferData::BcaBankTransfer { .. }

@@ -2528,6 +2528,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             iatapay::transformers::IatapayAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Itaubank => {
+            itaubank::transformers::ItaubankAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
