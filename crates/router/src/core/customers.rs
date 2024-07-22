@@ -50,7 +50,7 @@ pub async fn create_customer(
 
     let merchant_id = &merchant_account.merchant_id;
 
-    let merchant_ref_id_customer_struct = MerchantReferenceIdForCustomer {
+    let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
         customer_id: merchant_reference_id.as_ref(),
         merchant_id,
         merchant_account: &merchant_account,
@@ -64,7 +64,7 @@ pub async fn create_customer(
     // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
 
-    merchant_ref_id_customer_struct
+    merchant_reference_id_customer
         .verify_if_customer_not_present_by_optional_merchant_reference_id(db)
         .await?;
 
