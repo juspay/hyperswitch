@@ -1036,7 +1036,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             description: pi.description,
             metadata: pi.metadata,
             order_details: pi.order_details,
-            customer_id: pi.customer_id,
+            customer_id: pi.customer_id.clone(),
             connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
@@ -1061,8 +1061,15 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             }),
             merchant_order_reference_id: pi.merchant_order_reference_id,
             customer: pi.customer_details.and_then(|customer_details|
-                match customer_details.into_inner().expose().parse_value::<CustomerDetailsResponse>("CustomerDetailsResponse"){
-                    Ok(parsed_data) => Some(parsed_data),
+                match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
+                    Ok(parsed_data) => Some(
+                        CustomerDetailsResponse {
+                            id: pi.customer_id,
+                            name: parsed_data.name,
+                            phone: parsed_data.phone,
+                            email: parsed_data.email,
+                            phone_country_code:parsed_data.phone_country_code
+                    }),
                     Err(e) => {
                         router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
                         None
