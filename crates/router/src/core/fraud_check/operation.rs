@@ -14,7 +14,6 @@ use crate::{
         errors::{self, RouterResult},
         payments,
     },
-    db::StorageInterface,
     routes::{app::ReqState, SessionState},
     types::{domain, fraud_check::FrmRouterData},
 };
@@ -101,7 +100,7 @@ pub trait Domain<F>: Send + Sync {
 pub trait UpdateTracker<D, F: Clone>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         frm_data: D,
         payment_data: &mut payments::PaymentData<F>,

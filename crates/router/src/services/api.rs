@@ -13,8 +13,9 @@ use std::{
 
 use actix_http::header::HeaderMap;
 use actix_web::{
-    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
-    ResponseError,
+    body,
+    http::header::{HeaderName, HeaderValue},
+    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
@@ -473,12 +474,19 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+        || proxy_bypass_urls(
+            state.conf.key_manager.get_inner(),
+            &state.conf.locker,
+            &state.conf.proxy.bypass_proxy_urls,
+        )
+        .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy =
-        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+    let should_bypass_proxy = proxy_bypass_urls(
+        &state.conf.key_manager.get_inner(),
+        &state.conf.locker,
+        &state.conf.proxy.bypass_proxy_urls,
+    )
+    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -1049,9 +1057,18 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            let link_type = (boxed_generic_link_data).to_string();
-            match build_generic_link_html(*boxed_generic_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
+            let link_type = boxed_generic_link_data.data.to_string();
+            match build_generic_link_html(boxed_generic_link_data.data) {
+                Ok(rendered_html) => {
+                    let domains_str = boxed_generic_link_data
+                        .allowed_domains
+                        .into_iter()
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                    let headers = HashSet::from([("content-security-policy", csp_header)]);
+                    http_response_html_data(rendered_html, Some(headers))
+                }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
@@ -1062,7 +1079,7 @@ where
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1074,7 +1091,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1231,8 +1248,22 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
-pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
-    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
+pub fn http_response_html_data<T: body::MessageBody + 'static>(
+    res: T,
+    optional_headers: Option<HashSet<(&'static str, String)>>,
+) -> HttpResponse {
+    let mut res_builder = HttpResponse::Ok();
+    res_builder.content_type(mime::TEXT_HTML);
+
+    if let Some(headers) = optional_headers {
+        for (key, value) in headers {
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
+            }
+        }
+    }
+
+    res_builder.body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {

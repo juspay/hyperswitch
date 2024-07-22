@@ -21,6 +21,7 @@ pub async fn get_profile_id_for_mandate(
         let pi = state
             .store
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 payment_id,
                 &merchant_account.merchant_id,
                 key_store,

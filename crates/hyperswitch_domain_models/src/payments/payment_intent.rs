@@ -2,9 +2,10 @@ use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
+    encryption::Encryption,
     id_type,
     pii::{self, Email},
-    types::MinorUnit,
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use masking::{Deserialize, Secret};
 use serde::Serialize;
@@ -16,6 +17,7 @@ use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
+        state: &KeyManagerState,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
@@ -24,6 +26,7 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
+        state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -31,6 +34,7 @@ pub trait PaymentIntentInterface {
 
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
+        state: &KeyManagerState,
         payment_id: &str,
         merchant_id: &str,
         merchant_key_store: &MerchantKeyStore,
@@ -46,6 +50,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -55,6 +60,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
@@ -64,6 +70,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
+        state: &KeyManagerState,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -467,7 +474,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
 }
 
 use diesel_models::{
-    encryption::Encryption, PaymentIntentUpdate as DieselPaymentIntentUpdate,
+    PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
 
@@ -630,7 +637,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
 
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
-        let modified_at = Some(common_utils::date_time::now());
+        let modified_at = common_utils::date_time::now();
 
         let PaymentIntentUpdateInternal {
             amount,
