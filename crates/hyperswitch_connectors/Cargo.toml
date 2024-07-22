@@ -23,7 +23,6 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }

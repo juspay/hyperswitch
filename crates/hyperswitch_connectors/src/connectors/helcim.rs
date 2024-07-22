@@ -3,12 +3,12 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
-use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},

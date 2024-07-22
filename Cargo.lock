@@ -3839,7 +3839,6 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "diesel_models",
  "error-stack",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
