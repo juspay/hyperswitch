@@ -26,13 +26,13 @@ mod utils;
 
 use common_utils::errors::CustomResult;
 use database::store::PgPool;
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 pub use crate::database::store::Store;
 
 #[derive(Debug, Clone)]
@@ -421,11 +421,11 @@ impl UniqueConstraints for diesel_models::Customer {
     }
 }
 
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
-#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
