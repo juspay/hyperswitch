@@ -7,792 +7,806 @@ use common_utils::{
     metrics::utils::record_operation_time,
     types::keymanager::{Identifier, KeyManagerState},
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use encrypt::TypeEncryption;
+use masking::Secret;
 use rustc_hash::FxHashMap;
-#[cfg(feature = "encryption_service")]
-use {
-    common_utils::{
-        keymanager::call_encryption_service,
-        transformers::{ForeignFrom, ForeignTryFrom},
-        types::keymanager::{
-            BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
-            DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
-            TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
+
+mod encrypt {
+    use async_trait::async_trait;
+    use common_utils::{
+        crypto,
+        encryption::Encryption,
+        errors::{self, CustomResult},
+        types::keymanager::{Identifier, KeyManagerState},
+    };
+    use error_stack::ResultExt;
+    use masking::{PeekInterface, Secret};
+    use router_env::{instrument, tracing};
+    use rustc_hash::FxHashMap;
+    #[cfg(feature = "encryption_service")]
+    use {
+        common_utils::{
+            keymanager::call_encryption_service,
+            transformers::{ForeignFrom, ForeignTryFrom},
+            types::keymanager::{
+                BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
+                DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
+                TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
+            },
         },
-    },
-    http::Method,
-    router_env::logger,
-};
+        http::Method,
+        router_env::logger,
+    };
 
-#[async_trait]
-pub trait TypeEncryption<
-    T,
-    V: crypto::EncodeMessage + crypto::DecodeMessage,
-    S: masking::Strategy<T>,
->: Sized
-{
-    async fn encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: Secret<T, S>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError>;
+    use super::metrics;
 
-    async fn decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: Encryption,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError>;
+    #[async_trait]
+    pub trait TypeEncryption<
+        T,
+        V: crypto::EncodeMessage + crypto::DecodeMessage,
+        S: masking::Strategy<T>,
+    >: Sized
+    {
+        async fn encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: Secret<T, S>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError>;
 
-    async fn encrypt(
-        masked_data: Secret<T, S>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError>;
+        async fn decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: Encryption,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError>;
 
-    async fn decrypt(
-        encrypted_data: Encryption,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError>;
+        async fn encrypt(
+            masked_data: Secret<T, S>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError>;
 
-    async fn batch_encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: FxHashMap<String, Secret<T, S>>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+        async fn decrypt(
+            encrypted_data: Encryption,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError>;
 
-    async fn batch_decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: FxHashMap<String, Encryption>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+        async fn batch_encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: FxHashMap<String, Secret<T, S>>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
 
-    async fn batch_encrypt(
-        masked_data: FxHashMap<String, Secret<T, S>>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+        async fn batch_decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: FxHashMap<String, Encryption>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
 
-    async fn batch_decrypt(
-        encrypted_data: FxHashMap<String, Encryption>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+        async fn batch_encrypt(
+            masked_data: FxHashMap<String, Secret<T, S>>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+
+        async fn batch_decrypt(
+            encrypted_data: FxHashMap<String, Encryption>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
+    }
+
+    #[async_trait]
+    impl<
+            V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+            S: masking::Strategy<String> + Send + Sync,
+        > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
+    {
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: Secret<String, S>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::encrypt(masked_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    EncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    EncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
+                    Err(err) => {
+                        logger::error!("Encryption error {:?}", err);
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: Encryption,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::decrypt(encrypted_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    DecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(decrypted_data) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::DecodingFailed))
+                    }
+                };
+
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        async fn encrypt(
+            masked_data: Secret<String, S>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
+            Ok(Self::new(masked_data, encrypted_data.into()))
+        }
+
+        async fn decrypt(
+            encrypted_data: Encryption,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let encrypted = encrypted_data.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
+
+            let value: String = std::str::from_utf8(&data)
+                .change_context(errors::CryptoError::DecodingFailed)?
+                .to_string();
+
+            Ok(Self::new(value.into(), encrypted))
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: FxHashMap<String, Secret<String, S>>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_encrypt(masked_data, key, crypt_algo).await
+            }
+
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchEncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
+                    Err(err) => {
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::error!("Encryption error {:?}", err);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::batch_encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: FxHashMap<String, Encryption>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+            }
+
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchDecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(decrypted_data) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::DecodingFailed))
+                    }
+                };
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        async fn batch_encrypt(
+            masked_data: FxHashMap<String, Secret<String, S>>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            masked_data
+                .into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        k,
+                        Self::new(
+                            v.clone(),
+                            crypt_algo.encode_message(key, v.peek().as_bytes())?.into(),
+                        ),
+                    ))
+                })
+                .collect()
+        }
+
+        async fn batch_decrypt(
+            encrypted_data: FxHashMap<String, Encryption>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            encrypted_data
+                .into_iter()
+                .map(|(k, v)| {
+                    let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
+                    let value: String = std::str::from_utf8(&data)
+                        .change_context(errors::CryptoError::DecodingFailed)?
+                        .to_string();
+                    Ok((k, Self::new(value.into(), v.into_inner())))
+                })
+                .collect()
+        }
+    }
+
+    #[async_trait]
+    impl<
+            V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+            S: masking::Strategy<serde_json::Value> + Send + Sync,
+        > TypeEncryption<serde_json::Value, V, S>
+        for crypto::Encryptable<Secret<serde_json::Value, S>>
+    {
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: Secret<serde_json::Value, S>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::encrypt(masked_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    EncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    EncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
+                    Err(err) => {
+                        logger::error!("Encryption error {:?}", err);
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: Encryption,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::decrypt(encrypted_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    DecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(decrypted_data) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::EncodingFailed))
+                    }
+                };
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn encrypt(
+            masked_data: Secret<serde_json::Value, S>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let data = serde_json::to_vec(&masked_data.peek())
+                .change_context(errors::CryptoError::DecodingFailed)?;
+            let encrypted_data = crypt_algo.encode_message(key, &data)?;
+            Ok(Self::new(masked_data, encrypted_data.into()))
+        }
+
+        #[instrument(skip_all)]
+        async fn decrypt(
+            encrypted_data: Encryption,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let encrypted = encrypted_data.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
+
+            let value: serde_json::Value = serde_json::from_slice(&data)
+                .change_context(errors::CryptoError::DecodingFailed)?;
+            Ok(Self::new(value.into(), encrypted))
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_encrypt(masked_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchEncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
+                    Err(err) => {
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::error!("Encryption error {:?}", err);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::batch_encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: FxHashMap<String, Encryption>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchDecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(decrypted_data) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::DecodingFailed))
+                    }
+                };
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        async fn batch_encrypt(
+            masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            masked_data
+                .into_iter()
+                .map(|(k, v)| {
+                    let data = serde_json::to_vec(v.peek())
+                        .change_context(errors::CryptoError::DecodingFailed)?;
+                    Ok((
+                        k,
+                        Self::new(v, crypt_algo.encode_message(key, &data)?.into()),
+                    ))
+                })
+                .collect()
+        }
+
+        async fn batch_decrypt(
+            encrypted_data: FxHashMap<String, Encryption>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            encrypted_data
+                .into_iter()
+                .map(|(k, v)| {
+                    let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
+
+                    let value: serde_json::Value = serde_json::from_slice(&data)
+                        .change_context(errors::CryptoError::DecodingFailed)?;
+                    Ok((k, Self::new(value.into(), v.into_inner())))
+                })
+                .collect()
+        }
+    }
+
+    #[async_trait]
+    impl<
+            V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+            S: masking::Strategy<Vec<u8>> + Send + Sync,
+        > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
+    {
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: Secret<Vec<u8>, S>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::encrypt(masked_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    EncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    EncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
+                    Err(err) => {
+                        logger::error!("Encryption error {:?}", err);
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        #[allow(unused_variables)]
+        async fn decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: Encryption,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::decrypt(encrypted_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    DecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(decrypted_data) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::DecodingFailed))
+                    }
+                };
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn encrypt(
+            masked_data: Secret<Vec<u8>, S>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
+            Ok(Self::new(masked_data, encrypted_data.into()))
+        }
+
+        #[instrument(skip_all)]
+        async fn decrypt(
+            encrypted_data: Encryption,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<Self, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            let encrypted = encrypted_data.into_inner();
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
+            Ok(Self::new(data.into(), encrypted))
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_encrypt_via_api(
+            state: &KeyManagerState,
+            masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_encrypt(masked_data, key, crypt_algo).await
+            }
+
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchEncryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/encrypt",
+                    BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
+                )
+                .await;
+                match result {
+                    Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
+                    Err(err) => {
+                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::error!("Encryption error {:?}", err);
+                        logger::info!("Fall back to Application Encryption");
+                        Self::batch_encrypt(masked_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        #[allow(unused_variables)]
+        async fn batch_decrypt_via_api(
+            state: &KeyManagerState,
+            encrypted_data: FxHashMap<String, Encryption>,
+            identifier: Identifier,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            #[cfg(not(feature = "encryption_service"))]
+            {
+                Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+            }
+            #[cfg(feature = "encryption_service")]
+            {
+                let result: Result<
+                    BatchDecryptDataResponse,
+                    error_stack::Report<errors::KeyManagerClientError>,
+                > = call_encryption_service(
+                    state,
+                    Method::POST,
+                    "data/decrypt",
+                    TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
+                )
+                .await;
+                let decrypted = match result {
+                    Ok(response) => {
+                        ForeignTryFrom::foreign_try_from((encrypted_data.clone(), response))
+                    }
+                    Err(err) => {
+                        logger::error!("Decryption error {:?}", err);
+                        Err(err.change_context(errors::CryptoError::DecodingFailed))
+                    }
+                };
+                match decrypted {
+                    Ok(de) => Ok(de),
+                    Err(_) => {
+                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        logger::info!("Fall back to Application Decryption");
+                        Self::batch_decrypt(encrypted_data, key, crypt_algo).await
+                    }
+                }
+            }
+        }
+
+        async fn batch_encrypt(
+            masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            masked_data
+                .into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        k,
+                        Self::new(v.clone(), crypt_algo.encode_message(key, v.peek())?.into()),
+                    ))
+                })
+                .collect()
+        }
+
+        async fn batch_decrypt(
+            encrypted_data: FxHashMap<String, Encryption>,
+            key: &[u8],
+            crypt_algo: V,
+        ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            encrypted_data
+                .into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        k,
+                        Self::new(
+                            crypt_algo
+                                .decode_message(key, v.clone().into_inner().clone())?
+                                .into(),
+                            v.into_inner(),
+                        ),
+                    ))
+                })
+                .collect()
+        }
+    }
 }
-
-#[async_trait]
-impl<
-        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<String> + Send + Sync,
-    > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
-{
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: Secret<String, S>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::encrypt(masked_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                EncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
-                Err(err) => {
-                    logger::error!("Encryption error {:?}", err);
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: Encryption,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::decrypt(encrypted_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                DecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(decrypted_data) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::DecodingFailed))
-                }
-            };
-
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    async fn encrypt(
-        masked_data: Secret<String, S>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
-        Ok(Self::new(masked_data, encrypted_data.into()))
-    }
-
-    async fn decrypt(
-        encrypted_data: Encryption,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
-
-        let value: String = std::str::from_utf8(&data)
-            .change_context(errors::CryptoError::DecodingFailed)?
-            .to_string();
-
-        Ok(Self::new(value.into(), encrypted))
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: FxHashMap<String, Secret<String, S>>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_encrypt(masked_data, key, crypt_algo).await
-        }
-
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchEncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
-                Err(err) => {
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::error!("Encryption error {:?}", err);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::batch_encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: FxHashMap<String, Encryption>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-        }
-
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchDecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(decrypted_data) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::DecodingFailed))
-                }
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    async fn batch_encrypt(
-        masked_data: FxHashMap<String, Secret<String, S>>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        masked_data
-            .into_iter()
-            .map(|(k, v)| {
-                Ok((
-                    k,
-                    Self::new(
-                        v.clone(),
-                        crypt_algo.encode_message(key, v.peek().as_bytes())?.into(),
-                    ),
-                ))
-            })
-            .collect()
-    }
-
-    async fn batch_decrypt(
-        encrypted_data: FxHashMap<String, Encryption>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        encrypted_data
-            .into_iter()
-            .map(|(k, v)| {
-                let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
-                let value: String = std::str::from_utf8(&data)
-                    .change_context(errors::CryptoError::DecodingFailed)?
-                    .to_string();
-                Ok((k, Self::new(value.into(), v.into_inner())))
-            })
-            .collect()
-    }
-}
-
-#[async_trait]
-impl<
-        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<serde_json::Value> + Send + Sync,
-    > TypeEncryption<serde_json::Value, V, S>
-    for crypto::Encryptable<Secret<serde_json::Value, S>>
-{
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: Secret<serde_json::Value, S>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::encrypt(masked_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                EncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
-                Err(err) => {
-                    logger::error!("Encryption error {:?}", err);
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: Encryption,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::decrypt(encrypted_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                DecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(decrypted_data) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::EncodingFailed))
-                }
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[instrument(skip_all)]
-    async fn encrypt(
-        masked_data: Secret<serde_json::Value, S>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let data = serde_json::to_vec(&masked_data.peek())
-            .change_context(errors::CryptoError::DecodingFailed)?;
-        let encrypted_data = crypt_algo.encode_message(key, &data)?;
-        Ok(Self::new(masked_data, encrypted_data.into()))
-    }
-
-    #[instrument(skip_all)]
-    async fn decrypt(
-        encrypted_data: Encryption,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
-
-        let value: serde_json::Value =
-            serde_json::from_slice(&data).change_context(errors::CryptoError::DecodingFailed)?;
-        Ok(Self::new(value.into(), encrypted))
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_encrypt(masked_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchEncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
-                Err(err) => {
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::error!("Encryption error {:?}", err);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::batch_encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: FxHashMap<String, Encryption>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchDecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(decrypted_data) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::DecodingFailed))
-                }
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    async fn batch_encrypt(
-        masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        masked_data
-            .into_iter()
-            .map(|(k, v)| {
-                let data = serde_json::to_vec(v.peek())
-                    .change_context(errors::CryptoError::DecodingFailed)?;
-                Ok((
-                    k,
-                    Self::new(v, crypt_algo.encode_message(key, &data)?.into()),
-                ))
-            })
-            .collect()
-    }
-
-    async fn batch_decrypt(
-        encrypted_data: FxHashMap<String, Encryption>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        encrypted_data
-            .into_iter()
-            .map(|(k, v)| {
-                let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
-
-                let value: serde_json::Value = serde_json::from_slice(&data)
-                    .change_context(errors::CryptoError::DecodingFailed)?;
-                Ok((k, Self::new(value.into(), v.into_inner())))
-            })
-            .collect()
-    }
-}
-
-#[async_trait]
-impl<
-        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-        S: masking::Strategy<Vec<u8>> + Send + Sync,
-    > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
-{
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: Secret<Vec<u8>, S>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::encrypt(masked_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                EncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                EncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
-                Err(err) => {
-                    logger::error!("Encryption error {:?}", err);
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[instrument(skip_all)]
-    #[allow(unused_variables)]
-    async fn decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: Encryption,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::decrypt(encrypted_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                DecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(decrypted_data) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), decrypted_data))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::DecodingFailed))
-                }
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[instrument(skip_all)]
-    async fn encrypt(
-        masked_data: Secret<Vec<u8>, S>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
-        Ok(Self::new(masked_data, encrypted_data.into()))
-    }
-
-    #[instrument(skip_all)]
-    async fn decrypt(
-        encrypted_data: Encryption,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<Self, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
-        Ok(Self::new(data.into(), encrypted))
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_encrypt_via_api(
-        state: &KeyManagerState,
-        masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_encrypt(masked_data, key, crypt_algo).await
-        }
-
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchEncryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/encrypt",
-                BatchEncryptDataRequest::from((masked_data.clone(), identifier)),
-            )
-            .await;
-            match result {
-                Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
-                Err(err) => {
-                    metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::error!("Encryption error {:?}", err);
-                    logger::info!("Fall back to Application Encryption");
-                    Self::batch_encrypt(masked_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    #[allow(unused_variables)]
-    async fn batch_decrypt_via_api(
-        state: &KeyManagerState,
-        encrypted_data: FxHashMap<String, Encryption>,
-        identifier: Identifier,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-        }
-        #[cfg(feature = "encryption_service")]
-        {
-            let result: Result<
-                BatchDecryptDataResponse,
-                error_stack::Report<errors::KeyManagerClientError>,
-            > = call_encryption_service(
-                state,
-                Method::POST,
-                "data/decrypt",
-                TransientBatchDecryptDataRequest::from((encrypted_data.clone(), identifier)),
-            )
-            .await;
-            let decrypted = match result {
-                Ok(response) => {
-                    ForeignTryFrom::foreign_try_from((encrypted_data.clone(), response))
-                }
-                Err(err) => {
-                    logger::error!("Decryption error {:?}", err);
-                    Err(err.change_context(errors::CryptoError::DecodingFailed))
-                }
-            };
-            match decrypted {
-                Ok(de) => Ok(de),
-                Err(_) => {
-                    metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("Fall back to Application Decryption");
-                    Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-                }
-            }
-        }
-    }
-
-    async fn batch_encrypt(
-        masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        masked_data
-            .into_iter()
-            .map(|(k, v)| {
-                Ok((
-                    k,
-                    Self::new(v.clone(), crypt_algo.encode_message(key, v.peek())?.into()),
-                ))
-            })
-            .collect()
-    }
-
-    async fn batch_decrypt(
-        encrypted_data: FxHashMap<String, Encryption>,
-        key: &[u8],
-        crypt_algo: V,
-    ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-        metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        encrypted_data
-            .into_iter()
-            .map(|(k, v)| {
-                Ok((
-                    k,
-                    Self::new(
-                        crypt_algo
-                            .decode_message(key, v.clone().into_inner().clone())?
-                            .into(),
-                        v.into_inner(),
-                    ),
-                ))
-            })
-            .collect()
-    }
-}
-
 pub trait Lift<U> {
     type SelfWrapper<T>;
     type OtherWrapper<T, E>;
