@@ -908,7 +908,7 @@ where
 }
 
 #[inline]
-pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+pub async fn decrypt_optional<T: Clone, S: masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Option<Encryption>,
     identifier: Identifier,
@@ -917,16 +917,29 @@ pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
+    inner
+        .async_map(|item| decrypt(state, item, identifier, key))
+        .await
+        .transpose()
+}
+
+#[inline]
+pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+    state: &KeyManagerState,
+    inner: Encryption,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<T, S>>, errors::CryptoError>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
     record_operation_time(
-        inner.async_map(|item| {
-            crypto::Encryptable::decrypt_via_api(state, item, identifier, key, crypto::GcmAes256)
-        }),
+        crypto::Encryptable::decrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &metrics::DECRYPTION_TIME,
         &metrics::CONTEXT,
         &[],
     )
     .await
-    .transpose()
 }
 
 #[inline]
