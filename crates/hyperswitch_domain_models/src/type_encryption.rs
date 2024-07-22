@@ -1,3 +1,5 @@
+#![allow(private_bounds)]
+
 use async_trait::async_trait;
 use common_utils::{
     crypto,
@@ -8,7 +10,8 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::PeekInterface;
+use masking::Secret;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 #[cfg(feature = "encryption_service")]
@@ -27,11 +30,8 @@ use {
 };
 
 #[async_trait]
-pub trait TypeEncryption<
-    T,
-    V: crypto::EncodeMessage + crypto::DecodeMessage,
-    S: masking::Strategy<T>,
->: Sized
+trait TypeEncryption<T, V: crypto::EncodeMessage + crypto::DecodeMessage, S: masking::Strategy<T>>:
+    Sized
 {
     async fn encrypt_via_api(
         state: &KeyManagerState,
@@ -792,7 +792,6 @@ impl<
             .collect()
     }
 }
-
 pub trait Lift<U> {
     type SelfWrapper<T>;
     type OtherWrapper<T, E>;
