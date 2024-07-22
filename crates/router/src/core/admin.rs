@@ -150,7 +150,11 @@ pub async fn get_organization(
     state: SessionState,
     org_id: api::OrganizationId,
 ) -> RouterResponse<api::OrganizationResponse> {
-    #[cfg(all(not(feature = "v2"), feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2"),
+        feature = "olap"
+    ))]
     {
         CreateOrValidateOrganization::new(Some(org_id.organization_id))
             .create_or_validate(state.store.as_ref())
@@ -158,7 +162,7 @@ pub async fn get_organization(
             .map(|org| ForeignFrom::foreign_from(org))
             .map(service_api::ApplicationResponse::Json)
     }
-    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(org_id.organization_id)
             .create_or_validate(state.store.as_ref())

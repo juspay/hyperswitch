@@ -90,7 +90,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
