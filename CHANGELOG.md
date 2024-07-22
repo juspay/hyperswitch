@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.19.0-hotfix2
+
+### Features
+
+- **connector:** [Itau Bank] Add payment and sync flow for Pix ([#5405](https://github.com/juspay/hyperswitch/pull/5405)) ([`25b8c37`](https://github.com/juspay/hyperswitch/commit/25b8c377f86e32fc146dc3bce3ce7ce141822281))
+
+- - -
+
 ## 2024.07.19.0-hotfix1
 
 ### Miscellaneous Tasks
