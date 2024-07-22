@@ -14,7 +14,7 @@ pub mod verify_connector;
 use std::fmt::Debug;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::payments::{self, AddressDetailsWithPhone};
+use api_models::payments::AddressDetailsWithPhone;
 use api_models::{
     enums,
     payments::{self},
