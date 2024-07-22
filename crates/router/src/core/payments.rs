@@ -660,6 +660,7 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
+        logger::debug!("payment_intent.surcharge_applicable = true");
         if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
             // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
             let surcharge_details =
@@ -707,6 +708,7 @@ where
                 .payment_attempt
                 .get_surcharge_details()
                 .map(|surcharge_details| {
+                    logger::debug!("surcharge sent in payments create request");
                     types::SurchargeDetails::from((
                         &surcharge_details,
                         &payment_data.payment_attempt,
