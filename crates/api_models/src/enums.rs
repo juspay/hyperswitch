@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
 use common_utils::errors;
 use utoipa::ToSchema;
 
@@ -269,7 +270,7 @@ impl Connector {
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
     }
-
+    #[cfg(feature = "dummy_connector")]
     pub fn validate_dummy_connector_enabled(
         &self,
         is_dummy_connector_enabled: bool,

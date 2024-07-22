@@ -20,6 +20,8 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(any(feature = "v1", feature = "v2"))]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
@@ -45,7 +47,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils,
 };
@@ -137,7 +139,7 @@ pub async fn create_merchant_account(
             key_manager_state,
             EncryptionTransferRequest {
                 identifier: identifier.clone(),
-                key: consts::BASE64_ENGINE.encode(key),
+                key: BASE64_ENGINE.encode(key),
             },
         )
         .await
@@ -2099,7 +2101,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 trait MerchantConnectorAccountCreateBridge {
     async fn create_domain_model_from_request(
@@ -2276,7 +2278,10 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     }
 }
 
-#[cfg(all(not(feature = "v2"), feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -2332,7 +2337,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         let merchant_recipient_data = if let Some(data) = &self.additional_merchant_data {
             Some(
                 process_open_banking_connectors(
-                    &state,
+                    state,
                     business_profile.merchant_id.as_str(),
                     &auth,
                     &self.connector_type,
@@ -2393,9 +2398,9 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(&state, &key_store, &self.metadata).await?,
-            test_mode: self.test_mode.clone(),
-            business_country: self.business_country.clone(),
+            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(state, &key_store, &self.metadata).await?,
+            test_mode: self.test_mode,
+            business_country: self.business_country,
             business_label: self.business_label.clone(),
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {

@@ -9244,7 +9244,8 @@
           "payments",
           "refunds",
           "disputes",
-          "mandates"
+          "mandates",
+          "payouts"
         ]
       },
       "EventListItemResponse": {
@@ -20676,7 +20677,8 @@
       "TransactionType": {
         "type": "string",
         "enum": [
-          "payment"
+          "payment",
+          "payout"
         ]
       },
       "UpdateApiKeyRequest": {
