@@ -1072,8 +1072,6 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
     }
 }
 
-// TODO: Will be removing this allow lint after v2 APIs get stable
-#[allow(clippy::large_enum_variant)]
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),
@@ -1094,7 +1092,7 @@ impl SignInWithRoleStrategyType {
         {
             Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
                 user,
-                user_role: user_role.clone(),
+                user_role: Box::new(user_role.clone()),
             }))
         } else {
             Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
@@ -1117,7 +1115,7 @@ impl SignInWithRoleStrategyType {
 
 pub struct SignInWithSingleRoleStrategy {
     pub user: UserFromStorage,
-    pub user_role: UserRole,
+    pub user_role: Box<UserRole>,
 }
 
 impl SignInWithSingleRoleStrategy {
@@ -1130,7 +1128,7 @@ impl SignInWithSingleRoleStrategy {
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
         let dashboard_entry_response =
-            utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+            utils::user::get_dashboard_entry_response(state, self.user, *self.user_role, token)?;
 
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,

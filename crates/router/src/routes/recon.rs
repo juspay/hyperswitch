@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::recon as recon_api;
+use diesel_models::enums::UserRoleVersion;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
@@ -81,7 +82,7 @@ pub async fn send_recon_request(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let merchant_id = db
-        .find_user_role_by_user_id(&user.user_id, enums::UserRoleVersion::V1)
+        .find_user_role_by_user_id(&user.user_id, UserRoleVersion::V1)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
         .merchant_id

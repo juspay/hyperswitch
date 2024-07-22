@@ -80,7 +80,7 @@ pub async fn signup_with_merchant_id(
         )
         .await;
 
-    let Some(merchant_id) = &user_role.merchant_id else {
+    let Some(merchant_id) = user_role.merchant_id else {
         return Err(UserErrors::InternalServerError.into());
     };
 
@@ -88,7 +88,7 @@ pub async fn signup_with_merchant_id(
     Ok(ApplicationResponse::Json(user_api::AuthorizeResponse {
         is_email_sent: send_email_result.is_ok(),
         user_id: user_from_db.get_user_id().to_string(),
-        merchant_id: merchant_id.to_string(),
+        merchant_id,
     }))
 }
 
@@ -206,7 +206,7 @@ pub async fn signin(
                 .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
-                user_role: preferred_role,
+                user_role: Box::new(preferred_role),
             })
         } else {
             let user_roles = user_from_db.get_roles_from_db(&state).await?;
@@ -275,7 +275,7 @@ pub async fn connect_account(
             )
             .await;
 
-        let Some(merchant_id) = &user_role.merchant_id else {
+        let Some(merchant_id) = user_role.merchant_id else {
             return Err(UserErrors::InternalServerError.into());
         };
         logger::info!(?send_email_result);
@@ -284,7 +284,7 @@ pub async fn connect_account(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
-                merchant_id: merchant_id.to_string(),
+                merchant_id,
             },
         ));
     } else if find_user
@@ -329,7 +329,7 @@ pub async fn connect_account(
             )
             .await;
 
-        let Some(merchant_id) = &user_role.merchant_id else {
+        let Some(merchant_id) = user_role.merchant_id else {
             return Err(UserErrors::InternalServerError.into());
         };
 
@@ -339,7 +339,7 @@ pub async fn connect_account(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
-                merchant_id: merchant_id.to_string(),
+                merchant_id,
             },
         ));
     } else {
@@ -597,6 +597,7 @@ pub async fn reset_password(
                     status: UserStatus::Active,
                     modified_by: user.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await;
         logger::info!(?update_status_result);
@@ -934,7 +935,11 @@ pub async fn resend_invite(
         .into();
     let user_role = state
         .store
-        .find_user_role_by_user_id_merchant_id(user.get_user_id(), &user_from_token.merchant_id)
+        .find_user_role_by_user_id_merchant_id(
+            user.get_user_id(),
+            &user_from_token.merchant_id,
+            UserRoleVersion::V1,
+        )
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1011,6 +1016,7 @@ pub async fn accept_invite_from_email(
                 status: UserStatus::Active,
                 modified_by: user.get_user_id().to_string(),
             },
+            UserRoleVersion::V1,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -1083,6 +1089,7 @@ pub async fn accept_invite_from_email_token_only_flow(
                 status: UserStatus::Active,
                 modified_by: user_from_db.get_user_id().to_string(),
             },
+            UserRoleVersion::V1,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -1258,10 +1265,17 @@ pub async fn switch_merchant_id(
 
         let user_role = active_user_roles
             .iter()
-            .find(|role| match role.merchant_id.clone() {
-                Some(mid) => mid == request.merchant_id,
-                None => false,
+            .find_map(|role| {
+                let Some(ref merchant_id) = role.merchant_id else {
+                    return Some(Err(report!(UserErrors::InternalServerError)));
+                };
+                if merchant_id == request.merchant_id.as_str() {
+                    Some(Ok(role))
+                } else {
+                    None
+                }
             })
+            .transpose()?
             .ok_or(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User doesn't have access to switch")?;
 
@@ -1510,7 +1524,7 @@ pub async fn verify_email(
                 .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
-                user_role: preferred_role,
+                user_role: Box::new(preferred_role),
             })
         } else {
             let user_roles = user_from_db.get_roles_from_db(&state).await?;

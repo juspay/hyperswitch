@@ -155,13 +155,13 @@ pub async fn get_multiple_role_info_for_user_roles(
     user_roles: &[UserRole],
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let Some(merchnat_id) = &user_role.merchant_id else {
+        let Some(merchant_id) = &user_role.merchant_id else {
             return Err(report!(UserErrors::InternalServerError));
         };
         let Some(org_id) = &user_role.org_id else {
             return Err(report!(UserErrors::InternalServerError));
         };
-        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchnat_id, org_id)
+        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
             .await
             .to_not_found_response(UserErrors::InternalServerError)
             .attach_printable("Role for user role doesn't exist")?;
