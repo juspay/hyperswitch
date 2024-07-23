@@ -647,9 +647,11 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
+    // By default the ConnectorStatus is Active
     pub status: Option<api_enums::ConnectorStatus>,
 
     /// The identifier for the Merchant Account
@@ -788,7 +790,7 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
@@ -914,6 +916,15 @@ pub struct MerchantConnectorInfo {
     pub merchant_connector_id: String,
 }
 
+impl MerchantConnectorInfo {
+    pub fn new(connector_label: String, merchant_connector_id: String) -> Self {
+        Self {
+            connector_label,
+            merchant_connector_id,
+        }
+    }
+}
+
 /// Response of creating a new Merchant Connector for the merchant account."
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -997,13 +1008,24 @@ pub struct MerchantConnectorResponse {
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+impl MerchantConnectorResponse {
+    pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
+        MerchantConnectorInfo {
+            connector_label: connector_label.to_string(),
+            merchant_connector_id: self.connector_id.clone(),
+        }
+    }
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -1108,13 +1130,26 @@ pub struct MerchantConnectorResponse {
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
+impl MerchantConnectorResponse {
+    pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
+        MerchantConnectorInfo {
+            connector_label: connector_label.to_string(),
+            merchant_connector_id: self.merchant_connector_id.clone(),
+        }
+    }
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1189,7 +1224,8 @@ pub struct MerchantConnectorUpdate {
     #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,

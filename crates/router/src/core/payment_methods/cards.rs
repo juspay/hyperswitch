@@ -2659,7 +2659,7 @@ pub async fn list_payment_methods(
                     .pm_auth_config
                     .as_ref()
                     .map(|config| {
-                        serde_json::from_value::<PaymentMethodAuthConfig>(config.clone())
+                        serde_json::from_value::<PaymentMethodAuthConfig>(config.clone().expose())
                             .change_context(errors::StorageError::DeserializationFailed)
                             .attach_printable("Failed to deserialize Payment Method Auth config")
                     })

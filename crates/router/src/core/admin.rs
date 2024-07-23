@@ -1667,7 +1667,7 @@ impl<'a> ConnectorMetadata<'a> {
 
 struct PMAuthConfigValidation<'a> {
     connector_type: &'a api_enums::ConnectorType,
-    pm_auth_config: &'a Option<serde_json::Value>,
+    pm_auth_config: &'a Option<pii::SecretSerdeValue>,
     db: &'a dyn StorageInterface,
     merchant_id: &'a String,
     profile_id: &'a Option<String>,
@@ -1676,13 +1676,14 @@ struct PMAuthConfigValidation<'a> {
 }
 
 impl<'a> PMAuthConfigValidation<'a> {
-    async fn validate_pm_auth(&self, val: &serde_json::Value) -> RouterResponse<()> {
-        let config =
-            serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val.clone())
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "invalid data received for payment method auth config".to_string(),
-                })
-                .attach_printable("Failed to deserialize Payment Method Auth config")?;
+    async fn validate_pm_auth(&self, val: &pii::SecretSerdeValue) -> RouterResponse<()> {
+        let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(
+            val.clone().expose(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "invalid data received for payment method auth config".to_string(),
+        })
+        .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
         let all_mcas = self
             .db
@@ -2343,18 +2344,19 @@ pub async fn create_payment_connector(
 }
 
 async fn validate_pm_auth(
-    val: serde_json::Value,
+    val: pii::SecretSerdeValue,
     state: &SessionState,
     merchant_id: &str,
     key_store: &domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     profile_id: &Option<String>,
 ) -> RouterResponse<()> {
-    let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "invalid data received for payment method auth config".to_string(),
-        })
-        .attach_printable("Failed to deserialize Payment Method Auth config")?;
+    let config =
+        serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val.expose())
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "invalid data received for payment method auth config".to_string(),
+            })
+            .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
     let all_mcas = &*state
         .store

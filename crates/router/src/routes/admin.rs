@@ -180,6 +180,10 @@ pub async fn delete_merchant_account(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
@@ -196,21 +200,54 @@ pub async fn delete_merchant_account(
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
     path: web::Path<String>,
     json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsCreate;
     let payload = json_payload.into_inner();
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
     let merchant_id = path.into_inner();
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| create_payment_connector(state, req, &merchant_id),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+/// Merchant Connector - Create
+///
+/// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    post,
+    path = "/accounts/{account_id}/connectors",
+    request_body = MerchantConnectorCreate,
+    responses(
+        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
+        (status = 400, description = "Missing Mandatory fields"),
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Create a Merchant Connector",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
+pub async fn payment_connector_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::MerchantConnectorCreate>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsCreate;
+    let payload = json_payload.into_inner();
     let merchant_id = payload.merchant_id.clone();
     Box::pin(api::server_wrap(
         flow,

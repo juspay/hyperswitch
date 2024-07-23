@@ -3067,21 +3067,7 @@ pub async fn get_payment_filters(
                 .connector_label
                 .as_ref()
                 .map(|label| {
-                    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-                    let info = MerchantConnectorInfo {
-                        connector_label: label.clone(),
-                        merchant_connector_id: merchant_connector_account.connector_id.clone(),
-                    };
-                    #[cfg(all(
-                        any(feature = "v1", feature = "v2"),
-                        not(feature = "merchant_connector_account_v2")
-                    ))]
-                    let info = MerchantConnectorInfo {
-                        connector_label: label.clone(),
-                        merchant_connector_id: merchant_connector_account
-                            .merchant_connector_id
-                            .clone(),
-                    };
+                    let info = merchant_connector_account.to_merchant_connector_info(label);
                     (merchant_connector_account.connector_name.clone(), info)
                 })
         })

@@ -993,22 +993,15 @@ pub async fn get_filters_for_refunds(
     let connector_map = merchant_connector_accounts
         .into_iter()
         .filter_map(|merchant_connector_account| {
-            merchant_connector_account.connector_label.map(|label| {
-                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-                let info = MerchantConnectorInfo {
-                    connector_label: label,
-                    merchant_connector_id: merchant_connector_account.connector_id,
-                };
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "merchant_connector_account_v2")
-                ))]
-                let info = MerchantConnectorInfo {
-                    connector_label: label,
-                    merchant_connector_id: merchant_connector_account.merchant_connector_id,
-                };
-                (merchant_connector_account.connector_name, info)
-            })
+            merchant_connector_account
+                .connector_label
+                .clone()
+                .map(|label| {
+                    let info = merchant_connector_account
+                        .clone()
+                        .to_merchant_connector_info(&label.clone());
+                    (merchant_connector_account.connector_name, info)
+                })
         })
         .fold(
             HashMap::new(),
