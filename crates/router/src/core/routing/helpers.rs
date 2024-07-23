@@ -285,6 +285,8 @@ pub async fn update_business_profile_active_algorithm_ref(
         use_billing_as_payment_method_billing: None,
         collect_shipping_details_from_wallet_connector: None,
         collect_billing_details_from_wallet_connector: None,
+        always_collect_billing_details_from_wallet_connector: None,
+        always_collect_shipping_details_from_wallet_connector: None,
         is_connector_agnostic_mit_enabled: None,
         outgoing_webhook_custom_http_headers: None,
     };

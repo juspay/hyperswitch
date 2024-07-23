@@ -2819,29 +2819,10 @@ pub async fn list_payment_methods(
                                     }
                                 }
 
-                                let should_send_shipping_details =
-                                    business_profile.clone().and_then(|business_profile| {
-                                        business_profile
-                                            .collect_shipping_details_from_wallet_connector
-                                    });
-
-                                // Remove shipping fields from required fields based on business profile configuration
-                                if should_send_shipping_details != Some(true) {
-                                    let shipping_variants =
-                                        api_enums::FieldType::get_shipping_variants();
-
-                                    let keys_to_be_removed = required_fields_hs
-                                        .iter()
-                                        .filter(|(_key, value)| {
-                                            shipping_variants.contains(&value.field_type)
-                                        })
-                                        .map(|(key, _value)| key.to_string())
-                                        .collect::<Vec<_>>();
-
-                                    keys_to_be_removed.iter().for_each(|key_to_be_removed| {
-                                        required_fields_hs.remove(key_to_be_removed);
-                                    });
-                                }
+                                 required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
+                                    business_profile.as_ref(),
+                                    required_fields_hs.clone(),
+                                );
 
                                 // get the config, check the enums while adding
                                 {
@@ -3192,11 +3173,22 @@ pub async fn list_payment_methods(
 
     let collect_shipping_details_from_wallets = business_profile
         .as_ref()
-        .and_then(|bp| bp.collect_shipping_details_from_wallet_connector);
+        .and_then(|business_profile| {
+            business_profile.always_collect_shipping_details_from_wallet_connector
+        })
+        .or(business_profile.as_ref().and_then(|business_profile| {
+            business_profile.collect_shipping_details_from_wallet_connector
+        }));
 
     let collect_billing_details_from_wallets = business_profile
         .as_ref()
-        .and_then(|bp| bp.collect_billing_details_from_wallet_connector);
+        .and_then(|business_profile| {
+            business_profile.always_collect_billing_details_from_wallet_connector
+        })
+        .or(business_profile.as_ref().and_then(|business_profile| {
+            business_profile.collect_billing_details_from_wallet_connector
+        }));
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: business_profile
@@ -3239,6 +3231,29 @@ pub async fn list_payment_methods(
             collect_billing_details_from_wallets,
         },
     ))
+}
+
+fn should_collect_shipping_or_billing_details_from_wallet_connector(
+    business_profile: Option<&BusinessProfile>,
+    mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
+) -> HashMap<String, RequiredFieldInfo> {
+    let always_send_billing_details = business_profile.and_then(|business_profile| {
+        business_profile.always_collect_billing_details_from_wallet_connector
+    });
+
+    let always_send_shipping_details = business_profile.and_then(|business_profile| {
+        business_profile.always_collect_shipping_details_from_wallet_connector
+    });
+
+    if always_send_billing_details == Some(true) {
+        let billing_details = crate::configs::defaults::get_billing_required_fields();
+        required_fields_hs.extend(billing_details)
+    };
+    if always_send_shipping_details == Some(true) {
+        let shipping_details = crate::configs::defaults::get_shipping_required_fields();
+        required_fields_hs.extend(shipping_details)
+    };
+    required_fields_hs
 }
 
 async fn validate_payment_method_and_client_secret(

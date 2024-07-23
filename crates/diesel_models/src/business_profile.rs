@@ -44,6 +44,8 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -78,6 +80,8 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -109,6 +113,8 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -138,6 +144,8 @@ pub enum BusinessProfileUpdate {
         collect_billing_details_from_wallet_connector: Option<bool>,
         is_connector_agnostic_mit_enabled: Option<bool>,
         outgoing_webhook_custom_http_headers: Option<Encryption>,
+        always_collect_billing_details_from_wallet_connector: Option<bool>,
+        always_collect_shipping_details_from_wallet_connector: Option<bool>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -175,6 +183,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers,
+                always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector,
             } => Self {
                 profile_name,
                 modified_at,
@@ -198,6 +208,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
+                always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers,
                 ..Default::default()
@@ -251,6 +263,10 @@ impl From<BusinessProfileNew> for BusinessProfile {
             collect_billing_details_from_wallet_connector: new
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector: new
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: new
+                .always_collect_shipping_details_from_wallet_connector,
         }
     }
 }
@@ -283,6 +299,8 @@ impl BusinessProfileUpdate {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -312,6 +330,8 @@ impl BusinessProfileUpdate {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
             ..source
         }
     }

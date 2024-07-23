@@ -800,6 +800,8 @@ pub async fn update_business_profile_cascade(
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
             collect_billing_details_from_wallet_connector: None,
+            always_collect_billing_details_from_wallet_connector: None,
+            always_collect_shipping_details_from_wallet_connector: None,
             is_connector_agnostic_mit_enabled: None,
             outgoing_webhook_custom_http_headers: None,
         };
@@ -2266,6 +2268,10 @@ pub async fn update_business_profile(
             .collect_billing_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        always_collect_billing_details_from_wallet_connector: request
+            .always_collect_billing_details_from_wallet_connector,
+        always_collect_shipping_details_from_wallet_connector: request
+            .always_collect_shipping_details_from_wallet_connector,
     };
 
     let updated_business_profile = db

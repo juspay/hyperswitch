@@ -154,6 +154,10 @@ pub async fn business_profile_response(
             .collect_shipping_details_from_wallet_connector,
         collect_billing_details_from_wallet_connector: item
             .collect_billing_details_from_wallet_connector,
+        always_collect_billing_details_from_wallet_connector: item
+            .always_collect_billing_details_from_wallet_connector,
+        always_collect_shipping_details_from_wallet_connector: item
+            .always_collect_shipping_details_from_wallet_connector,
         is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
         outgoing_webhook_custom_http_headers,
     })
@@ -288,6 +292,12 @@ pub async fn create_business_profile(
             .or(Some(false)),
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_billing_details_from_wallet_connector: request
+            .always_collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_shipping_details_from_wallet_connector: request
+            .always_collect_shipping_details_from_wallet_connector
             .or(Some(false)),
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
     })
