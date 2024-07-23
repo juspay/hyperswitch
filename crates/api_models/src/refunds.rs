@@ -32,7 +32,7 @@ pub struct RefundRequest {
     pub refund_id: Option<String>,
 
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
@@ -103,6 +103,7 @@ pub struct RefundManualUpdateRequest {
     #[serde(skip)]
     pub refund_id: String,
     /// Merchant ID
+    #[schema(value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
     /// The status for refund
     pub status: Option<RefundStatus>,

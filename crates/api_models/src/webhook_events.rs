@@ -47,7 +47,7 @@ pub struct EventListItemResponse {
     pub event_id: String,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the Business Profile.

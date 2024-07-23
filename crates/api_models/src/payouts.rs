@@ -33,7 +33,7 @@ pub struct PayoutCreateRequest {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
+    #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
     pub merchant_id: Option<id_type::MerchantId>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -531,6 +531,7 @@ pub struct PayoutAttemptResponse {
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
 pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
 }
 
@@ -552,6 +553,7 @@ pub struct PayoutRetrieveRequest {
     pub force_sync: Option<bool>,
 
     /// The identifier for the Merchant Account.
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
 }
 

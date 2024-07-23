@@ -2877,6 +2877,7 @@ pub struct CardResponse {
 #[serde(rename_all = "snake_case")]
 pub struct RewardData {
     /// The merchant ID with which we have to call the connector
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
 }
 
@@ -3570,7 +3571,7 @@ pub struct PaymentsResponse {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, example = "merchant_1668273825")]
+    #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
@@ -4285,6 +4286,7 @@ pub struct PaymentsRetrieveRequest {
     /// The type of ID (ex: payment intent id, payment attempt id or connector txn id)
     pub resource_id: PaymentIdType,
     /// The identifier for the Merchant Account.
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: bool,
@@ -4883,6 +4885,7 @@ pub struct PaymentsSessionResponse {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBody {
     /// The identifier for the Merchant Account.
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
@@ -4899,6 +4902,7 @@ pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
@@ -4967,6 +4971,7 @@ pub struct PaymentsManualUpdateRequest {
     /// The identifier for the payment attempt
     pub attempt_id: String,
     /// Merchant ID
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// The status of the attempt
     pub attempt_status: Option<enums::AttemptStatus>,
@@ -5059,6 +5064,7 @@ pub struct PaymentsStartRequest {
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// The identifier for the payment transaction
     pub attempt_id: String,
@@ -5275,6 +5281,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Payment Link
     pub payment_link_id: String,
     /// Identifier for Merchant
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Payment Link
     pub link_to_pay: String,
@@ -5297,6 +5304,7 @@ pub struct RetrievePaymentLinkResponse {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentLinkInitiateRequest {
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub payment_id: String,
 }
