@@ -50,6 +50,7 @@ if (!isFramed) {
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
     });
+  // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
       clientSecret: client_secret,
@@ -78,8 +79,11 @@ if (!isFramed) {
         },
       },
     };
+  // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
+  // @ts-ignore
     mountUnifiedCheckout("#unified-checkout");
+  // @ts-ignore
     showSDK(paymentDetails.display_sdk_only);
 
     let shimmer = document.getElementById("payment-details-shimmer");
