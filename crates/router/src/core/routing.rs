@@ -39,7 +39,7 @@ where
     Payout(&'a payouts::PayoutData),
 }
 
-[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 struct ParseRoutingRef<'a> {
     business_profile: diesel_models::business_profile::BusinessProfile,
     transaction_type: &'a enums::TransactionType,
