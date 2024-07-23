@@ -74,7 +74,7 @@ crates_with_v1_feature="$(
     | .name as $name | .features[] | { $name, features: . }  # Expand nested features object to have package - features combinations
     | "\(.name) \(.features)" # Print out package name and features separated by space'
 )"
-while IFS=' ' read -r crate features; do
+while IFS=' ' read -r crate features && [[ -n "${crate}" && -n "${features}" ]]; do
   command="cargo check --all-targets --package \"${crate}\" --no-default-features --features \"${features}\""
   all_commands+=("$command")
 done <<< "${crates_with_v1_feature}"
@@ -87,10 +87,15 @@ crates_without_v1_feature="$(
     '$crates_with_features[] | select(IN("v1"; .features[]) | not ) # Select crates without `v1` feature
     | "\(.name)" # Print out package name'
 )"
-while IFS= read -r crate; do
+while IFS= read -r crate && [[ -n "${crate}" ]]; do
   command="cargo hack check --all-targets --each-feature --package \"${crate}\""
   all_commands+=("$command")
 done <<< "${crates_without_v1_feature}"
+
+if (( ${#all_commands[@]} == 0 )); then
+  echo "There are no commands to be be executed"
+  exit 0
+fi
 
 echo "The list of commands that will be executed:"
 printf "%s\n" "${all_commands[@]}"
