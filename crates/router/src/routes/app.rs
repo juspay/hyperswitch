@@ -26,6 +26,14 @@ use super::dummy_connector::*;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(
+    feature = "oltp",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use super::pm_auth;
+#[cfg(feature = "oltp")]
+use super::poll::retrieve_poll_status;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -44,8 +52,6 @@ use super::{configs::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
-#[cfg(feature = "oltp")]
-use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -816,9 +822,34 @@ impl Routing {
 pub struct Customers;
 
 #[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    any(feature = "v2", feature = "v1"),
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2",
+    any(feature = "olap", feature = "oltp")
+))]
+impl Customers {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("").route(web::post().to(customers_create)))
+        }
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+        {
+            route = route.service(
+                web::resource("/{customer_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_api)),
+            );
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
     not(feature = "payment_methods_v2")
+    any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
@@ -861,28 +892,6 @@ impl Customers {
         route
     }
 }
-
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    feature = "v2",
-    feature = "payment_methods_v2"
-))]
-impl Customers {
-    pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("v2/customers").app_data(web::Data::new(state));
-
-        #[cfg(feature = "oltp")]
-        {
-            route = route.service(
-                web::resource("/{customer_id}/saved_payment_methods")
-                    .route(web::get().to(list_customer_payment_method_api)),
-            );
-        }
-
-        route
-    }
-}
-
 pub struct Refunds;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -952,7 +961,11 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    any(feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));

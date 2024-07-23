@@ -11,10 +11,12 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::customers;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, customers, enums as api_enums,
+    admin, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
@@ -1585,6 +1587,7 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<PaymentMethodRecord> for customers::CustomerRequest {
     fn from(record: PaymentMethodRecord) -> Self {
         Self {
@@ -1610,3 +1613,30 @@ impl From<PaymentMethodRecord> for customers::CustomerRequest {
         }
     }
 }
+
+// #[cfg(feature = "v2")]
+// impl From<PaymentMethodRecord> for customers::CustomerRequest {
+//     fn from(record: PaymentMethodRecord) -> Self {
+//         Self {
+//             merchant_reference_id: Some(record.customer_id),
+//             name: record.name.unwrap(),
+//             email: record.email.unwrap(),
+//             phone: record.phone,
+//             description: None,
+//             phone_country_code: record.phone_country_code,
+//             default_billing_address: Some(payments::AddressDetails {
+//                 city: Some(record.billing_address_city),
+//                 country: record.billing_address_country,
+//                 line1: Some(record.billing_address_line1),
+//                 line2: record.billing_address_line2,
+//                 state: Some(record.billing_address_state),
+//                 line3: record.billing_address_line3,
+//                 zip: Some(record.billing_address_zip),
+//                 first_name: Some(record.billing_address_first_name),
+//                 last_name: Some(record.billing_address_last_name),
+//             }),
+//             default_shipping_address: None,
+//             metadata: None,
+//         }
+//     }
+// }
