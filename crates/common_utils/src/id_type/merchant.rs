@@ -50,10 +50,10 @@ impl Display for MerchantId {
 }
 
 /// This is implemented so that we can use merchant id directly as attribute in metrics
-impl From<MerchantId> for opentelemetry::Value {
+impl From<MerchantId> for router_env::opentelemetry::Value {
     fn from(val: MerchantId) -> Self {
         let string_value = val.0 .0 .0;
-        Self::String(opentelemetry::StringValue::from(string_value))
+        Self::String(router_env::opentelemetry::StringValue::from(string_value))
     }
 }
 
@@ -112,7 +112,7 @@ impl MerchantId {
         Self(length_id)
     }
 
-    /// Get a mercahnt id for internal use only
+    /// Get a merchant id for internal use only
     pub fn get_internal_user_merchant_id(merchant_id: &str) -> Self {
         let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
