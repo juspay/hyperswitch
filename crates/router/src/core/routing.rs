@@ -14,14 +14,14 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-use crate::db::StorageInterface;
+
 use crate::{
     consts,
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         metrics, utils as core_utils,
     },
+    db::StorageInterface,
     routes::SessionState,
     services::api as service_api,
     types::{
@@ -38,45 +38,113 @@ where
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
 }
-//not in v2
-pub async fn retrieve_merchant_routing_dictionary(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    query_params: RoutingRetrieveQuery,
-    transaction_type: &enums::TransactionType,
-) -> RouterResponse<routing_types::RoutingKind> {
-    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
 
-    let routing_metadata = state
-        .store
-        .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
-            &merchant_account.merchant_id,
-            transaction_type,
-            i64::from(query_params.limit.unwrap_or_default()),
-            i64::from(query_params.offset.unwrap_or_default()),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-    let result = routing_metadata
-        .into_iter()
-        .map(ForeignInto::foreign_into)
-        .collect::<Vec<_>>();
-
-    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-    Ok(service_api::ApplicationResponse::Json(
-        routing_types::RoutingKind::RoutingAlgorithm(result),
-    ))
-}
-
-struct RoutingHelpers<'a> {
-    req: &'a routing_types::RoutingConfigRequest,
+[cfg(all(feature = "v2", feature = "routing_v2"))]
+struct ParseRoutingRef<'a> {
+    business_profile: diesel_models::business_profile::BusinessProfile,
     transaction_type: &'a enums::TransactionType,
 }
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl<'a> ParseRoutingRef<'a> {
+    fn parse_routing_algorithm(
+        &self,
+        func: impl Fn(&Self) -> Option<tera::Value>,
+    ) -> RouterResult<routing_types::RoutingAlgorithmRef> {
+        Ok(func(self)
+            .map(|val| val.parse_value::<routing_types::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default())
+    }
+}
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+struct RoutingRefBusinessProfile<'a> {
+    db: &'a dyn StorageInterface,
+    merchant_id: &'a str,
+    algorithm_id: &'a str,
+    transaction_type: &'a enums::TransactionType,
+}
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl<'a> RoutingRefBusinessProfile<'a> {
+    async fn fetch_routing_algo(&self) -> RouterResult<RoutingAlgorithm> {
+        self.db
+            .find_routing_algorithm_by_algorithm_id_merchant_id(self.algorithm_id, self.merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+    }
 
+    pub async fn fetch_business_profile(&self, profile_id: &str) -> RouterResult<ParseRoutingRef> {
+        let business_profile = core_utils::validate_and_get_business_profile(
+            self.db,
+            Some(&profile_id.to_string()),
+            self.merchant_id,
+        )
+        .await?
+        .get_required_value("BusinessProfile")
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+        Ok(ParseRoutingRef {
+            business_profile,
+            transaction_type: self.transaction_type,
+        })
+    }
+
+    pub async fn update_routing_ref_in_business_profile(&self) -> RouterResult<RoutingAlgorithm> {
+        let routing_algorithm = self.fetch_routing_algo().await?;
+        let get_business_details = self
+            .fetch_business_profile(&routing_algorithm.profile_id)
+            .await?;
+
+        let mut routing_ref = get_business_details
+            .parse_routing_algorithm(|val| val.business_profile.routing_algorithm.clone())?;
+
+        utils::when(
+            routing_algorithm.algorithm_for != *self.transaction_type,
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "Cannot use {}'s routing algorithm for {} operation",
+                        routing_algorithm.algorithm_for, self.transaction_type
+                    ),
+                })
+            },
+        )?;
+
+        utils::when(
+            routing_ref.algorithm_id == Some(self.algorithm_id.to_owned()),
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Algorithm is already active".to_string(),
+                })
+            },
+        )?;
+        routing_ref.update_algorithm_id(self.algorithm_id.to_owned());
+        helpers::update_business_profile_active_algorithm_ref(
+            self.db,
+            get_business_details.business_profile.clone(),
+            routing_ref,
+            self.transaction_type,
+        )
+        .await?;
+
+        Ok(routing_algorithm)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+struct RoutingHelpers<'a> {
+    req: &'a RoutingConfigRequest,
+    transaction_type: &'a TransactionType,
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 impl<'a> RoutingHelpers<'a> {
     fn get_required_field_from_requests<T>(
         &self,
-        func: impl Fn(&routing_types::RoutingConfigRequest) -> Option<T>,
+        func: impl Fn(&routing_typesRoutingConfigRequest) -> Option<T>,
         field_name: &'static str,
     ) -> RouterResult<T> {
         func(self.req)
@@ -148,6 +216,35 @@ impl<'a> RoutingHelpers<'a> {
         };
         Ok(algo)
     }
+}
+
+pub async fn retrieve_merchant_routing_dictionary(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    query_params: RoutingRetrieveQuery,
+    transaction_type: &enums::TransactionType,
+) -> RouterResponse<routing_types::RoutingKind> {
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
+
+    let routing_metadata = state
+        .store
+        .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+            &merchant_account.merchant_id,
+            transaction_type,
+            i64::from(query_params.limit.unwrap_or_default()),
+            i64::from(query_params.offset.unwrap_or_default()),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let result = routing_metadata
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect::<Vec<_>>();
+
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(
+        routing_types::RoutingKind::RoutingAlgorithm(result),
+    ))
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
@@ -265,23 +362,6 @@ pub async fn create_routing_config(
     metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
-struct ParseRoutingRef<'a> {
-    business_profile: &'a diesel_models::business_profile::BusinessProfile,
-    transaction_type: &'a enums::TransactionType,
-}
-impl<'a> ParseRoutingRef<'a> {
-    fn parse_routing_algorithm(
-        &self,
-        func: impl Fn(&Self) -> Option<tera::Value>,
-    ) -> RouterResult<routing_types::RoutingAlgorithmRef> {
-        Ok(func(self)
-            .map(|val| val.parse_value::<routing_types::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default())
-    }
-}
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 pub async fn link_routing_config(
@@ -293,57 +373,15 @@ pub async fn link_routing_config(
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
-    let routing_algorithm = db
-        .find_routing_algorithm_by_algorithm_id_merchant_id(
-            &algorithm_id,
-            &merchant_account.merchant_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let business_profile = core_utils::validate_and_get_business_profile(
+    let routing_ref_data = RoutingRefBusinessProfile {
         db,
-        Some(&routing_algorithm.profile_id),
-        &merchant_account.merchant_id,
-    )
-    .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-        id: routing_algorithm.profile_id.clone(),
-    })?;
-    let parser = ParseRoutingRef {
-        business_profile: &business_profile,
+        merchant_id: &merchant_account.merchant_id,
+        algorithm_id: &algorithm_id,
         transaction_type,
     };
-
-    let mut routing_ref: routing_types::RoutingAlgorithmRef =
-        parser.parse_routing_algorithm(|val| val.business_profile.routing_algorithm.clone())?;
-
-    utils::when(routing_algorithm.algorithm_for != *transaction_type, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "Cannot use {}'s routing algorithm for {} operation",
-                routing_algorithm.algorithm_for, transaction_type
-            ),
-        })
-    })?;
-
-    utils::when(
-        routing_ref.algorithm_id == Some(algorithm_id.clone()),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Algorithm is already active".to_string(),
-            })
-        },
-    )?;
-    routing_ref.update_algorithm_id(algorithm_id);
-    helpers::update_business_profile_active_algorithm_ref(
-        db,
-        business_profile,
-        routing_ref,
-        transaction_type,
-    )
-    .await?;
+    let routing_algorithm = routing_ref_data
+        .update_routing_ref_in_business_profile()
+        .await?;
 
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -453,77 +491,7 @@ pub async fn retrieve_routing_config(
     metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(response))
 }
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-pub async fn unlink_routing_config(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    request: routing_types::RoutingConfigRequest,
-    transaction_type: &enums::TransactionType,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
-    let db = state.store.as_ref();
-    let routing_helpers = RoutingHelpers {
-        req: &request,
-        transaction_type,
-    };
-    let profile_id = routing_helpers
-        .get_required_field_from_requests(|req| req.profile_id.clone(), "profile_id")?;
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        Some(&profile_id),
-        &merchant_account.merchant_id,
-    )
-    .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-        id: profile_id.clone(),
-    })?;
-    let parser = ParseRoutingRef {
-        business_profile: &business_profile,
-        transaction_type,
-    };
 
-    let routing_algo_ref: routing_types::RoutingAlgorithmRef =
-        parser.parse_routing_algorithm(|val| match val.transaction_type {
-            enums::TransactionType::Payment => val.business_profile.routing_algorithm.clone(),
-            #[cfg(feature = "payouts")]
-            enums::TransactionType::Payout => val.business_profile.payout_routing_algorithm.clone(),
-        })?;
-
-    let timestamp = common_utils::date_time::now_unix_timestamp();
-
-    match routing_algo_ref.algorithm_id {
-        Some(algorithm_id) => {
-            let routing_algorithm: routing_types::RoutingAlgorithmRef =
-                routing_types::RoutingAlgorithmRef {
-                    algorithm_id: None,
-                    timestamp,
-                    config_algo_id: routing_algo_ref.config_algo_id.clone(),
-                    surcharge_config_algo_id: routing_algo_ref.surcharge_config_algo_id,
-                };
-
-            let record = db
-                .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            let response = record.foreign_into();
-            helpers::update_business_profile_active_algorithm_ref(
-                db,
-                business_profile,
-                routing_algorithm,
-                transaction_type,
-            )
-            .await?;
-
-            metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-            Ok(service_api::ApplicationResponse::Json(response))
-        }
-        None => Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Algorithm is already inactive".to_string(),
-        })?,
-    }
-}
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -601,6 +569,7 @@ pub async fn unlink_routing_config(
     }
 }
 
+//feature update
 pub async fn update_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

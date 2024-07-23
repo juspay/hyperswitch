@@ -20,8 +20,8 @@ use crate::{
     utils::StringExt,
 };
 
-#[cfg(feature = "v2")]
-use crate::types::domain::MerchantConnectorAccount;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::types::domain::MerchantConnectorAccounts;
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -355,37 +355,6 @@ impl<'hel> MerchantHelpers<'_> {
         }
 
         Ok(())
-    }
-}
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-struct MerchantConnectorAccounts(Vec<MerchantConnectorAccount>);
-
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-impl MerchantConnectorAccounts {
-    fn filter_and_map<'a, T>(
-        &'a self,
-        filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
-        func: impl Fn(&'a MerchantConnectorAccount) -> T,
-    ) -> FxHashSet<T>
-    where
-        T: std::hash::Hash + Eq,
-    {
-        self.0
-            .iter()
-            .filter(|mca| filter(mca))
-            .map(func)
-            .collect::<FxHashSet<_>>()
-    }
-
-    pub fn filter_by_profile<'a, T>(
-        &'a self,
-        profile_id: &'a str,
-        func: impl Fn(&'a MerchantConnectorAccount) -> T,
-    ) -> FxHashSet<T>
-    where
-        T: std::hash::Hash + Eq,
-    {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
     }
 }
 
