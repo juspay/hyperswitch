@@ -205,6 +205,8 @@ diesel::table! {
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
+        always_collect_billing_details_from_wallet_connector -> Nullable<Bool>,
+        always_collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
     }
 }
 
