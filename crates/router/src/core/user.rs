@@ -748,7 +748,7 @@ async fn handle_existing_user_invitation(
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: Some(UserRoleVersion::V1),
+            version: UserRoleVersion::V1,
         })
         .await
         .map_err(|e| {
@@ -834,7 +834,7 @@ async fn handle_new_user_invitation(
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: Some(UserRoleVersion::V1),
+            version: UserRoleVersion::V1,
         })
         .await
         .map_err(|e| {

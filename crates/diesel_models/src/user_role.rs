@@ -19,7 +19,7 @@ pub struct UserRole {
     pub profile_id: Option<String>,
     pub entity_id: Option<String>,
     pub entity_type: Option<String>,
-    pub version: Option<enums::UserRoleVersion>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -37,7 +37,7 @@ pub struct UserRoleNew {
     pub profile_id: Option<String>,
     pub entity_id: Option<String>,
     pub entity_type: Option<String>,
-    pub version: Option<enums::UserRoleVersion>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

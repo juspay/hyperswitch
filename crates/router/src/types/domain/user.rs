@@ -666,7 +666,7 @@ impl NewUser {
                 profile_id: None,
                 entity_id: None,
                 entity_type: None,
-                version: Some(UserRoleVersion::V1),
+                version: UserRoleVersion::V1,
             })
             .await
             .change_context(UserErrors::InternalServerError)

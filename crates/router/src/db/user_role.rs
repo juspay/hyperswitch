@@ -274,7 +274,7 @@ impl UserRoleInterface for Store {
                         profile_id: None,
                         entity_id: None,
                         entity_type: None,
-                        version: Some(enums::UserRoleVersion::V1),
+                        version: enums::UserRoleVersion::V1,
                     });
                 }
             }
@@ -329,7 +329,7 @@ impl UserRoleInterface for MockDb {
             profile_id: None,
             entity_id: None,
             entity_type: None,
-            version: Some(enums::UserRoleVersion::V1),
+            version: enums::UserRoleVersion::V1,
         };
         user_roles.push(user_role.clone());
         Ok(user_role)
@@ -343,7 +343,7 @@ impl UserRoleInterface for MockDb {
         let user_roles = self.user_roles.lock().await;
         user_roles
             .iter()
-            .find(|user_role| user_role.user_id == user_id && user_role.version == Some(version))
+            .find(|user_role| user_role.user_id == user_id && user_role.version == version)
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -370,7 +370,7 @@ impl UserRoleInterface for MockDb {
             };
             if user_role.user_id == user_id
                 && user_role_merchant_id == merchant_id
-                && user_role.version == Some(version)
+                && user_role.version == version
             {
                 return Ok(user_role.clone());
             }
@@ -401,7 +401,7 @@ impl UserRoleInterface for MockDb {
             };
             if user_role.user_id == user_id
                 && user_role_merchant_id == merchant_id
-                && user_role.version == Some(version)
+                && user_role.version == version
             {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
@@ -448,7 +448,7 @@ impl UserRoleInterface for MockDb {
             };
             if user_role.user_id == user_id
                 && user_role_org_id == org_id
-                && user_role.version == Some(version)
+                && user_role.version == version
             {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
@@ -545,7 +545,7 @@ impl UserRoleInterface for MockDb {
                     profile_id: None,
                     entity_id: None,
                     entity_type: None,
-                    version: Some(enums::UserRoleVersion::V1),
+                    version: enums::UserRoleVersion::V1,
                 };
 
                 missing_new_user_roles.push(new_user_role);
@@ -569,7 +569,7 @@ impl UserRoleInterface for MockDb {
 
         let index = user_roles.iter().position(|role| {
             role.user_id == user_id
-                && role.version == Some(version)
+                && role.version == version
                 && match role.merchant_id {
                     Some(ref mid) => mid == merchant_id,
                     None => false,
@@ -596,7 +596,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .cloned()
             .filter_map(|ele| {
-                if ele.user_id == user_id && ele.version == Some(version) {
+                if ele.user_id == user_id && ele.version == version {
                     return Some(ele);
                 }
                 None
@@ -615,7 +615,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .filter_map(|role| {
                 if let Some(role_merchant_id) = &role.merchant_id {
-                    if role_merchant_id == merchant_id && role.version == Some(version) {
+                    if role_merchant_id == merchant_id && role.version == version {
                         Some(role.clone())
                     } else {
                         None
