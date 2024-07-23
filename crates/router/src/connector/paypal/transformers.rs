@@ -12,8 +12,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData, RouterData,
+        self, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
+        CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -176,13 +176,25 @@ pub struct ShippingName {
 }
 
 #[derive(Debug, Serialize)]
-pub struct CardRequest {
+pub struct CardRequestStruct {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
     name: Secret<String>,
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
     attributes: Option<CardRequestAttributes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CardVaultStruct {
+    vault_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum CardRequest {
+    CardRequestStruct(CardRequestStruct),
+    CardVaultStruct(CardVaultStruct),
 }
 #[derive(Debug, Serialize)]
 pub struct CardRequestAttributes {
@@ -479,30 +491,32 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     enums::AuthenticationType::NoThreeDs => None,
                 };
 
-                let payment_source = Some(PaymentSourceItem::Card(CardRequest {
-                    billing_address: get_address_info(item.router_data.get_optional_billing())?,
-                    expiry,
-                    name: item
-                        .router_data
-                        .get_optional_billing_full_name()
-                        .unwrap_or(Secret::new("".to_string())),
-                    number: Some(ccard.card_number.clone()),
-                    security_code: Some(ccard.card_cvc.clone()),
-                    attributes: Some(CardRequestAttributes {
-                        vault: match item.router_data.request.setup_future_usage {
-                            Some(setup_future_usage) => match setup_future_usage {
-                                enums::FutureUsage::OffSession => Some(PaypalVault {
-                                    store_in_vault: StoreInVault::OnSuccess,
-                                    usage_type: UsageType::Merchant,
-                                }),
+                let payment_source = Some(PaymentSourceItem::Card(CardRequest::CardRequestStruct(
+                    CardRequestStruct {
+                        billing_address: get_address_info(item.router_data.get_optional_billing())?,
+                        expiry,
+                        name: item
+                            .router_data
+                            .get_optional_billing_full_name()
+                            .unwrap_or(Secret::new("".to_string())),
+                        number: Some(ccard.card_number.clone()),
+                        security_code: Some(ccard.card_cvc.clone()),
+                        attributes: Some(CardRequestAttributes {
+                            vault: match item.router_data.request.setup_future_usage {
+                                Some(setup_future_usage) => match setup_future_usage {
+                                    enums::FutureUsage::OffSession => Some(PaypalVault {
+                                        store_in_vault: StoreInVault::OnSuccess,
+                                        usage_type: UsageType::Merchant,
+                                    }),
 
-                                enums::FutureUsage::OnSession => None,
+                                    enums::FutureUsage::OnSession => None,
+                                },
+                                None => None,
                             },
-                            None => None,
-                        },
-                        verification,
-                    }),
-                }));
+                            verification,
+                        }),
+                    },
+                )));
 
                 Ok(Self {
                     intent,
@@ -653,20 +667,131 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 Self::try_from(giftcard_data.as_ref())
             }
             domain::PaymentMethodData::MandatePayment => {
-                let payment_source = Some(PaymentSourceItem::Paypal(
-                    PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
-                        vault_id: item.router_data.request.connector_mandate_id().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "connector_mandate_id",
-                            },
-                        )?,
-                    }),
-                ));
+                let payment_method_type = item
+                    .router_data
+                    .get_recurring_mandate_payment_data()?
+                    .payment_method_type
+                    .clone()
+                    .ok_or_else(missing_field_err("mandate_id"))?;
+
+                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+
+                let payment_source = match payment_method_type {
+                    enums::PaymentMethodType::Credit => Ok(Some(PaymentSourceItem::Card(
+                        CardRequest::CardVaultStruct(CardVaultStruct {
+                            vault_id: connector_mandate_id.clone(),
+                        }),
+                    ))),
+                    enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
+                            vault_id: connector_mandate_id.clone(),
+                        }),
+                    ))),
+                    enums::PaymentMethodType::Ach
+                    | enums::PaymentMethodType::Affirm
+                    | enums::PaymentMethodType::AfterpayClearpay
+                    | enums::PaymentMethodType::Alfamart
+                    | enums::PaymentMethodType::AliPay
+                    | enums::PaymentMethodType::AliPayHk
+                    | enums::PaymentMethodType::Alma
+                    | enums::PaymentMethodType::ApplePay
+                    | enums::PaymentMethodType::Atome
+                    | enums::PaymentMethodType::Bacs
+                    | enums::PaymentMethodType::BancontactCard
+                    | enums::PaymentMethodType::Becs
+                    | enums::PaymentMethodType::Benefit
+                    | enums::PaymentMethodType::Bizum
+                    | enums::PaymentMethodType::Blik
+                    | enums::PaymentMethodType::Boleto
+                    | enums::PaymentMethodType::BcaBankTransfer
+                    | enums::PaymentMethodType::BniVa
+                    | enums::PaymentMethodType::BriVa
+                    | enums::PaymentMethodType::CardRedirect
+                    | enums::PaymentMethodType::CimbVa
+                    | enums::PaymentMethodType::ClassicReward
+                    | enums::PaymentMethodType::CryptoCurrency
+                    | enums::PaymentMethodType::Cashapp
+                    | enums::PaymentMethodType::Dana
+                    | enums::PaymentMethodType::DanamonVa
+                    | enums::PaymentMethodType::Debit
+                    | enums::PaymentMethodType::DuitNow
+                    | enums::PaymentMethodType::Efecty
+                    | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Fps
+                    | enums::PaymentMethodType::Evoucher
+                    | enums::PaymentMethodType::Giropay
+                    | enums::PaymentMethodType::Givex
+                    | enums::PaymentMethodType::GooglePay
+                    | enums::PaymentMethodType::GoPay
+                    | enums::PaymentMethodType::Gcash
+                    | enums::PaymentMethodType::Ideal
+                    | enums::PaymentMethodType::Interac
+                    | enums::PaymentMethodType::Indomaret
+                    | enums::PaymentMethodType::Klarna
+                    | enums::PaymentMethodType::KakaoPay
+                    | enums::PaymentMethodType::LocalBankRedirect
+                    | enums::PaymentMethodType::MandiriVa
+                    | enums::PaymentMethodType::Knet
+                    | enums::PaymentMethodType::MbWay
+                    | enums::PaymentMethodType::MobilePay
+                    | enums::PaymentMethodType::Momo
+                    | enums::PaymentMethodType::MomoAtm
+                    | enums::PaymentMethodType::Multibanco
+                    | enums::PaymentMethodType::OnlineBankingThailand
+                    | enums::PaymentMethodType::OnlineBankingCzechRepublic
+                    | enums::PaymentMethodType::OnlineBankingFinland
+                    | enums::PaymentMethodType::OnlineBankingFpx
+                    | enums::PaymentMethodType::OnlineBankingPoland
+                    | enums::PaymentMethodType::OnlineBankingSlovakia
+                    | enums::PaymentMethodType::OpenBankingPIS
+                    | enums::PaymentMethodType::Oxxo
+                    | enums::PaymentMethodType::PagoEfectivo
+                    | enums::PaymentMethodType::PermataBankTransfer
+                    | enums::PaymentMethodType::OpenBankingUk
+                    | enums::PaymentMethodType::PayBright
+                    | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PaySafeCard
+                    | enums::PaymentMethodType::Przelewy24
+                    | enums::PaymentMethodType::PromptPay
+                    | enums::PaymentMethodType::Pse
+                    | enums::PaymentMethodType::RedCompra
+                    | enums::PaymentMethodType::RedPagos
+                    | enums::PaymentMethodType::SamsungPay
+                    | enums::PaymentMethodType::Sepa
+                    | enums::PaymentMethodType::Sofort
+                    | enums::PaymentMethodType::Swish
+                    | enums::PaymentMethodType::TouchNGo
+                    | enums::PaymentMethodType::Trustly
+                    | enums::PaymentMethodType::Twint
+                    | enums::PaymentMethodType::UpiCollect
+                    | enums::PaymentMethodType::UpiIntent
+                    | enums::PaymentMethodType::Vipps
+                    | enums::PaymentMethodType::VietQr
+                    | enums::PaymentMethodType::Venmo
+                    | enums::PaymentMethodType::Walley
+                    | enums::PaymentMethodType::WeChatPay
+                    | enums::PaymentMethodType::SevenEleven
+                    | enums::PaymentMethodType::Lawson
+                    | enums::PaymentMethodType::MiniStop
+                    | enums::PaymentMethodType::FamilyMart
+                    | enums::PaymentMethodType::Seicomart
+                    | enums::PaymentMethodType::PayEasy
+                    | enums::PaymentMethodType::LocalBankTransfer
+                    | enums::PaymentMethodType::Mifinity => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("paypal"),
+                        ))
+                    }
+                };
 
                 Ok(Self {
                     intent,
                     purchase_units,
-                    payment_source,
+                    payment_source: payment_source?,
                 })
             }
             domain::PaymentMethodData::Reward
@@ -1275,7 +1400,7 @@ impl<F, T>
                         None => None,
                     },
                     payment_method_id: None,
-                    connector_customer_id:  match item.response.payment_source {
+                    connector_customer_id: match item.response.payment_source {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
                                 Some(paypal_source.attributes.vault.id)
