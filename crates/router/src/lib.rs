@@ -130,7 +130,11 @@ pub fn mk_app(
             .service(routes::Mandates::server(state.clone()))
     }
 
-    #[cfg(feature = "oltp")]
+    #[cfg(all(
+        feature = "oltp",
+        any(feature = "v1", feature = "v2"),
+        not(feature = "customer_v2")
+    ))]
     {
         server_app = server_app
             .service(routes::EphemeralKey::server(state.clone()))
@@ -165,7 +169,11 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(feature = "stripe")]
+    #[cfg(all(
+        feature = "stripe",
+        any(feature = "v1", feature = "v2"),
+        not(feature = "customer_v2")
+    ))]
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
