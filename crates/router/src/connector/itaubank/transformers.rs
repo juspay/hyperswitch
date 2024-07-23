@@ -302,11 +302,11 @@ fn get_qr_code_data(
 pub struct ItaubankPaymentsSyncResponse {
     status: ItaubankPaymentStatus,
     txid: String,
-    pix: Vec<ItaubankPixResposne>,
+    pix: Vec<ItaubankPixResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ItaubankPixResposne {
+pub struct ItaubankPixResponse {
     #[serde(rename = "endToEndId")]
     pix_id: Option<String>,
 }
