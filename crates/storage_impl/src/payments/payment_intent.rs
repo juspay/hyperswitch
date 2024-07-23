@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use api_models::payments::AmountFilter;
+use api_models::payments::{AmountFilter, SortCriteria};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
@@ -665,7 +665,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        use api_models::payments::SortCriteria;
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -683,12 +682,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
             PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order_by {
-                    Some(SortCriteria::AmountAscending) => query.order(pi_dsl::amount.asc()),
-                    Some(SortCriteria::AmountDescending) => query.order(pi_dsl::amount.desc()),
-                    Some(SortCriteria::CreatedAtAscending) => query.order(pi_dsl::created_at.asc()),
-                    Some(SortCriteria::CreatedAtDescending) => {
-                        query.order(pi_dsl::created_at.desc())
-                    }
+                    Some(SortCriteria::AmountAsc) => query.order(pi_dsl::amount.asc()),
+                    Some(SortCriteria::AmountDesc) => query.order(pi_dsl::amount.desc()),
+                    Some(SortCriteria::CreatedAsc) => query.order(pi_dsl::created_at.asc()),
+                    Some(SortCriteria::CreatedDesc) => query.order(pi_dsl::created_at.desc()),
                     None => query.order(pi_dsl::created_at.desc()), // Default ordering
                 };
 
