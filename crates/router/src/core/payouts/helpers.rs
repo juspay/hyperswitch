@@ -663,8 +663,8 @@ pub async fn get_or_create_customer_details(
 
             Ok(Some(
                 db.insert_customer(
-                    key_manager_state,
                     customer,
+                    key_manager_state,
                     key_store,
                     merchant_account.storage_scheme,
                 )

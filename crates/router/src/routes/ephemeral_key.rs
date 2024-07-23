@@ -22,13 +22,18 @@ pub async fn ephemeral_key_create(
         &req,
         payload,
         |state, auth, req, _| {
-            helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.merchant_id)
+            helpers::make_ephemeral_key(
+                state,
+                req.get_merchant_reference_id(),
+                auth.merchant_account.merchant_id,
+            )
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await
 }
+
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
 pub async fn ephemeral_key_delete(
     state: web::Data<AppState>,

@@ -233,13 +233,17 @@ pub async fn get_customer_mandates(
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
         .store
-        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
+        .find_mandate_by_merchant_id_customer_id(
+            &merchant_account.merchant_id,
+            &req.get_merchant_reference_id(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while finding mandate: merchant_id: {}, customer_id: {:?}",
-                merchant_account.merchant_id, req.customer_id
+                merchant_account.merchant_id,
+                req.get_merchant_reference_id()
             )
         })?;
 
