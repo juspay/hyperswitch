@@ -6,10 +6,7 @@ use hyperswitch_interfaces::consts;
 use masking::PeekInterface;
 use transformers as itaubank;
 
-use super::utils::{
-    self as connector_utils, BrowserInformationData, PaymentsAuthorizeRequestData,
-    PaymentsSyncRequestData,
-};
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -75,10 +72,24 @@ where
                     field_name: "access_token",
                 })?;
 
-        let header = vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.peek()).into(),
-        )];
+        let header = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.peek()).into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                consts::ACCEPT_HEADER.to_string().into(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                consts::USER_AGENT.to_string().into(),
+            ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+        ];
 
         Ok(header)
     }
@@ -143,7 +154,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/oauth/jwt", self.base_url(connectors)))
+        Ok(format!(
+            "{}api/oauth/jwt",
+            connectors.itaubank.secondary_base_url
+        ))
     }
     fn get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
@@ -153,20 +167,22 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let flow_header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefreshTokenType::get_content_type(self)
-                .to_string()
-                .into(),
-        ),
-        (
-            headers::ACCEPT.to_string(),
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.".to_string().into(),
-        ),
-        (
-            headers::USER_AGENT.to_string(),
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36".to_string().into(),
-        )];
+        let flow_header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::RefreshTokenType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                consts::ACCEPT_HEADER.to_string().into(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                consts::USER_AGENT.to_string().into(),
+            ),
+        ];
         Ok(flow_header)
     }
     fn get_request_body(
@@ -273,26 +289,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = self.build_headers(req, connectors)?;
-        let browser_info = req.request.get_browser_info()?;
-        let mut flow_header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self)
-                    .to_string()
-                    .into(),
-            ),
-            (
-                headers::ACCEPT.to_string(),
-                browser_info.get_accept_header()?.into(),
-            ),
-            (
-                headers::USER_AGENT.to_string(),
-                browser_info.get_user_agent()?.into(),
-            ),
-        ];
-        header.append(&mut flow_header);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -304,10 +301,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}/cob", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -384,26 +378,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = self.build_headers(req, connectors)?;
-        let browser_info = req.request.get_browser_info()?;
-        let mut flow_header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self)
-                    .to_string()
-                    .into(),
-            ),
-            (
-                headers::ACCEPT.to_string(),
-                browser_info.get_accept_header()?.into(),
-            ),
-            (
-                headers::USER_AGENT.to_string(),
-                browser_info.get_user_agent()?.into(),
-            ),
-        ];
-        header.append(&mut flow_header);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -416,7 +391,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob/{}",
+            "{}/cob/{}",
             self.base_url(connectors),
             req.request
                 .connector_transaction_id
@@ -550,6 +525,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Itaubank
 {
+    fn build_request(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "void".to_string(),
+            connector: "itaubank".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
@@ -569,10 +555,24 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let itaubank_metadata = req.request.get_connector_metadata()?;
+        let pix_data: itaubank::ItaubankMetaData = serde_json::from_value(itaubank_metadata)
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "itaubank_metadata",
+            })?;
+        Ok(format!(
+            "{}/pix/{}/devolucao/{}",
+            self.base_url(connectors),
+            pix_data
+                .pix_id
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "pix_id"
+                })?,
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -597,7 +597,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+            .method(services::Method::Put)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
@@ -653,10 +653,24 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let itaubank_metadata = req.request.get_connector_metadata()?;
+        let pix_data: itaubank::ItaubankMetaData = serde_json::from_value(itaubank_metadata)
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "itaubank_metadata",
+            })?;
+        Ok(format!(
+            "{}/pix/{}/devolucao/{}",
+            self.base_url(connectors),
+            pix_data
+                .pix_id
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "pix_id"
+                })?,
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -685,7 +699,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: itaubank::RefundResponse = res
             .response
-            .parse_struct("itaubank RefundSyncResponse")
+            .parse_struct("itaubank RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

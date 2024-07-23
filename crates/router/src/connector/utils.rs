@@ -1064,7 +1064,6 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
@@ -1084,11 +1083,6 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
-    }
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
-        self.browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -1182,6 +1176,7 @@ pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_connector_metadata(&self) -> Result<serde_json::Value, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -1201,6 +1196,11 @@ impl RefundsRequestData for types::RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_connector_metadata(&self) -> Result<serde_json::Value, Error> {
+        self.connector_metadata
+            .clone()
+            .ok_or_else(missing_field_err("connector_metadata"))
     }
 }
 

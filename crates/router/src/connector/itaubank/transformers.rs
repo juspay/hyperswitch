@@ -302,6 +302,18 @@ fn get_qr_code_data(
 pub struct ItaubankPaymentsSyncResponse {
     status: ItaubankPaymentStatus,
     txid: String,
+    pix: Vec<ItaubankPixResposne>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItaubankPixResposne {
+    #[serde(rename = "endToEndId")]
+    pix_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItaubankMetaData {
+    pub pix_id: Option<String>,
 }
 
 impl<F, T>
@@ -318,6 +330,20 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let pix_data = item
+            .response
+            .pix
+            .first()
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "pix_id",
+            })?
+            .to_owned();
+
+        let connector_metadata = Some(serde_json::json!(ItaubankMetaData {
+            pix_id: pix_data.pix_id
+        }));
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -326,7 +352,7 @@ impl<F, T>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.txid),
                 incremental_authorization_allowed: None,
@@ -339,7 +365,7 @@ impl<F, T>
 
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankRefundRequest {
-    pub amount: StringMajorUnit,
+    pub valor: StringMajorUnit, // refund_amount
 }
 
 impl<F> TryFrom<&ItaubankRouterData<&types::RefundsRouterData<F>>> for ItaubankRefundRequest {
@@ -348,32 +374,34 @@ impl<F> TryFrom<&ItaubankRouterData<&types::RefundsRouterData<F>>> for ItaubankR
         item: &ItaubankRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            valor: item.amount.to_owned(),
         })
     }
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    Processing,
+    EmProcessamento, // Processing
+    Devolvido,       // Returned
+    NaoRealizado,    // Unrealized
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            RefundStatus::Devolvido => Self::Success,
+            RefundStatus::NaoRealizado => Self::Failure,
+            RefundStatus::EmProcessamento => Self::Pending,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    id: String,
+    rtr_id: String,
     status: RefundStatus,
 }
 
@@ -386,7 +414,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.rtr_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -403,7 +431,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.rtr_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
