@@ -480,7 +480,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
@@ -517,7 +517,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: id_type::CustomerId,
-            merchant_id: common_utils::id_type::MerchantId,
+            merchant_id: id_type::MerchantId,
             _customer: domain::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -545,7 +545,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Customer, errors::StorageError> {
@@ -576,7 +576,7 @@ mod storage {
         async fn list_customers_by_merchant_id(
             &self,
             state: &KeyManagerState,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -631,7 +631,7 @@ mod storage {
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
         ) -> CustomResult<bool, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Customer::delete_by_customer_id_merchant_id(

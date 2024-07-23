@@ -499,7 +499,7 @@ mod storage {
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -544,7 +544,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -562,7 +562,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
             _storage_scheme: MerchantStorageScheme,
@@ -581,7 +581,7 @@ mod storage {
 
         async fn delete_payment_method_by_merchant_id_payment_method_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            merchant_id: &id_type::MerchantId,
             payment_method_id: &str,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
