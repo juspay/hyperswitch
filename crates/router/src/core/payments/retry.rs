@@ -73,7 +73,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -111,7 +111,7 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries = get_retries(state, retries, &merchant_account.get_id()).await;
+                    retries = get_retries(state, retries, merchant_account.get_id()).await;
 
                     if retries.is_none() || retries == Some(0) {
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);

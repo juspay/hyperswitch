@@ -56,7 +56,7 @@ pub async fn validate_create_request(
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
@@ -65,7 +65,7 @@ pub async fn validate_create_request(
     };
 
     // Merchant ID
-    let predicate = req.merchant_id.as_ref().map(|mid| mid != *merchant_id);
+    let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "merchant_id".to_string(),
@@ -109,7 +109,7 @@ pub async fn validate_create_request(
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
                 &customer_id,
-                &merchant_account.get_id(),
+                merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
                 None,

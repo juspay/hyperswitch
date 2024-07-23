@@ -44,7 +44,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, mut payment_attempt, currency, amount);
 

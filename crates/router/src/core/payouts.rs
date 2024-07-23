@@ -178,7 +178,7 @@ pub async fn make_connector_decision(
             {
                 let config_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     retry::PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -215,7 +215,7 @@ pub async fn make_connector_decision(
             {
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     retry::PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -234,7 +234,7 @@ pub async fn make_connector_decision(
 
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     retry::PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -709,7 +709,7 @@ pub async fn payouts_list_core(
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     validator::validate_payout_list_request(&constraints)?;
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
         db,
@@ -815,7 +815,7 @@ pub async fn payouts_filtered_list_core(
         diesel_models::Customer,
     )> = db
         .filter_payouts_and_attempts(
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &filters.clone().into(),
             merchant_account.storage_scheme,
         )
@@ -865,7 +865,7 @@ pub async fn payouts_list_available_filters_core(
     let db = state.store.as_ref();
     let payout = db
         .filter_payouts_by_time_range_constraints(
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &time_range,
             merchant_account.storage_scheme,
         )
@@ -875,7 +875,7 @@ pub async fn payouts_list_available_filters_core(
     let filters = db
         .get_filters_for_payouts(
             payout.as_slice(),
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
         .await
@@ -2182,7 +2182,7 @@ pub async fn payout_create_db_entries(
                 state,
                 &business_profile,
                 &customer_id,
-                &merchant_account.get_id(),
+                merchant_account.get_id(),
                 req,
                 payout_id,
             )
@@ -2326,7 +2326,7 @@ pub async fn make_payout_data(
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let payout_id = match req {
         payouts::PayoutRequest::PayoutActionRequest(r) => r.payout_id.clone(),
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_id.clone().unwrap_or_default(),
@@ -2395,7 +2395,7 @@ pub async fn make_payout_data(
                         None,
                         Some(&payout_token),
                         &customer_id,
-                        &merchant_account.get_id(),
+                        merchant_account.get_id(),
                         payouts.payout_type,
                         key_store,
                         None,

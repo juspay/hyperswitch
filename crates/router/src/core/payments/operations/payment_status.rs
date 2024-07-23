@@ -223,7 +223,7 @@ async fn get_tracker_for_sync<
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
         payment_id,
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         key_store,
         storage_scheme,
     )
@@ -241,7 +241,7 @@ async fn get_tracker_for_sync<
         payment_intent.shipping_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -250,7 +250,7 @@ async fn get_tracker_for_sync<
         payment_intent.billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -260,7 +260,7 @@ async fn get_tracker_for_sync<
         payment_attempt.payment_method_billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -270,11 +270,11 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(&merchant_account.get_id(), &payment_id_str, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id_str, storage_scheme)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id_str}",&merchant_account.get_id())
+                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id_str}",merchant_account.get_id())
                 })?)
         },
         _ => None,
@@ -304,7 +304,7 @@ async fn get_tracker_for_sync<
     let refunds = db
         .find_refund_by_payment_id_merchant_id(
             &payment_id_str,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             storage_scheme,
         )
         .await
@@ -319,7 +319,7 @@ async fn get_tracker_for_sync<
 
     let authorizations = db
         .find_all_authorizations_by_merchant_id_payment_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &payment_id_str,
         )
         .await
@@ -333,11 +333,11 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_merchant_id_payment_id(&merchant_account.get_id(), &payment_id_str)
+        .find_disputes_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id_str)
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id_str}", &merchant_account.get_id())
+            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
         })?;
 
     let frm_response = db
@@ -345,7 +345,7 @@ async fn get_tracker_for_sync<
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id_str}", &merchant_account.get_id())
+            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
         });
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
@@ -358,7 +358,7 @@ async fn get_tracker_for_sync<
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, &merchant_account.get_id(), mcd)
+            helpers::insert_merchant_connector_creds_to_config(db,merchant_account.get_id(), mcd)
                 .await
         })
         .await
@@ -488,7 +488,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),

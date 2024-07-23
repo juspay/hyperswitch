@@ -189,7 +189,7 @@ where
                 )
                 .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                let merchant_id = &merchant_account.get_id();
+                let merchant_id = merchant_account.get_id();
                 let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
                     skip_saving_card_in_locker(
                         merchant_account,
@@ -411,7 +411,7 @@ where
                                                 &resp,
                                                 &payment_method_create_request.clone(),
                                                 key_store,
-                                                &merchant_account.get_id(),
+                                               merchant_account.get_id(),
                                                 &customer_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,

@@ -45,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (mut payment_intent, mut payment_attempt, currency, amount);
 
@@ -508,7 +508,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),

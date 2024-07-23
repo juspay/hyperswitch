@@ -300,7 +300,7 @@ where
     F: Send + Clone,
 {
     let db = &state.store;
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.

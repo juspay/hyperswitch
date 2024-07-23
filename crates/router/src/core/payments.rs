@@ -274,7 +274,7 @@ where
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
                             connector.connector.id(),
-                            &merchant_account.get_id(),
+                            merchant_account.get_id(),
                             0,
                         )
                         .await
@@ -365,7 +365,7 @@ where
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
                             connector_data.connector.id(),
-                            &merchant_account.get_id(),
+                            merchant_account.get_id(),
                             0,
                         )
                         .await
@@ -401,11 +401,9 @@ where
                     #[cfg(feature = "retry")]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
-                        let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
-                            &merchant_account.get_id(),
-                        )
-                        .await;
+                        let config_bool =
+                            retry::config_should_call_gsm(&*state.store, merchant_account.get_id())
+                                .await;
 
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
@@ -3447,7 +3445,7 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry =
-                retry::config_should_call_gsm(&*state.store, &merchant_account.get_id()).await;
+                retry::config_should_call_gsm(&*state.store, merchant_account.get_id()).await;
 
             #[cfg(feature = "retry")]
             if payment_data.payment_attempt.payment_method_type
@@ -3950,7 +3948,7 @@ where
 
     let connectors = routing::perform_static_routing_v1(
         state,
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
         algorithm_ref,
         &transaction_data,
     )
@@ -4022,7 +4020,7 @@ pub async fn payment_external_authentication(
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
     let db = &*state.store;
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let storage_scheme = merchant_account.storage_scheme;
     let payment_id = req.payment_id;
     let payment_intent = db
@@ -4063,7 +4061,7 @@ pub async fn payment_external_authentication(
                 .find_customer_by_customer_id_merchant_id(
                     &(&state).into(),
                     customer_id,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     &key_store,
                     storage_scheme,
                 )
@@ -4302,7 +4300,7 @@ pub async fn payments_manual_update(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &payment_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )

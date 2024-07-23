@@ -43,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()

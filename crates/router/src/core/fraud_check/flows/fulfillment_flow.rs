@@ -95,7 +95,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]

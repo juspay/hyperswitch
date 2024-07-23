@@ -41,7 +41,7 @@ pub async fn get_mandate(
         .store
         .as_ref()
         .find_mandate_by_merchant_id_mandate_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req.mandate_id,
             merchant_account.storage_scheme,
         )
@@ -68,7 +68,7 @@ pub async fn revoke_mandate(
     let db = state.store.as_ref();
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req.mandate_id,
             merchant_account.storage_scheme,
         )
@@ -88,7 +88,7 @@ pub async fn revoke_mandate(
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 None,
                 &key_store,
                 &profile_id,
@@ -130,7 +130,7 @@ pub async fn revoke_mandate(
                 Ok(_) => {
                     let update_mandate = db
                         .update_mandate_by_merchant_id_mandate_id(
-                            &merchant_account.get_id(),
+                           merchant_account.get_id(),
                             &req.mandate_id,
                             storage::MandateUpdate::StatusUpdate {
                                 mandate_status: storage::enums::MandateStatus::Revoked,
@@ -484,7 +484,7 @@ pub async fn retrieve_mandates_list(
     let mandates = state
         .store
         .as_ref()
-        .find_mandates_by_merchant_id(&merchant_account.get_id(), constraints)
+        .find_mandates_by_merchant_id(merchant_account.get_id(), constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;

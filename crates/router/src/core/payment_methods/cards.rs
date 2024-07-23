@@ -251,7 +251,7 @@ pub async fn get_or_insert_payment_method(
                     resp,
                     &req,
                     key_store,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     customer_id,
                     resp.metadata.clone().map(|val| val.expose()),
                     None,
@@ -590,7 +590,7 @@ pub async fn get_client_secret_or_add_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     #[cfg(not(feature = "payouts"))]
@@ -722,7 +722,7 @@ pub async fn add_payment_method_data(
         .find_customer_by_customer_id_merchant_id(
             &(&state).into(),
             &customer_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -885,7 +885,7 @@ pub async fn add_payment_method(
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let db = &*state.store;
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let payment_method = req.payment_method.get_required_value("payment_method")?;
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
@@ -1511,7 +1511,7 @@ pub async fn add_bank_to_locker(
         bank.clone(),
         store_resp.card_reference,
         req,
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
     );
     Ok((payment_method_resp, store_resp.duplication_check))
 }
@@ -1670,7 +1670,7 @@ pub async fn add_card_hs(
         card.clone(),
         store_card_payload.card_reference,
         req,
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
     );
     Ok((payment_method_resp, store_card_payload.duplication_check))
 }
@@ -2243,7 +2243,7 @@ pub async fn list_payment_methods(
                 pi.shipping_address_id.clone(),
                 &key_store,
                 &pi.payment_id,
-                &merchant_account.get_id(),
+                merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -2260,7 +2260,7 @@ pub async fn list_payment_methods(
                 pi.billing_address_id.clone(),
                 &key_store,
                 &pi.payment_id,
-                &merchant_account.get_id(),
+                merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -2325,7 +2325,7 @@ pub async fn list_payment_methods(
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             false,
             &key_store,
         )
@@ -2351,7 +2351,7 @@ pub async fn list_payment_methods(
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         profile_id.as_ref(),
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
     )
     .await?;
 
@@ -2372,7 +2372,7 @@ pub async fn list_payment_methods(
             })?;
         format!(
             "pm_filters_cgraph_{}_{}",
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             profile_id
         )
     };
@@ -2473,7 +2473,7 @@ pub async fn list_payment_methods(
                 match db
                     .find_payment_method_by_customer_id_merchant_id_list(
                         &customer.customer_id,
-                        &merchant_account.get_id(),
+                       merchant_account.get_id(),
                         None,
                     )
                     .await
@@ -3709,7 +3709,7 @@ pub async fn list_customer_payment_method(
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
             customer_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -3730,14 +3730,14 @@ pub async fn list_customer_payment_method(
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
             merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.get_id())?;
+    //let mca = query::find_mca_by_merchant_id(conn, merchant_account.get_id())?;
     let mut customer_pms = Vec::new();
 
     let profile_id = payment_intent
@@ -3760,7 +3760,7 @@ pub async fn list_customer_payment_method(
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         profile_id.as_ref(),
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
     )
     .await?;
 
@@ -3888,7 +3888,7 @@ pub async fn list_customer_payment_method(
         let mca_enabled = get_mca_status(
             state,
             &key_store,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             is_connector_agnostic_mit_enabled,
             connector_mandate_details,
             pm.network_transaction_id.as_ref(),
@@ -3987,7 +3987,7 @@ pub async fn list_customer_payment_method(
                 .store
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &payment_intent.payment_id,
-                    &merchant_account.get_id(),
+                    merchant_account.get_id(),
                     &payment_intent.active_attempt.get_id(),
                     merchant_account.storage_scheme,
                 )
@@ -4610,7 +4610,7 @@ pub async fn delete_payment_method(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &key.customer_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -4636,7 +4636,7 @@ pub async fn delete_payment_method(
     }
 
     db.delete_payment_method_by_merchant_id_payment_method_id(
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
         pm_id.payment_method_id.as_str(),
     )
     .await

@@ -70,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, payment_attempt);
 
@@ -236,7 +236,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 create_payment_link(
                     request,
                     payment_link_config,
-                    merchant_id.to_owned(),
+                    merchant_id,
                     payment_id.clone(),
                     db,
                     amount,
@@ -719,7 +719,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         ))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         helpers::validate_request_amount_and_amount_to_capture(

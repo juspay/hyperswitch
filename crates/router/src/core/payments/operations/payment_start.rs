@@ -42,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -239,7 +239,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
         operations::ValidateResult,
     )> {
         let request_merchant_id = Some(&request.merchant_id);
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),

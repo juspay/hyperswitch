@@ -40,7 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -117,7 +117,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.get_id())
+            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_account.get_id())
         });
 
         let profile_id = payment_intent

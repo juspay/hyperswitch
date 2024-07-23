@@ -57,7 +57,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
@@ -822,7 +822,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),

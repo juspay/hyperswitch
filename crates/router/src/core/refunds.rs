@@ -646,7 +646,7 @@ pub async fn refund_update_core(
     let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
         )
@@ -748,7 +748,7 @@ pub async fn validate_and_create_refund(
 
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &connecter_transaction_id,
             merchant_account.storage_scheme,
         )
@@ -864,7 +864,7 @@ pub async fn refund_list(
 
     let refund_list = db
         .filter_refund_by_constraints(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
             limit,
@@ -880,7 +880,7 @@ pub async fn refund_list(
 
     let total_count = db
         .get_total_count_of_refunds(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
         )
@@ -906,7 +906,7 @@ pub async fn refund_filter_list(
     let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
         )
@@ -942,7 +942,7 @@ pub async fn refund_manual_update(
     let refund = state
         .store
         .find_refund_by_merchant_id_refund_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
         )

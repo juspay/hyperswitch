@@ -377,7 +377,7 @@ pub async fn retrieve_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -432,7 +432,7 @@ pub async fn delete_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -440,7 +440,7 @@ pub async fn delete_customer(
         .switch()?;
 
     let customer_mandates = db
-        .find_mandate_by_merchant_id_customer_id(&merchant_account.get_id(), &req.customer_id)
+        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &req.customer_id)
         .await
         .switch()?;
 
@@ -453,7 +453,7 @@ pub async fn delete_customer(
     match db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             None,
         )
         .await
@@ -465,14 +465,14 @@ pub async fn delete_customer(
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
-                        &merchant_account.get_id(),
+                       merchant_account.get_id(),
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     &pm.payment_method_id,
                 )
                 .await
@@ -529,7 +529,7 @@ pub async fn delete_customer(
         .update_address_by_merchant_id_customer_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             update_address,
             &key_store,
         )
@@ -613,7 +613,7 @@ pub async fn update_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -655,7 +655,7 @@ pub async fn update_customer(
                     .get_domain_address(
                         &state,
                         customer_address,
-                        &merchant_account.get_id(),
+                       merchant_account.get_id(),
                         &customer.customer_id,
                         key,
                         merchant_account.storage_scheme,

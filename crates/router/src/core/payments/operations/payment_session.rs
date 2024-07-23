@@ -47,7 +47,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
         let mut payment_intent = db
@@ -360,7 +360,7 @@ where
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 false,
                 key_store,
             )

@@ -43,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (mut payment_intent, payment_attempt, currency, amount);
 
@@ -135,7 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.get_id().get_string_repr())
+            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_account.get_id().get_string_repr())
         });
 
         let payment_data = PaymentData {
@@ -264,7 +264,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(&merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),

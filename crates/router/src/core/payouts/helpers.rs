@@ -506,7 +506,7 @@ pub async fn save_payout_data_to_locker(
             &payout_attempt.customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             None,
             None,
             card_details_encrypted.clone().map(Into::into),
@@ -535,7 +535,7 @@ pub async fn save_payout_data_to_locker(
         cards::delete_card_from_hs_locker(
             state,
             &payout_attempt.customer_id,
-            &merchant_account.get_id(),
+            merchant_account.get_id(),
             card_reference,
         )
         .await
@@ -559,7 +559,7 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
-                &merchant_account.get_id(),
+                merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
             .await
@@ -611,7 +611,7 @@ pub async fn get_or_create_customer_details(
         .clone()
         .unwrap_or_else(generate_customer_id_of_default_length);
 
-    let merchant_id = &merchant_account.get_id();
+    let merchant_id = merchant_account.get_id();
     let key = key_store.key.get_inner().peek();
     let key_manager_state = &state.into();
 

@@ -160,7 +160,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let decoded_body = connector
         .decode_webhook_body(
             &request_details,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             merchant_connector_account
                 .clone()
                 .and_then(|merchant_connector_account| {
@@ -226,7 +226,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &*state.clone().store,
         connector_name.as_str(),
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         &event_type,
     )
     .await;
@@ -295,7 +295,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .clone()
                 .verify_webhook_source(
                     &request_details,
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     merchant_connector_account.connector_webhook_details.clone(),
                     merchant_connector_account.connector_account_details.clone(),
                     connector_name.as_str(),
@@ -656,7 +656,7 @@ async fn payouts_incoming_webhook_flow(
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
                 webhooks::PayoutIdType::PayoutAttemptId(id) => db
                     .find_payout_attempt_by_merchant_id_payout_attempt_id(
-                        &merchant_account.get_id(),
+                       merchant_account.get_id(),
                         &id,
                         merchant_account.storage_scheme,
                     )
@@ -665,7 +665,7 @@ async fn payouts_incoming_webhook_flow(
                     .attach_printable("Failed to fetch the payout attempt")?,
                 webhooks::PayoutIdType::ConnectorPayoutId(id) => db
                     .find_payout_attempt_by_merchant_id_connector_payout_id(
-                        &merchant_account.get_id(),
+                       merchant_account.get_id(),
                         &id,
                         merchant_account.storage_scheme,
                     )
@@ -679,7 +679,7 @@ async fn payouts_incoming_webhook_flow(
 
         let payouts = db
             .find_payout_by_merchant_id_payout_id(
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 &payout_attempt.payout_id,
                 merchant_account.storage_scheme,
             )
@@ -780,7 +780,7 @@ async fn refunds_incoming_webhook_flow(
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
             webhooks::RefundIdType::RefundId(id) => db
                 .find_refund_by_merchant_id_refund_id(
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     &id,
                     merchant_account.storage_scheme,
                 )
@@ -789,7 +789,7 @@ async fn refunds_incoming_webhook_flow(
                 .attach_printable("Failed to fetch the refund")?,
             webhooks::RefundIdType::ConnectorRefundId(id) => db
                 .find_refund_by_merchant_id_connector_refund_id_connector(
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     &id,
                     connector_name,
                     merchant_account.storage_scheme,
@@ -874,7 +874,7 @@ async fn get_payment_attempt_from_object_reference_id(
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
             .find_payment_attempt_by_merchant_id_connector_txn_id(
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 id,
                 merchant_account.storage_scheme,
             )
@@ -883,7 +883,7 @@ async fn get_payment_attempt_from_object_reference_id(
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
             .find_payment_attempt_by_attempt_id_merchant_id(
                 id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -891,7 +891,7 @@ async fn get_payment_attempt_from_object_reference_id(
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
             .find_payment_attempt_by_preprocessing_id_merchant_id(
                 id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -1170,7 +1170,7 @@ async fn mandates_incoming_webhook_flow(
                 mandate_id,
             )) => db
                 .find_mandate_by_merchant_id_mandate_id(
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     mandate_id.as_str(),
                     merchant_account.storage_scheme,
                 )
@@ -1180,7 +1180,7 @@ async fn mandates_incoming_webhook_flow(
                 webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id),
             ) => db
                 .find_mandate_by_merchant_id_connector_mandate_id(
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     connector_mandate_id.as_str(),
                     merchant_account.storage_scheme,
                 )
@@ -1195,7 +1195,7 @@ async fn mandates_incoming_webhook_flow(
         let mandate_id = mandate.mandate_id.clone();
         let updated_mandate = db
             .update_mandate_by_merchant_id_mandate_id(
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 &mandate_id,
                 storage::MandateUpdate::StatusUpdate { mandate_status },
                 mandate,
@@ -1377,7 +1377,7 @@ async fn disputes_incoming_webhook_flow(
         .await?;
         let option_dispute = db
             .find_by_merchant_id_payment_id_connector_dispute_id(
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
             )
@@ -1387,7 +1387,7 @@ async fn disputes_incoming_webhook_flow(
             state.clone(),
             option_dispute,
             dispute_details,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &payment_attempt,
             event_type,
             &business_profile,
@@ -1574,7 +1574,7 @@ async fn verify_webhook_source_verification_call(
     > = connector_data.connector.get_connector_integration();
     let connector_webhook_secrets = connector
         .get_webhook_source_verification_merchant_secret(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             connector_name,
             merchant_connector_account.connector_webhook_details.clone(),
         )
@@ -1676,7 +1676,7 @@ async fn fetch_optional_mca_and_connector(
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &state.into(),
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 connector_name_or_mca_id,
                 key_store,
             )
