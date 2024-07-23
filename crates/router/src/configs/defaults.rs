@@ -8569,6 +8569,40 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                        options: vec![
+                                                            "AU".to_string(),
+                                                            "AT".to_string(),
+                                                            "BE".to_string(),
+                                                            "CA".to_string(),
+                                                            "CZ".to_string(),
+                                                            "DK".to_string(),
+                                                            "FI".to_string(),
+                                                            "FR".to_string(),
+                                                            "DE".to_string(),
+                                                            "GR".to_string(),
+                                                            "IE".to_string(),
+                                                            "IT".to_string(),
+                                                            "NL".to_string(),
+                                                            "NZ".to_string(),
+                                                            "NO".to_string(),
+                                                            "PL".to_string(),
+                                                            "PT".to_string(),
+                                                            "ES".to_string(),
+                                                            "SE".to_string(),
+                                                            "CH".to_string(),
+                                                            "GB".to_string(),
+                                                            "US".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            )
                                         ]),
                                     }
                                 )

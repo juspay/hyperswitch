@@ -13,7 +13,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::decrypt,
+    type_encryption::decrypt_optional,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -847,7 +847,7 @@ impl PaymentCreate {
             additional_pm_data = payment_method_info
                 .as_ref()
                 .async_map(|pm_info| async {
-                    decrypt::<serde_json::Value, masking::WithType>(
+                    decrypt_optional::<serde_json::Value, masking::WithType>(
                         &state.into(),
                         pm_info.payment_method_data.clone(),
                         Identifier::Merchant(key_store.merchant_id.clone()),

@@ -9,16 +9,16 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "v1"]
+olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
-keymanager_mtls = ["reqwest/rustls-tls","common_utils/keymanager_mtls"]
+keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
 encryption_service = ["hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
 email = ["external_services/email", "scheduler/email", "olap"]
 keymanager_create = []
 frm = ["api_models/frm", "hyperswitch_domain_models/frm"]
 stripe = ["dep:serde_qs"]
 release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service"]
-olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
@@ -30,7 +30,10 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_mod
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = ["api_models/v2"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
+merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2", "hyperswitch_domain_models/merchant_account_v2"]
+payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2"]
 
 [dependencies]
 actix-cors = "0.6.5"
@@ -71,7 +74,7 @@ mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
-openidconnect = "3.5.0" # TODO: remove reqwest
+openidconnect = "3.5.0"                                                                                                      # TODO: remove reqwest
 openssl = "0.10.64"
 qrcode = "0.14.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
@@ -110,6 +113,7 @@ validator = "0.17.0"
 x509-parser = "0.16.0"
 
 # First party crates
+
 analytics = { version = "0.1.0", path = "../analytics", optional = true }
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
