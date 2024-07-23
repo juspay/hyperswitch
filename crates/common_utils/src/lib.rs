@@ -13,6 +13,8 @@ pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+#[allow(missing_docs)] // Todo: add docs
+pub mod encryption;
 pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
@@ -31,6 +33,7 @@ pub mod request;
 pub mod signals;
 #[allow(missing_docs)] // Todo: add docs
 pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
 

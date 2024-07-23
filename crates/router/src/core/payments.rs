@@ -164,7 +164,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
-            &*state.store,
+            state,
             &mut payment_data,
             customer_details,
             &key_store,
@@ -208,8 +208,6 @@ where
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
         let mut frm_info = None;
-        #[cfg(feature = "frm")]
-        let db = &*state.store;
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
@@ -217,7 +215,6 @@ where
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
             Box::pin(frm_core::call_frm_before_connector_call(
-                db,
                 &operation,
                 &merchant_account,
                 &mut payment_data,
@@ -663,6 +660,7 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
+        logger::debug!("payment_intent.surcharge_applicable = true");
         if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
             // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
             let surcharge_details =
@@ -710,6 +708,7 @@ where
                 .payment_attempt
                 .get_surcharge_details()
                 .map(|surcharge_details| {
+                    logger::debug!("surcharge sent in payments create request");
                     types::SurchargeDetails::from((
                         &surcharge_details,
                         &payment_data.payment_attempt,
@@ -1203,6 +1202,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 &merchant_id,
                 &merchant_key_store,
@@ -2883,7 +2883,7 @@ pub async fn list_payments(
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
-        db,
+        &state,
         &constraints,
         merchant_id,
         &key_store,
@@ -2955,6 +2955,7 @@ pub async fn apply_filters_on_payments(
     let db = state.store.as_ref();
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
+            &(&state).into(),
             &merchant.merchant_id,
             &constraints.clone().into(),
             &merchant_key_store,
@@ -3008,6 +3009,7 @@ pub async fn get_filters_for_payments(
     let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
+            &(&state).into(),
             &merchant.merchant_id,
             &time_range,
             &merchant_key_store,
@@ -4021,6 +4023,7 @@ pub async fn payment_external_authentication(
     let payment_id = req.payment_id;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             merchant_id,
             &key_store,
@@ -4054,6 +4057,7 @@ pub async fn payment_external_authentication(
             state
                 .store
                 .find_customer_by_customer_id_merchant_id(
+                    &(&state).into(),
                     customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
@@ -4076,7 +4080,7 @@ pub async fn payment_external_authentication(
     let currency = payment_attempt.currency.get_required_value("currency")?;
     let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.shipping_address_id.as_deref(),
         merchant_id,
@@ -4087,7 +4091,7 @@ pub async fn payment_external_authentication(
     )
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
-        db,
+        &state,
         None,
         payment_intent.billing_address_id.as_deref(),
         merchant_id,
@@ -4259,9 +4263,11 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
     } = req;
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -4270,7 +4276,7 @@ pub async fn payments_manual_update(
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -4290,6 +4296,7 @@ pub async fn payments_manual_update(
     let payment_intent = state
         .store
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -4345,6 +4352,7 @@ pub async fn payments_manual_update(
         state
             .store
             .update_payment_intent(
+                &(&state).into(),
                 payment_intent,
                 payment_intent_update,
                 &key_store,

@@ -2,7 +2,6 @@ use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
-use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -73,8 +72,8 @@ impl MandateResponseExt for MandateResponse {
             } else {
                 payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
-                    key_store.key.get_inner().peek(),
                     state,
+                    &key_store,
                 )
                 .await?
             };

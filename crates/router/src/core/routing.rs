@@ -14,13 +14,14 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+use crate::db::StorageInterface;
 use crate::{
     consts,
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         metrics, utils as core_utils,
     },
-    db::StorageInterface,
     routes::SessionState,
     services::api as service_api,
     types::{
@@ -29,7 +30,6 @@ use crate::{
     },
     utils::{self, OptionExt, ValueExt},
 };
-
 pub enum TransactionData<'a, F>
 where
     F: Clone,
@@ -95,7 +95,7 @@ impl<'a> RoutingHelpers<'a> {
         &self,
         merchant_id: &str,
         key_store: &'a domain::MerchantKeyStore,
-        db: &'a dyn StorageInterface,
+        state: &SessionState,
     ) -> RouterResult<RoutingAlgorithm> {
         let name = self.get_required_field_from_requests(
             |routing_request| routing_request.name.clone(),
@@ -115,17 +115,24 @@ impl<'a> RoutingHelpers<'a> {
             "profile_id",
         )?;
 
-        core_utils::validate_and_get_business_profile(db, Some(&profile_id), &merchant_id).await?;
+        core_utils::validate_and_get_business_profile(
+            &*state.store,
+            Some(&profile_id),
+            merchant_id,
+        )
+        .await?;
 
         let timestamp = common_utils::date_time::now();
 
         let mer_helper = helpers::MerchantHelpers {
-            merchant_id: &merchant_id,
+            merchant_id,
             key_store,
             profile_id: &profile_id,
             routing_algorithm: &algorithm,
         };
-        mer_helper.validate_connectors_in_routing_config(db).await?;
+        mer_helper
+            .validate_connectors_in_routing_config(state)
+            .await?;
 
         let algo = RoutingAlgorithm {
             algorithm_id: self.generate_algorithm_id(merchant_id),
@@ -156,12 +163,13 @@ pub async fn create_routing_config(
         req: &request,
         transaction_type,
     };
-    let db = state.store.as_ref();
     let algo = routing_helper
-        .create_new_routing_algorithm(&merchant_account.merchant_id, &key_store, db)
+        .create_new_routing_algorithm(&merchant_account.merchant_id, &key_store, &state)
         .await?;
 
-    let record = db
+    let record = state
+        .store
+        .as_ref()
         .insert_routing_algorithm(algo)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -226,7 +234,7 @@ pub async fn create_routing_config(
     .await?;
 
     helpers::validate_connectors_in_routing_config(
-        db,
+        &state,
         &key_store,
         &merchant_account.merchant_id,
         &profile_id,

@@ -85,15 +85,17 @@ pub async fn send_recon_request(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
         .merchant_id;
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id.as_str(),
             &db.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id.as_str(), &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -130,7 +132,12 @@ pub async fn send_recon_request(
         };
 
         let response = db
-            .update_merchant(merchant_account, updated_merchant_account, &key_store)
+            .update_merchant(
+                key_manager_state,
+                merchant_account,
+                updated_merchant_account,
+                &key_store,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
@@ -162,6 +169,7 @@ pub async fn recon_merchant_account_update(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
+            &(&state).into(),
             &req.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -169,7 +177,7 @@ pub async fn recon_merchant_account_update(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&(&state).into(), merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -178,7 +186,12 @@ pub async fn recon_merchant_account_update(
     };
 
     let response = db
-        .update_merchant(merchant_account, updated_merchant_account, &key_store)
+        .update_merchant(
+            &(&state).into(),
+            merchant_account,
+            updated_merchant_account,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {

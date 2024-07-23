@@ -11,10 +11,11 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode},
     hashing::HashedString,
     id_type,
-    pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    pii::{self, Email, EmailStrategy},
+    types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
-use masking::{PeekInterface, Secret, WithType};
+use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -205,7 +206,9 @@ pub struct CustomerDetails {
 }
 
 /// Details of customer attached to this payment
-#[derive(Debug, Default, serde::Serialize, Clone, ToSchema, PartialEq, Setter)]
+#[derive(
+    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter,
+)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -1856,7 +1859,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
-            Self::Pix {} => api_enums::PaymentMethodType::Pix,
+            Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
         }
@@ -2458,7 +2461,17 @@ pub enum BankTransferData {
         /// The billing details for BniVa Bank Transfer
         billing_details: Option<DokuBillingDetails>,
     },
-    Pix {},
+    Pix {
+        /// Unique key for pix transfer
+        #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
+        pix_key: Option<Secret<String>>,
+        /// CPF is a Brazilian tax identification number
+        #[schema(value_type = Option<i64>, example = "10599054689")]
+        cpf: Option<Secret<i64>>,
+        /// CNPJ is a Brazilian company tax identification number
+        #[schema(value_type = Option<i64>, example = "74469027417312")]
+        cnpj: Option<Secret<i64>>,
+    },
     Pse {},
     LocalBankTransfer {
         bank_code: Option<String>,
@@ -2530,7 +2543,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     email: details.email.clone(),
                 })
             }
-            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix { .. } | Self::Pse {} => None,
         }
     }
 }
@@ -3184,6 +3197,72 @@ impl AddressDetails {
         } else {
             self
         }
+    }
+}
+
+pub struct AddressDetailsWithPhone {
+    pub address: Option<AddressDetails>,
+    pub phone_number: Option<Secret<String>>,
+    pub email: Option<Email>,
+}
+
+pub struct EncryptableAddressDetails {
+    pub line1: crypto::OptionalEncryptableSecretString,
+    pub line2: crypto::OptionalEncryptableSecretString,
+    pub line3: crypto::OptionalEncryptableSecretString,
+    pub state: crypto::OptionalEncryptableSecretString,
+    pub zip: crypto::OptionalEncryptableSecretString,
+    pub first_name: crypto::OptionalEncryptableSecretString,
+    pub last_name: crypto::OptionalEncryptableSecretString,
+    pub phone_number: crypto::OptionalEncryptableSecretString,
+    pub email: crypto::OptionalEncryptableEmail,
+}
+
+impl ToEncryptable<EncryptableAddressDetails, Secret<String>, Secret<String>>
+    for AddressDetailsWithPhone
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
+    ) -> common_utils::errors::CustomResult<
+        EncryptableAddressDetails,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(EncryptableAddressDetails {
+            line1: hashmap.remove("line1"),
+            line2: hashmap.remove("line2"),
+            line3: hashmap.remove("line3"),
+            state: hashmap.remove("state"),
+            zip: hashmap.remove("zip"),
+            first_name: hashmap.remove("first_name"),
+            last_name: hashmap.remove("last_name"),
+            phone_number: hashmap.remove("phone_number"),
+            email: hashmap.remove("email").map(|x| {
+                let inner: Secret<String, EmailStrategy> = x.clone().into_inner().switch_strategy();
+                crypto::Encryptable::new(inner, x.into_encrypted())
+            }),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Secret<String>> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        self.address.map(|address| {
+            address.line1.map(|x| map.insert("line1".to_string(), x));
+            address.line2.map(|x| map.insert("line2".to_string(), x));
+            address.line3.map(|x| map.insert("line3".to_string(), x));
+            address.state.map(|x| map.insert("state".to_string(), x));
+            address.zip.map(|x| map.insert("zip".to_string(), x));
+            address
+                .first_name
+                .map(|x| map.insert("first_name".to_string(), x));
+            address
+                .last_name
+                .map(|x| map.insert("last_name".to_string(), x));
+        });
+        self.email
+            .map(|x| map.insert("email".to_string(), x.expose().switch_strategy()));
+        self.phone_number
+            .map(|x| map.insert("phone_number".to_string(), x));
+        map
     }
 }
 
