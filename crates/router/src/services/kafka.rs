@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use serde_json::Value;
+
 use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
@@ -9,6 +9,7 @@ use rdkafka::{
     message::{Header, OwnedHeaders},
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
+use serde_json::Value;
 use storage_impl::config::TenantConfig;
 #[cfg(feature = "payouts")]
 pub mod payout;
@@ -667,16 +668,16 @@ impl MessagingInterface for KafkaProducer {
     {
         let topic = self.get_topic(data.get_message_class());
         let json_data = data
-        .masked_serialize()
-        .and_then(|mut value| {
-            if let Value::Object(ref mut map) = value {
-                if let Some(db_name) = self.ckh_database_name.clone() {
-                    map.insert("clickhouse_database".to_string(), Value::String(db_name));
+            .masked_serialize()
+            .and_then(|mut value| {
+                if let Value::Object(ref mut map) = value {
+                    if let Some(db_name) = self.ckh_database_name.clone() {
+                        map.insert("clickhouse_database".to_string(), Value::String(db_name));
+                    }
                 }
-            }
-            serde_json::to_vec(&value) 
-        })
-        .change_context(EventsError::SerializationError)?;
+                serde_json::to_vec(&value)
+            })
+            .change_context(EventsError::SerializationError)?;
         let mut headers = OwnedHeaders::new();
         for (k, v) in metadata.iter() {
             headers = headers.insert(Header {

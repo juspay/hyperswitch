@@ -751,14 +751,7 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(
-        request,
-        payload,
-        state,
-        func,
-        api_auth,
-        incoming_request_header
-    ),
+    skip(request, payload, state, func, api_auth, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
@@ -785,7 +778,6 @@ where
         .await
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
-
 
     let mut app_state = state.get_ref().clone();
 
