@@ -30,6 +30,7 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
     },
     utils::OptionExt,
 };
@@ -785,9 +786,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl TryFrom<domain::Customer> for CustomerData {
+impl ForeignTryFrom<domain::Customer> for CustomerData {
     type Error = errors::ApiErrorResponse;
-    fn try_from(value: domain::Customer) -> Result<Self, Self::Error> {
+    fn foreign_try_from(value: domain::Customer) -> Result<Self, Self::Error> {
         Ok(Self {
             name: value.name.map(|name| name.into_inner()),
             email: value.email.map(Email::from),
