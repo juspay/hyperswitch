@@ -43,8 +43,7 @@ use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
-use super::{cache::*, health::*};
-use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+use super::{cache::*, configs::*, customers::*, health::*, mandates::*, payments::*, refunds::*};
 // use super::{configs::*, mandates::*, payments::*, refunds::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{currency, payment_methods::*};
