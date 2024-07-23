@@ -326,7 +326,7 @@ impl EventInterface for Store {
                             state,
                             merchant_key_store.key.get_inner(),
                             common_utils::types::keymanager::Identifier::Merchant(
-                                merchant_key_store.merchant_id.clone().into(),
+                                merchant_key_store.merchant_id.clone(),
                             ),
                         )
                         .await

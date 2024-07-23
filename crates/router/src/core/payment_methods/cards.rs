@@ -160,7 +160,7 @@ pub async fn create_payment_method(
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
             state,
-            &merchant_id,
+            merchant_id,
             key_store.clone(),
             customer_id,
             payment_method_id.to_owned(),

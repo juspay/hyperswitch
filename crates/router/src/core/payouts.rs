@@ -6,6 +6,7 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::{self, admin, enums as api_enums, payouts::PayoutLinkResponse};
+use common_enums::PayoutRetryType;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -179,7 +180,7 @@ pub async fn make_connector_decision(
                 let config_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
                     merchant_account.get_id(),
-                    retry::PayoutRetryType::SingleConnector,
+                    PayoutRetryType::SingleConnector,
                 )
                 .await;
 
@@ -216,7 +217,7 @@ pub async fn make_connector_decision(
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
                     merchant_account.get_id(),
-                    retry::PayoutRetryType::MultiConnector,
+                    PayoutRetryType::MultiConnector,
                 )
                 .await;
 
@@ -235,7 +236,7 @@ pub async fn make_connector_decision(
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
                     merchant_account.get_id(),
-                    retry::PayoutRetryType::SingleConnector,
+                    PayoutRetryType::SingleConnector,
                 )
                 .await;
 

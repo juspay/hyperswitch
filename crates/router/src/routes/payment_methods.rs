@@ -131,7 +131,6 @@ pub async fn migrate_payment_methods(
         Ok((merchant_id, records)) => (merchant_id, records),
         Err(e) => return api::log_and_return_error_response(e.into()),
     };
-    let merchant_id = merchant_id;
     Box::pin(api::server_wrap(
         flow,
         state,

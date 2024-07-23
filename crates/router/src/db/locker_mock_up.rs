@@ -175,7 +175,7 @@ mod tests {
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
-                    merchant_id: id_type::MerchantId::default().into(),
+                    merchant_id: id_type::MerchantId::default(),
                     customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await

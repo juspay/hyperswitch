@@ -406,7 +406,7 @@ mod storage {
                     state,
                     key_store.key.get_inner(),
                     common_utils::types::keymanager::Identifier::Merchant(
-                        key_store.merchant_id.clone().into(),
+                        key_store.merchant_id.clone(),
                     ),
                 )
                 .await

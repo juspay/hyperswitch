@@ -479,10 +479,10 @@ async fn get_tracker_for_sync<
 }
 
 impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for PaymentStatus {
-    fn validate_request<'a, 'b>(
+    fn validate_request<'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,

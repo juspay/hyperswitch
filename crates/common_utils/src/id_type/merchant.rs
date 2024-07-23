@@ -256,4 +256,38 @@ impl MerchantId {
             self.get_string_repr()
         )
     }
+
+    /// get_should_call_gsm_payout_key
+    pub fn get_should_call_gsm_payout_key(
+        &self,
+        payout_retry_type: common_enums::PayoutRetryType,
+    ) -> String {
+        match payout_retry_type {
+            common_enums::PayoutRetryType::SingleConnector => format!(
+                "should_call_gsm_single_connector_payout_{}",
+                self.get_string_repr()
+            ),
+            common_enums::PayoutRetryType::MultiConnector => format!(
+                "should_call_gsm_multiple_connector_payout_{}",
+                self.get_string_repr()
+            ),
+        }
+    }
+
+    /// get_max_auto_single_connector_payout_retries_enabled_
+    pub fn get_max_auto_single_connector_payout_retries_enabled(
+        &self,
+        payout_retry_type: common_enums::PayoutRetryType,
+    ) -> String {
+        match payout_retry_type {
+            common_enums::PayoutRetryType::SingleConnector => format!(
+                "max_auto_single_connector_payout_retries_enabled_{}",
+                self.get_string_repr()
+            ),
+            common_enums::PayoutRetryType::MultiConnector => format!(
+                "max_auto_multiple_connector_payout_retries_enabled_{}",
+                self.get_string_repr()
+            ),
+        }
+    }
 }
