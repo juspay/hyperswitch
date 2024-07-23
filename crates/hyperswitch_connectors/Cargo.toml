@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-frm = ["hyperswitch_domain_models/frm"]
+frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
 payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
 
 [dependencies]
