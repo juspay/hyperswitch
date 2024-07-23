@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::{
         utils as connector_utils,
-        utils::{PaymentsAuthorizeRequestData, RouterData},
+        utils::{CardData, PaymentsAuthorizeRequestData},
     },
     core::errors,
     types::{
@@ -158,21 +158,15 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotImplemented(
-                "Three_ds payments through Datatrans".to_string(),
-            )
-            .into());
-        };
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => Ok(Self {
                 amount: item.amount,
                 currency: item.router_data.request.currency,
                 card: PlainCardDetails {
                     res_type: "PLAIN".to_string(),
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
+                    number: req_card.card_number.clone(),
+                    expiry_month: req_card.card_exp_month.clone(),
+                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
                 },
                 refno: item.router_data.connector_request_reference_id.clone(),
                 auto_settle: matches!(
