@@ -227,7 +227,7 @@ impl AuthInfo for () {
 
 impl AuthInfo for AuthenticationData {
     fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
-        Some(&self.merchant_account.get_id())
+        Some(self.merchant_account.get_id())
     }
 }
 

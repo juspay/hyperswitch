@@ -1075,7 +1075,7 @@ mod merchant_connector_account_cache_tests {
                 key: domain::types::encrypt(
                     key_manager_state,
                     services::generate_aes256_key().unwrap().to_vec().into(),
-                    Identifier::Merchant(merchant_id.clone().into()),
+                    Identifier::Merchant(merchant_id.clone()),
                     master_key,
                 )
                 .await

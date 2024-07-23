@@ -393,7 +393,7 @@ mod tests {
             .insert_merchant_key_store(
                 key_manager_state,
                 domain::MerchantKeyStore {
-                    merchant_id: merchant_id.clone().into(),
+                    merchant_id: merchant_id.clone(),
                     key: domain::types::encrypt(
                         key_manager_state,
                         services::generate_aes256_key().unwrap().to_vec().into(),

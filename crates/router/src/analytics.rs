@@ -191,7 +191,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                analytics::payments::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -225,7 +225,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::payment_intents::get_metrics(
                     &state.pool,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -259,7 +259,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::refunds::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                analytics::refunds::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -291,7 +291,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::frm::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                analytics::frm::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -362,7 +362,7 @@ pub mod routes {
                 analytics::active_payments::get_metrics(
                     &state.pool,
                     &auth.merchant_account.publishable_key,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -398,7 +398,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::auth_events::get_metrics(
                     &state.pool,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                     &auth.merchant_account.publishable_key,
                     req,
                 )
@@ -423,7 +423,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                analytics::payments::get_filters(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -448,7 +448,7 @@ pub mod routes {
                 analytics::payment_intents::get_filters(
                     &state.pool,
                     req,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -471,7 +471,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
-                analytics::refunds::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                analytics::refunds::get_filters(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -493,7 +493,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetFrmFilterRequest, _| async move {
-                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                analytics::frm::get_filters(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -747,7 +747,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_api_event_metrics(
                     &state.pool,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                     req,
                 )
                 .await
@@ -895,7 +895,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::disputes::get_filters(&state.pool, req, &auth.merchant_account.get_id())
+                analytics::disputes::get_filters(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -926,7 +926,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::disputes::get_metrics(&state.pool, &auth.merchant_account.get_id(), req)
+                analytics::disputes::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
                     .await
                     .map(ApplicationResponse::Json)
             },
