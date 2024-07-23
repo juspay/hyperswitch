@@ -11823,6 +11823,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12071,6 +12072,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12193,6 +12195,8 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
+            "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",
             "nullable": true
           },
           "status": {

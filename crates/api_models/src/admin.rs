@@ -648,6 +648,7 @@ pub struct MerchantConnectorCreate {
     pub merchant_connector_id: Option<String>,
 
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
@@ -790,6 +791,7 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
 
+    #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
@@ -1009,6 +1011,7 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
@@ -1130,6 +1133,7 @@ pub struct MerchantConnectorResponse {
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
+    #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
@@ -1225,6 +1229,7 @@ pub struct MerchantConnectorUpdate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
