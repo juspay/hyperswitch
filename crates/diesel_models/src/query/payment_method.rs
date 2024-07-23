@@ -1,5 +1,4 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     QueryDsl, Table,

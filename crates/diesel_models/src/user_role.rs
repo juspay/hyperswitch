@@ -1,4 +1,3 @@
-
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 

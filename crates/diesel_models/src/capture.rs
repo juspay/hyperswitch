@@ -3,8 +3,6 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-
-
 use crate::{enums as storage_enums, schema::captures};
 
 #[derive(

@@ -1,8 +1,6 @@
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
-
-
 use crate::schema::blocklist_lookup;
 
 #[derive(Default, Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]

@@ -3,8 +3,6 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::business_profile;
 
-
-
 #[derive(
     Clone,
     Debug,

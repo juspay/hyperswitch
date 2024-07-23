@@ -1,4 +1,3 @@
-
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;

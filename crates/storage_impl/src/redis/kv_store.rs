@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::{errors::CustomResult};
+use common_utils::errors::CustomResult;
 use diesel_models::enums::MerchantStorageScheme;
 use error_stack::report;
 use redis_interface::errors::RedisError;

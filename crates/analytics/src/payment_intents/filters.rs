@@ -1,5 +1,5 @@
 use api_models::analytics::{payment_intents::PaymentIntentDimensions, Granularity, TimeRange};
-use common_utils::{errors::ReportSwitchExt};
+use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{Currency, IntentStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;

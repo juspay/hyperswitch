@@ -19,9 +19,7 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
-use common_utils::{
-    errors::{CustomResult, ParsingError},
-};
+use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
