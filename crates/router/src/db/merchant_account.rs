@@ -137,7 +137,7 @@ impl MerchantAccountInterface for Store {
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
-                    merchant_id.to_owned(),
+                    merchant_id.to_owned().into(),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
