@@ -170,7 +170,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            id: None,
             connector_customer: None,
             address_id: address_from_db.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),

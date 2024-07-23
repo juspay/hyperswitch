@@ -663,7 +663,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -738,7 +737,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -812,7 +810,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);

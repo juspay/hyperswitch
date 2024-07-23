@@ -1071,7 +1071,6 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let mca = domain::MerchantConnectorAccount {
-            id: Some(1),
             merchant_id: merchant_id.to_string(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::encrypt(
