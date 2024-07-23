@@ -9848,6 +9848,24 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_key"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cpf"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cnpj"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"

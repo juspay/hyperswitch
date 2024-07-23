@@ -1408,6 +1408,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 volt::transformers::VoltAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Wellsfargo => {
+            //     wellsfargo::transformers::WellsfargoAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Wise => {
                 wise::transformers::WiseAuthType::try_from(self.auth_type)?;
                 Ok(())
