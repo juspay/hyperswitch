@@ -1256,7 +1256,7 @@ diesel::table! {
         #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Nullable<Varchar>,
+        merchant_id -> Varchar,
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
