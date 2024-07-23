@@ -20,6 +20,7 @@ recon = []
 v2 = []
 v1 = []
 merchant_connector_account_v2 = []
+customer_v2 = []
 merchant_account_v2 = []
 payment_v2 = []
 
