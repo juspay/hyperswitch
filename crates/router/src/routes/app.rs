@@ -44,10 +44,8 @@ use super::{
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
-#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "v2")))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
-use super::{configs::*, mandates::*, payments::*, refunds::*};
+// use super::{configs::*, mandates::*, payments::*, refunds::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
@@ -848,7 +846,7 @@ impl Customers {
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
