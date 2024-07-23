@@ -21,7 +21,7 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
         });
         let status = payment_link::check_payment_link_status(session_expiry);
         Ok(Self {
-            link_open: payment_link.link_open,
+            link_open: payment_link.link_to_pay,
             payment_link_id: payment_link.payment_link_id,
             amount: payment_link.amount,
             description: payment_link.description,

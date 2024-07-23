@@ -1,13 +1,11 @@
 use actix_http::header;
 use api_models::admin::PaymentLinkConfig;
+use common_utils::validation::validate_domain_against_allowed_domains;
 use error_stack::{report, ResultExt};
 use url::Url;
 
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        payouts::validator::is_domain_allowed,
-    },
+    core::errors::{self, RouterResult},
     types::storage::PaymentLink,
 };
 
@@ -104,7 +102,7 @@ pub fn validate_secure_payment_link_render_request(
             })?
     };
 
-    if is_domain_allowed(&domain_in_req, allowed_domains) {
+    if validate_domain_against_allowed_domains(&domain_in_req, allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {

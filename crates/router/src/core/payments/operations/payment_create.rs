@@ -1243,7 +1243,7 @@ async fn create_payment_link(
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
-        link_open: open_payment_link.clone(),
+        link_to_pay: open_payment_link.clone(),
         amount: MinorUnit::from(amount),
         currency: request.currency,
         created_at,
@@ -1263,8 +1263,8 @@ async fn create_payment_link(
         })?;
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
-        link: payment_link_db.link_open.clone(),
-        link_open: payment_link_db.link_open,
+        link: payment_link_db.link_to_pay.clone(),
+        link_open: payment_link_db.link_to_pay,
         link_secure: payment_link_db.link_secure,
         payment_link_id: payment_link_db.payment_link_id,
     }))

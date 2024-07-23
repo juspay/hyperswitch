@@ -47,7 +47,7 @@ use masking::{Maskable, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
-use tera::{Context, Tera};
+use tera::{Context, Error as TeraError, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::{
@@ -1944,13 +1944,12 @@ pub fn build_payment_link_html(
             .to_string();
     context.insert("payment_link_initiator", &payment_link_initiator);
 
-    match tera.render("payment_link", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
             crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering open payment link's HTML template")
 }
 
 pub fn build_secure_payment_link_html(
@@ -1963,13 +1962,12 @@ pub fn build_secure_payment_link_html(
             .to_string();
     context.insert("payment_link_initiator", &payment_link_initiator);
 
-    match tera.render("payment_link", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
             crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {

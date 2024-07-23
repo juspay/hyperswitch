@@ -912,7 +912,7 @@ diesel::table! {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 255]
-        link_open -> Varchar,
+        link_to_pay -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
         amount -> Int8,

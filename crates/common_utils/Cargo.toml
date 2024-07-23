@@ -24,6 +24,7 @@ bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"
 futures = { version = "0.3.30", optional = true }
+globset = "0.4.14"
 hex = "0.4.3"
 http = "0.2.12"
 md5 = "0.7.0"
