@@ -266,7 +266,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
-    merchant_id: &'a common_utils::id_type::MerchantId,
+    merchant_id: &'a id_type::MerchantId,
     customer_id: Option<&'a id_type::CustomerId>,
     storage_scheme: common_enums::MerchantStorageScheme,
     key_store: &'a domain::MerchantKeyStore,
@@ -314,7 +314,7 @@ impl<'a> AddressStructForDbEntry<'a> {
 
 struct MerchantReferenceIdForCustomer<'a> {
     customer_id: Option<&'a id_type::CustomerId>,
-    merchant_id: &'a common_utils::id_type::MerchantId,
+    merchant_id: &'a id_type::MerchantId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
@@ -400,7 +400,7 @@ pub async fn retrieve_customer(
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
