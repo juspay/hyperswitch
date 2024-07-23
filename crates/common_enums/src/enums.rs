@@ -247,6 +247,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
