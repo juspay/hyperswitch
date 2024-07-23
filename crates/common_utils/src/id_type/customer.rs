@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// A type for customer_id that can be used for customer ids
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, AsExpression)]
+#[derive(Clone, Serialize, Deserialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub struct CustomerId(
     LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>,

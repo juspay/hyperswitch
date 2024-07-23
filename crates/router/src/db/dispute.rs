@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -148,8 +148,6 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            id: i32::try_from(locked_disputes.len())
-                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,

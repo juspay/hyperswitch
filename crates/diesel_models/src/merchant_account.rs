@@ -26,7 +26,6 @@ use crate::schema_v2::merchant_account;
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub id: i32,
     pub merchant_id: String,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,

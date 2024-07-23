@@ -9,9 +9,8 @@ pub mod dashboard_metadata;
 
 pub mod sample_data;
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = users, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = users, primary_key(user_id), check_for_backend(diesel::pg::Pg))]
 pub struct User {
-    pub id: i32,
     pub user_id: String,
     pub email: pii::Email,
     pub name: Secret<String>,

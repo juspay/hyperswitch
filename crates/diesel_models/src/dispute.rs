@@ -33,10 +33,8 @@ pub struct DisputeNew {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = dispute, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
-    #[serde(skip_serializing)]
-    pub id: i32,
     pub dispute_id: String,
     pub amount: String,
     pub currency: String,

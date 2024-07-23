@@ -4,9 +4,8 @@ use time::PrimitiveDateTime;
 use crate::{enums, schema::user_roles};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = user_roles, primary_key(user_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
-    pub id: i32,
     pub user_id: String,
     pub merchant_id: String,
     pub role_id: String,

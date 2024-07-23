@@ -86,7 +86,6 @@ pub struct PaymentAttempt {
 )]
 #[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentAttempt {
-    pub id: Option<i32>,
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
@@ -1703,7 +1702,6 @@ mod tests {
     #[test]
     fn test_backwards_compatibility() {
         let serialized_payment_attempt = r#"{
-    "id": 1,
     "payment_id": "PMT123456789",
     "merchant_id": "M123456789",
     "attempt_id": "ATMPT123456789",

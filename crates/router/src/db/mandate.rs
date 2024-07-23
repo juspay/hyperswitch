@@ -1,5 +1,4 @@
 use common_utils::id_type;
-use error_stack::ResultExt;
 
 use super::MockDb;
 use crate::{
@@ -604,7 +603,6 @@ impl MandateInterface for MockDb {
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
         let mandate = storage_types::Mandate {
-            id: i32::try_from(mandates.len()).change_context(errors::StorageError::MockDbError)?,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
             merchant_id: mandate_new.merchant_id,

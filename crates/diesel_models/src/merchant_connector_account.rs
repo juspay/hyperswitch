@@ -16,9 +16,8 @@ use crate::{enums as storage_enums, schema::merchant_connector_account};
     Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_connector_account, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = merchant_connector_account, primary_key(merchant_connector_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantConnectorAccount {
-    pub id: i32,
     pub merchant_id: String,
     pub connector_name: String,
     pub connector_account_details: Encryption,

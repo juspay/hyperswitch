@@ -123,7 +123,6 @@ pub async fn create_customer(
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
         metadata: customer_data.metadata,
-        id: None,
         connector_customer: None,
         address_id: address.clone().map(|addr| addr.address_id),
         created_at: common_utils::date_time::now(),

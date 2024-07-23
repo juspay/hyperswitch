@@ -22,7 +22,6 @@ use crate::type_encryption::{decrypt_optional, AsyncLift};
 ))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
-    pub id: Option<i32>,
     pub merchant_id: String,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
@@ -332,9 +331,6 @@ impl super::behaviour::Conversion for MerchantAccount {
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::merchant_account::MerchantAccount {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
-                field_name: "id".to_string(),
-            })?,
             merchant_id: self.merchant_id,
             return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
@@ -382,7 +378,6 @@ impl super::behaviour::Conversion for MerchantAccount {
         let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: Some(item.id),
                 merchant_id: item.merchant_id,
                 return_url: item.return_url,
                 enable_payment_response_hash: item.enable_payment_response_hash,

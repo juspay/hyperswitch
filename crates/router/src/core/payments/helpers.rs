@@ -362,7 +362,6 @@ pub async fn get_domain_address(
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
-            id: None,
             phone_number: encryptable_address.phone_number,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
@@ -1666,7 +1665,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         phone_country_code: request_customer_details.phone_country_code.clone(),
                         description: None,
                         created_at: common_utils::date_time::now(),
-                        id: None,
                         metadata: None,
                         modified_at: common_utils::date_time::now(),
                         connector_customer: None,

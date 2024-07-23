@@ -9,9 +9,8 @@ use crate::{enums as storage_enums, schema::mandate};
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
 )]
-#[diesel(table_name = mandate, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = mandate, primary_key(mandate_id), check_for_backend(diesel::pg::Pg))]
 pub struct Mandate {
-    pub id: i32,
     pub mandate_id: String,
     pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
@@ -209,7 +208,6 @@ impl MandateUpdateInternal {
 impl From<&MandateNew> for Mandate {
     fn from(mandate_new: &MandateNew) -> Self {
         Self {
-            id: 0i32,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id.clone(),
             merchant_id: mandate_new.merchant_id.clone(),

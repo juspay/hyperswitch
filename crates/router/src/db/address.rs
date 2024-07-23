@@ -569,7 +569,6 @@ mod storage {
                     };
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
-                        id: Some(0i32),
                         address_id: address_new.address_id.clone(),
                         city: address_new.city.clone(),
                         country: address_new.country,

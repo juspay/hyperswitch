@@ -1,5 +1,5 @@
 use diesel_models::user as storage;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -152,7 +152,6 @@ impl UserInterface for MockDb {
         }
         let time_now = common_utils::date_time::now();
         let user = storage::User {
-            id: i32::try_from(users.len()).change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,
             name: user_data.name,

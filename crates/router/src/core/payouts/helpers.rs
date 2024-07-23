@@ -654,7 +654,6 @@ pub async fn get_or_create_customer_details(
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,
                 connector_customer: None,
-                id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 address_id: None,

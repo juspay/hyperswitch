@@ -4,7 +4,6 @@ use std::collections::HashSet;
 #[cfg(feature = "olap")]
 use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
-use error_stack::ResultExt;
 
 use super::MockDb;
 use crate::{
@@ -369,7 +368,6 @@ mod storage {
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
-                        id: 0i32,
                         refund_id: new.refund_id.clone(),
                         merchant_id: new.merchant_id.clone(),
                         attempt_id: new.attempt_id.clone(),
@@ -824,7 +822,6 @@ impl RefundInterface for MockDb {
         let current_time = common_utils::date_time::now();
 
         let refund = storage_types::Refund {
-            id: i32::try_from(refunds.len()).change_context(errors::StorageError::MockDbError)?,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
             payment_id: new.payment_id,

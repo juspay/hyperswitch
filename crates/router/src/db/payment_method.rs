@@ -664,8 +664,6 @@ impl PaymentMethodInterface for MockDb {
         let mut payment_methods = self.payment_methods.lock().await;
 
         let payment_method = storage_types::PaymentMethod {
-            id: i32::try_from(payment_methods.len())
-                .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,
@@ -784,7 +782,7 @@ impl PaymentMethodInterface for MockDb {
             .lock()
             .await
             .iter_mut()
-            .find(|pm| pm.id == payment_method.id)
+            .find(|pm| pm.payment_method_id == payment_method.payment_method_id)
             .map(|pm| {
                 let payment_method_updated =
                     PaymentMethodUpdateInternal::from(payment_method_update)

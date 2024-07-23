@@ -19,9 +19,8 @@ use crate::{enums as storage_enums, schema::refund};
     serde::Serialize,
     serde::Deserialize,
 )]
-#[diesel(table_name = refund, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = refund, primary_key(refund_id), check_for_backend(diesel::pg::Pg))]
 pub struct Refund {
-    pub id: i32,
     pub internal_reference_id: String,
     pub refund_id: String, //merchant_reference id
     pub payment_id: String,
@@ -341,7 +340,6 @@ mod tests {
     #[test]
     fn test_backwards_compatibility() {
         let serialized_refund = r#"{
-    "id": 1,
     "internal_reference_id": "internal_ref_123",
     "refund_id": "refund_456",
     "payment_id": "payment_789",

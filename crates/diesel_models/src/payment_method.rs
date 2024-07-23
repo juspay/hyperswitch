@@ -10,9 +10,8 @@ use crate::{enums as storage_enums, schema::payment_methods};
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
 )]
-#[diesel(table_name = payment_methods, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = payment_methods, primary_key(payment_method_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    pub id: i32,
     pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub payment_method_id: String,
@@ -329,7 +328,6 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
-            id: 0i32,
             customer_id: payment_method_new.customer_id.clone(),
             merchant_id: payment_method_new.merchant_id.clone(),
             payment_method_id: payment_method_new.payment_method_id.clone(),

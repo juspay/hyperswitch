@@ -746,7 +746,6 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         let address = domain::Address {
-            id: None,
             city: address_details.city,
             country: address_details.country,
             line1: encryptable_address.line1,

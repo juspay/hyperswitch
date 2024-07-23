@@ -1,6 +1,6 @@
 use common_enums::enums;
 use diesel_models::role as storage;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -137,7 +137,6 @@ impl RoleInterface for MockDb {
             })?
         }
         let role = storage::Role {
-            id: i32::try_from(roles.len()).change_context(errors::StorageError::MockDbError)?,
             role_name: role.role_name,
             role_id: role.role_id,
             merchant_id: role.merchant_id,
