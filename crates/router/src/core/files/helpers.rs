@@ -263,7 +263,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .find_payment_intent_by_payment_id_merchant_id(
                         &state.into(),
                         &dispute.payment_id,
-                       merchant_account.get_id(),
+                        merchant_account.get_id(),
                         key_store,
                         merchant_account.storage_scheme,
                     )
@@ -273,7 +273,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .store
                     .find_payment_attempt_by_attempt_id_merchant_id(
                         &dispute.attempt_id,
-                       merchant_account.get_id(),
+                        merchant_account.get_id(),
                         merchant_account.storage_scheme,
                     )
                     .await

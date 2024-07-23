@@ -49,7 +49,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -121,7 +121,7 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;

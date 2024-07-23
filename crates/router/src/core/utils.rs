@@ -268,7 +268,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         &connector_id.to_string(),
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -590,7 +590,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -687,7 +687,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -789,7 +789,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -888,7 +888,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -1108,7 +1108,7 @@ pub async fn get_profile_id_from_business_details(
                 let _ = validate_and_get_business_profile(
                     db,
                     Some(profile_id),
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                 )
                 .await?;
             }
@@ -1120,7 +1120,7 @@ pub async fn get_profile_id_from_business_details(
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
                         &profile_name,
-                       merchant_account.get_id(),
+                        merchant_account.get_id(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {

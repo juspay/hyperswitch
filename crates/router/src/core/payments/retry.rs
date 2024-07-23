@@ -73,7 +73,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             original_connector_data.connector_name,
         )
         .await

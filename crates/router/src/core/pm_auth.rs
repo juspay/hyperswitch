@@ -125,7 +125,7 @@ pub async fn create_link_token(
                 pi.billing_address_id.clone(),
                 &key_store,
                 &pi.payment_id,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -297,7 +297,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &payload.payment_id,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -311,7 +311,7 @@ async fn store_bank_details_in_payment_methods(
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &customer_id,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             None,
         )
         .await
@@ -784,7 +784,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         payment_intent.billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id,
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;

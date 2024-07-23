@@ -257,7 +257,7 @@ impl MerchantAccountInterface for Store {
         let key_store = self
             .get_merchant_key_store_by_merchant_id(
                 state,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
@@ -297,7 +297,7 @@ impl MerchantAccountInterface for Store {
             try_join_all(encrypted_merchant_accounts.iter().map(|merchant_account| {
                 self.get_merchant_key_store_by_merchant_id(
                     state,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     &db_master_key,
                 )
             }))

@@ -122,7 +122,7 @@ pub async fn list_delivery_attempts(
             store
                 .list_events_by_merchant_id_initial_attempt_id(
                     key_manager_state,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     &initial_attempt_id,
                     &key_store,
                 )

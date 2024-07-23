@@ -223,7 +223,7 @@ async fn get_tracker_for_sync<
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
         payment_id,
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         key_store,
         storage_scheme,
     )
@@ -241,7 +241,7 @@ async fn get_tracker_for_sync<
         payment_intent.shipping_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -250,7 +250,7 @@ async fn get_tracker_for_sync<
         payment_intent.billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -260,7 +260,7 @@ async fn get_tracker_for_sync<
         payment_attempt.payment_method_billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id.clone(),
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;
@@ -304,7 +304,7 @@ async fn get_tracker_for_sync<
     let refunds = db
         .find_refund_by_payment_id_merchant_id(
             &payment_id_str,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             storage_scheme,
         )
         .await
@@ -319,7 +319,7 @@ async fn get_tracker_for_sync<
 
     let authorizations = db
         .find_all_authorizations_by_merchant_id_payment_id(
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             &payment_id_str,
         )
         .await
@@ -358,7 +358,7 @@ async fn get_tracker_for_sync<
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db,merchant_account.get_id(), mcd)
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_account.get_id(), mcd)
                 .await
         })
         .await

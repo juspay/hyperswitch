@@ -480,7 +480,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
-                           merchant_account.get_id(),
+                            merchant_account.get_id(),
                             &payment_method_info.customer_id,
                             customer_id,
                         )?;
@@ -650,7 +650,7 @@ pub async fn get_token_for_recurring_mandate(
 
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             mandate_id.as_str(),
             merchant_account.storage_scheme,
         )
@@ -2926,7 +2926,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &state.into(),
                     &payment_id,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     key_store,
                     merchant_account.storage_scheme,
                 )
