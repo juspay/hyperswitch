@@ -13,7 +13,9 @@ use common_utils::{
     types::keymanager::Identifier,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
@@ -22,7 +24,10 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -63,7 +68,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -92,24 +97,25 @@ pub async fn business_profile_response(
     item: storage::business_profile::BusinessProfile,
     key_store: &MerchantKeyStore,
 ) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
-    let outgoing_webhook_custom_http_headers = decrypt::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        item.outgoing_webhook_custom_http_headers.clone(),
-        Identifier::Merchant(key_store.merchant_id.clone()),
-        key_store.key.get_inner().peek(),
-    )
-    .await
-    .change_context(errors::ParsingError::StructParseFailure(
-        "Outgoing webhook custom HTTP headers",
-    ))
-    .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
-    .map(|decrypted_value| {
-        decrypted_value
-            .into_inner()
-            .expose()
-            .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-    })
-    .transpose()?;
+    let outgoing_webhook_custom_http_headers =
+        decrypt_optional::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            item.outgoing_webhook_custom_http_headers.clone(),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::ParsingError::StructParseFailure(
+            "Outgoing webhook custom HTTP headers",
+        ))
+        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+        .map(|decrypted_value| {
+            decrypted_value
+                .into_inner()
+                .expose()
+                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+        })
+        .transpose()?;
 
     Ok(BusinessProfileResponse {
         merchant_id: item.merchant_id,
@@ -153,6 +159,7 @@ pub async fn business_profile_response(
     })
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn create_business_profile(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,

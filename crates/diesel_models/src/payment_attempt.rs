@@ -3,13 +3,86 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    enums::{self as storage_enums},
-    schema::payment_attempt,
-};
+use crate::enums::{self as storage_enums};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt;
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(
-    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
+)]
+#[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
+pub struct PaymentAttempt {
+    pub payment_id: String,
+    pub merchant_id: String,
+    pub attempt_id: String,
+    pub status: storage_enums::AttemptStatus,
+    pub amount: i64,
+    pub currency: Option<storage_enums::Currency>,
+    pub save_to_locker: Option<bool>,
+    pub connector: Option<String>,
+    pub error_message: Option<String>,
+    pub offer_amount: Option<i64>,
+    pub surcharge_amount: Option<i64>,
+    pub tax_amount: Option<i64>,
+    pub payment_method_id: Option<String>,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
+    pub connector_transaction_id: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_on: Option<PrimitiveDateTime>,
+    pub confirm: bool,
+    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_synced: Option<PrimitiveDateTime>,
+    pub cancellation_reason: Option<String>,
+    pub amount_to_capture: Option<i64>,
+    pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
+    pub error_code: Option<String>,
+    pub payment_token: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_data: Option<serde_json::Value>,
+    pub business_sub_label: Option<String>,
+    pub straight_through_algorithm: Option<serde_json::Value>,
+    pub preprocessing_step_id: Option<String>,
+    // providing a location to store mandate details intermediately for transaction
+    pub mandate_details: Option<storage_enums::MandateDataType>,
+    pub error_reason: Option<String>,
+    pub multiple_capture_count: Option<i16>,
+    // reference to the payment at connector side
+    pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
+    pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<storage_enums::MandateDetails>,
+    pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub charge_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
 )]
 #[diesel(table_name = payment_attempt, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentAttempt {
