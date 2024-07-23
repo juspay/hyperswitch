@@ -431,13 +431,13 @@ impl CustomerInterface for KafkaStore {
 
     async fn insert_customer(
         &self,
-        state: &KeyManagerState,
         customer_data: domain::Customer,
+        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .insert_customer(state, customer_data, key_store, storage_scheme)
+            .insert_customer(customer_data, state, key_store, storage_scheme)
             .await
     }
 }
