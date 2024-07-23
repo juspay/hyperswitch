@@ -217,7 +217,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
