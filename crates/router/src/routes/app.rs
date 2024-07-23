@@ -45,6 +45,8 @@ use super::{
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
+use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
@@ -849,7 +851,7 @@ impl Customers {
 ))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("customers").app_data(web::Data::new(state));
+        let mut route = web::scope("/customers").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
