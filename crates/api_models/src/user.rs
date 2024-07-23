@@ -219,7 +219,7 @@ pub struct VerifyTokenResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
-    pub preferred_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub preferred_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -46,7 +46,7 @@ async fn payments_create_core() {
     ))
     .await;
 
-    let merchant_id = common_utils::id_type::MerchantId::from("juspay_merchant".into()).unwrap();
+    let merchant_id = id_type::MerchantId::from("juspay_merchant".into()).unwrap();
 
     let state = Arc::new(app_state)
         .get_session_state("public", || {})
@@ -245,7 +245,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
-    let merchant_id = common_utils::id_type::MerchantId::from("juspay_merchant".into()).unwrap();
+    let merchant_id = id_type::MerchantId::from("juspay_merchant".into()).unwrap();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
     let key_manager_state = &(&state).into();
     let key_store = state

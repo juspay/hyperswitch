@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{pii, types::MinorUnit};
 
 use crate::{
     payment_address::PaymentAddress,

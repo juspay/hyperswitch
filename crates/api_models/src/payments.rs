@@ -3280,7 +3280,7 @@ pub struct PaymentsCaptureRequest {
     #[serde(skip_deserializing)]
     pub payment_id: String,
     /// The unique identifier for the merchant
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     /// The Amount to be captured/ debited from the user's payment method.
     #[schema(value_type = i64, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
@@ -4108,7 +4108,7 @@ pub struct TimeRange {
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -4881,7 +4881,7 @@ pub struct PaymentsSessionResponse {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBody {
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
@@ -4897,7 +4897,7 @@ pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
     /// Merchant connector details used to make payments.

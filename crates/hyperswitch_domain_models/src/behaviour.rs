@@ -1,6 +1,5 @@
 use common_utils::{
     errors::{CustomResult, ValidationError},
-    id_type,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use masking::Secret;

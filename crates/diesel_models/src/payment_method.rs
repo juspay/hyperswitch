@@ -1,5 +1,5 @@
 use common_enums::MerchantStorageScheme;
-use common_utils::{encryption::Encryption, id_type, pii};
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
