@@ -788,9 +788,11 @@ pub struct PaymentAttemptResponse {
     pub authentication_type: Option<enums::AuthenticationType>,
     /// Time at which the payment attempt was created
     #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     /// Time at which the payment attempt was last modified
     #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     /// If the payment was cancelled the reason will be provided here
     pub cancellation_reason: Option<String>,
