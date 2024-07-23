@@ -17,6 +17,7 @@ use diesel::{
 };
 use error_stack::{Result, ResultExt};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::{
     consts::{MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH},
@@ -27,8 +28,9 @@ use crate::{
 };
 
 /// A type for merchant_id that can be used for merchant ids
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, AsExpression, Hash)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, AsExpression, Hash, ToSchema)]
 #[diesel(sql_type = sql_types::Text)]
+#[schema(value_type = String)]
 pub struct MerchantId(
     LengthId<MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH>,
 );

@@ -87,12 +87,6 @@ pub async fn toggle_blocklist_guard_for_merchant(
     })
 }
 
-/// Provides the identifier for the specific merchant's blocklist guard config
-#[inline(always)]
-pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
-    format!("guard_blocklist_for_{merchant_id}")
-}
-
 pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
