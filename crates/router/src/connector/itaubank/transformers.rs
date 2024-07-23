@@ -334,7 +334,6 @@ impl<F, T>
             .response
             .pix
             .first()
-            .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "pix_id",
             })?
