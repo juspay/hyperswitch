@@ -1,6 +1,7 @@
 use actix_web::http::header;
 #[cfg(feature = "olap")]
-use common_utils::{errors::CustomResult, validation::validate_domain_against_allowed_domains};
+use common_utils::errors::CustomResult;
+use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
