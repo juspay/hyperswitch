@@ -12,6 +12,8 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::types::domain::MerchantConnectorAccounts;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -19,9 +21,6 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::types::domain::MerchantConnectorAccounts;
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
