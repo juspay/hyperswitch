@@ -1064,6 +1064,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
@@ -1083,6 +1084,11 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -2811,7 +2817,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Self::MandiriVaBankTransfer
                     }
-                    domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    domain::payments::BankTransferData::Pix { .. } => Self::Pix,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

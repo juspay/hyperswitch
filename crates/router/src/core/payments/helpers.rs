@@ -1675,7 +1675,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         updated_by: None,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
-                    db.insert_customer(key_manager_state, new_customer, key_store, storage_scheme)
+                    db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
                         .await
                 }
             })
@@ -5085,6 +5085,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
     merchant_id: &str,
+    card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let merchant_connector_account_list = db
@@ -5097,20 +5098,49 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let merchant_connector_ids: Vec<String> = merchant_connector_account_list
+    let merchant_connector_account_details_hash_map: std::collections::HashMap<
+        String,
+        domain::MerchantConnectorAccount,
+    > = merchant_connector_account_list
         .iter()
-        .map(|merchant_connector_account| merchant_connector_account.merchant_connector_id.clone())
+        .map(|merchant_connector_account| {
+            (
+                merchant_connector_account.merchant_connector_id.clone(),
+                merchant_connector_account.clone(),
+            )
+        })
         .collect();
 
-    for merchant_connector_id in connector_mandate_details.0.keys() {
-        if !merchant_connector_ids.contains(merchant_connector_id) {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_connector_id",
-            })
-            .attach_printable_lazy(|| {
-                format!("{merchant_connector_id} invalid merchant connector id in connector_mandate_details")
-            })?
-        }
+    for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
+        connector_mandate_details.0.clone()
+    {
+        match (card_network.clone() ,merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id)) {
+                        (Some(enums::CardNetwork::Discover),Some(merchant_connector_account_details)) => if let ("cybersource", None) = (
+                          merchant_connector_account_details.connector_name.as_str(),
+                        migrating_connector_mandate_details
+                            .original_payment_authorized_amount
+                            .zip(
+                                migrating_connector_mandate_details
+                                  .original_payment_authorized_currency,
+                             ),
+                      ) {
+                        Err(errors::ApiErrorResponse::MissingRequiredFields {
+                              field_names: vec![
+                                 "original_payment_authorized_currency",
+                                  "original_payment_authorized_amount",
+                          ],
+                         }).attach_printable(format!("Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id}"))?
+                    },
+                    (_, Some(_)) => (),
+                        (_, None) => {
+                            Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "merchant_connector_id",
+                            })
+                            .attach_printable_lazy(|| {
+                                format!("{migrating_merchant_connector_id} invalid merchant connector id in connector_mandate_details")
+                            })?
+                        },
+                    }
     }
     Ok(())
 }

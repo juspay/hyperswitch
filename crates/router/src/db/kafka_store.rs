@@ -425,13 +425,13 @@ impl CustomerInterface for KafkaStore {
 
     async fn insert_customer(
         &self,
-        state: &KeyManagerState,
         customer_data: domain::Customer,
+        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .insert_customer(state, customer_data, key_store, storage_scheme)
+            .insert_customer(customer_data, state, key_store, storage_scheme)
             .await
     }
 }
@@ -2193,8 +2193,12 @@ impl MerchantKeyStoreInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_key_stores(state, key).await
+        self.diesel_store
+            .get_all_key_stores(state, key, from, to)
+            .await
     }
 }
 
@@ -3067,8 +3071,12 @@ impl UserKeyStoreInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_user_key_store(state, key).await
+        self.diesel_store
+            .get_all_user_key_store(state, key, from, limit)
+            .await
     }
 }
 
