@@ -1,3 +1,7 @@
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type};
@@ -9,20 +13,25 @@ use router_env::{instrument, logger, tracing, Flow};
 use super::app::{AppState, SessionState};
 use crate::{
     core::{
-        api_locking, customers, errors,
+        api_locking, errors,
         errors::utils::StorageErrorExt,
-        payment_methods::{self as payment_methods_routes, cards, migration},
+        payment_methods::{self as payment_methods_routes, cards},
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
-        api::{
-            customers::CustomerRequest,
-            payment_methods::{self, PaymentMethodId},
-        },
+        api::payment_methods::{self, PaymentMethodId},
         domain,
         storage::payment_method::PaymentTokenData,
     },
     utils::Encode,
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
+use crate::{
+    core::{customers, payment_methods::migration},
+    types::api::customers::CustomerRequest,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
@@ -107,6 +116,10 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,

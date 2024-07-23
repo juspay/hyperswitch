@@ -23,7 +23,7 @@ clippy *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2", "customer_v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -120,7 +120,7 @@ euclid-wasm features='dummy_connector':
 precommit: fmt clippy
 
 # Check compilation of v2 feature on base dependencies
-v2_intermediate_features := "merchant_account_v2,payment_v2"
+v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2"
 hack_v2:
     cargo hack check  --feature-powerset --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
     cargo hack check --features "v2,payment_v2" -p storage_impl

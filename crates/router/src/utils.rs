@@ -11,27 +11,32 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
-
 use std::fmt::Debug;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::payments::AddressDetailsWithPhone;
 use api_models::{
     enums,
-    payments::{self, AddressDetailsWithPhone},
+    payments::{self},
     webhooks,
 };
 use base64::Engine;
+use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
     validation::validate_email,
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
     id_type,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{payments::PaymentIntent, type_encryption::batch_encrypt};
+use hyperswitch_domain_models::payments::PaymentIntent;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::type_encryption::batch_encrypt;
 use image::Luma;
 use nanoid::nanoid;
 use qrcode;
@@ -42,6 +47,8 @@ use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::types::storage;
 use crate::{
     consts,
     core::{
@@ -52,7 +59,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services,
-    types::{self, domain, storage, transformers::ForeignFrom},
+    types::{self, domain, transformers::ForeignFrom},
 };
 
 pub mod error_parser {
@@ -661,6 +668,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 pub trait CustomerAddress {
     async fn get_address_update(
@@ -683,6 +691,7 @@ pub trait CustomerAddress {
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
