@@ -36,25 +36,25 @@ use hyperswitch_domain_models::{
         UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
-#[cfg(feature = "payouts")]
+#[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_data_v2::FrmFlowData,
-    router_flow_types::payouts::{
-        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
-        PoSync,
-    },
+    router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
         FraudCheckSaleData, FraudCheckTransactionData,
     },
-    router_response_types::PayoutsResponseData,
+    router_response_types::fraud_check::FraudCheckResponseData,
 };
-#[cfg(feature = "frm")]
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData,
-    router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
     router_request_types::PayoutsData,
-    router_response_types::fraud_check::FraudCheckResponseData,
+    router_response_types::PayoutsResponseData,
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::fraud_check_v2::{

@@ -1,7 +1,6 @@
 //! FRM V2 interface
-#[cfg(feature = "frm")]
-use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::FrmFlowData,
     router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
