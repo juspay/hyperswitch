@@ -1239,7 +1239,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    user_roles (user_id, merchant_id) {        
+    user_roles (user_id, merchant_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,
