@@ -19,6 +19,7 @@ openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
 recon = []
 v2 = []
 v1 = []
+customer_v2 = []
 merchant_account_v2 = []
 payment_v2 = []
 

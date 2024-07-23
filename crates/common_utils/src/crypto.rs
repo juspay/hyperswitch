@@ -490,6 +490,10 @@ pub type OptionalEncryptablePhone = Option<Encryptable<Secret<String>>>;
 pub type OptionalEncryptableValue = Option<Encryptable<Secret<serde_json::Value>>>;
 /// Type alias for `Option<Secret<serde_json::Value>>`
 pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `name` field
+pub type EncryptableName = Encryptable<Secret<String>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `email` field
+pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 
 #[cfg(test)]
 mod crypto_tests {
