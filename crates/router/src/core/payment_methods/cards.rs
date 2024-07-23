@@ -2670,33 +2670,45 @@ pub async fn list_payment_methods(
                     });
 
                 if let Some(config) = pm_auth_config {
-                    config
-                        .enabled_payment_methods
-                        .iter()
-                        .for_each(|inner_config| {
-                            if inner_config.payment_method_type == *payment_method_type {
-                                let pm = pmt_to_auth_connector
-                                    .get(&inner_config.payment_method)
-                                    .cloned();
+                    for inner_config in config.enabled_payment_methods.iter() {
+                        let mca = db
+                            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                key_manager_state,
+                                &merchant_account.merchant_id,
+                                &inner_config.mca_id,
+                                &key_store,
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: inner_config.mca_id.clone(),
+                                },
+                            )?;
 
-                                let inner_map = if let Some(mut inner_map) = pm {
-                                    inner_map.insert(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    );
-                                    inner_map
-                                } else {
-                                    HashMap::from([(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    )])
-                                };
+                        if mca.status == enums::ConnectorStatus::Active
+                            && inner_config.payment_method_type == *payment_method_type
+                        {
+                            let pm = pmt_to_auth_connector
+                                .get(&inner_config.payment_method)
+                                .cloned();
 
-                                pmt_to_auth_connector
-                                    .insert(inner_config.payment_method, inner_map);
-                                val.push(inner_config.clone());
-                            }
-                        });
+                            let inner_map = if let Some(mut inner_map) = pm {
+                                inner_map.insert(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                );
+                                inner_map
+                            } else {
+                                HashMap::from([(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                )])
+                            };
+
+                            pmt_to_auth_connector.insert(inner_config.payment_method, inner_map);
+                            val.push(inner_config.clone());
+                        }
+                    }
                 };
             }
         }
