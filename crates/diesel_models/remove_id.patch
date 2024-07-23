@@ -98,14 +98,6 @@ index 55f8e935b..469ad1d22 100644
          #[max_length = 64]
          role_name -> Varchar,
          #[max_length = 64]
-@@ -1252,7 +1240,6 @@ diesel::table! {
-     use crate::enums::diesel_exports::*;
- 
-     user_roles (user_id, merchant_id) {
--        id -> Int4,
-         #[max_length = 64]
-         user_id -> Varchar,
-         #[max_length = 64]
 @@ -1276,7 +1263,6 @@ diesel::table! {
      use crate::enums::diesel_exports::*;
  
