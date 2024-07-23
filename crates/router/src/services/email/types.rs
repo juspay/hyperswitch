@@ -150,7 +150,7 @@ Email         : {user_email}
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct EmailToken {
     email: String,
-    merchant_id: Option<String>,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
     flow: domain::Origin,
     exp: u64,
 }
@@ -158,7 +158,7 @@ pub struct EmailToken {
 impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
-        merchant_id: Option<String>,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
         flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
@@ -177,8 +177,8 @@ impl EmailToken {
         pii::Email::try_from(self.email.clone())
     }
 
-    pub fn get_merchant_id(&self) -> Option<&str> {
-        self.merchant_id.as_deref()
+    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        self.merchant_id.as_ref()
     }
 
     pub fn get_flow(&self) -> domain::Origin {

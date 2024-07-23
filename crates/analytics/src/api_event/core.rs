@@ -38,7 +38,7 @@ pub async fn api_events_core(
             "API Events not implemented for SQLX",
         ))
         .attach_printable("SQL Analytics is not implemented for API Events"),
-        AnalyticsProvider::Clickhouse(pool) => get_api_event(&merchant_id, req, pool).await,
+        AnalyticsProvider::Clickhouse(pool) => get_api_event(merchant_id, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
             get_api_event(merchant_id, req, ckh_pool).await

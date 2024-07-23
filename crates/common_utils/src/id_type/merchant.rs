@@ -48,10 +48,10 @@ impl Display for MerchantId {
 }
 
 /// This is implemented so that we can use merchant id directly as attribute in metrics
-impl Into<opentelemetry::Value> for MerchantId {
-    fn into(self) -> opentelemetry::Value {
-        let string_value = self.0 .0 .0;
-        opentelemetry::Value::String(opentelemetry::StringValue::from(string_value))
+impl From<MerchantId> for opentelemetry::Value {
+    fn from(val: MerchantId) -> Self {
+        let string_value = val.0 .0 .0;
+        Self::String(opentelemetry::StringValue::from(string_value))
     }
 }
 
@@ -121,7 +121,7 @@ impl MerchantId {
     pub fn new_from_unix_timestamp() -> Self {
         let merchant_id = format!("merchant_{}", date_time::now_unix_timestamp());
 
-        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.into());
+        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id);
         let length_id = LengthId::new_unchecked(alphanumeric_id);
 
         Self(length_id)

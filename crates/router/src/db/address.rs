@@ -147,7 +147,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|address| async {
                 address
-                    .convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                    .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -291,7 +291,7 @@ mod storage {
                 for address in addresses.into_iter() {
                     output.push(
                         address
-                            .convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                            .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )

@@ -494,7 +494,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?
                 .async_map(|c| async {
-                    c.convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                    c.convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -533,7 +533,7 @@ mod storage {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|c| async {
-                c.convert(state, key_store.key.get_inner(), merchant_id)
+                c.convert(state, key_store.key.get_inner(), merchant_id.into())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -559,7 +559,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
-                    c.convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                    c.convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -589,7 +589,7 @@ mod storage {
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
                     encrypted_customer
-                        .convert(state, key_store.key.get_inner(), merchant_id.to_string())
+                        .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
