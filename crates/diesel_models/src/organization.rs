@@ -1,4 +1,4 @@
-use common_utils::id_type;
+use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::organization;
@@ -7,8 +7,8 @@ use crate::schema::organization;
 pub struct Organization {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
-    pub organization_details: Option<serde_json::Value>,
-    pub metadata: Option<serde_json::Value>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -18,8 +18,8 @@ pub struct Organization {
 pub struct OrganizationNew {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
-    pub organization_details: Option<serde_json::Value>,
-    pub metadata: Option<serde_json::Value>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -28,16 +28,16 @@ pub struct OrganizationNew {
 #[diesel(table_name = organization)]
 pub struct OrganizationUpdateInternal {
     org_name: Option<String>,
-    organization_details: Option<serde_json::Value>,
-    metadata: Option<serde_json::Value>,
+    organization_details: Option<pii::SecretSerdeValue>,
+    metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
 }
 
 pub enum OrganizationUpdate {
     Update {
         org_name: Option<String>,
-        organization_details: Option<serde_json::Value>,
-        metadata: Option<serde_json::Value>,
+        organization_details: Option<pii::SecretSerdeValue>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
 }
 
