@@ -101,10 +101,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
-
       - name: Install mold linker
         uses: rui314/setup-mold@v1
         if: ${{ runner.os == 'Linux' }}
@@ -204,10 +200,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
-
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
