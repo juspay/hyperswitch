@@ -5,7 +5,7 @@ use api_models::payments::{
     PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
-use api_models::{payments::Address, payouts::PayoutAttemptResponse};
+use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
