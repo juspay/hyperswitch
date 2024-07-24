@@ -2709,6 +2709,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             volt::transformers::VoltAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Wellsfargo => {
+        //     wellsfargo::transformers::WellsfargoAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Wise => {
             wise::transformers::WiseAuthType::try_from(val)?;
             Ok(())

@@ -8,10 +8,11 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "v1"]
+default = ["kv_store", "v1"] 
 kv_store = []
 v1 = []
 v2 = []
+customer_v2 = []
 merchant_account_v2 = []
 payment_v2 = []
 
