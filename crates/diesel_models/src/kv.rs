@@ -1,9 +1,10 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
+use crate::customers::CustomerUpdateInternal;
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
-    customers::{Customer, CustomerNew, CustomerUpdateInternal},
+    customers::{Customer, CustomerNew},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -141,7 +142,7 @@ impl DBOperation {
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
                         conn,
-                        cust.orig.customer_id.clone(),
+                        cust.orig.get_customer_id().clone(),
                         cust.orig.merchant_id.clone(),
                         cust.update_data,
                     )

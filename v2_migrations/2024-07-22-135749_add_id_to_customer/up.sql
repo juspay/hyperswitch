@@ -1,0 +1,8 @@
+-- Your SQL goes here
+
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_pkey;
+
+ALTER TABLE customers DROP COLUMN IF EXISTS id;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS id VARCHAR(64) NOT NULL;
+
+ALTER TABLE customers ADD PRIMARY KEY (id);

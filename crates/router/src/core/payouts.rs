@@ -1080,7 +1080,7 @@ pub async fn create_recipient(
             Ok(recipient_create_data) => {
                 let db = &*state.store;
                 if let Some(customer) = customer_details {
-                    let customer_id = customer.customer_id.to_owned();
+                    let customer_id = customer.get_customer_id().to_owned();
                     let merchant_id = merchant_account.merchant_id.to_owned();
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
@@ -2170,7 +2170,7 @@ pub async fn payout_create_db_entries(
                 field_name: "customer_id",
             })
         })?
-        .customer_id;
+        .get_customer_id();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -2388,7 +2388,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.customer_id.to_owned())
+                        .map(|cd| cd.get_customer_id().to_owned())
                         .get_required_value("customer")?;
                     helpers::make_payout_method_data(
                         state,

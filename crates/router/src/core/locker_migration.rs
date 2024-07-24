@@ -12,6 +12,18 @@ use crate::{
     types::{api, domain},
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn rust_locker_migration(
+    state: SessionState,
+    merchant_id: &str,
+) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
 pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &str,

@@ -17,6 +17,7 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbApiVersion as ApiVersion
     };
 }
 
@@ -3001,4 +3002,32 @@ pub enum Owner {
     Organization,
     Tenant,
     Internal,
+}
+
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug)]
+pub enum SoftDeleteStatus {
+    Active,
+    Redacted,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ApiVersion {
+    V1,
+    V2,
 }

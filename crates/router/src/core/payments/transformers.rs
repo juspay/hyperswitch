@@ -105,7 +105,7 @@ where
         customer_data: customer,
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+    let customer_id = customer.to_owned().map(|customer| customer.get_customer_id());
 
     let supported_connector = &state
         .conf
@@ -344,7 +344,7 @@ where
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
                 client_secret: data.payment_intent.client_secret.map(Secret::new),
-                customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+                customer_id: customer.as_ref().map(|x| x.get_customer_id().clone()),
                 email: customer
                     .as_ref()
                     .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -750,7 +750,7 @@ where
                 .set_client_secret(payment_intent.client_secret.map(Secret::new))
                 .set_created(Some(payment_intent.created_at))
                 .set_currency(currency.to_string())
-                .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
+                .set_customer_id(customer.as_ref().map(|cus| cus.clone().get_customer_id()))
                 .set_email(
                     customer
                         .as_ref()
@@ -1093,7 +1093,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             currency: payout.destination_currency,
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
-            customer_id: customer.customer_id,
+            customer_id: customer.get_customer_id(),
             auto_fulfill: payout.auto_fulfill,
             email: customer.email,
             name: customer.name,
@@ -1338,7 +1338,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_id = additional_data
             .customer_data
             .as_ref()
-            .map(|data| data.customer_id.clone());
+            .map(|data| data.get_customer_id().clone());
 
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges

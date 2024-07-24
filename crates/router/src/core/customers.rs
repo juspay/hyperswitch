@@ -228,9 +228,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         Ok(domain::Customer {
-            customer_id: merchant_reference_id
-                .to_owned()
-                .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // doing this to make it compile, will remove once we start moving to domain models
+            id: common_utils::generate_time_ordered_id("cus"),
+            merchant_customer_reference_id: merchant_reference_id.to_owned(),
             merchant_id: merchant_id.to_string(),
             name: encryptable_customer.name,
             email: encryptable_customer.email,
@@ -238,17 +237,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            id: None,
             connector_customer: None,
-            address_id: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            // default_billing_address: default_customer_billing_address,
-            // default_shipping_address: default_customer_shipping_address,
-            // merchant_reference_id,
+            default_billing_address: None,//default_customer_billing_address,
+            default_shipping_address: None, //default_customer_shipping_address,
             // status: Some(customer_domain::SoftDeleteStatus::Active)
+            version: Some(common_enums::ApiVersion::V2)
         })
     }
 

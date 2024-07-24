@@ -598,6 +598,17 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_or_create_customer_details(
+    state: &SessionState,
+    customer_details: &CustomerDetails,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<domain::Customer>> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,

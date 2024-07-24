@@ -283,10 +283,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    customers (customer_id, merchant_id) {
-        id -> Int4,
-        #[max_length = 64]
-        customer_id -> Varchar,
+    customers (id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         name -> Nullable<Bytea>,
@@ -301,11 +298,18 @@ diesel::table! {
         connector_customer -> Nullable<Jsonb>,
         modified_at -> Timestamp,
         #[max_length = 64]
-        address_id -> Nullable<Varchar>,
-        #[max_length = 64]
         default_payment_method_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_customer_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        default_billing_address -> Nullable<Json>,
+        #[max_length = 255]
+        default_shipping_address -> Nullable<Json>,
+        #[max_length = 64]
+        id -> Varchar,
+        version -> Nullable<ApiVersion>,
     }
 }
 
