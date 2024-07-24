@@ -501,6 +501,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
+                // enums::Connector::Wellsfargo => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))
+                // }
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
                 enums::Connector::Plaid => {

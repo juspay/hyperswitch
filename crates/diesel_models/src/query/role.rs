@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
@@ -23,7 +24,7 @@ impl Role {
         conn: &PgPooledConn,
         role_id: &str,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -65,7 +66,7 @@ impl Role {
     pub async fn list_roles(
         conn: &PgPooledConn,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
         let predicate = dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
             .eq(org_id.to_owned())
