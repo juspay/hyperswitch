@@ -67,7 +67,11 @@ pub use self::app::{
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
-#[cfg(feature = "stripe")]
+#[cfg(all(
+    feature = "stripe",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
 pub use crate::analytics::routes::{self as analytics, Analytics};
