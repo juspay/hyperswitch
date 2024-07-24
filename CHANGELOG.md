@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.19.0-hotfix3
+
+### Bug Fixes
+
+- **euclid:** Remove business_profile routing feature flag ([#5431](https://github.com/juspay/hyperswitch/pull/5431)) ([`bd0f66c`](https://github.com/juspay/hyperswitch/commit/bd0f66c25137ecbe5e2f197a915f26181938ebaf))
+
+- - -
+
 ## 2024.07.19.0-hotfix2
 
 ### Features
