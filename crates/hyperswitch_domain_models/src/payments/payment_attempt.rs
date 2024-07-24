@@ -543,7 +543,6 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
-
     async fn convert_back(
         state: &KeyManagerState,
         storage_model: Self::DstType,

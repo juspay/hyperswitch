@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -10,7 +11,7 @@ pub struct Role {
     pub role_name: String,
     pub role_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
     pub scope: enums::RoleScope,
@@ -26,7 +27,7 @@ pub struct RoleNew {
     pub role_name: String,
     pub role_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
     pub scope: enums::RoleScope,

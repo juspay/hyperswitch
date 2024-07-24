@@ -1,4 +1,4 @@
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::enums as storage_enums;
@@ -48,7 +48,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -90,7 +90,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -127,7 +127,7 @@ pub struct MerchantAccountNew {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -157,7 +157,7 @@ pub struct MerchantAccountUpdateInternal {
     pub intent_fulfillment_time: Option<i64>,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: Option<String>,
+    pub organization_id: Option<id_type::OrganizationId>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<Option<String>>,
     pub recon_status: Option<storage_enums::ReconStatus>,

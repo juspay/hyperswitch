@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
+use common_utils::id_type;
 use diesel_models::user_role::UserRole;
 use error_stack::{report, ResultExt};
 use router_env::logger;
@@ -77,7 +78,7 @@ pub async fn validate_role_name(
     state: &SessionState,
     role_name: &domain::RoleName,
     merchant_id: &common_utils::id_type::MerchantId,
-    org_id: &str,
+    org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
 
@@ -109,7 +110,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
         state,
         user_role.role_id.as_str(),
         &user_role.merchant_id,
-        user_role.org_id.as_str(),
+        &user_role.org_id,
     )
     .await
     .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
@@ -120,7 +121,7 @@ pub async fn set_role_permissions_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
     merchant_id: &common_utils::id_type::MerchantId,
-    org_id: &str,
+    org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());

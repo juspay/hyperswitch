@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use common_enums::{PermissionGroup, RoleScope};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 
 use super::{permission_groups::get_permissions_vec, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
@@ -70,7 +70,7 @@ impl RoleInfo {
         state: &SessionState,
         role_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Self, errors::StorageError> {
         if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
             Ok(role.clone())

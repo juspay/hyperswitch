@@ -1,4 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(feature = "olap")]
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -7,6 +9,71 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::admin,
 };
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]
+pub async fn organization_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::OrganizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| create_organization(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationUpdate))]
+pub async fn organization_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<id_type::OrganizationId>,
+    json_payload: web::Json<admin::OrganizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationUpdate;
+    let organization_id = org_id.into_inner();
+    let org_id = admin::OrganizationId { organization_id };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| update_organization(state, org_id.clone(), req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationRetrieve))]
+pub async fn organization_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<id_type::OrganizationId>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationRetrieve;
+    let organization_id = org_id.into_inner();
+    let payload = admin::OrganizationId { organization_id };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| get_organization(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
@@ -51,11 +118,9 @@ pub async fn retrieve_merchant_account(
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountRetrieve;
     let merchant_id = mid.into_inner();
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: merchant_id.to_owned(),
-    })
-    .into_inner();
-
+    let payload = admin::MerchantId {
+        merchant_id: merchant_id.clone(),
+    };
     api::server_wrap(
         flow,
         state,

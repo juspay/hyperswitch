@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::PermissionGroup;
+use common_utils::id_type;
 use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 use router_env::logger;
@@ -79,7 +80,7 @@ async fn get_permissions_from_db<A>(
     state: &A,
     role_id: &str,
     merchant_id: &common_utils::id_type::MerchantId,
-    org_id: &str,
+    org_id: &id_type::OrganizationId,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
     A: SessionStateInfo + Sync,
