@@ -62,6 +62,7 @@ pub mod trustpay;
 pub mod tsys;
 pub mod utils;
 pub mod volt;
+pub mod wellsfargo;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
@@ -86,6 +87,6 @@ pub use self::{
     paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4,
     signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio,
-    trustpay::Trustpay, tsys::Tsys, volt::Volt, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    trustpay::Trustpay, tsys::Tsys, volt::Volt, wellsfargo::Wellsfargo, wise::Wise,
+    worldline::Worldline, worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

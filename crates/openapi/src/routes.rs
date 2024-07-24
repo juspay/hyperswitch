@@ -9,6 +9,7 @@ pub mod gsm;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payments;
@@ -19,6 +20,6 @@ pub mod routing;
 pub mod webhook_events;
 
 pub use self::{
-    customers::*, mandates::*, merchant_account::*, merchant_connector_account::*,
+    customers::*, mandates::*, merchant_account::*, merchant_connector_account::*, organization::*,
     payment_method::*, payments::*, poll::*, refunds::*, routing::*, webhook_events::*,
 };

@@ -1,19 +1,19 @@
 use masking::Secret;
-use router::types::{self, domain, storage::enums};
+use router::types::{self, api, domain, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct VoltTest;
-impl ConnectorActions for VoltTest {}
-impl utils::Connector for VoltTest {
-    fn get_data(&self) -> types::api::ConnectorData {
-        use router::connector::Volt;
+struct WellsfargoTest;
+impl ConnectorActions for WellsfargoTest {}
+impl utils::Connector for WellsfargoTest {
+    fn get_data(&self) -> api::ConnectorData {
+        use router::connector::Wellsfargo;
         utils::construct_connector_data_old(
-            Box::new(Volt::new()),
-            types::Connector::Volt,
-            types::api::GetToken::Connector,
+            Box::new(Wellsfargo::new()),
+            types::Connector::Plaid,
+            api::GetToken::Connector,
             None,
         )
     }
@@ -21,18 +21,18 @@ impl utils::Connector for VoltTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .volt
+                .wellsfargo
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "volt".to_string()
+        "wellsfargo".to_string()
     }
 }
 
-static CONNECTOR: VoltTest = VoltTest {};
+static CONNECTOR: WellsfargoTest = WellsfargoTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

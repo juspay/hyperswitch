@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{query::generics, schema::user_roles::dsl, user_role::*, PgPooledConn, StorageResult};
@@ -55,7 +56,7 @@ impl UserRole {
     pub async fn update_by_user_id_org_id(
         conn: &PgPooledConn,
         user_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         update: UserRoleUpdate,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
