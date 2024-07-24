@@ -541,7 +541,7 @@ pub async fn config_should_call_gsm(
 ) -> bool {
     let config = db
         .find_config_by_key_unwrap_or(
-            format!("should_call_gsm_{}", merchant_id.get_string_repr()).as_str(),
+            &merchant_id.get_should_call_gsm_key()
             Some("false".to_string()),
         )
         .await;

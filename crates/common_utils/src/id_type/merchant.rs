@@ -275,6 +275,11 @@ impl MerchantId {
         }
     }
 
+    /// Get should call gsm key for payment
+    pub fn get_should_call_gsm_key(&self) -> String {
+        format!("should_call_gsm_{}", self.get_string_repr())
+    }
+
     /// get_max_auto_single_connector_payout_retries_enabled_
     pub fn get_max_auto_single_connector_payout_retries_enabled(
         &self,
