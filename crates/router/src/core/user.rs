@@ -197,7 +197,7 @@ pub async fn signin(
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
-                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .get_role_from_db_by_merchant_id(&state, &preferred_merchant_id)
                 .await
                 .to_not_found_response(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
@@ -1110,7 +1110,9 @@ pub async fn create_internal_user(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -1126,7 +1128,9 @@ pub async fn create_internal_user(
         .store
         .find_merchant_account_by_merchant_id(
             key_manager_state,
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &key_store,
         )
         .await
@@ -1195,7 +1199,7 @@ pub async fn switch_merchant_id(
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                request.merchant_id.as_str(),
+                &request.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
@@ -1211,7 +1215,7 @@ pub async fn switch_merchant_id(
             .store
             .find_merchant_account_by_merchant_id(
                 key_manager_state,
-                request.merchant_id.as_str(),
+                &request.merchant_id,
                 &key_store,
             )
             .await
@@ -1294,7 +1298,7 @@ pub async fn create_merchant_account(
     if let Err(e) = role_insertion_res {
         let _ = state
             .store
-            .delete_merchant_account_by_merchant_id(new_merchant.get_merchant_id().as_str())
+            .delete_merchant_account_by_merchant_id(&new_merchant.get_merchant_id())
             .await;
         return Err(e);
     }
@@ -1386,7 +1390,7 @@ pub async fn list_users_for_merchant_account(
 ) -> UserResponse<user_api::ListUsersResponse> {
     let user_roles: HashMap<String, _> = state
         .store
-        .list_user_roles_by_merchant_id(user_from_token.merchant_id.as_str())
+        .list_user_roles_by_merchant_id(&user_from_token.merchant_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("No user roles for given merchant id")?
@@ -1481,7 +1485,7 @@ pub async fn verify_email(
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
-                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .get_role_from_db_by_merchant_id(&state, &preferred_merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
@@ -1626,7 +1630,7 @@ pub async fn verify_token(
         .merchant_id;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
         user_email: user.email,
     }))
 }

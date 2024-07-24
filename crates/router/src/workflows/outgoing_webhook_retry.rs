@@ -263,7 +263,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let key = "pt_mapping_outgoing_webhooks";
@@ -308,7 +308,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =

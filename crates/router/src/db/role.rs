@@ -1,4 +1,5 @@
 use common_enums::enums;
+use common_utils::id_type;
 use diesel_models::role as storage;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -25,8 +26,8 @@ pub trait RoleInterface {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
     async fn update_role_by_role_id(
@@ -42,8 +43,8 @@ pub trait RoleInterface {
 
     async fn list_all_roles(
         &self,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
@@ -75,8 +76,8 @@ impl RoleInterface for Store {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
@@ -110,8 +111,8 @@ impl RoleInterface for Store {
     #[instrument(skip_all)]
     async fn list_all_roles(
         &self,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::list_roles(&conn, merchant_id, org_id)
@@ -173,22 +174,22 @@ impl RoleInterface for MockDb {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let roles = self.roles.lock().await;
         roles
             .iter()
             .find(|role| {
                 role.role_id == role_id
-                    && (role.merchant_id == merchant_id
-                        || (role.org_id == org_id && role.scope == enums::RoleScope::Organization))
+                    && (role.merchant_id == *merchant_id
+                        || (role.org_id == *org_id && role.scope == enums::RoleScope::Organization))
             })
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No role available in merchant scope for role_id = {role_id}, \
-                    merchant_id = {merchant_id} and org_id = {org_id}"
+                    merchant_id = {merchant_id:?} and org_id = {org_id:?}"
                 ))
                 .into(),
             )
@@ -245,16 +246,16 @@ impl RoleInterface for MockDb {
 
     async fn list_all_roles(
         &self,
-        merchant_id: &str,
-        org_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
 
         let roles_list: Vec<_> = roles
             .iter()
             .filter(|role| {
-                role.merchant_id == merchant_id
-                    || (role.org_id == org_id
+                role.merchant_id == *merchant_id
+                    || (role.org_id == *org_id
                         && role.scope == diesel_models::enums::RoleScope::Organization)
             })
             .cloned()
@@ -262,7 +263,7 @@ impl RoleInterface for MockDb {
 
         if roles_list.is_empty() {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No role found for merchant id = {} and org_id = {}",
+                "No role found for merchant id = {:?} and org_id = {:?}",
                 merchant_id, org_id
             ))
             .into());

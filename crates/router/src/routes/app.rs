@@ -170,7 +170,6 @@ pub trait AppStateInfo {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
-    fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
@@ -191,9 +190,6 @@ impl AppStateInfo for AppState {
         self.request_id.replace(request_id);
     }
 
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
-        self.api_client.add_merchant_id(merchant_id);
-    }
     fn add_flow_name(&mut self, flow_name: String) {
         self.api_client.add_flow_name(flow_name);
     }
@@ -1024,6 +1020,22 @@ impl Blocklist {
             )
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Organization;
+#[cfg(feature = "olap")]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
             )
     }
 }

@@ -1,5 +1,5 @@
 use common_enums::MerchantStorageScheme;
-use common_utils::{id_type, pii};
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -13,8 +13,8 @@ use crate::{enums as storage_enums, schema::mandate};
 pub struct Mandate {
     pub id: i32,
     pub mandate_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub mandate_status: storage_enums::MandateStatus,
     pub mandate_type: storage_enums::MandateType,
@@ -51,8 +51,8 @@ pub struct Mandate {
 #[diesel(table_name = mandate)]
 pub struct MandateNew {
     pub mandate_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub mandate_status: storage_enums::MandateStatus,
     pub mandate_type: storage_enums::MandateType,
