@@ -670,6 +670,7 @@ impl PaymentMethodInterface for MockDb {
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,
             locker_id: payment_method_new.locker_id,
+            network_token_reference_id: payment_method_new.network_token_reference_id,
             accepted_currency: payment_method_new.accepted_currency,
             scheme: payment_method_new.scheme,
             token: payment_method_new.token,

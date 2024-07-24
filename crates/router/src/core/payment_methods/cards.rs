@@ -150,6 +150,7 @@ pub async fn create_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
+                network_token_reference_id: None,
             },
             storage_scheme,
         )
@@ -537,6 +538,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address: payment_method_billing_address.map(Into::into),
                 updated_by: None,
+                network_token_reference_id: None,
             },
             merchant_account.storage_scheme,
         )
@@ -820,6 +822,7 @@ pub async fn add_payment_method_data(
                             payment_method_data: Some(pm_data_encrypted.into()),
                             status: Some(enums::PaymentMethodStatus::Active),
                             locker_id: Some(locker_id),
+                            network_token_reference_id: None,
                             payment_method: req.payment_method,
                             payment_method_issuer: req.payment_method_issuer,
                             payment_method_type: req.payment_method_type,

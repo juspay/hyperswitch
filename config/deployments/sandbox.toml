@@ -379,3 +379,6 @@ sdk_eligible_payment_methods = "card"
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[network_tokenization_supported_card_networks]
+card_networks = "visa"

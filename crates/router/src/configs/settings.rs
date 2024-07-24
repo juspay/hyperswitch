@@ -96,6 +96,7 @@ pub struct Settings<S: SecretState> {
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -399,6 +400,12 @@ pub struct Mandates {
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedCardNetworks {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::CardNetwork>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

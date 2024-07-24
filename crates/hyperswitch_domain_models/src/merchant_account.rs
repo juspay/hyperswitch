@@ -50,6 +50,7 @@ pub struct MerchantAccount {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -362,6 +363,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 
@@ -420,6 +422,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 recon_status: item.recon_status,
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
+                is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await
@@ -457,6 +460,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 }

@@ -401,6 +401,8 @@ pub(crate) async fn fetch_raw_secrets(
         mandates: conf.mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
+        network_tokenization_supported_card_networks: conf
+            .network_tokenization_supported_card_networks,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,

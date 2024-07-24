@@ -481,6 +481,7 @@ async fn store_bank_details_in_payment_methods(
                 created_at: now,
                 last_modified: now,
                 locker_id: None,
+                network_token_reference_id: None,
                 last_used_at: now,
                 connector_mandate_details: None,
                 customer_acceptance: None,

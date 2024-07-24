@@ -670,6 +670,7 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        is_network_tokenization_enabled -> Bool,
     }
 }
 
@@ -983,6 +984,8 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        network_token_reference_id -> Nullable<Varchar>,
     }
 }
 

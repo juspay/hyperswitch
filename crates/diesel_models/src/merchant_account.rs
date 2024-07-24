@@ -54,6 +54,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -127,6 +128,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -157,4 +159,5 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
