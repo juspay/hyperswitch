@@ -108,7 +108,7 @@ const getUnsupportedExchange = () => ({
       error: {
         type: "invalid_request",
         message: `Payment method type not supported`,
-        code: "HE_03",
+        code: "IR_19",
       },
     },
   },
