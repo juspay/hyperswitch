@@ -6,6 +6,7 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::{self, admin, enums as api_enums, payouts::PayoutLinkResponse};
+#[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
     consts,
