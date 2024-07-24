@@ -1,7 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "v2")]
-use common_utils::new_type;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -9,9 +7,12 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,10 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 use crate::routing;
 use crate::{enums as api_enums, payment_methods};
 
@@ -28,7 +32,10 @@ pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -101,14 +108,18 @@ pub struct MerchantAccountCreate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The id of the organization to which the merchant belongs to, if not passed an organization is created
-    pub organization_id: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: Option<id_type::OrganizationId>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
@@ -182,13 +193,13 @@ impl MerchantAccountCreate {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// Name of the Merchant Account, This will be used as a prefix to generate the id
     #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]
-    pub merchant_name: Secret<new_type::MerchantName>,
+    pub merchant_name: Secret<common_utils::new_type::MerchantName>,
 
     /// Details about the merchant, contains phone and emails of primary and secondary contact person.
     pub merchant_details: Option<MerchantDetails>,
@@ -198,10 +209,11 @@ pub struct MerchantAccountCreate {
     pub metadata: Option<MerchantAccountMetadata>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
@@ -327,7 +339,10 @@ pub struct MerchantAccountUpdate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -401,7 +416,8 @@ pub struct MerchantAccountResponse {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -419,7 +435,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -443,7 +459,8 @@ pub struct MerchantAccountResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization which the merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -1040,6 +1057,16 @@ pub struct ToggleKVResponse {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct MerchantKeyTransferRequest {
+    /// Offset for merchant account
+    #[schema(example = 32)]
+    pub from: u32,
+    /// Limit for merchant account
+    #[schema(example = 32)]
+    pub limit: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct TransferKeyResponse {
     /// The identifier for the Merchant Account
@@ -1390,9 +1417,37 @@ pub struct BusinessGenericLinkConfig {
     /// Custom domain name to be used for hosting the link
     pub domain_name: Option<String>,
 
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    pub allowed_domains: HashSet<String>,
+
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
+}
+
+impl BusinessGenericLinkConfig {
+    pub fn validate(&self) -> Result<(), &str> {
+        // Validate host domain name
+        let host_domain_valid = self
+            .domain_name
+            .clone()
+            .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
+            .unwrap_or(true);
+        if !host_domain_valid {
+            return Err("Invalid host domain name received");
+        }
+
+        let are_allowed_domains_valid = self
+            .allowed_domains
+            .clone()
+            .iter()
+            .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
+        if !are_allowed_domains_valid {
+            return Err("Invalid allowed domain names received");
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

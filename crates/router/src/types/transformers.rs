@@ -21,7 +21,7 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
         X_PAYMENT_CONFIRM_SOURCE,
     },
     services::authentication::get_header_value_by_key,
@@ -255,6 +255,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
@@ -274,11 +275,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
-            api_enums::Connector::Plaid => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "plaid is not a routable connector".to_string(),
-                })?
-            }
+            api_enums::Connector::Plaid => Self::Plaid,
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
@@ -300,6 +297,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
+            // api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
@@ -1157,6 +1155,9 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                     .unwrap_or(api_enums::ClientPlatform::Unknown)
             });
 
+        let x_merchant_domain =
+            get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
+
         Ok(Self {
             payment_confirm_source,
             client_source,
@@ -1164,6 +1165,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             x_hs_latency: Some(x_hs_latency),
             browser_name,
             x_client_platform,
+            x_merchant_domain,
         })
     }
 }
@@ -1279,6 +1281,18 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        Self {
+            org_id: org_new.org_id,
+            org_name: item.organization_name,
         }
     }
 }

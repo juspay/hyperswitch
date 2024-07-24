@@ -1,24 +1,45 @@
 use std::collections::HashMap;
 
-pub use api_models::admin::{
-    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
-    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
-    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+pub use api_models::{
+    admin::{
+        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
+        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    },
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use error_stack::ResultExt;
-use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::keymanager::Identifier,
+};
+use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
-    types::{domain, storage, transformers::ForeignTryFrom},
+    routes::SessionState,
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
 
-#[cfg(not(feature = "v2"))]
+impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
+    fn foreign_from(org: diesel_models::organization::Organization) -> Self {
+        Self {
+            organization_id: org.org_id,
+            organization_name: org.org_name,
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -59,7 +80,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -84,25 +105,29 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 }
 
 pub async fn business_profile_response(
+    state: &SessionState,
     item: storage::business_profile::BusinessProfile,
     key_store: &MerchantKeyStore,
 ) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
-    let outgoing_webhook_custom_http_headers = decrypt::<serde_json::Value, masking::WithType>(
-        item.outgoing_webhook_custom_http_headers.clone(),
-        key_store.key.get_inner().peek(),
-    )
-    .await
-    .change_context(errors::ParsingError::StructParseFailure(
-        "Outgoing webhook custom HTTP headers",
-    ))
-    .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
-    .map(|decrypted_value| {
-        decrypted_value
-            .into_inner()
-            .expose()
-            .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-    })
-    .transpose()?;
+    let outgoing_webhook_custom_http_headers =
+        decrypt_optional::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            item.outgoing_webhook_custom_http_headers.clone(),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::ParsingError::StructParseFailure(
+            "Outgoing webhook custom HTTP headers",
+        ))
+        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+        .map(|decrypted_value| {
+            decrypted_value
+                .into_inner()
+                .expose()
+                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+        })
+        .transpose()?;
 
     Ok(BusinessProfileResponse {
         merchant_id: item.merchant_id,
@@ -146,7 +171,9 @@ pub async fn business_profile_response(
     })
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn create_business_profile(
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,
     key_store: &MerchantKeyStore,
@@ -188,11 +215,26 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(key_store, headers))
+        .async_map(|headers| create_encrypted_data(state, key_store, headers))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+    let payout_link_config = request
+        .payout_link_config
+        .as_ref()
+        .map(|payout_conf| match payout_conf.config.validate() {
+            Ok(_) => payout_conf.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                },
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
+        })
+        .transpose()?;
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
@@ -246,14 +288,7 @@ pub async fn create_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
-        payout_link_config: request
-            .payout_link_config
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payout_link_config",
-            })?,
+        payout_link_config,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         is_extended_card_info_enabled: None,
         extended_card_info_config: None,

@@ -1109,6 +1109,111 @@
         ]
       }
     },
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Create an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/accounts": {
       "post": {
         "tags": [
@@ -6518,7 +6623,29 @@
             ],
             "properties": {
               "pix": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "pix_key": {
+                    "type": "string",
+                    "description": "Unique key for pix transfer",
+                    "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
+                    "nullable": true
+                  },
+                  "cpf": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CPF is a Brazilian tax identification number",
+                    "example": "10599054689",
+                    "nullable": true
+                  },
+                  "cnpj": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CNPJ is a Brazilian company tax identification number",
+                    "example": "74469027417312",
+                    "nullable": true
+                  }
+                }
               }
             }
           },
@@ -6824,11 +6951,22 @@
           },
           {
             "type": "object",
+            "required": [
+              "allowed_domains"
+            ],
             "properties": {
               "domain_name": {
                 "type": "string",
                 "description": "Custom domain name to be used for hosting the link",
                 "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true
               }
             }
           }
@@ -7772,6 +7910,7 @@
           "gpayments",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -9813,6 +9952,24 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_key"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cpf"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cnpj"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11260,7 +11417,10 @@
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
-            "nullable": true
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "pm_collect_link_config": {
             "allOf": [
@@ -11477,7 +11637,10 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with"
+            "description": "The organization id merchant is associated with",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -12861,6 +13024,33 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "required": [
+          "organization_id"
+        ],
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "organization_name": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -19691,6 +19881,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",

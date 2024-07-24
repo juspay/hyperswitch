@@ -216,6 +216,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -246,6 +247,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -325,7 +327,6 @@ pub enum AuthenticationType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]

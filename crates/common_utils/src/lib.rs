@@ -4,15 +4,12 @@
 
 use masking::{PeekInterface, Secret};
 
-use crate::{
-    consts::ID_LENGTH,
-    id_type::{CustomerId, LengthId},
-};
-
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+#[allow(missing_docs)] // Todo: add docs
+pub mod encryption;
 pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
@@ -31,6 +28,7 @@ pub mod request;
 pub mod signals;
 #[allow(missing_docs)] // Todo: add docs
 pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
 
@@ -213,19 +211,24 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 /// Generate a ReferenceId with the default length with the given prefix
 fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
     prefix: &str,
-) -> LengthId<MAX_LENGTH, MIN_LENGTH> {
-    LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+) -> id_type::LengthId<MAX_LENGTH, MIN_LENGTH> {
+    id_type::LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
 }
 
 /// Generate a customer id with default length, with prefix as `cus`
-pub fn generate_customer_id_of_default_length() -> CustomerId {
-    CustomerId::new(generate_ref_id_with_default_length("cus"))
+pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
+    id_type::CustomerId::new(generate_ref_id_with_default_length("cus"))
+}
+
+/// Generate a organization id with default length, with prefix as `org`
+pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
+    id_type::OrganizationId::new(generate_ref_id_with_default_length("org"))
 }
 
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
-    let len = ID_LENGTH;
+    let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
 
@@ -275,7 +278,7 @@ mod nanoid_tests {
 
     #[test]
     fn test_generate_merchant_ref_id_with_default_length() {
-        let ref_id = LengthId::<
+        let ref_id = id_type::LengthId::<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >::from(generate_id_with_default_len("def").into());
