@@ -36,7 +36,6 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
         .find(|char| !is_valid_id_character(char))
 }
 
-
 #[derive(Debug, PartialEq, Hash, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
 pub(crate) struct AlphaNumericId(String);
