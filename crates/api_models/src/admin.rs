@@ -661,7 +661,8 @@ pub struct MerchantConnectorCreate {
     pub status: Option<api_enums::ConnectorStatus>,
 
     /// The identifier for the Merchant Account
-    pub merchant_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: id_type::MerchantId,
 
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]

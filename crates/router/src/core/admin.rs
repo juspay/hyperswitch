@@ -135,6 +135,8 @@ pub async fn update_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
         org_name: req.organization_name,
+        organization_details: req.organization_details,
+        metadata: req.metadata,
     };
     state
         .store
@@ -1962,7 +1964,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             Some(
                 process_open_banking_connectors(
                     state,
-                    business_profile.merchant_id.as_str(),
+                    &business_profile.merchant_id,
                     &auth,
                     &self.connector_type,
                     &self.connector_name,
@@ -1982,7 +1984,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
-            merchant_id: business_profile.merchant_id.to_string(),
+            merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
             merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
@@ -2006,7 +2008,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_label: Some(connector_label.clone()),
             created_at: date_time::now(),
             modified_at: date_time::now(),
-            id: None,
             connector_webhook_details: match self.connector_webhook_details {
                 Some(connector_webhook_details) => {
                     connector_webhook_details.encode_to_value(
@@ -2058,7 +2059,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     let _ = core_utils::validate_and_get_business_profile(
                         db,
                         Some(&profile_id),
-                        &merchant_account.merchant_id,
+                        merchant_account.get_id(),
                     )
                     .await?;
                 }
@@ -2175,7 +2176,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_label: Some(connector_label.clone()),
             created_at: date_time::now(),
             modified_at: date_time::now(),
-            id: None,
             connector_webhook_details: match self.connector_webhook_details {
                 Some(connector_webhook_details) => {
                     connector_webhook_details.encode_to_value(
