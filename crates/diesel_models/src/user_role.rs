@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -10,7 +11,7 @@ pub struct UserRole {
     pub user_id: String,
     pub merchant_id: Option<String>,
     pub role_id: String,
-    pub org_id: Option<String>,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
@@ -28,7 +29,7 @@ pub struct UserRoleNew {
     pub user_id: String,
     pub merchant_id: Option<String>,
     pub role_id: String,
-    pub org_id: Option<String>,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,

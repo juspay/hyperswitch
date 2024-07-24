@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
@@ -66,7 +67,7 @@ impl UserRole {
     pub async fn update_by_user_id_org_id(
         conn: &PgPooledConn,
         user_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         update: UserRoleUpdate,
         version: UserRoleVersion,
     ) -> StorageResult<Vec<Self>> {

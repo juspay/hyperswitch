@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
@@ -22,7 +23,7 @@ impl DashboardMetadata {
         conn: &PgPooledConn,
         user_id: Option<String>,
         merchant_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: DashboardMetadataUpdate,
     ) -> StorageResult<Self> {
@@ -62,7 +63,7 @@ impl DashboardMetadata {
         conn: &PgPooledConn,
         user_id: String,
         merchant_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
         let predicate = dsl::user_id
@@ -84,7 +85,7 @@ impl DashboardMetadata {
     pub async fn find_merchant_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         merchant_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         data_types: Vec<enums::DashboardMetadata>,
     ) -> StorageResult<Vec<Self>> {
         let predicate = dsl::merchant_id

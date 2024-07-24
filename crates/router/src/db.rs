@@ -36,6 +36,7 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -346,14 +347,14 @@ impl OrganizationInterface for KafkaStore {
     }
     async fn find_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Organization, StorageError> {
         self.diesel_store.find_organization_by_org_id(org_id).await
     }
 
     async fn update_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> CustomResult<Organization, StorageError> {
         self.diesel_store

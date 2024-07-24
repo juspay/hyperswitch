@@ -2,7 +2,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
 use common_enums::UserAuthType;
-use common_utils::{encryption::Encryption, errors::CustomResult, types::keymanager::Identifier};
+use common_utils::{
+    encryption::Encryption, errors::CustomResult, id_type, types::keymanager::Identifier,
+};
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -107,7 +109,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: &SessionState,
     user: &UserFromStorage,
     merchant_id: String,
-    org_id: String,
+    org_id: id_type::OrganizationId,
     role_id: String,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
@@ -195,7 +197,7 @@ pub fn get_multiple_merchant_details_with_status(
                 is_active: user_role.status == UserStatus::Active,
                 role_id: user_role.role_id,
                 role_name: role_info.get_role_name().to_string(),
-                org_id: org_id.to_string(),
+                org_id: org_id.to_owned(),
             })
         })
         .collect()
