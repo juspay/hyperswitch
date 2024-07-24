@@ -123,8 +123,8 @@ impl OrganizationInterface for super::MockDb {
                     organization_name
                         .as_ref()
                         .map(|org_name| org.set_organization_name(org_name.to_owned()));
-                    org.organization_details = organization_details.to_owned();
-                    org.metadata = metadata.to_owned();
+                    organization_details.clone_into(&mut org.organization_details);
+                    metadata.clone_into(&mut org.metadata);
                     org
                 }
             })
