@@ -1,5 +1,5 @@
 use common_utils::{errors::CustomResult, id_type};
-use diesel_models::organization as storage;
+use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -73,21 +73,14 @@ impl OrganizationInterface for super::MockDb {
 
         if organizations
             .iter()
-            .any(|org| org.org_id == organization.org_id)
+            .any(|org| org.get_organization_id() == organization.get_organization_id())
         {
             Err(errors::StorageError::DuplicateValue {
                 entity: "org_id",
                 key: None,
             })?
         }
-        let org = storage::Organization {
-            org_id: organization.org_id.clone(),
-            org_name: organization.org_name,
-            organization_details: organization.organization_details,
-            metadata: organization.metadata,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        };
+        let org = storage::Organization::new(organization);
         organizations.push(org.clone());
         Ok(org)
     }
@@ -100,7 +93,7 @@ impl OrganizationInterface for super::MockDb {
 
         organizations
             .iter()
-            .find(|org| org.org_id == *org_id)
+            .find(|org| org.get_organization_id() == *org_id)
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -120,18 +113,20 @@ impl OrganizationInterface for super::MockDb {
 
         organizations
             .iter_mut()
-            .find(|org| org.org_id == *org_id)
+            .find(|org| org.get_organization_id() == *org_id)
             .map(|org| match &update {
                 storage::OrganizationUpdate::Update {
-                    org_name,
+                    organization_name,
                     organization_details,
                     metadata,
-                } => storage::Organization {
-                    org_name: org_name.clone(),
-                    organization_details: organization_details.clone(),
-                    metadata: metadata.clone(),
-                    ..org.to_owned()
-                },
+                } => {
+                    organization_name
+                        .as_ref()
+                        .map(|org_name| org.set_organization_name(org_name.to_owned()));
+                    org.organization_details = organization_details.to_owned();
+                    org.metadata = metadata.to_owned();
+                    org
+                }
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -140,5 +135,6 @@ impl OrganizationInterface for super::MockDb {
                 ))
                 .into(),
             )
+            .cloned()
     }
 }

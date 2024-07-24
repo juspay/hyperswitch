@@ -728,10 +728,10 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    organization (org_id) {
+    organization (id) {
         #[max_length = 32]
-        org_id -> Varchar,
-        org_name -> Nullable<Text>,
+        id -> Varchar,
+        organization_name -> Nullable<Text>,
         organization_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,

@@ -11,7 +11,7 @@ use common_utils::{
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
-    organization::Organization,
+    organization::{Organization, OrganizationBridge},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
@@ -255,7 +255,7 @@ impl NewUserOrganization {
     }
 
     pub fn get_organization_id(&self) -> id_type::OrganizationId {
-        self.0.org_id.clone()
+        self.0.get_organization_id()
     }
 }
 
@@ -301,14 +301,10 @@ impl From<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for Ne
 
 impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     fn from(value: UserMerchantCreateRequestWithToken) -> Self {
-        Self(diesel_org::OrganizationNew {
-            org_id: value.2.org_id,
-            org_name: Some(value.1.company_name),
-            organization_details: None,
-            metadata: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        })
+        Self(diesel_org::OrganizationNew::new(
+            value.2.org_id,
+            Some(value.1.company_name),
+        ))
     }
 }
 

@@ -1277,14 +1277,7 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
-        Self {
-            org_id: item.org_id,
-            org_name: item.org_name,
-            organization_details: None,
-            metadata: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        }
+        Self::new(item.org_id, item.org_name)
     }
 }
 
@@ -1293,14 +1286,7 @@ impl ForeignFrom<api_models::organization::OrganizationRequest>
 {
     fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
         let org_new = api_models::organization::OrganizationNew::new(None);
-        Self {
-            org_id: org_new.org_id,
-            org_name: item.organization_name,
-            organization_details: item.organization_details,
-            metadata: item.metadata,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        }
+        Self::new(org_new.org_id, item.organization_name)
     }
 }
 

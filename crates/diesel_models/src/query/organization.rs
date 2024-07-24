@@ -1,9 +1,11 @@
 use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods};
 
-use crate::{
-    organization::*, query::generics, schema::organization::dsl, PgPooledConn, StorageResult,
-};
+#[cfg(feature = "v1")]
+use crate::schema::organization::dsl;
+#[cfg(feature = "v2")]
+use crate::schema_v2::organization::dsl;
+use crate::{organization::*, query::generics, PgPooledConn, StorageResult};
 
 impl OrganizationNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Organization> {
@@ -16,8 +18,14 @@ impl Organization {
         conn: &PgPooledConn,
         org_id: id_type::OrganizationId,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::org_id.eq(org_id))
-            .await
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            #[cfg(feature = "v1")]
+            dsl::org_id.eq(org_id),
+            #[cfg(feature = "v2")]
+            dsl::id.eq(org_id),
+        )
+        .await
     }
 
     pub async fn update_by_org_id(
@@ -32,7 +40,10 @@ impl Organization {
             _,
         >(
             conn,
+            #[cfg(feature = "v1")]
             dsl::org_id.eq(org_id),
+            #[cfg(feature = "v2")]
+            dsl::id.eq(org_id),
             OrganizationUpdateInternal::from(update),
         )
         .await

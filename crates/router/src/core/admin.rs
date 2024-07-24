@@ -10,7 +10,7 @@ use common_utils::{
     id_type, pii,
     types::keymanager as km_types,
 };
-use diesel_models::configs;
+use diesel_models::{configs, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -128,7 +128,7 @@ pub async fn update_organization(
     req: api::OrganizationRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
-        org_name: req.organization_name,
+        organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
     };
@@ -385,7 +385,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payout_routing_algorithm: self.payout_routing_algorithm,
                     #[cfg(not(feature = "payouts"))]
                     payout_routing_algorithm: None,
-                    organization_id: organization.org_id,
+                    organization_id: organization.get_organization_id(),
                     is_recon_enabled: false,
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -628,7 +628,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        CreateOrValidateOrganization::new(self.organization_id.clone())
+        let organization = CreateOrValidateOrganization::new(self.organization_id.clone())
             .create_or_validate(db)
             .await?;
 
@@ -685,7 +685,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     intent_fulfillment_time: None,
                     frm_routing_algorithm: None,
                     payout_routing_algorithm: None,
-                    organization_id: self.organization_id,
+                    organization_id: organization.get_organization_id(),
                     is_recon_enabled: false,
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
