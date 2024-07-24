@@ -13018,9 +13018,11 @@
             "nullable": true
           },
           "organization_details": {
+            "type": "object",
             "nullable": true
           },
           "metadata": {
+            "type": "object",
             "nullable": true
           }
         }
@@ -13044,9 +13046,11 @@
             "nullable": true
           },
           "organization_details": {
+            "type": "object",
             "nullable": true
           },
           "metadata": {
+            "type": "object",
             "nullable": true
           },
           "modified_at": {
