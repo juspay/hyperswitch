@@ -1,14 +1,13 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
-use common_utils::types::keymanager::KeyManagerState;
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
-    types::MinorUnit,
+    id_type, pii,
+    types::{
+        keymanager::{self, KeyManagerState},
+        MinorUnit,
+    },
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -42,27 +41,27 @@ pub trait PaymentAttemptInterface {
         &self,
         connector_transaction_id: &str,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
@@ -70,7 +69,7 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
@@ -78,20 +77,20 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         payment_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
@@ -99,14 +98,14 @@ pub trait PaymentAttemptInterface {
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
@@ -120,7 +119,7 @@ pub trait PaymentAttemptInterface {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
@@ -210,7 +209,7 @@ pub struct PaymentListFilters {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
@@ -548,20 +547,14 @@ impl behaviour::Conversion for PaymentIntent {
         state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| {
-                decrypt_optional(
-                    state,
-                    inner,
-                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
-                    key.peek(),
-                )
-            };
+            let inner_decrypt =
+                |inner| decrypt_optional(state, inner, key_manager_identifier, key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -744,20 +737,14 @@ impl behaviour::Conversion for PaymentIntent {
         state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| {
-                decrypt_optional(
-                    state,
-                    inner,
-                    common_utils::types::keymanager::Identifier::Merchant(key_store_ref_id.clone()),
-                    key.peek(),
-                )
-            };
+            let inner_decrypt =
+                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

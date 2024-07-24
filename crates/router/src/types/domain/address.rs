@@ -37,7 +37,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub updated_by: String,
     pub email: crypto::OptionalEncryptableEmail,
 }
@@ -77,7 +77,7 @@ impl behaviour::Conversion for CustomerAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -87,7 +87,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
+        let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
 
         Ok(Self {
             address,
@@ -123,7 +123,7 @@ impl behaviour::Conversion for PaymentAddress {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -134,7 +134,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
+        let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
 
         Ok(Self {
             address,
@@ -188,7 +188,7 @@ impl behaviour::Conversion for Address {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(

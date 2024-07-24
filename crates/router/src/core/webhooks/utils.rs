@@ -26,10 +26,10 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
 pub async fn is_webhook_event_disabled(
     db: &dyn StorageInterface,
     connector_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
     let merchant_webhook_disable_config_result: CustomResult<
         api::MerchantWebhookConfig,
         redis_interface::errors::RedisError,
@@ -73,7 +73,7 @@ pub async fn construct_webhook_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
         payment_id: IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),

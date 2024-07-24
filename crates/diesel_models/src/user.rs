@@ -19,7 +19,7 @@ pub struct User {
     pub is_verified: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
-    pub preferred_merchant_id: Option<String>,
+    pub preferred_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub totp_status: TotpStatus,
     pub totp_secret: Option<Encryption>,
     #[diesel(deserialize_as = OptionalDieselArray<Secret<String>>)]
@@ -39,7 +39,7 @@ pub struct UserNew {
     pub is_verified: bool,
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
-    pub preferred_merchant_id: Option<String>,
+    pub preferred_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub totp_status: TotpStatus,
     pub totp_secret: Option<Encryption>,
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
@@ -53,7 +53,7 @@ pub struct UserUpdateInternal {
     password: Option<Secret<String>>,
     is_verified: Option<bool>,
     last_modified_at: PrimitiveDateTime,
-    preferred_merchant_id: Option<String>,
+    preferred_merchant_id: Option<common_utils::id_type::MerchantId>,
     totp_status: Option<TotpStatus>,
     totp_secret: Option<Encryption>,
     totp_recovery_codes: Option<Vec<Secret<String>>>,
@@ -66,7 +66,7 @@ pub enum UserUpdate {
     AccountUpdate {
         name: Option<String>,
         is_verified: Option<bool>,
-        preferred_merchant_id: Option<String>,
+        preferred_merchant_id: Option<common_utils::id_type::MerchantId>,
     },
     TotpUpdate {
         totp_status: Option<TotpStatus>,
