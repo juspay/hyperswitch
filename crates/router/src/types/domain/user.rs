@@ -551,9 +551,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
 
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
         let merchant_id = if matches!(env::which(), env::Env::Production) {
-            id_type::MerchantId::try_from(MerchantId::new(
-                value.1.company_name.clone(),
-            )?)?
+            id_type::MerchantId::try_from(MerchantId::new(value.1.company_name.clone())?)?
         } else {
             id_type::MerchantId::new_from_unix_timestamp()
         };
