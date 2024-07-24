@@ -36,7 +36,7 @@ pub fn status_code_metrics(
         &add_attributes([
             ("status_code", status_code),
             ("flow", flow),
-            ("merchant_id", merchant_id.get_string_repr().to_owned()),
+            ("merchant_id", merchant_id.to_owned()),
         ]),
     )
 }
