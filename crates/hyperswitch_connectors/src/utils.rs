@@ -20,7 +20,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-pub fn construct_not_supported_error_report(
+pub(crate) fn construct_not_supported_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &'static str,
 ) -> error_stack::Report<errors::ConnectorError> {
@@ -31,7 +31,7 @@ pub fn construct_not_supported_error_report(
     .into()
 }
 
-pub fn get_amount_as_f64(
+pub(crate) fn get_amount_as_f64(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
     currency: enums::Currency,
@@ -45,7 +45,7 @@ pub fn get_amount_as_f64(
     Ok(amount)
 }
 
-pub fn to_currency_base_unit_asf64(
+pub(crate) fn to_currency_base_unit_asf64(
     amount: i64,
     currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
@@ -54,7 +54,7 @@ pub fn to_currency_base_unit_asf64(
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
-pub fn missing_field_err(
+pub(crate) fn missing_field_err(
     message: &'static str,
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
     Box::new(move || {
@@ -65,13 +65,13 @@ pub fn missing_field_err(
     })
 }
 
-pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
+pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
-pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
+pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
     format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
-pub fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+pub(crate) fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -79,6 +79,7 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+// TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;

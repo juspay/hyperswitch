@@ -3,7 +3,7 @@ use hyperswitch_domain_models::{
     router_response_types::RefundsResponseData,
 };
 
-pub type RefundsResponseRouterData<F, R> =
+pub(crate) type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
 // TODO: Remove `ResponseRouterData` from router crate after all the related type aliases are moved to this crate.
