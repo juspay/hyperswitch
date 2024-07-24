@@ -71,6 +71,8 @@ pub enum OpenSearchError {
     ConnectionError,
     #[error("Opensearch NON-200 response content: '{0}'")]
     ResponseNotOK(String),
+    #[error("Customer query & filter error")]
+    BadRequestError(String),
     #[error("Opensearch response error")]
     ResponseError,
     #[error("Opensearch query building error")]
@@ -96,6 +98,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "IR",
                 0,
                 "Connection error",
+                None,
+            )),
+            Self::BadRequestError(response) => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                1,
+                format!("{}", response),
                 None,
             )),
             Self::ResponseNotOK(response) => ApiErrorResponse::InternalServerError(ApiError::new(
