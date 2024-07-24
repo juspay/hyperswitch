@@ -304,6 +304,10 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
         Self(diesel_org::OrganizationNew {
             org_id: value.2.org_id,
             org_name: Some(value.1.company_name),
+            organization_details: None,
+            metadata: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         })
     }
 }
