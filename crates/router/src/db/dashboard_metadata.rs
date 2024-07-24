@@ -20,7 +20,7 @@ pub trait DashboardMetadataInterface {
     async fn update_metadata(
         &self,
         user_id: Option<String>,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
@@ -29,14 +29,14 @@ pub trait DashboardMetadataInterface {
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
 
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
@@ -44,13 +44,13 @@ pub trait DashboardMetadataInterface {
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
 }
@@ -73,7 +73,7 @@ impl DashboardMetadataInterface for Store {
     async fn update_metadata(
         &self,
         user_id: Option<String>,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
@@ -95,7 +95,7 @@ impl DashboardMetadataInterface for Store {
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
@@ -114,7 +114,7 @@ impl DashboardMetadataInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
@@ -133,7 +133,7 @@ impl DashboardMetadataInterface for Store {
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::DashboardMetadata::delete_all_user_scoped_dashboard_metadata_by_merchant_id(
@@ -149,7 +149,7 @@ impl DashboardMetadataInterface for Store {
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -202,7 +202,7 @@ impl DashboardMetadataInterface for MockDb {
     async fn update_metadata(
         &self,
         user_id: Option<String>,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
@@ -237,7 +237,7 @@ impl DashboardMetadataInterface for MockDb {
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
@@ -269,7 +269,7 @@ impl DashboardMetadataInterface for MockDb {
 
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
@@ -296,7 +296,7 @@ impl DashboardMetadataInterface for MockDb {
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
 
@@ -324,7 +324,7 @@ impl DashboardMetadataInterface for MockDb {
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let mut dashboard_metadata = self.dashboard_metadata.lock().await;

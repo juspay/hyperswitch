@@ -338,7 +338,7 @@ impl MerchantId {
     }
 }
 
-impl TryFrom<MerchantId> for common_utils::id_type::MerchantId {
+impl TryFrom<MerchantId> for id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
         Self::from(value.0.into())
@@ -349,7 +349,7 @@ impl TryFrom<MerchantId> for common_utils::id_type::MerchantId {
 
 #[derive(Clone)]
 pub struct NewUserMerchant {
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
 }
@@ -368,7 +368,7 @@ impl NewUserMerchant {
         self.company_name.clone().map(UserCompanyName::get_secret)
     }
 
-    pub fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
+    pub fn get_merchant_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
     }
 
@@ -469,7 +469,7 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
-        let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
+        let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
 
         let new_organization = NewUserOrganization::from(value);
 
@@ -485,7 +485,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
-        let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
+        let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
@@ -505,7 +505,7 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
 
         Ok(Self {
             company_name,
-            merchant_id: common_utils::id_type::MerchantId::try_from(merchant_id)?,
+            merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
         })
     }
@@ -517,7 +517,7 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
     fn try_from(
         value: (user_api::CreateInternalUserRequest, id_type::OrganizationId),
     ) -> UserResult<Self> {
-        let merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+        let merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
         );
         let new_organization = NewUserOrganization::from(value);
@@ -551,11 +551,11 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
 
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
         let merchant_id = if matches!(env::which(), env::Env::Production) {
-            common_utils::id_type::MerchantId::try_from(MerchantId::new(
+            id_type::MerchantId::try_from(MerchantId::new(
                 value.1.company_name.clone(),
             )?)?
         } else {
-            common_utils::id_type::MerchantId::new_from_unix_timestamp()
+            id_type::MerchantId::new_from_unix_timestamp()
         };
         Ok(Self {
             merchant_id,
@@ -918,14 +918,14 @@ impl UserFromStorage {
         Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
-    pub fn get_preferred_merchant_id(&self) -> Option<common_utils::id_type::MerchantId> {
+    pub fn get_preferred_merchant_id(&self) -> Option<id_type::MerchantId> {
         self.0.preferred_merchant_id.clone()
     }
 
     pub async fn get_role_from_db_by_merchant_id(
         &self,
         state: &SessionState,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
     ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store

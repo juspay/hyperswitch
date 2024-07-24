@@ -26,7 +26,7 @@ pub trait RoleInterface {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
@@ -43,7 +43,7 @@ pub trait RoleInterface {
 
     async fn list_all_roles(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
@@ -76,7 +76,7 @@ impl RoleInterface for Store {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -111,7 +111,7 @@ impl RoleInterface for Store {
     #[instrument(skip_all)]
     async fn list_all_roles(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -174,7 +174,7 @@ impl RoleInterface for MockDb {
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let roles = self.roles.lock().await;
@@ -246,7 +246,7 @@ impl RoleInterface for MockDb {
 
     async fn list_all_roles(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;

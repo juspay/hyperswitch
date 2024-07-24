@@ -69,7 +69,7 @@ impl RoleInfo {
     pub async fn from_role_id(
         state: &SessionState,
         role_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Self, errors::StorageError> {
         if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {

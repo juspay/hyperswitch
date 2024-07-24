@@ -100,7 +100,7 @@ pub async fn generate_jwt_auth_token(
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: &SessionState,
     user: &UserFromStorage,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
 ) -> UserResult<Secret<String>> {

@@ -56,12 +56,12 @@ pub struct AuthenticationData {
 )]
 pub enum AuthenticationType {
     ApiKey {
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         key_id: String,
     },
     AdminApiKey,
     MerchantJwt {
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         user_id: Option<String>,
     },
     UserJwt {
@@ -77,13 +77,13 @@ pub enum AuthenticationType {
         role_id: Option<String>,
     },
     MerchantId {
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     },
     PublishableKey {
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     },
     WebhookAuth {
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     },
     NoAuth,
 }
@@ -100,7 +100,7 @@ impl events::EventInfo for AuthenticationType {
 }
 
 impl AuthenticationType {
-    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+    pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         match self {
             Self::ApiKey {
                 merchant_id,
@@ -166,7 +166,7 @@ impl SinglePurposeToken {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AuthToken {
     pub user_id: String,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
@@ -176,7 +176,7 @@ pub struct AuthToken {
 impl AuthToken {
     pub async fn new_token(
         user_id: String,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
         role_id: String,
         settings: &Settings,
         org_id: id_type::OrganizationId,
@@ -197,7 +197,7 @@ impl AuthToken {
 #[derive(Clone)]
 pub struct UserFromToken {
     pub user_id: String,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
 }
@@ -216,17 +216,17 @@ pub struct SinglePurposeOrLoginToken {
 }
 
 pub trait AuthInfo {
-    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId>;
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId>;
 }
 
 impl AuthInfo for () {
-    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         None
     }
 }
 
 impl AuthInfo for AuthenticationData {
-    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         Some(self.merchant_account.get_id())
     }
 }
@@ -529,7 +529,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct MerchantIdAuth(pub common_utils::id_type::MerchantId);
+pub struct MerchantIdAuth(pub id_type::MerchantId);
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
@@ -694,7 +694,7 @@ where
 }
 
 pub struct JWTAuthMerchantFromRoute {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
 }
 

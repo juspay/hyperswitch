@@ -9,7 +9,7 @@ use crate::{enums, schema::user_roles};
 pub struct UserRole {
     pub id: i32,
     pub user_id: String,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub status: enums::UserStatus,
@@ -23,7 +23,7 @@ pub struct UserRole {
 #[diesel(table_name = user_roles)]
 pub struct UserRoleNew {
     pub user_id: String,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub status: enums::UserStatus,

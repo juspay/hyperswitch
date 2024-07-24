@@ -77,7 +77,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 pub async fn validate_role_name(
     state: &SessionState,
     role_name: &domain::RoleName,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
@@ -120,7 +120,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
 pub async fn set_role_permissions_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
