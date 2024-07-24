@@ -1473,6 +1473,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             )?;
         Ok(Self {
             total_amount: total_amount.get_amount_as_i64(),
+            minor_total_amount: total_amount,
             additional_amount: additional_amount.get_amount_as_i64(),
             reason: payment_data
                 .incremental_authorization_details

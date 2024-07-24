@@ -122,6 +122,7 @@ pub struct CaptureIntegrityObject {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsIncrementalAuthorizationData {
     pub total_amount: i64,
+    pub minor_total_amount: MinorUnit,
     pub additional_amount: i64,
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,

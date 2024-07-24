@@ -1,7 +1,6 @@
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
-    id_type, pii,
     types::FloatMajorUnit,
 };
 use error_stack::ResultExt;

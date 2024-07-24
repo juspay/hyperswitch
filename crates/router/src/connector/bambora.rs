@@ -1,8 +1,9 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{request::RequestContent, types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector}};
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use transformers as bambora;
@@ -220,7 +221,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        
         let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -580,14 +580,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-       
-            let amount = connector_utils::convert_amount(
-                self.amount_converter,
-                req.request.minor_amount.unwrap_or_default(),
-                req.request.currency.unwrap_or_default(),
-            )?;
-    
-            let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount.unwrap_or_default(),
+            req.request.currency.unwrap_or_default(),
+        )?;
+
+        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
 
         let connector_req = bambora::BamboraVoidRequest::try_from(connector_router_data)?;
 
