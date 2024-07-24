@@ -8918,6 +8918,35 @@ impl Default for super::settings::RequiredFields {
     }
 }
 
+impl Default for super::settings::TenantConfig {
+    fn default() -> Self {
+        Self(HashMap::from([(
+            String::from("public"),
+            super::settings::Tenant::default(),
+        )]))
+    }
+}
+
+impl Default for super::settings::Tenant {
+    fn default() -> Self {
+        Self {
+            name: String::from("hyperswitch"),
+            base_url: String::from("http://localhost:8080"),
+            schema: String::from("public"),
+            redis_key_prefix: String::default(),
+            clickhouse_database: String::from("default"),
+        }
+    }
+}
+
+impl Default for super::settings::GlobalTenant {
+    fn default() -> Self {
+        Self {
+            schema: String::from("public"),
+            redis_key_prefix: String::default(),
+        }
+    }
+}
 #[allow(clippy::derivable_impls)]
 impl Default for super::settings::ApiKeys {
     fn default() -> Self {
