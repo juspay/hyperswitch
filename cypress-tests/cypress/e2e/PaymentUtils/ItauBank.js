@@ -2,7 +2,7 @@ export const connectorDetails = {
   card_pm: {
     ZeroAuthMandate: {
       Response: {
-        status: 500,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
