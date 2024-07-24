@@ -106,7 +106,8 @@ pub async fn update_user_role(
             user_to_be_updated.get_user_id(),
             user_role_to_be_updated
                 .merchant_id
-                .ok_or(UserErrors::InternalServerError)?
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found in user_role")?
                 .as_str(),
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
