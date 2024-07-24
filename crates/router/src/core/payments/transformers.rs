@@ -1,8 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest,
-    PaymentChargeResponse, RequestSurchargeDetails,
+    Address, CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData,
+    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::{payments::Address, payouts::PayoutAttemptResponse};
@@ -1036,7 +1036,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             description: pi.description,
             metadata: pi.metadata,
             order_details: pi.order_details,
-            customer_id: pi.customer_id,
+            customer_id: pi.customer_id.clone(),
             connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
@@ -1060,6 +1060,40 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 }
             }),
             merchant_order_reference_id: pi.merchant_order_reference_id,
+            customer: pi.customer_details.and_then(|customer_details|
+                match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
+                    Ok(parsed_data) => Some(
+                        CustomerDetailsResponse {
+                            id: pi.customer_id,
+                            name: parsed_data.name,
+                            phone: parsed_data.phone,
+                            email: parsed_data.email,
+                            phone_country_code:parsed_data.phone_country_code
+                    }),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
+            billing: pi.billing_details.and_then(|billing_details|
+                match billing_details.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'BillingAddress' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
+            shipping: pi.shipping_details.and_then(|shipping_details|
+                match shipping_details.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'ShippingAddress' from payment method data. Error: {e:?}");
+                        None
+                    }
+                }
+            ),
             ..Default::default()
         }
     }
@@ -1419,10 +1453,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 }
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         let amount = payment_data
             .surcharge_details
             .as_ref()
@@ -1450,6 +1494,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
             payment_experience: payment_data.payment_attempt.payment_experience,
+            browser_info,
         })
     }
 }

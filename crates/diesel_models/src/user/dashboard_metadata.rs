@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -9,7 +10,7 @@ pub struct DashboardMetadata {
     pub id: i32,
     pub user_id: Option<String>,
     pub merchant_id: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
     pub data_value: serde_json::Value,
     pub created_by: String,
@@ -25,7 +26,7 @@ pub struct DashboardMetadata {
 pub struct DashboardMetadataNew {
     pub user_id: Option<String>,
     pub merchant_id: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
     pub data_value: serde_json::Value,
     pub created_by: String,

@@ -216,7 +216,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
-    // Itaubank, template code for future usage
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -247,6 +247,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,

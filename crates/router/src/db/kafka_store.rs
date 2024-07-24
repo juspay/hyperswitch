@@ -425,13 +425,13 @@ impl CustomerInterface for KafkaStore {
 
     async fn insert_customer(
         &self,
-        state: &KeyManagerState,
         customer_data: domain::Customer,
+        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .insert_customer(state, customer_data, key_store, storage_scheme)
+            .insert_customer(customer_data, state, key_store, storage_scheme)
             .await
     }
 }
@@ -2194,8 +2194,12 @@ impl MerchantKeyStoreInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_key_stores(state, key).await
+        self.diesel_store
+            .get_all_key_stores(state, key, from, to)
+            .await
     }
 }
 
@@ -2560,7 +2564,7 @@ impl UserRoleInterface for KafkaStore {
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: user_storage::UserRoleUpdate,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
@@ -2589,7 +2593,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         from_user_id: &str,
         to_user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
             .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
@@ -2619,7 +2623,7 @@ impl DashboardMetadataInterface for KafkaStore {
         &self,
         user_id: Option<String>,
         merchant_id: String,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
@@ -2638,7 +2642,7 @@ impl DashboardMetadataInterface for KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
@@ -2649,7 +2653,7 @@ impl DashboardMetadataInterface for KafkaStore {
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
@@ -2946,7 +2950,7 @@ impl RoleInterface for KafkaStore {
         &self,
         role_id: &str,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
             .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
@@ -2973,7 +2977,7 @@ impl RoleInterface for KafkaStore {
     async fn list_all_roles(
         &self,
         merchant_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
     }
@@ -3068,8 +3072,12 @@ impl UserKeyStoreInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
-        self.diesel_store.get_all_user_key_store(state, key).await
+        self.diesel_store
+            .get_all_user_key_store(state, key, from, limit)
+            .await
     }
 }
 
