@@ -11359,12 +11359,11 @@
             "nullable": true
           },
           "parent_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "nullable": true,
+            "maxLength": 255
           },
           "enable_payment_response_hash": {
             "type": "boolean",
@@ -11598,12 +11597,11 @@
             "nullable": true
           },
           "parent_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "nullable": true,
+            "maxLength": 255
           },
           "publishable_key": {
             "type": "string",
@@ -11724,12 +11722,11 @@
             "nullable": true
           },
           "parent_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "nullable": true,
+            "maxLength": 255
           },
           "enable_payment_response_hash": {
             "type": "boolean",
@@ -15116,11 +15113,8 @@
         ],
         "properties": {
           "merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
+            "type": "string",
+            "description": "The unique identifier for the merchant",
             "nullable": true
           },
           "amount_to_capture": {
@@ -18519,7 +18513,7 @@
         ],
         "properties": {
           "merchant_id": {
-            "$ref": "#/components/schemas/id_type.MerchantId"
+            "type": "string"
           },
           "payout_id": {
             "type": "string"
@@ -19795,7 +19789,10 @@
         ],
         "properties": {
           "merchant_id": {
-            "$ref": "#/components/schemas/common_utils.id_type.MerchantId"
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
           },
           "key_id": {
             "type": "string",
