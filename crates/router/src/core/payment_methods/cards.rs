@@ -2362,7 +2362,6 @@ pub async fn list_payment_methods(
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     // Key creation for storing PM_FILTER_CGRAPH
-    #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
             .clone()
@@ -2376,9 +2375,6 @@ pub async fn list_payment_methods(
             profile_id
         )
     };
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    let key = merchant_account.get_id().get_pm_filters_cgraph_key();
 
     if let Some(graph) = get_merchant_pm_filter_graph(&state, &key).await {
         // Derivation of PM_FILTER_CGRAPH from MokaCache successful
@@ -3737,7 +3733,6 @@ pub async fn list_customer_payment_method(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    //let mca = query::find_mca_by_merchant_id(conn, merchant_account.get_id())?;
     let mut customer_pms = Vec::new();
 
     let profile_id = payment_intent
