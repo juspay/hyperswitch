@@ -2330,7 +2330,6 @@ pub async fn list_payment_methods(
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     // Key creation for storing PM_FILTER_CGRAPH
-    #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
             .clone()
@@ -2343,9 +2342,6 @@ pub async fn list_payment_methods(
             &merchant_account.merchant_id, profile_id
         )
     };
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    let key = { format!("pm_filters_cgraph_{}", &merchant_account.merchant_id) };
 
     if let Some(graph) = get_merchant_pm_filter_graph(&state, &key).await {
         // Derivation of PM_FILTER_CGRAPH from MokaCache successful
