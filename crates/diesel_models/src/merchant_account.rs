@@ -69,7 +69,7 @@ pub struct MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
