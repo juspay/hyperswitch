@@ -47,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const ACCEPT_LANGUAGE: &str = "Accept-Language";
     pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
@@ -59,6 +60,7 @@ pub mod headers {
     pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
     pub const TOKEN: &str = "token";
+    pub const USER_AGENT: &str = "User-Agent";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
@@ -79,6 +81,7 @@ pub mod headers {
     pub const CONTENT_LENGTH: &str = "Content-Length";
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
+    pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
 }
 
 pub mod pii {
@@ -127,7 +130,11 @@ pub fn mk_app(
             .service(routes::Mandates::server(state.clone()))
     }
 
-    #[cfg(feature = "oltp")]
+    #[cfg(all(
+        feature = "oltp",
+        any(feature = "v1", feature = "v2"),
+        not(feature = "customer_v2")
+    ))]
     {
         server_app = server_app
             .service(routes::EphemeralKey::server(state.clone()))
@@ -162,7 +169,11 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(feature = "stripe")]
+    #[cfg(all(
+        feature = "stripe",
+        any(feature = "v1", feature = "v2"),
+        not(feature = "customer_v2")
+    ))]
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
@@ -174,7 +185,7 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
-    server_app = server_app.service(routes::Health::server(state));
+    server_app = server_app.service(routes::Health::server(state.clone()));
 
     server_app
 }
@@ -192,7 +203,11 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker),
+            services::proxy_bypass_urls(
+                conf.key_manager.get_inner(),
+                &conf.locker,
+                &conf.proxy.bypass_proxy_urls,
+            ),
         )
         .map_err(|error| {
             errors::ApplicationError::ApiClientError(error.current_context().clone())
@@ -270,7 +285,7 @@ pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop
             server.stop_server().await;
         }
         Err(err) => {
-            logger::error!("Channel receiver error{err}");
+            logger::error!("Channel receiver error: {err}");
         }
     }
 }

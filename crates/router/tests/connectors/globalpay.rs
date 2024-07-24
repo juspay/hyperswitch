@@ -16,7 +16,7 @@ impl Connector for Globalpay {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Globalpay;
         utils::construct_connector_data_old(
-            Box::new(&Globalpay),
+            Box::new(Globalpay::new()),
             types::Connector::Globalpay,
             api::GetToken::Connector,
             None,

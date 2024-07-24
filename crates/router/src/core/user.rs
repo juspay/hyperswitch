@@ -4,6 +4,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse},
 };
+use common_utils::types::keymanager::Identifier;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -27,6 +28,8 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
+    core::encryption::send_request_to_key_service_for_user,
+    db::domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -385,7 +388,7 @@ pub async fn change_password(
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     #[cfg(not(feature = "email"))]
     {
@@ -397,7 +400,7 @@ pub async fn change_password(
                 diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
             )
             .await
-            .map_err(|e| logger::error!("Error while deleting dashboard metadata {}", e))
+            .map_err(|e| logger::error!("Error while deleting dashboard metadata {e:?}"))
             .ok();
     }
 
@@ -478,7 +481,7 @@ pub async fn rotate_password(
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -533,15 +536,15 @@ pub async fn reset_password_token_only_flow(
                 storage_user::UserUpdate::VerifyUser,
             )
             .await
-            .map_err(|e| logger::error!(?e));
+            .map_err(|error| logger::error!(?error));
     }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -591,10 +594,10 @@ pub async fn reset_password(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -996,7 +999,7 @@ pub async fn accept_invite_from_email(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
@@ -1074,12 +1077,12 @@ pub async fn accept_invite_from_email_token_only_flow(
                 storage_user::UserUpdate::VerifyUser,
             )
             .await
-            .map_err(|e| logger::error!(?e));
+            .map_err(|error| logger::error!(?error));
     }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let current_flow = domain::CurrentFlow::new(
         user_token,
@@ -1102,9 +1105,11 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1120,6 +1125,7 @@ pub async fn create_internal_user(
     let internal_merchant = state
         .store
         .find_merchant_account_by_merchant_id(
+            key_manager_state,
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
             &key_store,
         )
@@ -1174,7 +1180,7 @@ pub async fn switch_merchant_id(
     }
 
     let user = user_from_token.get_user_from_db(&state).await?;
-
+    let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
@@ -1188,6 +1194,7 @@ pub async fn switch_merchant_id(
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 request.merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -1202,7 +1209,11 @@ pub async fn switch_merchant_id(
 
         let org_id = state
             .store
-            .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                request.merchant_id.as_str(),
+                &key_store,
+            )
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -1304,6 +1315,7 @@ pub async fn list_merchants_for_user(
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(
+            &(&state).into(),
             user_roles
                 .iter()
                 .map(|role| role.merchant_id.clone())
@@ -1488,7 +1500,7 @@ pub async fn verify_email(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
@@ -1534,7 +1546,7 @@ pub async fn verify_email_token_only_flow(
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
@@ -1850,7 +1862,9 @@ pub async fn update_totp(
                 totp_secret: Some(
                     // TODO: Impl conversion trait for User and move this there
                     domain::types::encrypt::<String, masking::WithType>(
+                        &(&state).into(),
                         totp.get_secret_base32().into(),
+                        Identifier::User(key_store.user_id.clone()),
                         key_store.key.peek(),
                     )
                     .await
@@ -1866,14 +1880,14 @@ pub async fn update_totp(
 
     let _ = tfa_utils::delete_totp_secret_from_redis(&state, &user_token.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     // This is not the main task of this API, so we don't throw error if this fails.
     // Any following API which requires TOTP will throw error if TOTP is not set in redis
     // and FE will ask user to enter TOTP again
     let _ = tfa_utils::insert_totp_in_redis(&state, &user_token.user_id)
         .await
-        .map_err(|e| logger::error!(?e));
+        .map_err(|error| logger::error!(?error));
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -1908,6 +1922,31 @@ pub async fn generate_recovery_codes(
     Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
         recovery_codes: recovery_codes.into_inner(),
     }))
+}
+
+pub async fn transfer_user_key_store_keymanager(
+    state: SessionState,
+    req: user_api::UserKeyTransferRequest,
+) -> UserResponse<user_api::UserTransferKeyResponse> {
+    let db = &state.global_store;
+
+    let key_stores = db
+        .get_all_user_key_store(
+            &(&state).into(),
+            &state.store.get_master_key().to_vec().into(),
+            req.from,
+            req.limit,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::UserTransferKeyResponse {
+            total_transferred: send_request_to_key_service_for_user(&state, key_stores)
+                .await
+                .change_context(UserErrors::InternalServerError)?,
+        },
+    ))
 }
 
 pub async fn verify_recovery_code(
@@ -2035,10 +2074,12 @@ pub async fn create_user_authentication_method(
     )
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
-
+    let id = uuid::Uuid::new_v4().to_string();
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &state,
         &req.auth_method,
         &user_auth_encryption_key,
+        id.clone(),
     )
     .await?;
 
@@ -2082,7 +2123,7 @@ pub async fn create_user_authentication_method(
     state
         .store
         .insert_user_authentication_method(UserAuthenticationMethodNew {
-            id: uuid::Uuid::new_v4().to_string(),
+            id,
             auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
@@ -2116,8 +2157,10 @@ pub async fn update_user_authentication_method(
     .attach_printable("Failed to decode DEK")?;
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &state,
         &req.auth_method,
         &user_auth_encryption_key,
+        req.id.clone(),
     )
     .await?;
 
@@ -2191,9 +2234,12 @@ pub async fn get_sso_auth_url(
         .await
         .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
 
-    let open_id_private_config =
-        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
-            .await?;
+    let open_id_private_config = utils::user::decrypt_oidc_private_config(
+        &state,
+        user_authentication_method.private_config,
+        request.id.clone(),
+    )
+    .await?;
 
     let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method
@@ -2243,9 +2289,12 @@ pub async fn sso_sign(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let open_id_private_config =
-        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
-            .await?;
+    let open_id_private_config = utils::user::decrypt_oidc_private_config(
+        &state,
+        user_authentication_method.private_config,
+        authentication_method_id,
+    )
+    .await?;
 
     let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method
@@ -2306,11 +2355,15 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_authentication_method = state
-        .store
-        .get_user_authentication_method_by_id(&req.id)
-        .await
-        .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
+    let user_authentication_method = if let Some(id) = &req.id {
+        state
+            .store
+            .get_user_authentication_method_by_id(id)
+            .await
+            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
+    } else {
+        DEFAULT_USER_AUTH_METHOD.clone()
+    };
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
     let mut next_flow = current_flow.next(user_from_db.clone(), &state).await?;

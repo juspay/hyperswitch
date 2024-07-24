@@ -377,5 +377,16 @@ pub struct AuthIdQueryParam {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthSelectRequest {
-    pub id: String,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct UserKeyTransferRequest {
+    pub from: u32,
+    pub limit: u32,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserTransferKeyResponse {
+    pub total_transferred: usize,
 }

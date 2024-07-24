@@ -1,12 +1,15 @@
-use common_utils::custom_serde;
-use diesel::{
-    deserialize::FromSqlRow, expression::AsExpression, AsChangeset, Identifiable, Insertable,
-    Queryable,
+use common_utils::{
+    crypto::OptionalEncryptableSecretString, custom_serde, encryption::Encryption,
+    types::keymanager::ToEncryptable,
 };
+use diesel::{
+    expression::AsExpression, AsChangeset, Identifiable, Insertable, Queryable, Selectable,
+};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::events};
+use crate::{enums as storage_enums, schema::events};
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = events)]
@@ -36,8 +39,8 @@ pub struct EventUpdateInternal {
     pub response: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
-#[diesel(table_name = events, primary_key(event_id))]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = events, primary_key(event_id), check_for_backend(diesel::pg::Pg))]
 pub struct Event {
     pub event_id: String,
     pub event_type: storage_enums::EventType,
@@ -60,7 +63,39 @@ pub struct Event {
     pub metadata: Option<EventMetadata>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, AsExpression, FromSqlRow)]
+pub struct EventWithEncryption {
+    pub request: Option<Encryption>,
+    pub response: Option<Encryption>,
+}
+
+pub struct EncryptableEvent {
+    pub request: OptionalEncryptableSecretString,
+    pub response: OptionalEncryptableSecretString,
+}
+
+impl ToEncryptable<EncryptableEvent, Secret<String>, Encryption> for EventWithEncryption {
+    fn to_encryptable(self) -> rustc_hash::FxHashMap<String, Encryption> {
+        let mut map = rustc_hash::FxHashMap::default();
+        self.request.map(|x| map.insert("request".to_string(), x));
+        self.response.map(|x| map.insert("response".to_string(), x));
+        map
+    }
+
+    fn from_encryptable(
+        mut hashmap: rustc_hash::FxHashMap<
+            String,
+            common_utils::crypto::Encryptable<Secret<String>>,
+        >,
+    ) -> common_utils::errors::CustomResult<EncryptableEvent, common_utils::errors::ParsingError>
+    {
+        Ok(EncryptableEvent {
+            request: hashmap.remove("request"),
+            response: hashmap.remove("response"),
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub enum EventMetadata {
     Payment {

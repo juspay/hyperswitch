@@ -20,12 +20,87 @@ pub mod diesel_exports {
     };
 }
 
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApplicationError {
+    #[error("Application configuration error")]
+    ConfigurationError,
+
+    #[error("Invalid configuration value provided: {0}")]
+    InvalidConfigurationValueError(String),
+
+    #[error("Metrics error")]
+    MetricsError,
+
+    #[error("I/O: {0}")]
+    IoError(std::io::Error),
+
+    #[error("Error while constructing api client: {0}")]
+    ApiClientError(ApiClientError),
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum ApiClientError {
+    #[error("Header map construction failed")]
+    HeaderMapConstructionFailed,
+    #[error("Invalid proxy configuration")]
+    InvalidProxyConfiguration,
+    #[error("Client construction failed")]
+    ClientConstructionFailed,
+    #[error("Certificate decode failed")]
+    CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
+
+    #[error("URL encoding of request payload failed")]
+    UrlEncodingFailed,
+    #[error("Failed to send request to connector {0}")]
+    RequestNotSent(String),
+    #[error("Failed to decode response")]
+    ResponseDecodingFailed,
+
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
+
+    #[error("connection closed before a message could complete")]
+    ConnectionClosedIncompleteMessage,
+
+    #[error("Server responded with Internal Server Error")]
+    InternalServerErrorReceived,
+    #[error("Server responded with Bad Gateway")]
+    BadGatewayReceived,
+    #[error("Server responded with Service Unavailable")]
+    ServiceUnavailableReceived,
+    #[error("Server responded with Gateway Timeout")]
+    GatewayTimeoutReceived,
+    #[error("Server responded with unexpected response")]
+    UnexpectedServerResponse,
+}
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
+    }
+}
+
+impl From<std::io::Error> for ApplicationError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
 /// The status of the attempt
 #[derive(
     Clone,
     Copy,
     Debug,
     Default,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -122,7 +197,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bluesnap,
     Boku,
     Braintree,
@@ -131,7 +206,7 @@ pub enum RoutableConnectors {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -141,6 +216,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -160,6 +236,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Riskified,
     Shift4,
     Signifyd,
@@ -174,6 +251,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Plaid,
     Zsl,
 }
 
@@ -248,7 +326,6 @@ pub enum AuthenticationType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
@@ -1228,7 +1305,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
-/// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1492,6 +1569,8 @@ pub enum PaymentMethodType {
     PayEasy,
     LocalBankTransfer,
     Mifinity,
+    #[serde(rename = "open_banking_pis")]
+    OpenBankingPIS,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -1529,9 +1608,10 @@ pub enum PaymentMethod {
     Upi,
     Voucher,
     GiftCard,
+    OpenBanking,
 }
 
-/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1574,11 +1654,16 @@ pub enum PaymentType {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
+    #[serde(alias = "Failure")]
     Failure,
+    #[serde(alias = "ManualReview")]
     ManualReview,
     #[default]
+    #[serde(alias = "Pending")]
     Pending,
+    #[serde(alias = "Success")]
     Success,
+    #[serde(alias = "TransactionFailure")]
     TransactionFailure,
 }
 

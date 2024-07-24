@@ -256,6 +256,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
         api_models::admin::MerchantConnectorCreate,
+        api_models::admin::AdditionalMerchantData,
+        api_models::admin::MerchantRecipientData,
+        api_models::admin::MerchantAccountData,
         api_models::admin::MerchantConnectorUpdate,
         api_models::admin::PrimaryBusinessDetails,
         api_models::admin::FrmConfigs,
@@ -554,12 +557,14 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,
         api_models::payments::CustomerDetailsResponse,
+        api_models::payments::OpenBankingData,
+        api_models::payments::OpenBankingSessionToken,
     )),
     modifiers(&SecurityAddon)
 )]
 // Bypass clippy lint for not being constructed
 #[allow(dead_code)]
-pub struct ApiDoc;
+pub(crate) struct ApiDoc;
 
 struct SecurityAddon;
 

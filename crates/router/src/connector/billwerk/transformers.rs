@@ -103,6 +103,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Upi(_)
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
+            | domain::payments::PaymentMethodData::OpenBanking(_)
             | domain::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
@@ -202,7 +203,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
                 first_name: item.router_data.get_optional_billing_first_name(),
                 last_name: item.router_data.get_optional_billing_last_name(),
             },
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
             settle: item.router_data.request.is_auto_capture()?,
         })
     }

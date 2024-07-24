@@ -22,7 +22,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
-    /// ```
+    /// ```text
     /// get_original_amount()
     /// get_surcharge_amount()
     /// get_tax_on_surcharge_amount()
@@ -54,14 +54,19 @@ pub struct PaymentsAuthorizeData {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub request_incremental_authorization: bool,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub charges: Option<PaymentCharges>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
 }
 
@@ -97,12 +102,21 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub integrity_object: Option<CaptureIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptureIntegrityObject {
+    /// capture amount
+    pub capture_amount: Option<MinorUnit>,
+    /// capture currency
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -322,6 +336,41 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         })
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostProcessingData {
+    pub payment_method_data: PaymentMethodData,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub connector_transaction_id: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
+    for PaymentsPostProcessingData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.request.payment_method_data,
+            connector_transaction_id: match data.response {
+                Ok(response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(id),
+                    ..
+                }) => Some(id.clone()),
+                _ => None,
+            },
+            customer_id: data.request.customer_id,
+            country: data
+                .address
+                .get_payment_billing()
+                .and_then(|bl| bl.address.as_ref())
+                .and_then(|address| address.country),
+        })
+    }
+}
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -341,8 +390,8 @@ pub struct CompleteAuthorizeData {
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-
+    pub metadata: Option<serde_json::Value>,
+    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -365,6 +414,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub browser_info: Option<BrowserInformation>,
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
@@ -385,7 +435,7 @@ pub struct PaymentsCancelData {
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
 
     // minor amount data for amount framework
@@ -529,6 +579,15 @@ pub struct RefundsData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
+    pub integrity_object: Option<RefundIntegrityObject>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefundIntegrityObject {
+    /// refund currency
+    pub currency: storage_enums::Currency,
+    /// refund amount
+    pub refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -733,4 +792,7 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    // MinorUnit for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }

@@ -1,25 +1,29 @@
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
-    PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted,
+    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
+    PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
+    PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+};
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+pub use api_models::payment_methods::{
+    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
+    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
+    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
+    PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted,
     TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
     TokenizedWalletValue2,
-};
-#[cfg(not(feature = "v2"))]
-pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
-    PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
-    TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 

@@ -405,6 +405,7 @@ pub trait ConnectorActions: Connector {
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
                 charges: None,
+                integrity_object: None,
             }),
             payment_info,
         );
@@ -559,6 +560,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -937,6 +939,7 @@ impl Default for PaymentAuthorizeType {
             customer_acceptance: None,
             charges: None,
             integrity_object: None,
+            merchant_order_reference_id: None,
         };
         Self(data)
     }
@@ -998,6 +1001,7 @@ impl Default for PaymentSyncType {
             payment_experience: None,
             amount: MinorUnit::new(100),
             integrity_object: None,
+            browser_info: None,
         };
         Self(data)
     }
@@ -1019,6 +1023,7 @@ impl Default for PaymentRefundType {
             connector_refund_id: None,
             browser_info: None,
             charges: None,
+            integrity_object: None,
         };
         Self(data)
     }
@@ -1066,6 +1071,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Err(_) => None,
     }
 }

@@ -1,17 +1,17 @@
 use std::{convert::From, default::Default};
 
 use api_models::{payment_methods as api_types, payments};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
-    crypto::Encryptable,
-    date_time, id_type,
+    id_type,
     pii::{self, Email},
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    logger,
-    types::{api, api::enums as api_enums},
-};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::logger;
+use crate::types::{api, api::enums as api_enums};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
@@ -117,6 +117,7 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
@@ -132,6 +133,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CustomerUpdateRequest> for api::CustomerRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
@@ -146,6 +148,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerResponse> for CreateCustomerResponse {
     fn from(cust: api::CustomerResponse) -> Self {
         let cust = cust.into_inner();
@@ -190,7 +193,7 @@ pub struct CustomerPaymentMethodListResponse {
 
 #[derive(Default, Serialize, PartialEq, Eq)]
 pub struct PaymentMethodData {
-    pub id: String,
+    pub id: Option<String>,
     pub object: &'static str,
     pub card: Option<CardDetails>,
     pub created: Option<time::PrimitiveDateTime>,
@@ -219,12 +222,23 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
+// Check this in review
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
+        #[cfg(not(feature = "v2"))]
+        let card = item.card.map(From::from);
+        #[cfg(feature = "v2")]
+        let card = match item.payment_method_data {
+            Some(api_types::PaymentMethodListData::Card(card)) => Some(CardDetails::from(card)),
+            _ => None,
+        };
         Self {
+            #[cfg(not(feature = "v2"))]
+            id: Some(item.payment_token),
+            #[cfg(feature = "v2")]
             id: item.payment_token,
             object: "payment_method",
-            card: item.card.map(From::from),
+            card,
             created: item.created,
         }
     }

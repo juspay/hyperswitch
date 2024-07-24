@@ -895,3 +895,22 @@ pub async fn terminate_auth_select(
     ))
     .await
 }
+
+pub async fn transfer_user_key(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::UserKeyTransferRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserTransferKey;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, req, _| user_core::transfer_user_key_store_keymanager(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

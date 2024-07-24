@@ -78,7 +78,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
-    // Bamboraapac, commented for template
+    Bamboraapac,
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -90,7 +90,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -101,6 +101,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -121,6 +122,7 @@ pub enum Connector {
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Shift4,
     Square,
     Stax,
@@ -180,6 +182,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -205,6 +208,7 @@ impl Connector {
             | Self::Airwallex
             | Self::Authorizedotnet
             | Self::Bambora
+            | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Billwerk
             | Self::Bitpay
@@ -224,6 +228,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+            | Self::Itaubank
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
@@ -252,9 +257,10 @@ impl Connector {
             | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
+            | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            // | Self::Datatrans
+            | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
@@ -466,6 +472,8 @@ pub enum FieldType {
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
+    UserVpaId,
+    LanguagePreference { options: Vec<String> },
 }
 
 impl FieldType {
@@ -551,6 +559,8 @@ impl PartialEq for FieldType {
                 },
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
+            (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }
     }
@@ -610,7 +620,6 @@ pub enum LockerChoice {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
