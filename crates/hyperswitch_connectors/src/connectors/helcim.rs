@@ -23,6 +23,10 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
@@ -38,11 +42,7 @@ use transformers as helcim;
 
 use crate::{
     constants::headers,
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, ResponseRouterData,
-        SetupMandateRouterData,
-    },
+    types::ResponseRouterData,
     utils::{to_connector_meta, PaymentsAuthorizeRequestData},
 };
 
@@ -98,7 +98,7 @@ where
         const ID_LENGTH: usize = 22;
         let mut idempotency_key = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            crate::utils::generate_id(ID_LENGTH, "HS").into_masked(),
+            common_utils::generate_id(ID_LENGTH, "HS").into_masked(),
         )];
 
         header.append(&mut api_key);

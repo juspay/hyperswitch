@@ -10,6 +10,10 @@ use hyperswitch_domain_models::{
         ResponseId, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData, SetupMandateRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{self},
@@ -19,10 +23,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsResponseRouterData, RefundsRouterData, ResponseRouterData, SetupMandateRouterData,
-    },
+    types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,

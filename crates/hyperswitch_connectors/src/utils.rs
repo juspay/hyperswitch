@@ -1,3 +1,4 @@
+use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use common_enums::{enums, enums::FutureUsage};
 use common_utils::{
     errors::ReportSwitchExt,
@@ -6,10 +7,6 @@ use common_utils::{
     pii::{self, Email, IpAddress},
 };
 use error_stack::ResultExt;
-use hyperswitch_interfaces::{api, errors};
-use nanoid::nanoid;
-type Error = error_stack::Report<errors::ConnectorError>;
-use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
@@ -18,7 +15,11 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, RefundsData, SetupMandateRequestData,
     },
 };
+use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
+
+type Error = error_stack::Report<errors::ConnectorError>;
+
 pub fn construct_not_supported_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &'static str,
@@ -76,15 +77,6 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
-}
-
-#[inline]
-pub fn generate_id(length: usize, prefix: &str) -> String {
-    format!(
-        "{}_{}",
-        prefix,
-        nanoid!(length, &crate::constants::ALPHABETS)
-    )
 }
 
 pub trait RouterData {
