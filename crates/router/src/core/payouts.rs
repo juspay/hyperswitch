@@ -5,9 +5,9 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::{
-    self, admin, enums as api_enums, payments as payment_enums, payouts::PayoutLinkResponse,
-};
+#[cfg(feature = "olap")]
+use api_models::payments as payment_enums;
+use api_models::{self, admin, enums as api_enums, payouts::PayoutLinkResponse};
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -36,7 +36,7 @@ use time::Duration;
 
 #[cfg(feature = "olap")]
 use crate::types::domain::behaviour::Conversion;
-#[cfg(feature = "payouts")]
+#[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
     core::{
