@@ -20,8 +20,8 @@ pub trait OrganizationBridge {
 pub struct Organization {
     org_id: id_type::OrganizationId,
     org_name: Option<String>,
-    pub organization_details: Option<serde_json::Value>,
-    pub metadata: Option<serde_json::Value>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
