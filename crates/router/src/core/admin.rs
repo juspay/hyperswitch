@@ -1441,7 +1441,6 @@ pub async fn create_payment_connector(
         business_sub_label: req.business_sub_label.clone(),
         created_at: date_time::now(),
         modified_at: date_time::now(),
-        id: None,
         connector_webhook_details: match req.connector_webhook_details {
             Some(connector_webhook_details) => {
                 connector_webhook_details.encode_to_value(

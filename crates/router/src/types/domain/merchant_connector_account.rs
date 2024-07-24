@@ -16,7 +16,6 @@ use super::{
 };
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
-    pub id: Option<i32>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
@@ -74,9 +73,6 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
             diesel_models::merchant_connector_account::MerchantConnectorAccount {
-                id: self.id.ok_or(ValidationError::MissingRequiredField {
-                    field_name: "id".to_string(),
-                })?,
                 merchant_id: self.merchant_id,
                 connector_name: self.connector_name,
                 connector_account_details: self.connector_account_details.into(),
@@ -113,7 +109,6 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {
-            id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: decrypt(

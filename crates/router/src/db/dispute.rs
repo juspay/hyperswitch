@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -148,8 +148,6 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            id: i32::try_from(locked_disputes.len())
-                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,
@@ -674,7 +672,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -751,7 +748,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -827,7 +823,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
