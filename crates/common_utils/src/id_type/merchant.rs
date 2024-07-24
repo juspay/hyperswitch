@@ -49,6 +49,7 @@ impl Display for MerchantId {
     }
 }
 
+#[cfg(feature = "metrics")]
 /// This is implemented so that we can use merchant id directly as attribute in metrics
 impl From<MerchantId> for router_env::opentelemetry::Value {
     fn from(val: MerchantId) -> Self {
