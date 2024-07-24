@@ -146,6 +146,8 @@ jobs:
 
       - name: Cargo hack
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: just ci_hack
 
   # cargo-deny:
@@ -269,6 +271,8 @@ jobs:
 
       - name: Run cargo check
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: just ci_hack
 
   typos:

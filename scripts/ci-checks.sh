@@ -24,7 +24,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       --header 'Accept: application/vnd.github+json' \
       --header 'X-GitHub-Api-Version: 2022-11-28' \
       --paginate \
-      "https://api.github.com/repos/juspay/hyperswitch/pulls/${pull_request_number}/files" \
+      "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${pull_request_number}/files" \
       --jq '.[].filename'
   )"
 
