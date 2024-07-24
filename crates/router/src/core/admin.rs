@@ -10,7 +10,9 @@ use common_utils::{
     id_type, pii,
     types::keymanager as km_types,
 };
-use diesel_models::{configs, organization::OrganizationBridge};
+use diesel_models::configs;
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
+use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
