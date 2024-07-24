@@ -223,13 +223,12 @@ pub struct DlocalPaymentsCaptureRequest {
     pub currency: String,
     pub order_id: String,
 }
-
 impl TryFrom<&DlocalRouterData<&types::PaymentsCaptureRouterData>>
     for DlocalPaymentsCaptureRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &&DlocalRouterData<ypes::PaymentsCaptureRouterData>,
+        item: &DlocalRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             authorization_id: item.router_data.request.connector_transaction_id.clone(),
@@ -454,7 +453,7 @@ impl<F, T>
 // REFUND :
 #[derive(Default, Debug, Serialize)]
 pub struct DlocalRefundRequest {
-    pub amount: String,
+    pub amount: MinorUnit,
     pub payment_id: String,
     pub currency: enums::Currency,
     pub id: String,
@@ -465,9 +464,8 @@ impl<F> TryFrom<&DlocalRouterData<&types::RefundsRouterData<F>>> for DlocalRefun
     fn try_from(
         item: &DlocalRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let amount_to_refund = item.router_data.request.refund_amount.to_string();
         Ok(Self {
-            amount: amount_to_refund,
+            amount:item.amount,
             payment_id: item.router_data.request.connector_transaction_id.clone(),
             currency: item.router_data.request.currency,
             id: item.router_data.request.refund_id.clone(),

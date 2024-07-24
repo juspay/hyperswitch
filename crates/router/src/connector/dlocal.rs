@@ -408,7 +408,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         )?;
 
         let connector_router_data = dlocal::DlocalRouterData::from((amount, req));
-        let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
