@@ -128,6 +128,39 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[derive(Clone)]
+/// Set the private fields of merchant account
+pub struct MerchantAccountSetter {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub return_url: Option<String>,
+    pub enable_payment_response_hash: bool,
+    pub payment_response_hash_key: Option<String>,
+    pub redirect_to_merchant_with_http_post: bool,
+    pub merchant_name: OptionalEncryptableName,
+    pub merchant_details: OptionalEncryptableValue,
+    pub webhook_details: Option<serde_json::Value>,
+    pub sub_merchants_enabled: Option<bool>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub publishable_key: String,
+    pub storage_scheme: MerchantStorageScheme,
+    pub locker_id: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+    pub intent_fulfillment_time: Option<i64>,
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub is_recon_enabled: bool,
+    pub default_profile: Option<String>,
+    pub recon_status: diesel_models::enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub pm_collect_link_config: Option<serde_json::Value>,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     merchant_id: common_utils::id_type::MerchantId,
@@ -139,7 +172,7 @@ pub struct MerchantAccount {
     pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
