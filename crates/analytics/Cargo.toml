@@ -16,7 +16,7 @@ v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "stor
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }

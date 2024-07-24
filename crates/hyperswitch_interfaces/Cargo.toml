@@ -10,6 +10,7 @@ license.workspace = true
 default = ["dummy_connector", "payouts"]
 dummy_connector = []
 payouts = []
+v1 = ["hyperswitch_domain_models/v1"]
 
 [dependencies]
 actix-web = "4.5.1"
@@ -29,7 +30,7 @@ time = "0.3.35"
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
 api_models = { version = "0.1.0", path = "../api_models" }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false, features = ["v1"] }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

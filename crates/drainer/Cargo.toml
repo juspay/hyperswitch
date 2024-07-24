@@ -32,7 +32,7 @@ tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 
 # First Party Crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 external_services = { version = "0.1.0", path = "../external_services" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
