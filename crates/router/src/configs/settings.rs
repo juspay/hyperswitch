@@ -133,6 +133,7 @@ pub struct Settings<S: SecretState> {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
@@ -156,11 +157,11 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct TenantConfig(pub HashMap<String, Tenant>);
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct Tenant {
     pub name: String,
     pub base_url: String,
@@ -184,7 +185,7 @@ impl storage_impl::config::ClickHouseConfig for Tenant {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct GlobalTenant {
     pub schema: String,
     pub redis_key_prefix: String,
@@ -815,6 +816,7 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
+        self.multitenancy.validate()?;
         Ok(())
     }
 }

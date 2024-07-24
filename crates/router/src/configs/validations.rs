@@ -192,3 +192,20 @@ impl super::settings::GenericLinkEnvConfig {
         })
     }
 }
+
+impl super::settings::Multitenancy {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(
+            self.enabled
+                && self.tenants.clone() == super::settings::TenantConfig::default()
+                && self.global_tenant.clone() == super::settings::GlobalTenant::default(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Tenant configs are missing for the application".into(),
+                ))
+            },
+        )
+    }
+}
