@@ -64,7 +64,7 @@ pub use self::app::{
     Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
+pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(all(

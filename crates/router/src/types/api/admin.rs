@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
-pub use api_models::admin::{
-    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
-    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
-    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+pub use api_models::{
+    admin::{
+        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
+        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    },
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -21,8 +24,17 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
     routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom},
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
+
+impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
+    fn foreign_from(org: diesel_models::organization::Organization) -> Self {
+        Self {
+            organization_id: org.org_id,
+            organization_name: org.org_name,
+        }
+    }
+}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),

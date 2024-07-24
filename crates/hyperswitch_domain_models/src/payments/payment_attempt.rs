@@ -1,10 +1,14 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use common_utils::types::keymanager::KeyManagerState;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii,
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -540,7 +544,6 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
         })
     }
-
     async fn convert_back(
         state: &KeyManagerState,
         storage_model: Self::DstType,
