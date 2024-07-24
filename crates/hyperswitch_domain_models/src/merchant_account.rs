@@ -1,10 +1,3 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
-use common_utils::id_type;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-use common_utils::id_type;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -12,7 +5,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
     pii,
-    types::keymanager,
+    types::keymanager::{self},
 };
 use diesel_models::{
     enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
@@ -29,7 +22,7 @@ use crate::type_encryption::{decrypt_optional, AsyncLift};
 ))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
-    pub merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -38,7 +31,7 @@ pub struct MerchantAccount {
     pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
@@ -50,7 +43,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: id_type::OrganizationId,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
@@ -58,10 +51,85 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+#[derive(Clone)]
+/// Set the private fields of merchant account
+pub struct MerchantAccountSetter {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub return_url: Option<String>,
+    pub enable_payment_response_hash: bool,
+    pub payment_response_hash_key: Option<String>,
+    pub redirect_to_merchant_with_http_post: bool,
+    pub merchant_name: OptionalEncryptableName,
+    pub merchant_details: OptionalEncryptableValue,
+    pub webhook_details: Option<serde_json::Value>,
+    pub sub_merchants_enabled: Option<bool>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub publishable_key: String,
+    pub storage_scheme: MerchantStorageScheme,
+    pub locker_id: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+    pub intent_fulfillment_time: Option<i64>,
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub is_recon_enabled: bool,
+    pub default_profile: Option<String>,
+    pub recon_status: diesel_models::enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub pm_collect_link_config: Option<serde_json::Value>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+impl From<MerchantAccountSetter> for MerchantAccount {
+    fn from(item: MerchantAccountSetter) -> Self {
+        Self {
+            id: None,
+            merchant_id: item.merchant_id,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            merchant_name: item.merchant_name,
+            merchant_details: item.merchant_details,
+            webhook_details: item.webhook_details,
+            sub_merchants_enabled: item.sub_merchants_enabled,
+            parent_merchant_id: item.parent_merchant_id,
+            publishable_key: item.publishable_key,
+            storage_scheme: item.storage_scheme,
+            locker_id: item.locker_id,
+            metadata: item.metadata,
+            routing_algorithm: item.routing_algorithm,
+            primary_business_details: item.primary_business_details,
+            frm_routing_algorithm: item.frm_routing_algorithm,
+            created_at: item.created_at,
+            modified_at: item.modified_at,
+            intent_fulfillment_time: item.intent_fulfillment_time,
+            payout_routing_algorithm: item.payout_routing_algorithm,
+            organization_id: item.organization_id,
+            is_recon_enabled: item.is_recon_enabled,
+            default_profile: item.default_profile,
+            recon_status: item.recon_status,
+            payment_link_config: item.payment_link_config,
+            pm_collect_link_config: item.pm_collect_link_config,
+        }
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
-    pub merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -82,12 +150,19 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: id_type::OrganizationId,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+}
+
+impl MerchantAccount {
+    /// Get the unique identifier of MerchantAccount
+    pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
+        &self.merchant_id
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -99,7 +174,7 @@ pub enum MerchantAccountUpdate {
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
-        parent_merchant_id: Option<String>,
+        parent_merchant_id: Option<common_utils::id_type::MerchantId>,
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
@@ -239,7 +314,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -249,8 +324,6 @@ impl super::behaviour::Conversion for MerchantAccount {
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
-
-        let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
 
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
@@ -262,13 +335,13 @@ impl super::behaviour::Conversion for MerchantAccount {
                 merchant_name: item
                     .merchant_name
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 merchant_details: item
                     .merchant_details
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 webhook_details: item.webhook_details,
@@ -376,7 +449,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -386,7 +459,6 @@ impl super::behaviour::Conversion for MerchantAccount {
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
-        let identifier = keymanager::Identifier::Merchant(key_store_ref_id.clone());
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: item.merchant_id,
@@ -397,13 +469,13 @@ impl super::behaviour::Conversion for MerchantAccount {
                 merchant_name: item
                     .merchant_name
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 merchant_details: item
                     .merchant_details
                     .async_lift(|inner| {
-                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
                     })
                     .await?,
                 webhook_details: item.webhook_details,

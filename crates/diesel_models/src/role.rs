@@ -9,7 +9,7 @@ use crate::{enums, schema::roles};
 pub struct Role {
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
@@ -25,7 +25,7 @@ pub struct Role {
 pub struct RoleNew {
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,

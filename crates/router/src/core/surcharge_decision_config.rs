@@ -11,9 +11,7 @@ use error_stack::ResultExt;
 use euclid::frontend::ast;
 use storage_impl::redis::cache;
 
-use super::routing::helpers::{
-    get_payment_method_surcharge_routing_id, update_merchant_active_algorithm_ref,
-};
+use super::routing::helpers::update_merchant_active_algorithm_ref;
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
@@ -50,7 +48,9 @@ pub async fn upsert_surcharge_decision_config(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let key = get_payment_method_surcharge_routing_id(merchant_account.merchant_id.as_str());
+    let key = merchant_account
+        .get_id()
+        .get_payment_method_surcharge_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
 
     ast::lowering::lower_program(program.clone())
@@ -147,7 +147,9 @@ pub async fn delete_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
     let db = state.store.as_ref();
-    let key = get_payment_method_surcharge_routing_id(&merchant_account.merchant_id);
+    let key = merchant_account
+        .get_id()
+        .get_payment_method_surcharge_routing_id();
     let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -175,8 +177,9 @@ pub async fn retrieve_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<SurchargeDecisionManagerResponse> {
     let db = state.store.as_ref();
-    let algorithm_id =
-        get_payment_method_surcharge_routing_id(merchant_account.merchant_id.as_str());
+    let algorithm_id = merchant_account
+        .get_id()
+        .get_payment_method_surcharge_routing_id();
     let algo_config = db
         .find_config_by_key(&algorithm_id)
         .await

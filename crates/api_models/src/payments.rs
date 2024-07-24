@@ -272,9 +272,9 @@ pub struct PaymentsRequest {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, example = "merchant_1668273825")]
+    #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
 
     /// Details of the routing configuration for that payment
     #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
@@ -934,7 +934,7 @@ impl From<MinorUnit> for Amount {
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRedirectRequest {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub connector: String,
     pub param: String,
 }
@@ -2877,7 +2877,8 @@ pub struct CardResponse {
 #[serde(rename_all = "snake_case")]
 pub struct RewardData {
     /// The merchant ID with which we have to call the connector
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3282,7 +3283,8 @@ pub struct PaymentsCaptureRequest {
     #[serde(skip_deserializing)]
     pub payment_id: String,
     /// The unique identifier for the merchant
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
     /// The Amount to be captured/ debited from the user's payment method.
     #[schema(value_type = i64, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
@@ -3570,8 +3572,8 @@ pub struct PaymentsResponse {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, example = "merchant_1668273825")]
-    pub merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
@@ -4110,7 +4112,7 @@ pub struct TimeRange {
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -4276,7 +4278,7 @@ pub struct RedirectionResponse {
 pub struct PaymentsResponseForm {
     pub transaction_id: String,
     // pub transaction_reference_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub order_id: String,
 }
 
@@ -4285,7 +4287,8 @@ pub struct PaymentsRetrieveRequest {
     /// The type of ID (ex: payment intent id, payment attempt id or connector txn id)
     pub resource_id: PaymentIdType,
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: bool,
     /// The parameters passed to a retrieve request
@@ -4883,7 +4886,8 @@ pub struct PaymentsSessionResponse {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBody {
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
@@ -4899,7 +4903,8 @@ pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
     /// Merchant connector details used to make payments.
@@ -4967,7 +4972,8 @@ pub struct PaymentsManualUpdateRequest {
     /// The identifier for the payment attempt
     pub attempt_id: String,
     /// Merchant ID
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// The status of the attempt
     pub attempt_status: Option<enums::AttemptStatus>,
     /// Error code of the connector
@@ -5059,7 +5065,8 @@ pub struct PaymentsStartRequest {
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// The identifier for the payment transaction
     pub attempt_id: String,
 }
@@ -5275,7 +5282,8 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Payment Link
     pub payment_link_id: String,
     /// Identifier for Merchant
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Payment Link
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
@@ -5297,7 +5305,8 @@ pub struct RetrievePaymentLinkResponse {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentLinkInitiateRequest {
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     pub payment_id: String,
 }
 

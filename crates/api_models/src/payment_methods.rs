@@ -100,7 +100,7 @@ pub struct PaymentMethodCreate {
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
     /// Merchant id
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 
     /// The type of payment method use for the payment.
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -352,8 +352,8 @@ impl CardDetailUpdate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
-    #[schema(example = "merchant_1671528864")]
-    pub merchant_id: String,
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -1176,8 +1176,8 @@ pub struct PaymentMethodCollectLinkResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodCollectLinkRenderRequest {
     /// Unique identifier for a merchant.
-    #[schema(example = "merchant_1671528864")]
-    pub merchant_id: String,
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier for the collect link.
     #[schema(value_type = String, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
@@ -1346,7 +1346,7 @@ pub struct PaymentMethodRecord {
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub nick_name: masking::Secret<String>,

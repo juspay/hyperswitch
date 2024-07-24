@@ -16,7 +16,7 @@ use crate::{
 pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
@@ -25,7 +25,7 @@ pub trait PaymentLinkDbExt: Sized {
 impl PaymentLinkDbExt for PaymentLink {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()

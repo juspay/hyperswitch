@@ -16,7 +16,7 @@ use super::{
 };
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
     pub test_mode: Option<bool>,
@@ -44,7 +44,6 @@ pub struct MerchantConnectorAccount {
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
-        merchant_id: Option<String>,
         connector_type: Option<enums::ConnectorType>,
         connector_name: Option<String>,
         connector_account_details: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -106,7 +105,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {
@@ -197,7 +196,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
     fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
         match merchant_connector_account_update {
             MerchantConnectorAccountUpdate::Update {
-                merchant_id,
                 connector_type,
                 connector_name,
                 connector_account_details,
@@ -214,7 +212,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status,
                 connector_wallets_details,
             } => Self {
-                merchant_id,
                 connector_type,
                 connector_name,
                 connector_account_details: connector_account_details.map(Encryption::from),
@@ -237,7 +234,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details,
             } => Self {
                 connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
-                merchant_id: None,
                 connector_type: None,
                 connector_name: None,
                 connector_account_details: None,

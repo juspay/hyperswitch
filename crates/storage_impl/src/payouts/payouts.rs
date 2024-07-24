@@ -192,7 +192,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
@@ -236,7 +236,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
@@ -291,7 +291,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_by_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
@@ -304,7 +304,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError>
@@ -318,7 +318,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     #[instrument[skip_all]]
     async fn filter_payouts_by_time_range_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
@@ -370,7 +370,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
@@ -387,7 +387,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
@@ -405,7 +405,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_by_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
@@ -521,7 +521,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
@@ -655,7 +655,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_by_time_range_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
