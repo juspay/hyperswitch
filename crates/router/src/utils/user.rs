@@ -172,7 +172,8 @@ pub fn get_multiple_merchant_details_with_status(
         .into_iter()
         .map(|user_role| {
             let Some(merchant_id) = &user_role.merchant_id else {
-                return Err(report!(UserErrors::InternalServerError));
+                return Err(report!(UserErrors::InternalServerError))
+                    .attach_printable("merchant_id not found for user_role");
             };
             let Some(org_id) = &user_role.org_id else {
                 return Err(report!(UserErrors::InternalServerError));

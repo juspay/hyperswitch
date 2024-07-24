@@ -82,7 +82,8 @@ pub async fn signup_with_merchant_id(
         .await;
 
     let Some(merchant_id) = user_role.merchant_id else {
-        return Err(UserErrors::InternalServerError.into());
+        return Err(report!(UserErrors::InternalServerError)
+            .attach_printable("merchant_id not found for user_role"));
     };
 
     logger::info!(?send_email_result);
@@ -277,7 +278,8 @@ pub async fn connect_account(
             .await;
 
         let Some(merchant_id) = user_role.merchant_id else {
-            return Err(UserErrors::InternalServerError.into());
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found for user_role"));
         };
         logger::info!(?send_email_result);
 
@@ -331,7 +333,8 @@ pub async fn connect_account(
             .await;
 
         let Some(merchant_id) = user_role.merchant_id else {
-            return Err(UserErrors::InternalServerError.into());
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found for user_role"));
         };
 
         logger::info!(?send_email_result);
@@ -1459,13 +1462,13 @@ pub async fn list_users_for_merchant_account(
                 roles::RoleInfo::from_role_id(
                     &state,
                     &user_role.role_id.clone(),
-                    &user_role
+                    user_role
                         .merchant_id
-                        .clone()
+                        .as_ref()
                         .ok_or(UserErrors::InternalServerError)?,
-                    &user_role
+                    user_role
                         .org_id
-                        .clone()
+                        .as_ref()
                         .ok_or(UserErrors::InternalServerError)?,
                 )
                 .await

@@ -248,7 +248,7 @@ impl UserRoleInterface for Store {
                     user_role
                         .merchant_id
                         .to_owned()
-                        .ok_or(errors::DatabaseError::NotFound)
+                        .ok_or(errors::DatabaseError::Others)
                 })
                 .collect::<Result<HashSet<_>, _>>()?;
 
@@ -258,7 +258,7 @@ impl UserRoleInterface for Store {
 
             for old_role in old_org_admin_user_roles {
                 let Some(old_role_merchant_id) = &old_role.merchant_id else {
-                    return Err(errors::DatabaseError::NotFound);
+                    return Err(errors::DatabaseError::Others);
                 };
                 if !new_org_admin_merchant_ids.contains(old_role_merchant_id) {
                     missing_new_user_roles.push(storage::UserRoleNew {
@@ -363,8 +363,9 @@ impl UserRoleInterface for MockDb {
 
         for user_role in user_roles.iter() {
             let Some(user_role_merchant_id) = &user_role.merchant_id else {
-                return Err(errors::StorageError::ValueNotFound(
-                    "Merchant id not found".to_string(),
+                return Err(errors::StorageError::DatabaseError(
+                    report!(errors::DatabaseError::Others)
+                        .attach_printable("merchant_id not found for user_role"),
                 )
                 .into());
             };
@@ -394,8 +395,9 @@ impl UserRoleInterface for MockDb {
 
         for user_role in user_roles.iter_mut() {
             let Some(user_role_merchant_id) = &user_role.merchant_id else {
-                return Err(errors::StorageError::ValueNotFound(
-                    "Merchant id not found".to_string(),
+                return Err(errors::StorageError::DatabaseError(
+                    report!(errors::DatabaseError::Others)
+                        .attach_printable("merchant_id not found for user_role"),
                 )
                 .into());
             };
@@ -441,8 +443,9 @@ impl UserRoleInterface for MockDb {
         let mut updated_user_roles = Vec::new();
         for user_role in user_roles.iter_mut() {
             let Some(user_role_org_id) = &user_role.org_id else {
-                return Err(errors::StorageError::ValueNotFound(
-                    "No user org_id is available".to_string(),
+                return Err(errors::StorageError::DatabaseError(
+                    report!(errors::DatabaseError::Others)
+                        .attach_printable("org_id not found for user_role"),
                 )
                 .into());
             };
@@ -514,8 +517,9 @@ impl UserRoleInterface for MockDb {
             .iter()
             .map(|user_role| {
                 user_role.merchant_id.to_owned().ok_or(report!(
-                    errors::StorageError::ValueNotFound(
-                        "Cannot find merchnat id for the user role".to_string(),
+                    errors::StorageError::DatabaseError(
+                        report!(errors::DatabaseError::Others)
+                            .attach_printable("merchant_id not found for user_role"),
                     )
                 ))
             })
@@ -526,8 +530,9 @@ impl UserRoleInterface for MockDb {
 
         for old_roles in old_org_admin_user_roles {
             let Some(merchant_id) = &old_roles.merchant_id else {
-                return Err(errors::StorageError::ValueNotFound(
-                    "Cannot find merchnat id for the user role".to_string(),
+                return Err(errors::StorageError::DatabaseError(
+                    report!(errors::DatabaseError::Others)
+                        .attach_printable("merchant id not found for user role"),
                 )
                 .into());
             };

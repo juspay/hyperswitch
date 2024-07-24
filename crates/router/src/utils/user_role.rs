@@ -156,7 +156,8 @@ pub async fn get_multiple_role_info_for_user_roles(
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {
         let Some(merchant_id) = &user_role.merchant_id else {
-            return Err(report!(UserErrors::InternalServerError));
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
         };
         let Some(org_id) = &user_role.org_id else {
             return Err(report!(UserErrors::InternalServerError));

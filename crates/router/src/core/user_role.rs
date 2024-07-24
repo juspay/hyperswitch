@@ -346,7 +346,8 @@ pub async fn delete_user_role(
 
     for user_role in user_roles.iter() {
         let Some(merchant_id) = user_role.merchant_id.as_ref() else {
-            return Err(report!(UserErrors::InternalServerError));
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
         };
 
         if merchant_id == user_from_token.merchant_id.as_str() {
