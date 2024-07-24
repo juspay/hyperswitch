@@ -2228,7 +2228,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     let _ = core_utils::validate_and_get_business_profile(
                         db,
                         Some(&profile_id),
-                        &merchant_account.get_id(),
+                        merchant_account.get_id(),
                     )
                     .await?;
                 }
@@ -2240,7 +2240,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     let business_profile = db
                         .find_business_profile_by_profile_name_merchant_id(
                             &profile_name,
-                            &merchant_account.get_id(),
+                            merchant_account.get_id(),
                         )
                         .await
                         .to_not_found_response(
