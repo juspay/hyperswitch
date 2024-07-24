@@ -154,10 +154,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}api/oauth/jwt",
-            connectors.itaubank.secondary_base_url
-        ))
+        Ok(format!("{}api/oauth/jwt", self.base_url(connectors)))
     }
     fn get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
@@ -302,7 +299,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/cob", self.base_url(connectors)))
+        Ok(format!(
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -392,7 +392,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/cob/{}",
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/cob/{}",
             self.base_url(connectors),
             req.request
                 .connector_transaction_id
@@ -565,7 +565,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 field_name: "itaubank_metadata",
             })?;
         Ok(format!(
-            "{}/pix/{}/devolucao/{}",
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/pix/{}/devolucao/{}",
             self.base_url(connectors),
             pix_data
                 .pix_id
@@ -663,7 +663,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 field_name: "itaubank_metadata",
             })?;
         Ok(format!(
-            "{}/pix/{}/devolucao/{}",
+            "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/pix/{}/devolucao/{}",
             self.base_url(connectors),
             pix_data
                 .pix_id
