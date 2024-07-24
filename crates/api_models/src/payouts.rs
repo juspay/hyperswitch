@@ -709,6 +709,7 @@ pub struct PayoutLinkResponse {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PayoutLinkInitiateRequest {
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub payout_id: String,
 }

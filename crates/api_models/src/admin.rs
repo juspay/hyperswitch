@@ -72,7 +72,7 @@ pub struct MerchantAccountCreate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
     pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
@@ -296,7 +296,7 @@ pub struct MerchantAccountUpdate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
     pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
@@ -392,7 +392,7 @@ pub struct MerchantAccountResponse {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
     pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// API key that will be used for server side API access

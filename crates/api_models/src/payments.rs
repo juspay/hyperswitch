@@ -3283,6 +3283,7 @@ pub struct PaymentsCaptureRequest {
     #[serde(skip_deserializing)]
     pub payment_id: String,
     /// The unique identifier for the merchant
+    #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
     /// The Amount to be captured/ debited from the user's payment method.
     #[schema(value_type = i64, example = 6540)]
