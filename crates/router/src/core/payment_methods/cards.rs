@@ -2671,7 +2671,8 @@ pub async fn list_payment_methods(
 
                 if let Some(config) = pm_auth_config {
                     for inner_config in config.enabled_payment_methods.iter() {
-                        let mca = db
+                        if inner_config.payment_method_type == *payment_method_type {
+                            let mca = db
                             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                 key_manager_state,
                                 &merchant_account.merchant_id,
@@ -2685,9 +2686,10 @@ pub async fn list_payment_methods(
                                 },
                             )?;
 
-                        if mca.status == enums::ConnectorStatus::Active
-                            && inner_config.payment_method_type == *payment_method_type
-                        {
+                            if mca.status != enums::ConnectorStatus::Active {
+                                continue;
+                            }
+
                             let pm = pmt_to_auth_connector
                                 .get(&inner_config.payment_method)
                                 .cloned();
