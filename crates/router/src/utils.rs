@@ -797,7 +797,7 @@ pub fn add_apple_pay_flow_metrics(
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.to_owned()),
+                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
                 ]),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
@@ -808,7 +808,7 @@ pub fn add_apple_pay_flow_metrics(
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.to_owned()),
+                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
                 ]),
             ),
         }
@@ -833,7 +833,7 @@ pub fn add_apple_pay_payment_status_metrics(
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.to_owned()),
+                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
                         ]),
                     )
                 }
@@ -846,7 +846,7 @@ pub fn add_apple_pay_payment_status_metrics(
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.to_owned()),
+                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
                         ]),
                     ),
             }
@@ -863,7 +863,7 @@ pub fn add_apple_pay_payment_status_metrics(
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.to_owned()),
+                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
                         ]),
                     )
                 }
@@ -875,7 +875,7 @@ pub fn add_apple_pay_payment_status_metrics(
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        ("merchant_id", merchant_id.to_owned()),
+                        ("merchant_id", merchant_id.get_string_repr().to_owned()),
                     ]),
                 ),
             }
