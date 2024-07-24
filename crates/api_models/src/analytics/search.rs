@@ -12,11 +12,11 @@ pub struct SearchFilters {
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        self.payment_method.is_none() &&
-        self.currency.is_none() &&
-        self.status.is_none() &&
-        self.customer_email.is_none() &&
-        self.search_tags.is_none()
+        self.payment_method.is_none()
+            && self.currency.is_none()
+            && self.status.is_none()
+            && self.customer_email.is_none()
+            && self.search_tags.is_none()
     }
 }
 

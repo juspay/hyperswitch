@@ -16,8 +16,16 @@ pub async fn msearch_results(
     merchant_id: &String,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
-    if req.query.trim().is_empty() && req.filters.as_ref().map_or(true, |filters| filters.is_all_none()) {
-        return Err(OpenSearchError::BadRequestError("Both query and filters are empty".to_string()).into());
+    if req.query.trim().is_empty()
+        && req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
     }
     let mut query_builder =
         OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
