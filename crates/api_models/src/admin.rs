@@ -72,8 +72,8 @@ pub struct MerchantAccountCreate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = false, example = true)]
@@ -264,8 +264,8 @@ pub struct MerchantAccountMetadata {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
@@ -296,8 +296,8 @@ pub struct MerchantAccountUpdate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = false, example = true)]
@@ -346,8 +346,8 @@ pub struct MerchantAccountUpdate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
@@ -392,8 +392,8 @@ pub struct MerchantAccountResponse {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -555,8 +555,8 @@ pub struct WebhookDetails {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct MerchantAccountDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,
@@ -564,12 +564,13 @@ pub struct MerchantAccountDeleteResponse {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MerchantId {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     pub merchant_connector_id: String,
 }
 
@@ -1037,8 +1038,8 @@ pub enum AcceptedCountries {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
@@ -1050,8 +1051,8 @@ pub struct MerchantConnectorDeleteResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -1076,7 +1077,8 @@ pub struct TransferKeyResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
     #[serde(skip_deserializing)]
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -1208,7 +1210,7 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
 
-    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.  
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
@@ -1216,8 +1218,8 @@ pub struct BusinessProfileCreate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct BusinessProfileResponse {
     /// The identifier for Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// The default business profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]

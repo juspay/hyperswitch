@@ -1,13 +1,14 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as billwerk;
 
-use super::utils::RefundsRequestData;
+use super::utils::{
+    RefundsRequestData, {self as connector_utils},
+};
 use crate::{
     configs::settings,
     consts,
@@ -26,9 +27,18 @@ use crate::{
     },
     utils::BytesExt,
 };
+#[derive(Clone)]
+pub struct Billwerk {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
-#[derive(Debug, Clone)]
-pub struct Billwerk;
+impl Billwerk {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Billwerk {}
 impl api::PaymentSession for Billwerk {}
@@ -284,12 +294,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = billwerk::BillwerkRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = billwerk::BillwerkRouterData::try_from((amount, req))?;
         let connector_req = billwerk::BillwerkPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -462,12 +473,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = billwerk::BillwerkRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = billwerk::BillwerkRouterData::try_from((amount, req))?;
         let connector_req = billwerk::BillwerkCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -634,12 +646,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = billwerk::BillwerkRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = billwerk::BillwerkRouterData::try_from((amount, req))?;
         let connector_req = billwerk::BillwerkRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

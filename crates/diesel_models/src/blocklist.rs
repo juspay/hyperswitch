@@ -6,7 +6,7 @@ use crate::schema::blocklist;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = blocklist)]
 pub struct BlocklistNew {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub fingerprint_id: String,
     pub data_kind: common_enums::BlocklistDataKind,
     pub metadata: Option<serde_json::Value>,
@@ -20,7 +20,7 @@ pub struct BlocklistNew {
 pub struct Blocklist {
     #[serde(skip)]
     pub id: i32,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub fingerprint_id: String,
     pub data_kind: common_enums::BlocklistDataKind,
     pub metadata: Option<serde_json::Value>,

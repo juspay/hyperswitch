@@ -14,7 +14,7 @@ use super::MockDb;
 impl PayoutsInterface for MockDb {
     async fn find_payout_by_merchant_id_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
@@ -44,7 +44,7 @@ impl PayoutsInterface for MockDb {
 
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Option<Payouts>, StorageError> {
@@ -55,7 +55,7 @@ impl PayoutsInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_constraints(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
@@ -66,7 +66,7 @@ impl PayoutsInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_payouts_and_attempts(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError> {
@@ -77,7 +77,7 @@ impl PayoutsInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_time_range_constraints(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _time_range: &api_models::payments::TimeRange,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {

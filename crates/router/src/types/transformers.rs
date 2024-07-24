@@ -1281,6 +1281,10 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+            organization_details: None,
+            metadata: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         }
     }
 }
@@ -1293,6 +1297,10 @@ impl ForeignFrom<api_models::organization::OrganizationRequest>
         Self {
             org_id: org_new.org_id,
             org_name: item.organization_name,
+            organization_details: item.organization_details,
+            metadata: item.metadata,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         }
     }
 }

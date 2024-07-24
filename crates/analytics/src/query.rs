@@ -354,6 +354,12 @@ pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
 }
 
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
 /// Implement `ToSql` on arrays of types that impl `ToString`.
 macro_rules! impl_to_sql_for_to_string {
     ($($type:ty),+) => {

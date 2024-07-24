@@ -19,7 +19,7 @@ use crate::{connection::PgPooledConn, logger};
 pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
         offset: i64,
@@ -27,13 +27,13 @@ pub trait RefundDbExt: Sized {
 
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError>;
 }
@@ -42,7 +42,7 @@ pub trait RefundDbExt: Sized {
 impl RefundDbExt for Refund {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
         offset: i64,
@@ -150,7 +150,7 @@ impl RefundDbExt for Refund {
 
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
@@ -205,7 +205,7 @@ impl RefundDbExt for Refund {
 
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()

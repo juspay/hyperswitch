@@ -10,7 +10,7 @@ use crate::services::kafka::KafkaMessage;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct OutgoingWebhookEvent {
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     event_id: String,
     event_type: OutgoingWebhookEventType,
     #[serde(flatten)]
@@ -93,7 +93,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
 
 impl OutgoingWebhookEvent {
     pub fn new(
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         event_id: String,
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
