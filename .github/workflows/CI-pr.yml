@@ -288,3 +288,70 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+
+  just-hack:
+    name: just hack
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - hyperswitch-runners
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Fetch base branch"
+        shell: bash
+        run: git fetch origin $GITHUB_BASE_REF --depth 1
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Get rust version from Cargo.toml
+        shell: bash
+        run: |
+          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
+          echo "rust_version=${rust_version}" >> $GITHUB_ENV
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "${{ env.rust_version }}"
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
+
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
+      - name: Cargo hack_v2
+        shell: bash
+        run: just hack_v2
