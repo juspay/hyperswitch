@@ -8,7 +8,10 @@ pub mod vault;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::{payment_methods, payments::CardToken};
+use api_models::{
+    payment_methods,
+    payments::{Address, CardToken},
+};
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -564,12 +567,12 @@ pub async fn retrieve_payment_method_with_token(
     Ok(token)
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct PaymentMethodAddServer;
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct PaymentMethodAddClient;
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
 pub trait PaymentMethodAdd<T: Send + Sync> {
     async fn perform_preprocessing(
@@ -598,11 +601,14 @@ pub trait PaymentMethodAdd<T: Send + Sync> {
     ) -> RouterResult<T>;
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct PaymentMethodVaultingData {
     pub pm_id: Option<String>,
     pub payment_method: Option<diesel_models::PaymentMethod>,
     pub customer: Option<domain::Customer>,
     pub response: Option<api::PaymentMethodResponse>,
     pub duplication_check: Option<pm_transformers::DataDuplicationCheck>,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<serde_json::Value>,
+    pub payment_method_billing_address: Option<Address>,
 }

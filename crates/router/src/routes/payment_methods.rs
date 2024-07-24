@@ -51,8 +51,8 @@ pub async fn create_payment_method_api(
             Box::pin(cards::get_client_secret_or_add_payment_method(
                 &state,
                 req,
-                auth.merchant_account,
-                auth.key_store,
+                &auth.merchant_account,
+                &auth.key_store,
             ))
             .await
         },
@@ -226,14 +226,18 @@ pub async fn save_payment_method_api(
         &req,
         payload,
         |state, auth, req, _| {
-            Box::pin(cards::add_payment_method(
-                state,
-                req,
-                auth.merchant_account,
-                auth.key_store,
-                Some(pm_id.clone()),
-                Box::new(payment_methods_routes::PaymentMethodAddClient),
-            ))
+            let pm_id = pm_id.clone();
+            async move {
+                Box::pin(cards::add_payment_method(
+                    &state,
+                    req,
+                    &auth.merchant_account,
+                    &auth.key_store,
+                    Some(pm_id),
+                    Box::new(payment_methods_routes::PaymentMethodAddClient),
+                ))
+                .await
+            }
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

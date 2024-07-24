@@ -20,6 +20,87 @@ use crate::{
     payments::{self, BankCodeResponse},
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodCreate {
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The name of the bank/ provider issuing the payment method to the end user
+    #[schema(example = "Citibank")]
+    pub payment_method_issuer: Option<String>,
+
+    /// A standard code representing the issuer of payment method
+    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
+    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
+
+    /// Card Details
+    #[schema(example = json!({
+    "card_number": "4111111145551142",
+    "card_exp_month": "10",
+    "card_exp_year": "25",
+    "card_holder_name": "John Doe"}))]
+    pub card: Option<CardDetail>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The card network
+    #[schema(example = "Visa")]
+    pub card_network: Option<String>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Wallet>)]
+    pub wallet: Option<payouts::Wallet>,
+
+    /// For Client based calls, SDK will use the client_secret
+    /// in order to call /payment_methods
+    /// Client secret will be generated whenever a new
+    /// payment method is created
+    pub client_secret: Option<String>,
+
+    /// Payment method data to be passed in case of client
+    /// based flow
+    pub payment_method_data: Option<PaymentMethodCreateData>,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    #[serde(skip_deserializing)]
+    /// The connector mandate details of the payment method, this is added only for cards migration
+    /// api and is skipped during deserialization of the payment method create request as this
+    /// it should not be passed in the request
+    pub connector_mandate_details: Option<PaymentsMandateReference>,
+
+    #[serde(skip_deserializing)]
+    /// The transaction id of a CIT (customer initiated transaction) associated with the payment method,
+    /// this is added only for cards migration api and is skipped during deserialization of the
+    /// payment method create request as it should not be passed in the request
+    pub network_transaction_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -173,11 +254,23 @@ impl PaymentMethodCreate {
             connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
             card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
-            #[cfg(feature = "payouts")]
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
-            #[cfg(feature = "payouts")]
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
             wallet: payment_method_migrate.wallet.clone(),
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
@@ -215,7 +308,7 @@ pub enum PaymentMethodCreateData {
     Wallet(payouts::Wallet),
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -350,7 +443,10 @@ impl CardDetailUpdate {
     }
 }
 
-#[cfg(not(feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
@@ -412,7 +508,7 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant

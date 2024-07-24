@@ -315,6 +315,26 @@ where
                                     if err.current_context().is_db_not_found() {
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
+
+                                        #[cfg(all(
+                                            any(feature = "v1", feature = "v2"),
+                                            not(feature = "payment_methods_v2")
+                                        ))]
+                                        let card_scheme = resp.card.clone().and_then(|card| {
+                                            card.card_network
+                                                .map(|card_network| card_network.to_string())
+                                        });
+
+                                        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                                        let card_scheme = resp
+                                            .payment_method_data
+                                            .clone()
+                                            .and_then(|pmd| match pmd {
+                                                api::PaymentMethodResponseData::Card(card) => card
+                                                    .card_network
+                                                    .map(|card_network| card_network.to_string()),
+                                                _ => None,
+                                            });
                                         payment_methods::cards::create_payment_method(
                                             state,
                                             &payment_method_create_request,
@@ -332,10 +352,7 @@ where
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address
                                                 .map(Into::into),
-                                            resp.card.and_then(|card| {
-                                                card.card_network
-                                                    .map(|card_network| card_network.to_string())
-                                            }),
+                                            card_scheme,
                                         )
                                         .await
                                     } else {
@@ -611,6 +628,24 @@ where
                                 }
                             });
 
+                            #[cfg(all(
+                                any(feature = "v1", feature = "v2"),
+                                not(feature = "payment_methods_v2")
+                            ))]
+                            let card_scheme = resp.card.clone().and_then(|card| {
+                                card.card_network
+                                    .map(|card_network| card_network.to_string())
+                            });
+
+                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            let card_scheme =
+                                resp.payment_method_data.clone().and_then(|pmd| match pmd {
+                                    api::PaymentMethodResponseData::Card(card) => card
+                                        .card_network
+                                        .map(|card_network| card_network.to_string()),
+                                    _ => None,
+                                });
+
                             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                             payment_methods::cards::create_payment_method(
                                 state,
@@ -628,10 +663,7 @@ where
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address.map(Into::into),
-                                resp.card.and_then(|card| {
-                                    card.card_network
-                                        .map(|card_network| card_network.to_string())
-                                }),
+                                card_scheme,
                             )
                             .await?;
                         };

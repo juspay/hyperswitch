@@ -102,16 +102,16 @@ impl
             #[cfg(all(
                 feature = "payouts",
                 any(feature = "v2", feature = "v1"),
-                not(feature = "payment_mathods_v2")
+                not(feature = "payment_methods_v2")
             ))]
             bank_transfer: None,
             #[cfg(all(
                 feature = "payouts",
                 any(feature = "v2", feature = "v1"),
-                not(feature = "payment_mathods_v2")
+                not(feature = "payment_methods_v2")
             ))]
             card: None,
-            #[cfg(all(feature = "payouts", feature = "v2", feature = "payment_mathods_v2"))]
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             payment_method_data: None,
             recurring_enabled: false,
             installment_payment_enabled: false,
