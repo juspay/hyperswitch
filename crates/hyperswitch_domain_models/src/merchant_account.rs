@@ -1,3 +1,10 @@
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+use common_utils::id_type;
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+use common_utils::id_type;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -5,7 +12,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
     pii,
-    types::keymanager::{self},
+    types::keymanager,
 };
 use diesel_models::{
     enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
@@ -44,7 +51,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
@@ -76,7 +83,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
@@ -255,11 +262,15 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
+                    .async_lift(|inner| {
+                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| decrypt(state, inner, identifier.clone(), key.peek()))
+                    .async_lift(|inner| {
+                        decrypt_optional(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,

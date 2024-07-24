@@ -108,7 +108,8 @@ pub struct MerchantAccountCreate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The id of the organization to which the merchant belongs to, if not passed an organization is created
-    pub organization_id: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: Option<id_type::OrganizationId>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
@@ -208,7 +209,8 @@ pub struct MerchantAccountCreate {
     pub metadata: Option<MerchantAccountMetadata>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -414,7 +416,8 @@ pub struct MerchantAccountResponse {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -456,7 +459,8 @@ pub struct MerchantAccountResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization which the merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -1051,6 +1055,16 @@ pub struct ToggleKVResponse {
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct MerchantKeyTransferRequest {
+    /// Offset for merchant account
+    #[schema(example = 32)]
+    pub from: u32,
+    /// Limit for merchant account
+    #[schema(example = 32)]
+    pub limit: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

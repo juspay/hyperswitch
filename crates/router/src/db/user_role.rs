@@ -1,6 +1,7 @@
 use std::{collections::HashSet, ops::Not};
 
 use async_bb8_diesel::AsyncConnection;
+use common_utils::id_type;
 use diesel_models::{enums, user_role as storage};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -40,7 +41,7 @@ pub trait UserRoleInterface {
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
@@ -64,7 +65,7 @@ pub trait UserRoleInterface {
         &self,
         from_user_id: &str,
         to_user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<(), errors::StorageError>;
 }
 
@@ -131,7 +132,7 @@ impl UserRoleInterface for Store {
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -189,7 +190,7 @@ impl UserRoleInterface for Store {
         &self,
         from_user_id: &str,
         to_user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<(), errors::StorageError> {
         let conn = connection::pg_connection_write(self)
             .await
@@ -237,7 +238,7 @@ impl UserRoleInterface for Store {
                                 user_id: to_user_id.to_string(),
                                 merchant_id: old_role.merchant_id,
                                 role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-                                org_id: org_id.to_string(),
+                                org_id: org_id.to_owned(),
                                 status: enums::UserStatus::Active,
                                 created_by: from_user_id.to_string(),
                                 last_modified_by: from_user_id.to_string(),
@@ -374,13 +375,13 @@ impl UserRoleInterface for MockDb {
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         let mut updated_user_roles = Vec::new();
         for user_role in user_roles.iter_mut() {
-            if user_role.user_id == user_id && user_role.org_id == org_id {
+            if user_role.user_id == user_id && user_role.org_id == *org_id {
                 match &update {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
@@ -402,7 +403,7 @@ impl UserRoleInterface for MockDb {
         }
         if updated_user_roles.is_empty() {
             Err(errors::StorageError::ValueNotFound(format!(
-                "No user role available for user_id = {user_id} and org_id = {org_id}"
+                "No user role available for user_id = {user_id} and org_id = {org_id:?}"
             ))
             .into())
         } else {
@@ -414,7 +415,7 @@ impl UserRoleInterface for MockDb {
         &self,
         from_user_id: &str,
         to_user_id: &str,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<(), errors::StorageError> {
         let old_org_admin_user_roles = self
             .update_user_roles_by_user_id_org_id(
@@ -453,7 +454,7 @@ impl UserRoleInterface for MockDb {
                         user_id: to_user_id.to_string(),
                         merchant_id: old_roles.merchant_id,
                         role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-                        org_id: org_id.to_string(),
+                        org_id: org_id.to_owned(),
                         status: enums::UserStatus::Active,
                         created_by: from_user_id.to_string(),
                         last_modified_by: from_user_id.to_string(),

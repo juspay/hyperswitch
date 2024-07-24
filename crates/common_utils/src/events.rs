@@ -49,6 +49,7 @@ pub enum ApiEventsType {
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
+    Keymanager,
     RustLocker,
     ApplePayCertificatesMigration,
     FraudCheck,
@@ -88,23 +89,26 @@ impl<T> ApiEventMetric for Vec<T> {
 }
 
 #[macro_export]
-macro_rules! impl_misc_api_event_type {
-    ($($type:ty),+) => {
+macro_rules! impl_api_event_type {
+    ($event: ident, ($($type:ty),+))=> {
         $(
             impl ApiEventMetric for $type {
                 fn get_api_event_type(&self) -> Option<ApiEventsType> {
-                    Some(ApiEventsType::Miscellaneous)
+                    Some(ApiEventsType::$event)
                 }
             }
         )+
      };
 }
 
-impl_misc_api_event_type!(
-    String,
-    (&String, &String),
-    (Option<i64>, Option<i64>, String),
-    bool
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        String,
+        (&String, &String),
+        (Option<i64>, Option<i64>, String),
+        bool
+    )
 );
 
 impl<T: ApiEventMetric> ApiEventMetric for &T {

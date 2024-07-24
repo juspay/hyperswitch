@@ -1675,7 +1675,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         updated_by: None,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
-                    db.insert_customer(key_manager_state, new_customer, key_store, storage_scheme)
+                    db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
                         .await
                 }
             })
