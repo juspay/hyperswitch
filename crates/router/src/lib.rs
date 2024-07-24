@@ -146,6 +146,7 @@ pub fn mk_app(
     #[cfg(feature = "olap")]
     {
         server_app = server_app
+            .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))

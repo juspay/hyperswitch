@@ -1,13 +1,11 @@
 //! Common ID types
 //! The id type can be used to create specific id types with custom behaviour
 
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Display},
-};
+use std::{borrow::Cow, fmt::Debug};
 
 mod customer;
 mod merchant;
+mod organization;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -18,6 +16,7 @@ use diesel::{
     sql_types,
 };
 pub use merchant::MerchantId;
+pub use organization::OrganizationId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -36,6 +35,7 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
         .chars()
         .find(|char| !is_valid_id_character(char))
 }
+
 
 #[derive(Debug, PartialEq, Hash, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
@@ -165,12 +165,6 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0 .0.to_sql(out)
-    }
-}
-
-impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display for LengthId<MAX_LENGTH, MIN_LENGTH> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0 .0)
     }
 }
 

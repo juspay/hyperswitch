@@ -1,20 +1,11 @@
 pub mod transformers;
 
-use common_utils::{
-    crypto,
-    ext_traits::ByteSliceExt,
-    request::RequestContent,
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
-};
-use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface};
-use transformers as volt;
+use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
+use error_stack::{report, ResultExt};
+use masking::ExposeInterface;
+use transformers as wellsfargo;
 
-use self::transformers::webhook_headers;
-use super::{
-    utils,
-    utils::{self as connector_utils},
-};
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -28,48 +19,48 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
 };
 
 #[derive(Clone)]
-pub struct Volt {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+pub struct Wellsfargo {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Volt {
+impl Wellsfargo {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for Volt {}
-impl api::PaymentSession for Volt {}
-impl api::ConnectorAccessToken for Volt {}
-impl api::MandateSetup for Volt {}
-impl api::PaymentAuthorize for Volt {}
-impl api::PaymentSync for Volt {}
-impl api::PaymentCapture for Volt {}
-impl api::PaymentVoid for Volt {}
-impl api::Refund for Volt {}
-impl api::RefundExecute for Volt {}
-impl api::RefundSync for Volt {}
-impl api::PaymentToken for Volt {}
+impl api::Payment for Wellsfargo {}
+impl api::PaymentSession for Wellsfargo {}
+impl api::ConnectorAccessToken for Wellsfargo {}
+impl api::MandateSetup for Wellsfargo {}
+impl api::PaymentAuthorize for Wellsfargo {}
+impl api::PaymentSync for Wellsfargo {}
+impl api::PaymentCapture for Wellsfargo {}
+impl api::PaymentVoid for Wellsfargo {}
+impl api::Refund for Wellsfargo {}
+impl api::RefundExecute for Wellsfargo {}
+impl api::RefundSync for Wellsfargo {}
+impl api::PaymentToken for Wellsfargo {}
 
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for Volt
+    > for Wellsfargo
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Volt
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Wellsfargo
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -80,30 +71,24 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
+            self.get_content_type().to_string().into(),
         )];
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_header = (
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.peek()).into_masked(),
-        );
-        header.push(auth_header);
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for Volt {
+impl ConnectorCommon for Wellsfargo {
     fn id(&self) -> &'static str {
-        "volt"
+        "wellsfargo"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Minor
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -111,18 +96,18 @@ impl ConnectorCommon for Volt {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.volt.base_url.as_ref()
+        connectors.wellsfargo.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = volt::VoltAuthType::try_from(auth_type)
+        let auth = wellsfargo::WellsfargoAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.username.expose().into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 
@@ -131,144 +116,38 @@ impl ConnectorCommon for Volt {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: volt::VoltErrorResponse = res
+        let response: wellsfargo::WellsfargoErrorResponse = res
             .response
-            .parse_struct("VoltErrorResponse")
+            .parse_struct("WellsfargoErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let reason = match &response.exception.error_list {
-            Some(error_list) => error_list
-                .iter()
-                .map(|error| error.message.clone())
-                .collect::<Vec<String>>()
-                .join(" & "),
-            None => response.exception.message.clone(),
-        };
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.exception.message.to_string(),
-            message: response.exception.message.clone(),
-            reason: Some(reason),
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
         })
     }
 }
 
-impl ConnectorValidation for Volt {
+impl ConnectorValidation for Wellsfargo {
     //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Volt
+    for Wellsfargo
 {
     //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Volt
+    for Wellsfargo
 {
-    fn get_url(
-        &self,
-        _req: &types::RefreshTokenRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}oauth", self.base_url(connectors)))
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
-    }
-    fn get_headers(
-        &self,
-        _req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefreshTokenType::get_content_type(self)
-                .to_string()
-                .into(),
-        )])
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = volt::VoltAuthUpdateRequest::try_from(req)?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefreshTokenRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let req = Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .attach_default_headers()
-                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
-                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .set_body(types::RefreshTokenType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        );
-        Ok(req)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefreshTokenRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
-        let response: volt::VoltAuthUpdateResponse = res
-            .response
-            .parse_struct("Volt VoltAuthUpdateResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // auth error have different structure than common error
-        let response: volt::VoltAuthErrorResponse = res
-            .response
-            .parse_struct("VoltAuthErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code.to_string(),
-            message: response.message.clone(),
-            reason: Some(response.message),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
 }
 
 impl
@@ -276,26 +155,12 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-    > for Volt
+    > for Wellsfargo
 {
-    fn build_request(
-        &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Volt".to_string())
-                .into(),
-        )
-    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Volt
+    for Wellsfargo
 {
     fn get_headers(
         &self,
@@ -312,9 +177,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/payments", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -327,8 +192,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = volt::VoltRouterData::from((amount, req));
-        let connector_req = volt::VoltPaymentsRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = wellsfargo::WellsfargoRouterData::from((amount, req));
+        let connector_req =
+            wellsfargo::WellsfargoPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -360,14 +227,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: volt::VoltPaymentsResponse = res
+        let response: wellsfargo::WellsfargoPaymentsResponse = res
             .response
-            .parse_struct("Volt PaymentsAuthorizeResponse")
+            .parse_struct("Wellsfargo PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -385,7 +250,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Volt
+    for Wellsfargo
 {
     fn get_headers(
         &self,
@@ -401,18 +266,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}payments/{connector_payment_id}",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -436,14 +293,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: volt::VoltPaymentsResponseData = res
+        let response: wellsfargo::WellsfargoPaymentsResponse = res
             .response
-            .parse_struct("volt PaymentsSyncResponse")
+            .parse_struct("wellsfargo PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -461,7 +316,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Volt
+    for Wellsfargo
 {
     fn get_headers(
         &self,
@@ -517,14 +372,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: volt::VoltPaymentsResponse = res
+        let response: wellsfargo::WellsfargoPaymentsResponse = res
             .response
-            .parse_struct("Volt PaymentsCaptureResponse")
+            .parse_struct("Wellsfargo PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -542,11 +395,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Volt
+    for Wellsfargo
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Volt {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Wellsfargo
+{
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -561,14 +416,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}payments/{connector_payment_id}/request-refund",
-            self.base_url(connectors),
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -576,13 +427,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let refund_amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_router_data = volt::VoltRouterData::from((amount, req));
-        let connector_req = volt::VoltRefundRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = wellsfargo::WellsfargoRouterData::from((refund_amount, req));
+        let connector_req = wellsfargo::WellsfargoRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -611,14 +463,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: volt::RefundResponse = res
+        let response: wellsfargo::RefundResponse = res
             .response
-            .parse_struct("volt RefundResponse")
+            .parse_struct("wellsfargo RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -635,118 +485,95 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Volt {
-    //Volt does not support Refund Sync
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Wellsfargo
+{
+    fn get_headers(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+        let response: wellsfargo::RefundResponse = res
+            .response
+            .parse_struct("wellsfargo RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Volt {
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha256))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature =
-            utils::get_header_key_value(webhook_headers::X_VOLT_SIGNED, request.headers)
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-
-        hex::decode(signature)
-            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let x_volt_timed =
-            utils::get_header_key_value(webhook_headers::X_VOLT_TIMED, request.headers)?;
-        let user_agent = utils::get_header_key_value(webhook_headers::USER_AGENT, request.headers)?;
-        let version = user_agent
-            .split('/')
-            .last()
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        Ok(format!(
-            "{}|{}|{}",
-            String::from_utf8_lossy(request.body),
-            x_volt_timed,
-            version
-        )
-        .into_bytes())
-    }
-
+impl api::IncomingWebhook for Wellsfargo {
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let parsed_webhook_response = request
-            .body
-            .parse_struct::<volt::WebhookResponse>("VoltRefundWebhookBodyReference")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        match parsed_webhook_response {
-            volt::WebhookResponse::Payment(payment_response) => {
-                let reference = match payment_response.merchant_internal_reference {
-                    Some(merchant_internal_reference) => {
-                        api_models::payments::PaymentIdType::PaymentAttemptId(
-                            merchant_internal_reference,
-                        )
-                    }
-                    None => api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        payment_response.payment,
-                    ),
-                };
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    reference,
-                ))
-            }
-            volt::WebhookResponse::Refund(refund_response) => {
-                let refund_reference = match refund_response.external_reference {
-                    Some(external_reference) => {
-                        api_models::webhooks::RefundIdType::RefundId(external_reference)
-                    }
-                    None => api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        refund_response.refund,
-                    ),
-                };
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    refund_reference,
-                ))
-            }
-        }
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        if request.body.is_empty() {
-            Ok(api::IncomingWebhookEvent::EndpointVerification)
-        } else {
-            let payload: volt::VoltWebhookBodyEventType = request
-                .body
-                .parse_struct("VoltWebhookBodyEventType")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-            Ok(api::IncomingWebhookEvent::from(payload))
-        }
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let details: volt::VoltWebhookObjectResource = request
-            .body
-            .parse_struct("VoltWebhookObjectResource")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(Box::new(details))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

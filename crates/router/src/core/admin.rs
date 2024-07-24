@@ -106,6 +106,73 @@ fn add_publishable_key_to_decision_service(
 }
 
 #[cfg(feature = "olap")]
+pub async fn create_organization(
+    state: SessionState,
+    req: api::OrganizationRequest,
+) -> RouterResponse<api::OrganizationResponse> {
+    let db_organization = ForeignFrom::foreign_from(req);
+    state
+        .store
+        .insert_organization(db_organization)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error when creating organization")
+        .map(ForeignFrom::foreign_from)
+        .map(service_api::ApplicationResponse::Json)
+}
+
+#[cfg(feature = "olap")]
+pub async fn update_organization(
+    state: SessionState,
+    org_id: api::OrganizationId,
+    req: api::OrganizationRequest,
+) -> RouterResponse<api::OrganizationResponse> {
+    let organization_update = diesel_models::organization::OrganizationUpdate::Update {
+        org_name: req.organization_name,
+    };
+    state
+        .store
+        .update_organization_by_org_id(&org_id.organization_id, organization_update)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "organization with the given id does not exist".to_string(),
+        })
+        .attach_printable(format!(
+            "Failed to update organization with organization_id: {:?}",
+            org_id.organization_id
+        ))
+        .map(ForeignFrom::foreign_from)
+        .map(service_api::ApplicationResponse::Json)
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_organization(
+    state: SessionState,
+    org_id: api::OrganizationId,
+) -> RouterResponse<api::OrganizationResponse> {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2"),
+        feature = "olap"
+    ))]
+    {
+        CreateOrValidateOrganization::new(Some(org_id.organization_id))
+            .create_or_validate(state.store.as_ref())
+            .await
+            .map(ForeignFrom::foreign_from)
+            .map(service_api::ApplicationResponse::Json)
+    }
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+    {
+        CreateOrValidateOrganization::new(org_id.organization_id)
+            .create_or_validate(state.store.as_ref())
+            .await
+            .map(ForeignFrom::foreign_from)
+            .map(service_api::ApplicationResponse::Json)
+    }
+}
+
+#[cfg(feature = "olap")]
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
@@ -257,7 +324,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization_id = CreateOrValidateOrganization::new(self.organization_id)
+        let organization = CreateOrValidateOrganization::new(self.organization_id)
             .create_or_validate(db)
             .await?;
 
@@ -315,7 +382,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payout_routing_algorithm: self.payout_routing_algorithm,
                     #[cfg(not(feature = "payouts"))]
                     payout_routing_algorithm: None,
-                    organization_id,
+                    organization_id: organization.org_id,
                     is_recon_enabled: false,
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -341,7 +408,9 @@ enum CreateOrValidateOrganization {
     #[cfg(any(feature = "v1", feature = "v2"))]
     Create,
     /// Validates if this organization exists in the records
-    Validate { organization_id: String },
+    Validate {
+        organization_id: id_type::OrganizationId,
+    },
 }
 
 #[cfg(feature = "olap")]
@@ -354,7 +423,7 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<String>) -> Self {
+    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
@@ -364,34 +433,33 @@ impl CreateOrValidateOrganization {
 
     #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
-    fn new(organization_id: String) -> Self {
+    fn new(organization_id: id_type::OrganizationId) -> Self {
         Self::Validate { organization_id }
     }
 
     #[cfg(feature = "olap")]
     /// Apply the action, whether to create the organization or validate the given organization_id
-    async fn create_or_validate(&self, db: &dyn StorageInterface) -> RouterResult<String> {
-        Ok(match self {
+    async fn create_or_validate(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> RouterResult<diesel_models::organization::Organization> {
+        match self {
             #[cfg(any(feature = "v1", feature = "v2"))]
             Self::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
-                let organization = db
-                    .insert_organization(db_organization)
+                db.insert_organization(db_organization)
                     .await
                     .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error when creating organization")?;
-                organization.org_id
+                    .attach_printable("Error when creating organization")
             }
-            Self::Validate { organization_id } => {
-                db.find_organization_by_org_id(organization_id)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "organization with the given id does not exist".to_string(),
-                    })?;
-                organization_id.to_string()
-            }
-        })
+            Self::Validate { organization_id } => db
+                .find_organization_by_org_id(organization_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "organization with the given id does not exist".to_string(),
+                }),
+        }
     }
 }
 
@@ -2637,6 +2705,10 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             volt::transformers::VoltAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Wellsfargo => {
+        //     wellsfargo::transformers::WellsfargoAuthType::try_from(val)?;
+        //     Ok(())
+        // }
         api_enums::Connector::Wise => {
             wise::transformers::WiseAuthType::try_from(val)?;
             Ok(())

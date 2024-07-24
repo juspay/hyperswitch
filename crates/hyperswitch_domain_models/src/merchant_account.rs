@@ -1,3 +1,10 @@
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+use common_utils::id_type;
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+use common_utils::id_type;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -5,7 +12,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
     pii,
-    types::keymanager::{self},
+    types::keymanager,
 };
 use diesel_models::{
     enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
@@ -43,7 +50,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
@@ -75,7 +82,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
