@@ -352,7 +352,7 @@ impl CardDetailUpdate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
-    #[schema(example = "merchant_1671528864")]
+    #[schema(example = "merchant_1671528864", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
@@ -1176,7 +1176,7 @@ pub struct PaymentMethodCollectLinkResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodCollectLinkRenderRequest {
     /// Unique identifier for a merchant.
-    #[schema(example = "merchant_1671528864")]
+    #[schema(example = "merchant_1671528864", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier for the collect link.

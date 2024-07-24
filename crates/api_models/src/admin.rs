@@ -262,7 +262,7 @@ pub struct MerchantAccountMetadata {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
@@ -344,7 +344,7 @@ pub struct MerchantAccountUpdate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
@@ -551,7 +551,7 @@ pub struct WebhookDetails {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct MerchantAccountDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// If the connector is deleted or not
     #[schema(example = false)]
@@ -565,6 +565,7 @@ pub struct MerchantId {
 
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub merchant_connector_id: String,
 }
@@ -1033,7 +1034,7 @@ pub enum AcceptedCountries {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
@@ -1046,7 +1047,7 @@ pub struct MerchantConnectorDeleteResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
@@ -1072,6 +1073,7 @@ pub struct TransferKeyResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
     #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
@@ -1212,7 +1214,7 @@ pub struct BusinessProfileCreate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct BusinessProfileResponse {
     /// The identifier for Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// The default business profile that must be used for creating merchant accounts and payments
