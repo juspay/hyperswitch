@@ -291,7 +291,7 @@ jobs:
 
 
   just-hack:
-    name: just hack
+    name: check compilation for V2 features
     runs-on: ${{ matrix.runner }}
 
     strategy:
@@ -299,7 +299,6 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
-          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
