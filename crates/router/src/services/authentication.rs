@@ -1281,7 +1281,7 @@ pub struct ReconUser {
 }
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
-    fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         None
     }
 }
