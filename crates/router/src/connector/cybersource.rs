@@ -3,7 +3,7 @@ pub mod transformers;
 use base64::Engine;
 use common_utils::{
     request::RequestContent,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor,MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
@@ -392,7 +392,14 @@ impl
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::zero(),
+            req.request.currency,
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((amount, req))?;
+        let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

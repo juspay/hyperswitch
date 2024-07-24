@@ -62,16 +62,16 @@ pub struct CybersourceZeroMandateRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
+impl TryFrom<&CybersourceRouterData<&types::SetupMandateRouterData>> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_optional_billing(), email)?;
+    fn try_from(item: &CybersourceRouterData<&types::SetupMandateRouterData>) -> Result<Self, Self::Error> {
+        let email = item.router_data.request.get_email()?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: StringMajorUnit::new("0".into()),
-                currency: item.request.currency,
+                total_amount: item.amount.clone(),
+                currency: item.router_data.request.currency,
             },
             bill_to: Some(bill_to),
         };
@@ -92,10 +92,10 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         );
 
         let client_reference_information = ClientReferenceInformation {
-            code: Some(item.connector_request_reference_id.clone()),
+            code: Some(item.router_data.connector_request_reference_id.clone()),
         };
 
-        let (payment_information, solution) = match item.request.payment_method_data.clone() {
+        let (payment_information, solution) = match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
@@ -118,7 +118,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain::WalletData::ApplePay(apple_pay_data) => {
-                    match item.payment_method_token.clone() {
+                    match item.router_data.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
                             types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                 let expiration_month = decrypt_data.get_expiry_month()?;
