@@ -160,7 +160,8 @@ pub async fn get_multiple_role_info_for_user_roles(
                 .attach_printable("merchant_id not found for user_role");
         };
         let Some(org_id) = &user_role.org_id else {
-            return Err(report!(UserErrors::InternalServerError));
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("org_id not found in user_role"));
         };
         let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
             .await

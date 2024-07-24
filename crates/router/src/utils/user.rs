@@ -176,7 +176,8 @@ pub fn get_multiple_merchant_details_with_status(
                     .attach_printable("merchant_id not found for user_role");
             };
             let Some(org_id) = &user_role.org_id else {
-                return Err(report!(UserErrors::InternalServerError));
+                return Err(report!(UserErrors::InternalServerError)
+                    .attach_printable("org_id not found in user_role"));
             };
             let merchant_account = merchant_account_map
                 .get(merchant_id)
