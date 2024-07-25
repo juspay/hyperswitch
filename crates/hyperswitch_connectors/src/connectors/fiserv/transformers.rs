@@ -1,15 +1,24 @@
+use common_enums::enums;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{api, errors};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
         self, CardData as CardDataUtil, PaymentsCancelRequestData, PaymentsSyncRequestData,
-        RouterData,
+        RouterData as RouterDataUtil,
     },
-    core::errors,
-    pii::Secret,
-    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -166,7 +175,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
         };
         let source = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ref ccard) => {
+            PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
@@ -175,21 +184,21 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                 };
                 Source::PaymentCard { card }
             }
-            domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
                 ))
@@ -211,10 +220,10 @@ pub struct FiservAuthType {
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
+impl TryFrom<&ConnectorAuthType> for FiservAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -348,20 +357,19 @@ pub struct TransactionProcessingDetails {
     transaction_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, FiservPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, FiservPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let gateway_resp = item.response.gateway_response;
 
         Ok(Self {
             status: enums::AttemptStatus::from(gateway_resp.transaction_state),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     gateway_resp.transaction_processing_details.transaction_id,
                 ),
                 redirection_data: None,
@@ -379,12 +387,12 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let gateway_resp = match item.response.sync_responses.first() {
             Some(gateway_response) => gateway_response,
@@ -395,8 +403,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
             status: enums::AttemptStatus::from(
                 gateway_resp.gateway_response.transaction_state.clone(),
             ),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     gateway_resp
                         .gateway_response
                         .transaction_processing_details
@@ -590,15 +598,15 @@ pub struct RefundResponse {
     gateway_response: GatewayResponse,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item
                     .response
                     .gateway_response
@@ -613,12 +621,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, FiservSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, FiservSyncResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, FiservSyncResponse>,
+        item: RefundsResponseRouterData<RSync, FiservSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let gateway_resp = item
             .response
@@ -626,7 +634,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, FiservSyncResponse>>
             .first()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: gateway_resp
                     .gateway_response
                     .transaction_processing_details
