@@ -48,7 +48,7 @@ impl BusinessProfile {
     pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
         profile_name: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -61,7 +61,7 @@ impl BusinessProfile {
 
     pub async fn list_business_profile_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -70,7 +70,7 @@ impl BusinessProfile {
             _,
         >(
             conn,
-            dsl::merchant_id.eq(merchant_id.to_string()),
+            dsl::merchant_id.eq(merchant_id.to_owned()),
             None,
             None,
             None,
@@ -81,13 +81,13 @@ impl BusinessProfile {
     pub async fn delete_by_profile_id_merchant_id(
         conn: &PgPooledConn,
         profile_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::profile_id
                 .eq(profile_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_string())),
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
         .await
     }

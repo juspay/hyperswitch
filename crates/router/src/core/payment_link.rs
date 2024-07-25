@@ -62,7 +62,7 @@ pub async fn form_payment_link_data(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
@@ -435,7 +435,7 @@ pub async fn list_payment_link(
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
     let db = state.store.as_ref();
     let payment_link = db
-        .list_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+        .list_payment_link_by_merchant_id(merchant.get_id(), constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;
@@ -615,7 +615,7 @@ pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;

@@ -26,6 +26,14 @@ use super::dummy_connector::*;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(
+    feature = "oltp",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use super::pm_auth;
+#[cfg(feature = "oltp")]
+use super::poll::retrieve_poll_status;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -42,8 +50,6 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
-#[cfg(feature = "oltp")]
-use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -52,7 +58,7 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", not(feature = "v2")))]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
@@ -164,7 +170,6 @@ pub trait AppStateInfo {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
-    fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
@@ -185,9 +190,6 @@ impl AppStateInfo for AppState {
         self.request_id.replace(request_id);
     }
 
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
-        self.api_client.add_merchant_id(merchant_id);
-    }
     fn add_flow_name(&mut self, flow_name: String) {
         self.api_client.add_flow_name(flow_name);
     }
@@ -790,7 +792,27 @@ impl Routing {
 
 pub struct Customers;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    any(feature = "olap", feature = "oltp")
+))]
+impl Customers {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("").route(web::post().to(customers_create)))
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    any(feature = "olap", feature = "oltp")
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
@@ -902,7 +924,11 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    any(feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
@@ -998,6 +1024,22 @@ impl Blocklist {
     }
 }
 
+#[cfg(feature = "olap")]
+pub struct Organization;
+#[cfg(feature = "olap")]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
 pub struct MerchantAccount;
 
 #[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
@@ -1040,7 +1082,31 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "merchant_connector_account_v2"
+))]
+impl MerchantConnectorAccount {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            use super::admin::*;
+
+            route =
+                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));

@@ -47,7 +47,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -68,7 +68,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

@@ -61,6 +61,12 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Organization create flow
+    OrganizationCreate,
+    /// Organization retrieve flow
+    OrganizationRetrieve,
+    /// Organization update flow
+    OrganizationUpdate,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.

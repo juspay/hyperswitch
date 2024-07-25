@@ -12,7 +12,7 @@ use crate::{
 pub struct FraudCheck {
     pub frm_id: String,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
     pub frm_name: String,
@@ -34,7 +34,7 @@ pub struct FraudCheck {
 pub struct FraudCheckNew {
     pub frm_id: String,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
     pub frm_name: String,

@@ -602,7 +602,7 @@ pub struct AuthenticatePaymentFlowResponse {
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorResponse {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
     pub payment_id: String,
     pub amount: i64,

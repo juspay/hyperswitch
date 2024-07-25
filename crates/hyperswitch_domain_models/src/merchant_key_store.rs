@@ -2,7 +2,7 @@ use common_utils::{
     crypto::Encryptable,
     custom_serde, date_time,
     errors::{CustomResult, ValidationError},
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -12,7 +12,7 @@ use crate::type_encryption::decrypt;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryptable<Secret<Vec<u8>>>,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -34,12 +34,12 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let identifier = Identifier::Merchant(item.merchant_id.clone());
+        let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
         Ok(Self {
             key: decrypt(state, item.key, identifier, key.peek())
                 .await

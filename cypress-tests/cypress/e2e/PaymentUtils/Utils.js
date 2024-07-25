@@ -26,7 +26,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
-  datatrans:datatransConnectorDetails
+  datatrans: datatransConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
