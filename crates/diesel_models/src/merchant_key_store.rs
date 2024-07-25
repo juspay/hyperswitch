@@ -16,7 +16,7 @@ use crate::schema::merchant_key_store;
 )]
 #[diesel(table_name = merchant_key_store, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantKeyStore {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -27,7 +27,7 @@ pub struct MerchantKeyStore {
 )]
 #[diesel(table_name = merchant_key_store)]
 pub struct MerchantKeyStoreNew {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
     pub created_at: PrimitiveDateTime,
 }
@@ -37,6 +37,6 @@ pub struct MerchantKeyStoreNew {
 )]
 #[diesel(table_name = merchant_key_store)]
 pub struct MerchantKeyStoreUpdateInternal {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
 }

@@ -11,7 +11,7 @@ pub struct PaymentLink {
     pub payment_link_id: String,
     pub payment_id: String,
     pub link_to_pay: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -41,7 +41,7 @@ pub struct PaymentLinkNew {
     pub payment_link_id: String,
     pub payment_id: String,
     pub link_to_pay: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

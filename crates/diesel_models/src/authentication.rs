@@ -10,7 +10,7 @@ use crate::schema::authentication;
 #[diesel(table_name = authentication,  primary_key(authentication_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authentication {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
@@ -61,7 +61,7 @@ impl Authentication {
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     // pub authentication_data: Option<serde_json::Value>,

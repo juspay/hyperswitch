@@ -79,7 +79,7 @@ impl VerifyConnectorData {
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
-            merchant_id: consts::VERIFY_CONNECTOR_MERCHANT_ID.to_string(),
+            merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
             access_token,
             session_token: None,

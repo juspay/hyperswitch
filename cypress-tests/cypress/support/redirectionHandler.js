@@ -74,15 +74,14 @@ function bankTransferRedirection(
             verifyReturnUrl(redirection_url, expected_url, true);
         }
       });
-    break;
+      break;
     case "image_data_url":
       switch (connectorId) {
-        case "itaubank": 
+        case "itaubank":
           switch (payment_method_type) {
             case "pix":
               fetchAndParseImageData(redirection_url).then((qrCodeData) => {
-                console.log("Imaage_data>>>>>>>>>", qrCodeData)
-                expect(qrCodeData).to.contains('itau.com.br/pix/qr/v2') // image data contains the following value
+                expect(qrCodeData).to.contains("itau.com.br/pix/qr/v2"); // image data contains the following value
               });
               break;
             default:
@@ -96,7 +95,6 @@ function bankTransferRedirection(
     default:
       verifyReturnUrl(redirection_url, expected_url, true);
   }
-  
 }
 
 function bankRedirectRedirection(

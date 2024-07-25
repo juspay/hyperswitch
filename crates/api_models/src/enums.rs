@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
+use common_utils::errors;
 use utoipa::ToSchema;
 
 #[derive(
@@ -271,6 +273,31 @@ impl Connector {
     }
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+    #[cfg(feature = "dummy_connector")]
+    pub fn validate_dummy_connector_enabled(
+        &self,
+        is_dummy_connector_enabled: bool,
+    ) -> errors::CustomResult<(), errors::ValidationError> {
+        if !is_dummy_connector_enabled
+            && matches!(
+                self,
+                Self::DummyConnector1
+                    | Self::DummyConnector2
+                    | Self::DummyConnector3
+                    | Self::DummyConnector4
+                    | Self::DummyConnector5
+                    | Self::DummyConnector6
+                    | Self::DummyConnector7
+            )
+        {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Invalid connector name".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 

@@ -20,7 +20,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
         _state: &KeyManagerState,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -32,7 +32,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _state: &KeyManagerState,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _time_range: &api_models::payments::TimeRange,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -43,7 +43,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
@@ -54,7 +54,7 @@ impl PaymentIntentInterface for MockDb {
     async fn get_filtered_payment_intents_attempt(
         &self,
         _state: &KeyManagerState,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -103,7 +103,7 @@ impl PaymentIntentInterface for MockDb {
             state,
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
-            key_store.merchant_id.clone(),
+            key_store.merchant_id.clone().into(),
         )
         .await
         .change_context(StorageError::DecryptionError)?;
@@ -117,7 +117,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
@@ -126,7 +126,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intents
             .iter()
             .find(|payment_intent| {
-                payment_intent.payment_id == payment_id && payment_intent.merchant_id == merchant_id
+                payment_intent.payment_id == payment_id
+                    && payment_intent.merchant_id.eq(merchant_id)
             })
             .cloned()
             .unwrap())

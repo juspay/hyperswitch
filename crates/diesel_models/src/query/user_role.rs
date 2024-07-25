@@ -28,7 +28,7 @@ impl UserRole {
     pub async fn find_by_user_id_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -44,7 +44,7 @@ impl UserRole {
     pub async fn update_by_user_id_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         update: UserRoleUpdate,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
@@ -85,7 +85,7 @@ impl UserRole {
     pub async fn delete_by_user_id_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
@@ -115,7 +115,7 @@ impl UserRole {
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         version: UserRoleVersion,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(

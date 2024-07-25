@@ -29,7 +29,7 @@ use crate::{
 pub async fn api_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<api_types::CreateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyCreate;
@@ -78,7 +78,7 @@ pub async fn api_key_create(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
     let (merchant_id, key_id) = path.into_inner();
@@ -124,7 +124,7 @@ pub async fn api_key_retrieve(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
@@ -174,7 +174,7 @@ pub async fn api_key_update(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
@@ -219,7 +219,7 @@ pub async fn api_key_revoke(
 pub async fn api_key_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
     query: web::Query<api_types::ListApiKeyConstraints>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyList;

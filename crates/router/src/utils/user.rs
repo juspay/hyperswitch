@@ -108,7 +108,7 @@ pub async fn generate_jwt_auth_token(
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: &SessionState,
     user: &UserFromStorage,
-    merchant_id: String,
+    merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
 ) -> UserResult<Secret<String>> {
@@ -162,7 +162,7 @@ pub fn get_multiple_merchant_details_with_status(
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
     let merchant_account_map = merchant_accounts
         .into_iter()
-        .map(|merchant_account| (merchant_account.merchant_id.clone(), merchant_account))
+        .map(|merchant_account| (merchant_account.get_id().clone(), merchant_account))
         .collect::<HashMap<_, _>>();
 
     let role_map = roles
@@ -192,7 +192,7 @@ pub fn get_multiple_merchant_details_with_status(
                 .attach_printable("Role info for user role doesn't exist")?;
 
             Ok(user_api::UserMerchantAccount {
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 merchant_name: merchant_account.merchant_name.clone(),
                 is_active: user_role.status == UserStatus::Active,
                 role_id: user_role.role_id,

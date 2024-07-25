@@ -104,11 +104,10 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            user_role_to_be_updated
+            &user_role_to_be_updated
                 .merchant_id
                 .ok_or(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found in user_role")?
-                .as_str(),
+                .attach_printable("merchant_id not found in user_role")?,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
@@ -351,7 +350,7 @@ pub async fn delete_user_role(
                 .attach_printable("merchant_id not found for user_role");
         };
 
-        if merchant_id == user_from_token.merchant_id.as_str() {
+        if merchant_id == &user_from_token.merchant_id {
             let role_info = roles::RoleInfo::from_role_id(
                 &state,
                 &user_role.role_id,
@@ -375,7 +374,7 @@ pub async fn delete_user_role(
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
+                &user_from_token.merchant_id,
                 UserRoleVersion::V1,
             )
             .await
@@ -393,7 +392,7 @@ pub async fn delete_user_role(
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
+                &user_from_token.merchant_id,
                 UserRoleVersion::V1,
             )
             .await
