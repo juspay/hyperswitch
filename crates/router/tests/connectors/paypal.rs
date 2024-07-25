@@ -147,7 +147,6 @@ async fn should_sync_authorized_payment() {
                 payment_experience: None,
                 integrity_object: None,
                 amount: MinorUnit::new(100),
-                browser_info: None,
             }),
             get_default_payment_info(),
         )
@@ -349,7 +348,6 @@ async fn should_sync_auto_captured_payment() {
                 payment_experience: None,
                 amount: MinorUnit::new(100),
                 integrity_object: None,
-                browser_info: None,
             }),
             get_default_payment_info(),
         )

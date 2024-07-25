@@ -26,7 +26,6 @@ use crate::schema_v2::merchant_account;
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub id: i32,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
@@ -69,7 +68,7 @@ pub struct MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -98,11 +97,12 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
 }
 
-impl MerchantAccount {
-    pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
-        &self.merchant_id
-    }
-}
+// impl MerchantAccount {
+//     /// Get the unique identifier of MerchantAccount
+//     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
+//         &self.merchant_id
+//     }
+// }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]

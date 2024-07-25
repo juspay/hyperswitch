@@ -858,7 +858,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
-            id: i32::try_from(accounts.len()).change_context(errors::StorageError::MockDbError)?,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,
             connector_account_details: t.connector_account_details.into(),
@@ -945,7 +944,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .lock()
             .await
             .iter_mut()
-            .find(|account| Some(account.id) == this.id)
+            .find(|account| account.merchant_connector_id == this.merchant_connector_id)
             .map(|a| {
                 let updated =
                     merchant_connector_account.create_merchant_connector_account(a.clone());
@@ -1097,7 +1096,6 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let mca = domain::MerchantConnectorAccount {
-            id: Some(1),
             merchant_id: merchant_id.to_owned(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::encrypt(

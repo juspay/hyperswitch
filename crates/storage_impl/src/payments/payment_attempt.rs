@@ -1292,7 +1292,6 @@ impl DataModelExt for PaymentAttempt {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttempt {
-            id: None,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
