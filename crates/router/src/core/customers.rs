@@ -14,6 +14,8 @@ use hyperswitch_domain_models::type_encryption::encrypt;
 use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::{
     core::errors::{self, StorageErrorExt},
     db::StorageInterface,
@@ -204,10 +206,24 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_account: &'a domain::MerchantAccount,
         key_state: &'a KeyManagerState,
-        _state: &'a SessionState,
+        state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
-        let _default_customer_billing_address = self.get_default_customer_billing_address();
-        let _default_customer_shipping_address = self.get_default_customer_shipping_address();
+        let default_customer_billing_address = self.get_default_customer_billing_address();
+        let encrypted_customer_billing_address = default_customer_billing_address
+            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer billing address")?;
+        let default_customer_shipping_address = self.get_default_customer_shipping_address();
+
+        let encrypted_customer_shipping_address = default_customer_shipping_address
+            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer shipping address")?;
+
         let merchant_id = merchant_account.merchant_id.clone();
         let key = key_store.key.get_inner().peek();
 
@@ -243,8 +259,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            default_billing_address: None, //default_customer_billing_address,
-            default_shipping_address: None, //default_customer_shipping_address,
+            default_billing_address: encrypted_customer_billing_address.map(Into::into),
+            default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             // status: Some(customer_domain::SoftDeleteStatus::Active)
             version: common_enums::ApiVersion::V2,
         })

@@ -81,7 +81,13 @@ impl From<CustomerNew> for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -98,8 +104,8 @@ pub struct CustomerNew {
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub merchant_customer_reference_id: Option<id_type::CustomerId>,
-    pub default_billing_address: Option<pii::SecretSerdeValue>,
-    pub default_shipping_address: Option<pii::SecretSerdeValue>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
     pub version: ApiVersion,
@@ -164,7 +170,7 @@ pub struct Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct Customer {
@@ -181,8 +187,8 @@ pub struct Customer {
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub merchant_customer_reference_id: Option<id_type::CustomerId>,
-    pub default_billing_address: Option<pii::SecretSerdeValue>,
-    pub default_shipping_address: Option<pii::SecretSerdeValue>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
     pub version: ApiVersion,
