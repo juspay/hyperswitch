@@ -198,7 +198,7 @@ pub struct ApplepayHeader {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BluesnapConnectorMetaData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Debug, Serialize)]

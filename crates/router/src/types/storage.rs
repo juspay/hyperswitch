@@ -71,10 +71,9 @@ use crate::types::api::routing;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
-    #[cfg(feature = "connector_choice_mca_id")]
+
     pub merchant_connector_id: Option<String>,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub business_sub_label: Option<String>,
+
     pub routing_info: PaymentRoutingInfo,
     pub algorithm: Option<api_models::routing::StraightThroughAlgorithm>,
 }

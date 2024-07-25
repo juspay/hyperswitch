@@ -57,6 +57,7 @@ gocardless.base_url = "https://api.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
+itaubank.base_url = "https://secure.api.itau/"
 klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -75,6 +76,7 @@ payone.base_url = "https://payment.payone.com/"
 paypal.base_url = "https://api-m.paypal.com/"
 payu.base_url = "https://secure.payu.com/api/"
 placetopay.base_url = "https://checkout.placetopay.com/rest/gateway"
+plaid.base_url = "https://production.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -91,6 +93,7 @@ trustpay.base_url = "https://tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://gateway.transit-pass.com/"
 volt.base_url = "https://api.volt.io/"
+wellsfargo.base_url = "https://api.cybersource.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
@@ -310,6 +313,9 @@ open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT
 
 [pm_filters.razorpay]
 upi_collect = {country = "IN", currency = "INR"}
+
+[pm_filters.plaid]
+open_banking_pis = {currency = "EUR,GBP"}
 
 [pm_filters.worldpay]
 apple_pay.country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US"

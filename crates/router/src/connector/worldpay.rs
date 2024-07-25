@@ -730,7 +730,7 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)

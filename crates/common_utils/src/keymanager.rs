@@ -3,22 +3,26 @@
 use core::fmt::Debug;
 use std::str::FromStr;
 
+use base64::Engine;
 use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
-#[cfg(feature = "keymanager_mtls")]
-use masking::PeekInterface;
+use masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
+    consts::BASE64_ENGINE,
     errors,
     types::keymanager::{
-        DataKeyCreateResponse, EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
+        BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
+        EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
+        TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
 
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
@@ -68,7 +72,7 @@ pub async fn send_encryption_request<T>(
     request_body: T,
 ) -> errors::CustomResult<reqwest::Response, errors::KeyManagerClientError>
 where
-    T: serde::Serialize,
+    T: ConvertRaw,
 {
     let client = get_api_encryption_client(state)?;
     let url = reqwest::Url::parse(&url)
@@ -76,7 +80,7 @@ where
 
     client
         .request(method, url)
-        .json(&request_body)
+        .json(&ConvertRaw::convert_raw(request_body)?)
         .headers(headers)
         .send()
         .await
@@ -94,7 +98,7 @@ pub async fn call_encryption_service<T, R>(
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
-    T: serde::Serialize + Send + Sync + 'static + Debug,
+    T: ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
     let url = format!("{}/{endpoint}", &state.url);
@@ -149,6 +153,62 @@ where
                 .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
         )
         .into()),
+    }
+}
+
+/// Trait to convert the raw data to the required format for encryption service request
+pub trait ConvertRaw {
+    /// Return type of the convert_raw function
+    type Output: serde::Serialize;
+    /// Function to convert the raw data to the required format for encryption service request
+    fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError>;
+}
+
+impl<T: serde::Serialize> ConvertRaw for T {
+    type Output = T;
+    fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
+        Ok(self)
+    }
+}
+
+impl ConvertRaw for TransientDecryptDataRequest {
+    type Output = DecryptDataRequest;
+    fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
+        let data = match String::from_utf8(self.data.peek().clone()) {
+            Ok(data) => data,
+            Err(_) => {
+                let data = BASE64_ENGINE.encode(self.data.peek().clone());
+                format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
+            }
+        };
+        Ok(DecryptDataRequest {
+            identifier: self.identifier,
+            data: StrongSecret::new(data),
+        })
+    }
+}
+
+impl ConvertRaw for TransientBatchDecryptDataRequest {
+    type Output = BatchDecryptDataRequest;
+    fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
+        let data = self
+            .data
+            .iter()
+            .map(|(k, v)| {
+                let value = match String::from_utf8(v.peek().clone()) {
+                    Ok(data) => data,
+                    Err(_) => {
+                        let data = BASE64_ENGINE.encode(v.peek().clone());
+                        format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
+                    }
+                };
+                (k.to_owned(), StrongSecret::new(value))
+            })
+            .collect();
+        Ok(BatchDecryptDataRequest {
+            data,
+            identifier: self.identifier,
+        })
     }
 }
 
