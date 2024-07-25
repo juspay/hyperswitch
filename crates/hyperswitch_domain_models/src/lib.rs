@@ -1,4 +1,5 @@
 pub mod api;
+pub mod customer;
 pub mod errors;
 pub mod mandates;
 pub mod merchant_account;

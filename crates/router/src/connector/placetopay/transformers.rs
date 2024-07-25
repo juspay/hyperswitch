@@ -292,7 +292,7 @@ pub struct PlacetopayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        if item.request.refund_amount == item.request.payment_amount {
+        if item.request.minor_refund_amount == item.request.minor_payment_amount {
             let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
 
             let internal_reference = item

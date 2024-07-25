@@ -176,7 +176,7 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
 
 pub async fn create_new_authentication(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
     profile_id: String,

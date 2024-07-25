@@ -2,6 +2,7 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
+use common_utils::consts;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
@@ -43,8 +44,9 @@ pub(crate) const CANNOT_CONTINUE_AUTH: &str =
 pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
-pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::STANDARD;
+
+pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_ENGINE;
+
 pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
 

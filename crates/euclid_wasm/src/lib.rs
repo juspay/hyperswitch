@@ -84,8 +84,6 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
                 connector: RoutableConnectors::from_str(&mca.connector_name)?,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: mca.business_sub_label.clone(),
             })
         })
         .collect::<Result<_, _>>()

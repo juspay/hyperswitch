@@ -1,10 +1,16 @@
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+use crate::schema::merchant_account::dsl;
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+use crate::schema_v2::merchant_account::dsl;
 use crate::{
     errors,
     merchant_account::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal},
-    schema::merchant_account::dsl,
     PgPooledConn, StorageResult,
 };
 
@@ -22,7 +28,7 @@ impl MerchantAccount {
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            self.merchant_id.clone(),
             merchant_account,
         )
         .await
@@ -37,7 +43,7 @@ impl MerchantAccount {
 
     pub async fn update_with_specific_fields(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
@@ -55,7 +61,7 @@ impl MerchantAccount {
 
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -66,7 +72,7 @@ impl MerchantAccount {
 
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -107,7 +113,7 @@ impl MerchantAccount {
 
     pub async fn list_multiple_merchant_accounts(
         conn: &PgPooledConn,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
