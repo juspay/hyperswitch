@@ -13,7 +13,7 @@ use crate::opensearch::{
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
     let mut query_builder =
@@ -22,7 +22,7 @@ pub async fn msearch_results(
     query_builder
         .add_filter_clause(
             "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
+            vec![merchant_id.get_string_repr().to_owned()],
         )
         .switch()?;
 
@@ -137,7 +137,7 @@ pub async fn msearch_results(
 pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
@@ -147,7 +147,7 @@ pub async fn search_results(
     query_builder
         .add_filter_clause(
             "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
+            vec![merchant_id.get_string_repr().to_owned()],
         )
         .switch()?;
 

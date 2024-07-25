@@ -71,6 +71,7 @@ mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
+mod wellsfargo;
 #[cfg(feature = "payouts")]
 mod wise;
 mod worldline;
