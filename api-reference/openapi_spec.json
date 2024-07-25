@@ -14128,6 +14128,14 @@
             ],
             "nullable": true
           },
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            ],
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
@@ -14145,6 +14153,22 @@
             "type": "string",
             "description": "The card network",
             "example": "Visa",
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
+              }
+            ],
             "nullable": true
           },
           "client_secret": {
