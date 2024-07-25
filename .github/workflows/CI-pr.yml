@@ -85,12 +85,12 @@ jobs:
           fi
 
   check-msrv:
+    name: Check compilation on MSRV toolchain
+    runs-on: ${{ matrix.runner }}
+
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-
-    name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
@@ -176,12 +176,12 @@ jobs:
   #         command: check ${{ matrix.checks }}
 
   test:
+    name: Run tests on stable toolchain
+    runs-on: ${{ matrix.runner }}
+
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-
-    name: Run tests on stable toolchain
-    runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
@@ -302,10 +302,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
