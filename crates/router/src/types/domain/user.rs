@@ -9,9 +9,8 @@ use common_utils::{
     types::keymanager::Identifier,
 };
 use diesel_models::{
-    enums::{TotpStatus, UserStatus},
-    organization as diesel_org,
-    organization::Organization,
+    enums::{TotpStatus, UserRoleVersion, UserStatus},
+    organization::{self as diesel_org, Organization},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
@@ -655,7 +654,7 @@ impl NewUser {
         state
             .store
             .insert_user_role(UserRoleNew {
-                merchant_id: self.get_new_merchant().get_merchant_id(),
+                merchant_id: Some(self.get_new_merchant().get_merchant_id()),
                 status: user_status,
                 created_by: user_id.clone(),
                 last_modified_by: user_id.clone(),
@@ -663,10 +662,15 @@ impl NewUser {
                 role_id,
                 created_at: now,
                 last_modified: now,
-                org_id: self
-                    .get_new_merchant()
-                    .get_new_organization()
-                    .get_organization_id(),
+                org_id: Some(
+                    self.get_new_merchant()
+                        .get_new_organization()
+                        .get_organization_id(),
+                ),
+                profile_id: None,
+                entity_id: None,
+                entity_type: None,
+                version: UserRoleVersion::V1,
             })
             .await
             .change_context(UserErrors::InternalServerError)
@@ -860,7 +864,7 @@ impl UserFromStorage {
     pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
         state
             .store
-            .find_user_role_by_user_id(&self.0.user_id)
+            .find_user_role_by_user_id(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -868,7 +872,7 @@ impl UserFromStorage {
     pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
-            .list_user_roles_by_user_id(&self.0.user_id)
+            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -931,7 +935,11 @@ impl UserFromStorage {
     ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store
-            .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
+            .find_user_role_by_user_id_merchant_id(
+                self.get_user_id(),
+                merchant_id,
+                UserRoleVersion::V1,
+            )
             .await
     }
 
@@ -945,7 +953,7 @@ impl UserFromStorage {
         } else {
             state
                 .store
-                .list_user_roles_by_user_id(&self.0.user_id)
+                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
                 .await?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
@@ -1109,7 +1117,7 @@ impl SignInWithRoleStrategyType {
         {
             Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
                 user,
-                user_role: user_role.clone(),
+                user_role: Box::new(user_role.clone()),
             }))
         } else {
             Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
@@ -1132,7 +1140,7 @@ impl SignInWithRoleStrategyType {
 
 pub struct SignInWithSingleRoleStrategy {
     pub user: UserFromStorage,
-    pub user_role: UserRole,
+    pub user_role: Box<UserRole>,
 }
 
 impl SignInWithSingleRoleStrategy {
@@ -1145,7 +1153,7 @@ impl SignInWithSingleRoleStrategy {
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
         let dashboard_entry_response =
-            utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+            utils::user::get_dashboard_entry_response(state, self.user, *self.user_role, token)?;
 
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,
@@ -1169,8 +1177,12 @@ impl SignInWithMultipleRolesStrategy {
                 &state.into(),
                 self.user_roles
                     .iter()
-                    .map(|role| role.merchant_id.clone())
-                    .collect(),
+                    .map(|role| {
+                        role.merchant_id
+                            .clone()
+                            .ok_or(UserErrors::InternalServerError)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
             )
             .await
             .change_context(UserErrors::InternalServerError)?;

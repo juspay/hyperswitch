@@ -1,5 +1,8 @@
 use api_models::{user as user_api, user_role as user_role_api};
-use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRoleUpdate,
+};
 use error_stack::{report, ResultExt};
 use router_env::logger;
 
@@ -101,11 +104,15 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            &user_role_to_be_updated.merchant_id,
+            &user_role_to_be_updated
+                .merchant_id
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found in user_role")?,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
             },
+            UserRoleVersion::V1,
         )
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)
@@ -146,6 +153,7 @@ pub async fn transfer_org_ownership(
             &user_from_token.user_id,
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
+            UserRoleVersion::V1,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -183,6 +191,7 @@ pub async fn accept_invitation(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -213,6 +222,7 @@ pub async fn merchant_select(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -267,6 +277,7 @@ pub async fn merchant_select_token_only_flow(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -329,15 +340,17 @@ pub async fn delete_user_role(
 
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id())
+        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    match user_roles
-        .iter()
-        .find(|&role| role.merchant_id == user_from_token.merchant_id)
-    {
-        Some(user_role) => {
+    for user_role in user_roles.iter() {
+        let Some(merchant_id) = user_role.merchant_id.as_ref() else {
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
+        };
+
+        if merchant_id == &user_from_token.merchant_id {
             let role_info = roles::RoleInfo::from_role_id(
                 &state,
                 &user_role.role_id,
@@ -350,12 +363,11 @@ pub async fn delete_user_role(
                 return Err(report!(UserErrors::InvalidDeleteOperation))
                     .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
             }
-        }
-        None => {
+        } else {
             return Err(report!(UserErrors::InvalidDeleteOperation))
                 .attach_printable("User is not associated with the merchant");
         }
-    };
+    }
 
     let deleted_user_role = if user_roles.len() > 1 {
         state
@@ -363,6 +375,7 @@ pub async fn delete_user_role(
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
                 &user_from_token.merchant_id,
+                UserRoleVersion::V1,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -380,6 +393,7 @@ pub async fn delete_user_role(
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
                 &user_from_token.merchant_id,
+                UserRoleVersion::V1,
             )
             .await
             .change_context(UserErrors::InternalServerError)
