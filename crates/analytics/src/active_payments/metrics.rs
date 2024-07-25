@@ -29,7 +29,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         time_range: &TimeRange,
         pool: &T,
@@ -53,7 +53,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         time_range: &TimeRange,
         pool: &T,
@@ -66,7 +66,7 @@ where
         match self {
             Self::ActivePayments => {
                 ActivePayments
-                    .load_metrics(publishable_key, merchant_id, time_range, pool)
+                    .load_metrics(merchant_id, publishable_key, time_range, pool)
                     .await
             }
         }

@@ -20,7 +20,7 @@ use crate::{
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     publishable_key: &String,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetActivePaymentsMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<

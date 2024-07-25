@@ -5,12 +5,11 @@ use time::PrimitiveDateTime;
 use crate::{enums, schema::roles};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = roles, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = roles, primary_key(role_id), check_for_backend(diesel::pg::Pg))]
 pub struct Role {
-    pub id: i32,
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
@@ -26,7 +25,7 @@ pub struct Role {
 pub struct RoleNew {
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,

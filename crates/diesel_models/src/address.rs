@@ -1,7 +1,6 @@
 use common_utils::{
     crypto::{self, Encryptable},
     encryption::Encryption,
-    id_type,
     pii::EmailStrategy,
     types::keymanager::ToEncryptable,
 };
@@ -28,8 +27,8 @@ pub struct AddressNew {
     pub last_name: Option<Encryption>,
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub merchant_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
@@ -40,7 +39,6 @@ pub struct AddressNew {
 #[derive(Clone, Debug, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = address, primary_key(address_id), check_for_backend(diesel::pg::Pg))]
 pub struct Address {
-    pub id: Option<i32>,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -55,8 +53,8 @@ pub struct Address {
     pub country_code: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub merchant_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: Option<String>,
     pub updated_by: String,
     pub email: Option<Encryption>,

@@ -142,7 +142,7 @@ where
 
     router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector: connector_id.to_owned(),
         payment_id: payment_data.payment_attempt.payment_id.clone(),
@@ -186,7 +186,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
@@ -900,7 +900,7 @@ where
         1,
         &add_attributes([
             ("operation", format!("{:?}", operation)),
-            ("merchant", merchant_id),
+            ("merchant", merchant_id.get_string_repr().to_owned()),
             ("payment_method_type", payment_method_type),
             ("payment_method", payment_method),
         ]),
@@ -1445,16 +1445,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let browser_info: Option<types::BrowserInformation> = payment_data
-            .payment_attempt
-            .browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
-            })?;
-
         let amount = payment_data
             .surcharge_details
             .as_ref()
@@ -1482,7 +1472,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
             payment_experience: payment_data.payment_attempt.payment_experience,
-            browser_info,
         })
     }
 }
