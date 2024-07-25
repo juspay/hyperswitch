@@ -383,7 +383,7 @@ impl api::IncomingWebhook for Cashtocode {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,

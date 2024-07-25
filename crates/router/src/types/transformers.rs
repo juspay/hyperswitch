@@ -297,6 +297,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
+            // api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
@@ -948,7 +949,51 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             }
             None => None,
         };
-        Ok(Self {
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let response = Self {
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            connector_id: item.merchant_connector_id,
+            connector_account_details: item.connector_account_details.into_inner(),
+            disabled: item.disabled,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            frm_configs,
+            connector_webhook_details: item
+                .connector_webhook_details
+                .map(|webhook_details| {
+                    serde_json::Value::parse_value(
+                        webhook_details.expose(),
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_webhook_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
+                        data.expose(),
+                        "AdditionalMerchantData",
+                    )
+                    .attach_printable("Unable to deserialize additional_merchant_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?
+                .map(api_models::admin::AdditionalMerchantData::foreign_from),
+        };
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
+        let response = Self {
             connector_type: item.connector_type,
             connector_name: item.connector_name,
             connector_label: item.connector_label,
@@ -990,7 +1035,8 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
-        })
+        };
+        Ok(response)
     }
 }
 
@@ -1280,6 +1326,26 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+            organization_details: None,
+            metadata: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        Self {
+            org_id: org_new.org_id,
+            org_name: item.organization_name,
+            organization_details: item.organization_details,
+            metadata: item.metadata,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         }
     }
 }

@@ -140,7 +140,7 @@ async fn find_paypal_merchant_by_tracking_id(
 
 pub async fn update_mca(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     connector_id: String,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
