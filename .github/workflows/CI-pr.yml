@@ -319,6 +319,12 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
+
       - name: Install just
         uses: taiki-e/install-action@v2.41.10
         with:
