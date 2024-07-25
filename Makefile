@@ -112,4 +112,4 @@ precommit : fmt clippy test
 
 
 hack:
-	cargo hack check --workspace --each-feature --all-targets
+	cargo hack check --workspace --each-feature --all-targets --exclude-features 'v2 merchant_account_v2 payment_v2'

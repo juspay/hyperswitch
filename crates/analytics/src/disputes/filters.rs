@@ -11,7 +11,7 @@ pub trait DisputeFilterAnalytics: LoadRow<DisputeFilterRow> {}
 
 pub async fn get_dispute_filter_for_dimension<T>(
     dimension: DisputeDimensions,
-    merchant: &String,
+    merchant: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<DisputeFilterRow>>

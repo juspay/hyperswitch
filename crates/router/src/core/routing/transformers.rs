@@ -17,7 +17,7 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingProfileMetadata) -> Self {
         Self {
             id: value.algorithm_id,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             name: value.name,
             kind: value.kind.foreign_into(),
@@ -33,7 +33,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingAlgorithm) -> Self {
         Self {
             id: value.algorithm_id,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             name: value.name,
             kind: value.kind.foreign_into(),
@@ -52,7 +52,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
         Ok(Self {
             id: value.algorithm_id,
             name: value.name,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             description: value.description.unwrap_or_default(),
             algorithm: value

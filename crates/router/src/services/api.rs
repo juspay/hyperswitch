@@ -13,10 +13,10 @@ use std::{
 
 use actix_http::header::HeaderMap;
 use actix_web::{
-    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
-    ResponseError,
+    body,
+    http::header::{HeaderName, HeaderValue},
+    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -36,7 +36,8 @@ pub use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        ConnectorIntegrationAny, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -74,11 +75,7 @@ use crate::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
-    },
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -103,61 +100,6 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
-
-pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: types::domain::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-            .map(|_| ())
-    }
-
-    fn is_webhook_source_verification_mandatory(&self) -> bool {
-        false
-    }
-}
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -473,12 +415,19 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+        || proxy_bypass_urls(
+            state.conf.key_manager.get_inner(),
+            &state.conf.locker,
+            &state.conf.proxy.bypass_proxy_urls,
+        )
+        .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy =
-        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+    let should_bypass_proxy = proxy_bypass_urls(
+        &state.conf.key_manager.get_inner(),
+        &state.conf.locker,
+        &state.conf.proxy.bypass_proxy_urls,
+    )
+    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -841,14 +790,12 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or("MERCHANT_ID_NOT_FOUND")
-        .to_string();
-
-    app_state.add_merchant_id(Some(merchant_id.clone()));
+        .cloned()
+        .unwrap_or(common_utils::id_type::MerchantId::get_merchant_id_not_found());
 
     app_state.add_flow_name(flow.to_string());
 
-    tracing::Span::current().record("merchant_id", &merchant_id);
+    tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
 
     let output = {
         lock_action
@@ -930,7 +877,7 @@ where
     metrics::request::status_code_metrics(
         status_code.to_string(),
         flow.to_string(),
-        merchant_id.to_string(),
+        merchant_id.to_owned(),
     );
 
     output
@@ -1049,9 +996,18 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            let link_type = (boxed_generic_link_data).to_string();
-            match build_generic_link_html(*boxed_generic_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
+            let link_type = boxed_generic_link_data.data.to_string();
+            match build_generic_link_html(boxed_generic_link_data.data) {
+                Ok(rendered_html) => {
+                    let domains_str = boxed_generic_link_data
+                        .allowed_domains
+                        .into_iter()
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                    let headers = HashSet::from([("content-security-policy", csp_header)]);
+                    http_response_html_data(rendered_html, Some(headers))
+                }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
@@ -1062,7 +1018,7 @@ where
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1074,7 +1030,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1231,8 +1187,22 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
-pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
-    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
+pub fn http_response_html_data<T: body::MessageBody + 'static>(
+    res: T,
+    optional_headers: Option<HashSet<(&'static str, String)>>,
+) -> HttpResponse {
+    let mut res_builder = HttpResponse::Ok();
+    res_builder.content_type(mime::TEXT_HTML);
+
+    if let Some(headers) = optional_headers {
+        for (key, value) in headers {
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
+            }
+        }
+    }
+
+    res_builder.body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {

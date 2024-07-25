@@ -4,6 +4,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse},
 };
+use common_utils::types::keymanager::Identifier;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -196,7 +197,7 @@ pub async fn signin(
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
-                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .get_role_from_db_by_merchant_id(&state, &preferred_merchant_id)
                 .await
                 .to_not_found_response(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
@@ -1104,10 +1105,14 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            key_manager_state,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -1122,7 +1127,10 @@ pub async fn create_internal_user(
     let internal_merchant = state
         .store
         .find_merchant_account_by_merchant_id(
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            key_manager_state,
+            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+                consts::user_role::INTERNAL_USER_MERCHANT_ID,
+            ),
             &key_store,
         )
         .await
@@ -1176,7 +1184,7 @@ pub async fn switch_merchant_id(
     }
 
     let user = user_from_token.get_user_from_db(&state).await?;
-
+    let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
@@ -1190,7 +1198,8 @@ pub async fn switch_merchant_id(
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                request.merchant_id.as_str(),
+                key_manager_state,
+                &request.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
@@ -1204,7 +1213,11 @@ pub async fn switch_merchant_id(
 
         let org_id = state
             .store
-            .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &request.merchant_id,
+                &key_store,
+            )
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -1285,7 +1298,7 @@ pub async fn create_merchant_account(
     if let Err(e) = role_insertion_res {
         let _ = state
             .store
-            .delete_merchant_account_by_merchant_id(new_merchant.get_merchant_id().as_str())
+            .delete_merchant_account_by_merchant_id(&new_merchant.get_merchant_id())
             .await;
         return Err(e);
     }
@@ -1306,6 +1319,7 @@ pub async fn list_merchants_for_user(
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(
+            &(&state).into(),
             user_roles
                 .iter()
                 .map(|role| role.merchant_id.clone())
@@ -1376,7 +1390,7 @@ pub async fn list_users_for_merchant_account(
 ) -> UserResponse<user_api::ListUsersResponse> {
     let user_roles: HashMap<String, _> = state
         .store
-        .list_user_roles_by_merchant_id(user_from_token.merchant_id.as_str())
+        .list_user_roles_by_merchant_id(&user_from_token.merchant_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("No user roles for given merchant id")?
@@ -1471,7 +1485,7 @@ pub async fn verify_email(
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
-                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .get_role_from_db_by_merchant_id(&state, &preferred_merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
@@ -1616,7 +1630,7 @@ pub async fn verify_token(
         .merchant_id;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
         user_email: user.email,
     }))
 }
@@ -1852,7 +1866,9 @@ pub async fn update_totp(
                 totp_secret: Some(
                     // TODO: Impl conversion trait for User and move this there
                     domain::types::encrypt::<String, masking::WithType>(
+                        &(&state).into(),
                         totp.get_secret_base32().into(),
+                        Identifier::User(key_store.user_id.clone()),
                         key_store.key.peek(),
                     )
                     .await
@@ -1914,11 +1930,17 @@ pub async fn generate_recovery_codes(
 
 pub async fn transfer_user_key_store_keymanager(
     state: SessionState,
+    req: user_api::UserKeyTransferRequest,
 ) -> UserResponse<user_api::UserTransferKeyResponse> {
     let db = &state.global_store;
 
     let key_stores = db
-        .get_all_user_key_store(&state.store.get_master_key().to_vec().into())
+        .get_all_user_key_store(
+            &(&state).into(),
+            &state.store.get_master_key().to_vec().into(),
+            req.from,
+            req.limit,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -2056,10 +2078,12 @@ pub async fn create_user_authentication_method(
     )
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
-
+    let id = uuid::Uuid::new_v4().to_string();
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &state,
         &req.auth_method,
         &user_auth_encryption_key,
+        id.clone(),
     )
     .await?;
 
@@ -2103,7 +2127,7 @@ pub async fn create_user_authentication_method(
     state
         .store
         .insert_user_authentication_method(UserAuthenticationMethodNew {
-            id: uuid::Uuid::new_v4().to_string(),
+            id,
             auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
@@ -2137,8 +2161,10 @@ pub async fn update_user_authentication_method(
     .attach_printable("Failed to decode DEK")?;
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+        &state,
         &req.auth_method,
         &user_auth_encryption_key,
+        req.id.clone(),
     )
     .await?;
 
@@ -2212,9 +2238,12 @@ pub async fn get_sso_auth_url(
         .await
         .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?;
 
-    let open_id_private_config =
-        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
-            .await?;
+    let open_id_private_config = utils::user::decrypt_oidc_private_config(
+        &state,
+        user_authentication_method.private_config,
+        request.id.clone(),
+    )
+    .await?;
 
     let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method
@@ -2264,9 +2293,12 @@ pub async fn sso_sign(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let open_id_private_config =
-        utils::user::decrypt_oidc_private_config(&state, user_authentication_method.private_config)
-            .await?;
+    let open_id_private_config = utils::user::decrypt_oidc_private_config(
+        &state,
+        user_authentication_method.private_config,
+        authentication_method_id,
+    )
+    .await?;
 
     let open_id_public_config = serde_json::from_value::<user_api::OpenIdConnectPublicConfig>(
         user_authentication_method

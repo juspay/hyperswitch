@@ -1,13 +1,17 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    errors::ReportSwitchExt,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as bitpay;
 
 use self::bitpay::BitpayWebhookDetails;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     consts,
@@ -27,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Bitpay;
+#[derive(Clone)]
+pub struct Bitpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Bitpay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Bitpay {}
 impl api::PaymentToken for Bitpay {}
@@ -195,12 +209,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bitpay::BitpayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = bitpay::BitpayRouterData::from((amount, req));
         let connector_req = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
