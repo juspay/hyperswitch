@@ -84,7 +84,7 @@ pub async fn remove_entry_from_blocklist(
     get,
     path = "/blocklist",
     params (
-        ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("data_kind" = BlocklistDataKind, Query, description = "Type of the payment fingerprint whose list is requestedKind of the fingerprint list requested"),
     ),
     responses(
         (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
