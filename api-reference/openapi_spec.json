@@ -13879,19 +13879,14 @@
         "type": "object",
         "required": [
           "link",
-          "link_open",
           "payment_link_id"
         ],
         "properties": {
           "link": {
             "type": "string",
-            "description": "URL for rendering the open payment link [deprecated soon; use link_open instead]"
-          },
-          "link_open": {
-            "type": "string",
             "description": "URL for rendering the open payment link"
           },
-          "link_secure": {
+          "secure_link": {
             "type": "string",
             "description": "URL for rendering the secure payment link",
             "nullable": true
@@ -19779,7 +19774,7 @@
         "required": [
           "payment_link_id",
           "merchant_id",
-          "link_open",
+          "link_to_pay",
           "amount",
           "created_at",
           "status"
@@ -19793,7 +19788,7 @@
             "type": "string",
             "description": "Identifier for Merchant"
           },
-          "link_open": {
+          "link_to_pay": {
             "type": "string",
             "description": "Open payment link (without any security checks and listing SPMs)"
           },
@@ -19830,7 +19825,7 @@
             ],
             "nullable": true
           },
-          "link_secure": {
+          "secure_link": {
             "type": "string",
             "description": "Secure payment link (with security checks and listing SPMs)",
             "nullable": true
