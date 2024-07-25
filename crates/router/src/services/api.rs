@@ -17,7 +17,6 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -37,7 +36,8 @@ pub use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        ConnectorIntegrationAny, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -75,11 +75,7 @@ use crate::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
-    },
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -104,61 +100,6 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
-
-pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: types::domain::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-            .map(|_| ())
-    }
-
-    fn is_webhook_source_verification_mandatory(&self) -> bool {
-        false
-    }
-}
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
