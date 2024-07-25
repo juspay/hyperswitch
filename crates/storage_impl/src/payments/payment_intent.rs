@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use api_models::payments::{AmountFilter, SortCriteria};
+use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
@@ -681,11 +681,23 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List(params) => {
-                query = match params.order_by {
-                    Some(SortCriteria::AmountAsc) => query.order(pi_dsl::amount.asc()),
-                    Some(SortCriteria::AmountDesc) => query.order(pi_dsl::amount.desc()),
-                    Some(SortCriteria::CreatedAsc) => query.order(pi_dsl::created_at.asc()),
-                    Some(SortCriteria::CreatedDesc) => query.order(pi_dsl::created_at.desc()),
+                query = match &params.order {
+                    Some(Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Asc,
+                    }) => query.order(pi_dsl::amount.asc()),
+                    Some(Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Desc,
+                    }) => query.order(pi_dsl::amount.desc()),
+                    Some(Order {
+                        on: SortOn::Created,
+                        by: SortBy::Asc,
+                    }) => query.order(pi_dsl::created_at.asc()),
+                    Some(Order {
+                        on: SortOn::Created,
+                        by: SortBy::Desc,
+                    }) => query.order(pi_dsl::created_at.desc()),
                     None => query.order(pi_dsl::created_at.desc()), // Default ordering
                 };
 
