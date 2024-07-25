@@ -350,6 +350,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
@@ -384,6 +385,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
@@ -453,6 +455,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
@@ -486,6 +489,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
@@ -572,6 +576,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
@@ -606,6 +611,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
@@ -670,6 +676,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
@@ -703,6 +710,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
             if !is_encryption_service_enabled(state) {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
