@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_utils::errors::ParsingError;
+use common_utils::{errors::ParsingError, ext_traits::ValueExt};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -426,6 +426,14 @@ impl RoutingAlgorithmRef {
     pub fn update_surcharge_config_id(&mut self, ids: String) {
         self.surcharge_config_algo_id = Some(ids);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
+    }
+
+    pub fn parse_routing_algorithm(
+        value: Option<serde_json::Value>,
+    ) -> Result<Option<Self>, error_stack::Report<ParsingError>> {
+        value
+            .map(|val| val.parse_value::<Self>("RoutingAlgorithmRef"))
+            .transpose()
     }
 }
 

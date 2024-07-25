@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::types::domain::MerchantConnectorAccounts;
+use crate::types::domain::MerchantConnectorAccount;
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -170,7 +170,7 @@ pub async fn update_merchant_active_algorithm_ref(
 
     Ok(())
 }
-
+// TODO: Move it to buisness_profile
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
@@ -236,41 +236,82 @@ pub async fn update_business_profile_active_algorithm_ref(
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 #[derive(Clone, Debug)]
-pub struct MerchantHelpers<'hel> {
-    pub merchant_id: &'hel str,
-    pub key_store: &'hel domain::MerchantKeyStore,
-    pub profile_id: &'hel str,
+pub struct RoutingAlgorithmHelpers<'hel> {
+    pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'hel>,
+    pub name_set: ConnectNameForProfile<'hel>,
     pub routing_algorithm: &'hel routing_types::RoutingAlgorithm,
 }
+
+#[derive(Clone, Debug)]
+pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+#[derive(Clone, Debug)]
+pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
+
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-impl<'hel> MerchantHelpers<'_> {
-    // This is a common fn but its bound to DB so cannot move to MCA
-    async fn get_all_mcas(
-        &self,
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl MerchantConnectorAccounts {
+    pub async fn get_all_mcas(
+        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
         state: &SessionState,
-    ) -> RouterResult<Vec<MerchantConnectorAccount>> {
+    ) -> RouterResult<Self> {
         let db = &*state.store;
         let key_manager_state = &state.into();
-        db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
-            self.merchant_id,
-            true,
-            self.key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: self.merchant_id.to_string(),
-        })
+        Ok(Self(
+            db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                key_manager_state,
+                merchant_id,
+                true,
+                key_store,
+            )
+            .await
+            .change_context(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: merchant_id.to_string(),
+                },
+            )?,
+        ))
     }
+
+    fn filter_and_map<'a, T>(
+        &'a self,
+        filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
+        func: impl Fn(&'a MerchantConnectorAccount) -> T,
+    ) -> FxHashSet<T>
+    where
+        T: std::hash::Hash + Eq,
+    {
+        self.0
+            .iter()
+            .filter(|mca| filter(mca))
+            .map(func)
+            .collect::<FxHashSet<_>>()
+    }
+
+    pub fn filter_by_profile<'a, T>(
+        &'a self,
+        profile_id: &'a str,
+        func: impl Fn(&'a MerchantConnectorAccount) -> T,
+    ) -> FxHashSet<T>
+    where
+        T: std::hash::Hash + Eq,
+    {
+        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl<'hel> RoutingAlgorithmHelpers<'_> {
     fn connector_choice(
         &self,
         choice: &routing_types::RoutableConnectorChoice,
-        name_mca_id_set: &FxHashSet<(&String, &String)>,
-        name_set: &FxHashSet<&String>,
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                    name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id)),
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
@@ -281,7 +322,7 @@ impl<'hel> MerchantHelpers<'_> {
                 );
         } else {
             error_stack::ensure!(
-                name_set.contains(&choice.connector.to_string()),
+                self.name_set.0.contains(&choice.connector.to_string()),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' not found for the given profile",
@@ -293,32 +334,21 @@ impl<'hel> MerchantHelpers<'_> {
         Ok(())
     }
 
-    pub async fn validate_connectors_in_routing_config(
-        &self,
-        state: &SessionState,
-    ) -> RouterResult<()> {
-        let all_mcas = self.get_all_mcas(state).await?;
-        let mer = MerchantConnectorAccounts(all_mcas);
-
-        let name_mca_id_set = mer.filter_by_profile(self.profile_id, |mca| {
-            (&mca.connector_name, &mca.merchant_connector_id)
-        });
-        let name_set = mer.filter_by_profile(self.profile_id, |mca| &mca.connector_name);
-
+    pub async fn validate_connectors_in_routing_config(&self) -> RouterResult<()> {
         match self.routing_algorithm {
             routing_types::RoutingAlgorithm::Single(choice) => {
-                self.connector_choice(choice, &name_mca_id_set, &name_set)?;
+                self.connector_choice(choice)?;
             }
 
             routing_types::RoutingAlgorithm::Priority(list) => {
                 for choice in list {
-                    self.connector_choice(choice, &name_mca_id_set, &name_set)?;
+                    self.connector_choice(choice)?;
                 }
             }
 
             routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
                 for split in splits {
-                    self.connector_choice(&split.connector, &name_mca_id_set, &name_set)?;
+                    self.connector_choice(&split.connector)?;
                 }
             }
 
@@ -328,17 +358,13 @@ impl<'hel> MerchantHelpers<'_> {
                         match selection {
                             routing_types::ConnectorSelection::VolumeSplit(splits) => {
                                 for split in splits {
-                                    self.connector_choice(
-                                        &split.connector,
-                                        &name_mca_id_set,
-                                        &name_set,
-                                    )?;
+                                    self.connector_choice(&split.connector)?;
                                 }
                             }
 
                             routing_types::ConnectorSelection::Priority(list) => {
                                 for choice in list {
-                                    self.connector_choice(choice, &name_mca_id_set, &name_set)?;
+                                    self.connector_choice(choice)?;
                                 }
                             }
                         }
