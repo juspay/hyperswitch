@@ -2553,7 +2553,7 @@ pub async fn list_payment_methods(
         }
         let sfr = SessionFlowRoutingInput {
             state: &state,
-            country: shipping_address.clone().and_then(|ad| ad.country),
+            country: billing_address.clone().and_then(|ad| ad.country),
             key_store: &key_store,
             merchant_account: &merchant_account,
             payment_attempt,
