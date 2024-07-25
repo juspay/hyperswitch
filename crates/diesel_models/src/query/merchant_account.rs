@@ -28,7 +28,7 @@ impl MerchantAccount {
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.merchant_id.clone(),
+            self.get_id().to_owned(),
             merchant_account,
         )
         .await

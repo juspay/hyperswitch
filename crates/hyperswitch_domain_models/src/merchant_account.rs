@@ -159,6 +159,41 @@ pub struct MerchantAccountSetter {
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+impl From<MerchantAccountSetter> for MerchantAccount {
+    fn from(item: MerchantAccountSetter) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            merchant_name: item.merchant_name,
+            merchant_details: item.merchant_details,
+            webhook_details: item.webhook_details,
+            sub_merchants_enabled: item.sub_merchants_enabled,
+            parent_merchant_id: item.parent_merchant_id,
+            publishable_key: item.publishable_key,
+            storage_scheme: item.storage_scheme,
+            locker_id: item.locker_id,
+            metadata: item.metadata,
+            routing_algorithm: item.routing_algorithm,
+            primary_business_details: item.primary_business_details,
+            frm_routing_algorithm: item.frm_routing_algorithm,
+            created_at: item.created_at,
+            modified_at: item.modified_at,
+            intent_fulfillment_time: item.intent_fulfillment_time,
+            payout_routing_algorithm: item.payout_routing_algorithm,
+            organization_id: item.organization_id,
+            is_recon_enabled: item.is_recon_enabled,
+            default_profile: item.default_profile,
+            recon_status: item.recon_status,
+            payment_link_config: item.payment_link_config,
+            pm_collect_link_config: item.pm_collect_link_config,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     merchant_id: common_utils::id_type::MerchantId,
@@ -311,7 +346,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::merchant_account::MerchantAccount {
+        let setter = diesel_models::merchant_account::MerchantAccountSetter {
             merchant_id: self.merchant_id,
             return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
@@ -339,7 +374,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
-        })
+        };
+
+        Ok(diesel_models::MerchantAccount::from(setter))
     }
 
     async fn convert_back(
@@ -351,6 +388,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
+        let merchant_id = item.get_id().to_owned();
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
@@ -359,7 +397,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id: item.merchant_id,
+                merchant_id,
                 return_url: item.return_url,
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
@@ -446,7 +484,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::merchant_account::MerchantAccount {
+        let setter = diesel_models::merchant_account::MerchantAccountSetter {
             merchant_id: self.merchant_id,
             return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
@@ -474,7 +512,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
-        })
+        };
+
+        Ok(diesel_models::MerchantAccount::from(setter))
     }
 
     async fn convert_back(
@@ -486,14 +526,16 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
+        let merchant_id = item.get_id().to_owned();
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
                     field_name: "publishable_key".to_string(),
                 })?;
+
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id: item.merchant_id,
+                merchant_id,
                 return_url: item.return_url,
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,

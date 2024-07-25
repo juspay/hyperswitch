@@ -41,7 +41,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
-    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, verify_connector::*,
+    webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -58,8 +59,7 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(all(feature = "olap", not(feature = "v2")))]
-use crate::routes::verify_connector::payment_connector_verify;
+
 pub use crate::{
     configs::settings,
     core::routing,
