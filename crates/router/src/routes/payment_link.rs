@@ -85,7 +85,7 @@ pub async fn initiate_payment_link(
 pub async fn initiate_secure_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentSecureLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();

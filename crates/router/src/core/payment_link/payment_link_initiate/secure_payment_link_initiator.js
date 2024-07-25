@@ -14,7 +14,7 @@ try {
 if (!isFramed) {
   function initializeSDK() {
     var errMsg = "You are not allowed to view this content.";
-    var contentElement = document.getElementById("payout-link");
+    var contentElement = document.getElementById("payment-link");
     if (contentElement instanceof HTMLDivElement) {
       contentElement.innerHTML = errMsg;
     } else {

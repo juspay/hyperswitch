@@ -249,7 +249,7 @@ pub async fn initiate_secure_payment_link_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -339,7 +339,7 @@ pub async fn initiate_payment_link_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let (_, payment_details, payment_link_config) =
