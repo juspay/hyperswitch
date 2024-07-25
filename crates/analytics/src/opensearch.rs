@@ -71,7 +71,7 @@ pub enum OpenSearchError {
     ConnectionError,
     #[error("Opensearch NON-200 response content: '{0}'")]
     ResponseNotOK(String),
-    #[error("Customer query & filter error")]
+    #[error("Opensearch bad request error")]
     BadRequestError(String),
     #[error("Opensearch response error")]
     ResponseError,
