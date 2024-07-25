@@ -12,6 +12,8 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::types::domain::MerchantConnectorAccounts;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,

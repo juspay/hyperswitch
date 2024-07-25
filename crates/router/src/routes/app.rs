@@ -7,7 +7,6 @@ use actix_web::{web, Scope};
     not(feature = "routing_v2")
 ))]
 use api_models::routing::RoutingRetrieveQuery;
-
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "email")]
@@ -65,7 +64,6 @@ use crate::routes::fraud_check as frm_routes;
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
-
 pub use crate::{
     configs::settings,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
