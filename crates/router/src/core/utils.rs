@@ -997,6 +997,129 @@ pub async fn construct_retrieve_file_router_data<'a>(
     Ok(router_data)
 }
 
+pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
+    state: &'a SessionState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_account.merchant_id.as_str(),
+        None,
+        key_store,
+        &profile_id,
+        &payment_attempt.connector,
+        payment_attempt.merchant_connector_id.as_ref(),
+    )
+    .await?;
+
+     let test_mode = merchant_connector_account.is_test_mode_on();
+
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+
+     let additional_data = PaymentAdditionalData {
+        router_base_url: state.base_url.clone(),
+        connector_name: connector_id.to_string(),
+        payment_data: payment_data.clone(),
+        state,
+        customer_data: customer,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TaxCalculationResponse { 
+        order_tax_amount: None, 
+        net_amount: None,
+    });
+
+
+     payment_method = payment_attempt
+        .payment_method
+        .or(payment_attempt.payment_method)
+        .get_required_value("payment_method_type")?;
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id:  merchant_account.merchant_id.clone(),
+        customer_id,
+        connector_customer: None, //
+        connector: None, //
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method,
+        connector_auth_type,
+        description: payment_intent.description.clone(),
+        return_url: payment_intent.return_url.clone(),
+        address: todo!(), //
+        auth_type: payment_attempt
+            .authentication_type
+            .unwrap_or_default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured:payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: payment_attempt.preprocessing_step_id,
+        payment_method_balance:None,
+        connector_api_version: None,
+        request: types::PaymentsTaxCalculationData {
+            amount: payment_intent.amount,
+            shipping_cost: payment_intent.shipping_cost,
+            shipping
+        },
+        response,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            &payment_attempt,
+        ),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        payment_method_status: None,
+        minor_amount_captured: payment_intent.amount_captured,
+        integrity_check: Ok(()),
+    };
+    Ok(router_data)
+
+}
+
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
     conf: &Settings,
     merchant_id: &str,

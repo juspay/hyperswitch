@@ -16,6 +16,7 @@ pub struct PaymentIntent {
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
+    pub shipping_cost: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<id_type::CustomerId>,

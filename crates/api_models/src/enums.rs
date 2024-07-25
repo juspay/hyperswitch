@@ -399,6 +399,27 @@ pub enum FrmConnectors {
     Riskified,
 }
 
+// #[cfg(feature = "tax_calculate")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+
+pub enum TaxCalculatorConnectors {
+    TaxJar,
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]

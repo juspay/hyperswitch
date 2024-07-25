@@ -36,6 +36,7 @@ pub struct BusinessProfile {
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
+    
     pub payout_link_config: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,

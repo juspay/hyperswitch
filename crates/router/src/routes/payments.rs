@@ -1434,6 +1434,37 @@ pub async fn payments_manual_update(
     .await
 }
 
+#[cfg(feature = "olap")]
+pub async fn payments_dynamic_tax_calculation(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
+    path: web::Path<String>,
+    customer: &Option<domain::Customer>,
+) -> impl Responder {
+    let flow = Flow::PaymentsDynamicTaxCalculation;
+    let payment_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payments::payments_dynamic_tax_calculation(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+                customer,
+            )
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
 pub async fn retrieve_extended_card_info(

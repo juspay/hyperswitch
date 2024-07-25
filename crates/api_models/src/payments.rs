@@ -4966,6 +4966,27 @@ pub struct PaymentsManualUpdateRequest {
     pub error_reason: Option<String>,
 }
 
+/// Request for calling tax jar API
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsDynamicTaxCalculationRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
+    /// The shipping address for the payment
+    pub shipping: Address,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+}
+/// Response for calling tax jar API
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsDynamicTaxCalculationResponse {
+   /// Amount of sales tax to collect.
+    pub order_tax_amount: i64,
+    /// net amount
+    pub net_amount: i64,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed

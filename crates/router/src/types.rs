@@ -99,6 +99,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsTaxCalculationRouterData = 
+    RouterData<api::CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData =
     RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;

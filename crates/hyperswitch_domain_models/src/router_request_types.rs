@@ -129,6 +129,15 @@ pub struct PaymentsIncrementalAuthorizationData {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct PaymentsTaxCalculationData {
+    pub amount: i64,
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
+    pub shipping_cost: MinorUnit,
+    pub shipping: Address,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct MultipleCaptureRequestData {
     pub capture_sequence: i16,
     pub capture_reference: String,

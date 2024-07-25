@@ -542,7 +542,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
-                );
+                )
+                .service(
+                web::resouce("{payment_id}/calculate_tax")
+                    .route(web::post().to(payments_dynamic_tax_calculation)),
+            );
         }
         route
     }
