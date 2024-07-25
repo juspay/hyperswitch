@@ -91,14 +91,16 @@ pub async fn generate_jwt_auth_token(
         user_role
             .merchant_id
             .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError)).attach_printable("merchant_id not found for user_role")?
+            .ok_or(report!(UserErrors::InternalServerError))
+            .attach_printable("merchant_id not found for user_role")?
             .clone(),
         user_role.role_id.clone(),
         &state.conf,
         user_role
             .org_id
             .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError)).attach_printable("org_id not found for user_role")?
+            .ok_or(report!(UserErrors::InternalServerError))
+            .attach_printable("org_id not found for user_role")?
             .clone(),
     )
     .await?;
@@ -132,9 +134,10 @@ pub fn get_dashboard_entry_response(
     let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
-        merchant_id: user_role
-            .merchant_id
-            .ok_or(report!(UserErrors::InternalServerError).attach_printable("merchant_id not found for user_role"))?,
+        merchant_id: user_role.merchant_id.ok_or(
+            report!(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found for user_role"),
+        )?,
         token,
         name: user.get_name(),
         email: user.get_email(),
