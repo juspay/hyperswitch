@@ -2,7 +2,10 @@ pub mod transformers;
 
 use api_models::enums;
 use base64::Engine;
-use common_utils::{request::RequestContent, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}};
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
@@ -32,7 +35,6 @@ use crate::{
 pub struct Klarna {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
-
 
 impl Klarna {
     pub fn new() -> &'static Self {

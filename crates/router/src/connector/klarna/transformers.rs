@@ -20,12 +20,7 @@ pub struct KlarnaRouterData<T> {
 }
 
 impl<T> From<(MinorUnit, T)> for KlarnaRouterData<T> {
-    fn from(
-        (amount, router_data): (
-            MinorUnit,
-            T,
-        ),
-    ) -> Self {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -153,7 +148,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.minor_amount,
-                        total_amount: MinorUnit::new(i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64())),
+                        total_amount: MinorUnit::new(
+                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                        ),
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -206,7 +203,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.minor_amount,
-                        total_amount: MinorUnit::new(i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64())),
+                        total_amount: MinorUnit::new(
+                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                        ),
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),

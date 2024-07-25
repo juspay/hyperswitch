@@ -4317,6 +4317,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    //minor amount change for OrderDetailsWithAmount
+    pub minor_amount: MinorUnit,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -4331,10 +4333,6 @@ pub struct OrderDetailsWithAmount {
     pub brand: Option<String>,
     /// Type of the product that is being purchased
     pub product_type: Option<ProductType>,
-
-    //minor amount change for OrderDetailsWithAmount
-    pub minor_amount: MinorUnit,
-
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

@@ -1226,6 +1226,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount.get_amount_as_i64(),
+        minor_amount: order_amount,
         product_img_link: order_details.product_img_link,
         requires_shipping: order_details.requires_shipping,
         product_id: order_details.product_id,
@@ -1233,7 +1234,6 @@ pub fn change_order_details_to_new_type(
         sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
-        minor_amount:order_amount,
     }])
 }
 
