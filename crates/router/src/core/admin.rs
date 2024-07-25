@@ -643,14 +643,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let key = key_store.key.into_inner();
-        let merchant_id = self.get_merchant_reference_id().to_owned();
+        let id = self.get_merchant_reference_id().to_owned();
         let key_manager_state = state.into();
-        let identifier = km_types::Identifier::Merchant(merchant_id.clone());
+        let identifier = km_types::Identifier::Merchant(id.clone());
 
         async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccount::from(domain::MerchantAccountSetter {
-                    merchant_id,
+                    id,
                     merchant_name: Some(
                         domain_types::encrypt(
                             &key_manager_state,

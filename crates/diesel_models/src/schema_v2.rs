@@ -633,9 +633,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_account (merchant_id) {
-        #[max_length = 64]
-        merchant_id -> Varchar,
+    merchant_account (id) {
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
@@ -669,6 +667,8 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        #[max_length = 64]
+        id -> Varchar,
     }
 }
 

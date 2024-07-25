@@ -129,7 +129,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 #[derive(Clone)]
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -162,7 +162,7 @@ pub struct MerchantAccountSetter {
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
-            merchant_id: item.merchant_id,
+            id: item.id,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
@@ -196,7 +196,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
-    merchant_id: common_utils::id_type::MerchantId,
+    id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -226,9 +226,19 @@ pub struct MerchantAccount {
 }
 
 impl MerchantAccount {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.merchant_id
+    }
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    /// Get the unique identifier of MerchantAccount
+    pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
+        &self.id
     }
 }
 
@@ -347,7 +357,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let setter = diesel_models::merchant_account::MerchantAccountSetter {
-            merchant_id: self.merchant_id,
+            id: self.id,
             return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
@@ -388,7 +398,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
-        let merchant_id = item.get_id().to_owned();
+        let id = item.get_id().to_owned();
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
@@ -397,7 +407,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id,
+                id,
                 return_url: item.return_url,
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
@@ -445,7 +455,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::merchant_account::MerchantAccountNew {
-            merchant_id: self.merchant_id,
+            id: self.id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
             return_url: self.return_url,
