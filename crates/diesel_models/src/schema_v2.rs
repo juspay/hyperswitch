@@ -303,13 +303,11 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_customer_reference_id -> Nullable<Varchar>,
-        #[max_length = 255]
-        default_billing_address -> Nullable<Json>,
-        #[max_length = 255]
-        default_shipping_address -> Nullable<Json>,
+        default_billing_address -> Nullable<Jsonb>,
+        default_shipping_address -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
-        version -> Nullable<ApiVersion>,
+        version -> ApiVersion,
     }
 }
 

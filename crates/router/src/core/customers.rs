@@ -177,6 +177,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
+            version: common_enums::ApiVersion::V1,
         })
     }
 
@@ -242,10 +243,10 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            default_billing_address: None,//default_customer_billing_address,
+            default_billing_address: None, //default_customer_billing_address,
             default_shipping_address: None, //default_customer_shipping_address,
             // status: Some(customer_domain::SoftDeleteStatus::Active)
-            version: Some(common_enums::ApiVersion::V2)
+            version: common_enums::ApiVersion::V2,
         })
     }
 

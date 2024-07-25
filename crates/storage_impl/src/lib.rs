@@ -408,10 +408,7 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -430,7 +427,10 @@ impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
             "customer_{}_{}",
-            self.merchant_customer_reference_id.clone().unwrap_or_default().get_string_repr(),
+            self.merchant_customer_reference_id
+                .clone()
+                .unwrap_or_default()
+                .get_string_repr(),
             self.merchant_id
         )]
     }

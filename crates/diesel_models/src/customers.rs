@@ -1,25 +1,16 @@
-use common_utils::{encryption::Encryption, id_type, pii};
-
-use diesel::AsChangeset;
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
-use time::PrimitiveDateTime;
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+use common_utils::{encryption::Encryption, id_type, pii};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use time::PrimitiveDateTime;
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::schema::customers;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use crate::schema_v2::customers;
 
-
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(
     Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -38,16 +29,13 @@ pub struct CustomerNew {
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: Option<ApiVersion>
+    pub version: ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl Customer {
     pub fn get_customer_id(&self) -> id_type::CustomerId {
-        self.customer_id
+        self.customer_id.clone()
     }
 }
 
@@ -58,22 +46,14 @@ impl Customer {
     }
 }
 
-
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -92,7 +72,7 @@ impl From<CustomerNew> for Customer {
             address_id: customer_new.address_id,
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
-            version: customer_new.version
+            version: customer_new.version,
         }
     }
 }
@@ -122,10 +102,8 @@ pub struct CustomerNew {
     pub default_shipping_address: Option<pii::SecretSerdeValue>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
-    pub version: Option<ApiVersion>
+    pub version: ApiVersion,
 }
-
-
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl CustomerNew {
@@ -151,21 +129,16 @@ impl From<CustomerNew> for Customer {
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
             merchant_customer_reference_id: customer_new.merchant_customer_reference_id,
-            default_billing_address:customer_new.default_billing_address,
+            default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
             id: customer_new.id,
             // status: customer_new.status,
-            version: customer_new.version
-
+            version: customer_new.version,
         }
     }
 }
 
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
@@ -186,7 +159,7 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: Option<ApiVersion>
+    pub version: ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -212,13 +185,10 @@ pub struct Customer {
     pub default_shipping_address: Option<pii::SecretSerdeValue>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
-    pub version: Option<ApiVersion>
+    pub version: ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(
     Clone,
     Debug,
@@ -243,10 +213,7 @@ pub struct CustomerUpdateInternal {
     pub updated_by: Option<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -279,7 +246,6 @@ impl CustomerUpdateInternal {
         }
     }
 }
-
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(

@@ -1,10 +1,9 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
-use crate::customers::CustomerUpdateInternal;
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
-    customers::{Customer, CustomerNew},
+    customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},

@@ -1,10 +1,11 @@
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorStatus as ConnectorStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
@@ -20,7 +21,6 @@ pub mod diesel_exports {
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
-        DbApiVersion as ApiVersion
     };
 }
 pub use common_enums::*;

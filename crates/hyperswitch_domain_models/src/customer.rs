@@ -1,4 +1,7 @@
 use api_models::customers::CustomerRequestWithEncryption;
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
+// use common_enums::SoftDeleteStatus;
+use common_enums::ApiVersion;
 use common_utils::{
     crypto, date_time,
     encryption::Encryption,
@@ -6,23 +9,14 @@ use common_utils::{
     id_type, pii,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-
 use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use common_enums::SoftDeleteStatus;
-
-use common_enums::ApiVersion;
 
 use crate::type_encryption as types;
 
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug)]
 pub struct Customer {
     pub id: Option<i32>,
@@ -40,9 +34,8 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: Option<ApiVersion>,
+    pub version: ApiVersion,
 }
-
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Clone, Debug)]
@@ -64,20 +57,13 @@ pub struct Customer {
     pub default_shipping_address: Option<pii::SecretSerdeValue>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
-    pub version: Option<ApiVersion>,
+    pub version: ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl Customer {
     pub fn get_customer_id(&self) -> id_type::CustomerId {
-        self.customer_id
-    }
-
-    pub fn new(&self) -> Self {
-        Self
+        self.customer_id.clone()
     }
 }
 
@@ -88,10 +74,7 @@ impl Customer {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
@@ -115,6 +98,7 @@ impl super::behaviour::Conversion for Customer {
             address_id: self.address_id,
             default_payment_method_id: self.default_payment_method_id,
             updated_by: self.updated_by,
+            version: self.version,
         })
     }
 
@@ -162,6 +146,7 @@ impl super::behaviour::Conversion for Customer {
             address_id: item.address_id,
             default_payment_method_id: item.default_payment_method_id,
             updated_by: item.updated_by,
+            version: item.version,
         })
     }
 
@@ -181,10 +166,10 @@ impl super::behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             address_id: self.address_id,
             updated_by: self.updated_by,
+            version: self.version,
         })
     }
 }
-
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
@@ -211,7 +196,6 @@ impl super::behaviour::Conversion for Customer {
             default_shipping_address: self.default_shipping_address,
             // status: self.status,
             version: self.version,
-
         })
     }
 
@@ -277,7 +261,7 @@ impl super::behaviour::Conversion for Customer {
             description: self.description,
             phone_country_code: self.phone_country_code,
             metadata: self.metadata,
-            default_payment_method_id:None,
+            default_payment_method_id: None,
             created_at: now,
             modified_at: now,
             connector_customer: self.connector_customer,
@@ -290,7 +274,6 @@ impl super::behaviour::Conversion for Customer {
     }
 }
 
-
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Clone, Debug)]
 pub enum CustomerUpdate {
@@ -302,7 +285,6 @@ pub enum CustomerUpdate {
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         connector_customer: Option<serde_json::Value>,
-        address_id: Option<String>,
     },
     ConnectorCustomer {
         connector_customer: Option<serde_json::Value>,
@@ -324,7 +306,6 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
-                address_id,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -334,7 +315,6 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata,
                 connector_customer,
                 modified_at: Some(date_time::now()),
-                // address_id,
                 ..Default::default()
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
@@ -353,12 +333,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
     }
 }
 
-
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug)]
 pub enum CustomerUpdate {
     Update {
@@ -379,10 +354,7 @@ pub enum CustomerUpdate {
     },
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CustomerUpdate> for CustomerUpdateInternal {
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {

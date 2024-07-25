@@ -1,14 +1,18 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel::JoinOnDsl;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer,
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    query::generics::db_metrics,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+    customers::Customer as DieselCustomer, query::generics::db_metrics,
+    schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -17,6 +21,15 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
+};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::{
+    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
@@ -518,10 +531,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -660,9 +670,9 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
-        merchant_id: &str,
-        filters: &PayoutFetchConstraints,
-        storage_scheme: MerchantStorageScheme,
+        _merchant_id: &str,
+        _filters: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
         todo!()
     }

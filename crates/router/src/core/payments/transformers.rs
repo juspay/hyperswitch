@@ -105,7 +105,9 @@ where
         customer_data: customer,
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.get_customer_id());
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| customer.get_customer_id());
 
     let supported_connector = &state
         .conf

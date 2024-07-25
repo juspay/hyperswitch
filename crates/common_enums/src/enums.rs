@@ -6,18 +6,17 @@ use utoipa::ToSchema;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFutureUsage as FutureUsage,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
-        DbApiVersion as ApiVersion
     };
 }
 
@@ -3003,7 +3002,6 @@ pub enum Owner {
     Tenant,
     Internal,
 }
-
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Clone, Debug)]
