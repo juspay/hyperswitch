@@ -16,29 +16,37 @@ PACKAGES_CHECKED=()
 PACKAGES_SKIPPED=()
 
 # If we are running this on a pull request, then only check for packages that are modified
-if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
+if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
+  # Obtain the pull request number and files modified in the pull request
+  pull_request_number="$(jq --raw-output '.pull_request.number' "${GITHUB_EVENT_PATH}")"
+  files_modified="$(
+    gh api \
+      --header 'Accept: application/vnd.github+json' \
+      --header 'X-GitHub-Api-Version: 2022-11-28' \
+      --paginate \
+      "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${pull_request_number}/files" \
+      --jq '.[].filename'
+  )"
+
   while IFS= read -r package_name; do
-    # Obtain comma-separated list of transitive workspace dependencies for each workspace member
+    # Obtain pipe-separated list of transitive workspace dependencies for each workspace member
     change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
       | grep 'crates/' \
       | sort --unique \
-      | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
-
-    # Store change paths in an array by splitting `change_paths` by comma
-    IFS=',' read -ra change_paths <<< "${change_paths}"
+      | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d '|' -s -)"
 
     # A package must be checked if any of its transitive dependencies (or itself) has been modified
-    if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
-      printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
-      PACKAGES_SKIPPED+=("${package_name}")
-    else
-      printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
+    if grep --quiet --extended-regexp "^(${change_paths})" <<< "${files_modified}"; then
+      printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]//|/ }"
       PACKAGES_CHECKED+=("${package_name}")
+    else
+      printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]//|/ }"
+      PACKAGES_SKIPPED+=("${package_name}")
     fi
   done <<< "${workspace_members}"
   printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
 
-  packages_checked=$(printf '%s\n' "${PACKAGES_CHECKED[@]}" | jq -R . | jq -s .)
+  packages_checked="$(jq --compact-output --null-input '$ARGS.positional' --args -- "${PACKAGES_CHECKED[@]}")"
 
   crates_with_features="$(cargo metadata --format-version 1 --no-deps \
     | jq \
@@ -69,7 +77,7 @@ crates_with_v1_feature="$(
     --null-input \
     '$crates_with_features[]
     | select( IN("v1"; .features[]))  # Select crates with `v1` feature
-    | { name, features: (.features - ["v1", "v2", "default", "payment_v2", "merchant_account_v2","customer_v2", "payment_methods_v2"]) }  # Remove specific features to generate feature combinations
+    | { name, features: (.features - ["v1", "v2", "default", "payment_v2", "merchant_account_v2","customer_v2", "payment_methods_v2", "merchant_connector_account_v2"]) }  # Remove specific features to generate feature combinations
     | { name, features: ( .features | map([., "v1"] | join(",")) ) }  # Add `v1` to remaining features and join them by comma
     | .name as $name | .features[] | { $name, features: . }  # Expand nested features object to have package - features combinations
     | "\(.name) \(.features)" # Print out package name and features separated by space'
@@ -92,7 +100,7 @@ while IFS= read -r crate && [[ -n "${crate}" ]]; do
   all_commands+=("$command")
 done <<< "${crates_without_v1_feature}"
 
-if (( ${#all_commands[@]} == 0 )); then
+if ((${#all_commands[@]} == 0)); then
   echo "There are no commands to be be executed"
   exit 0
 fi

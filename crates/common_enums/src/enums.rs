@@ -247,6 +247,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -3001,4 +3002,11 @@ pub enum Owner {
     Organization,
     Tenant,
     Internal,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutRetryType {
+    SingleConnector,
+    MultiConnector,
 }

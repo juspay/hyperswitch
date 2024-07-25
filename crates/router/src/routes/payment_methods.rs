@@ -95,7 +95,7 @@ pub async fn migrate_payment_method_api(
 
 async fn get_merchant_account(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
     let key_manager_state = &state.into();
     let key_store = state
@@ -131,33 +131,36 @@ pub async fn migrate_payment_methods(
         Ok((merchant_id, records)) => (merchant_id, records),
         Err(e) => return api::log_and_return_error_response(e.into()),
     };
-    let merchant_id = merchant_id.as_str();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         records,
-        |state, _, req, _| async move {
-            let (key_store, merchant_account) = get_merchant_account(&state, merchant_id).await?;
-            // Create customers if they are not already present
-            customers::migrate_customers(
-                state.clone(),
-                req.iter()
-                    .map(|e| CustomerRequest::from(e.clone()))
-                    .collect(),
-                merchant_account.clone(),
-                key_store.clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            Box::pin(migration::migrate_payment_methods(
-                state,
-                req,
-                merchant_id,
-                &merchant_account,
-                &key_store,
-            ))
-            .await
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                // Create customers if they are not already present
+                customers::migrate_customers(
+                    state.clone(),
+                    req.iter()
+                        .map(|e| CustomerRequest::from(e.clone()))
+                        .collect(),
+                    merchant_account.clone(),
+                    key_store.clone(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                Box::pin(migration::migrate_payment_methods(
+                    state,
+                    req,
+                    &merchant_id,
+                    &merchant_account,
+                    &key_store,
+                ))
+                .await
+            }
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -554,7 +557,7 @@ pub async fn initiate_pm_collect_link_flow(
 pub async fn render_pm_collect_link(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodCollectLink;
     let (merchant_id, pm_collect_link_id) = path.into_inner();
@@ -724,7 +727,7 @@ pub async fn default_payment_method_set_api(
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             cards::set_default_payment_method(
                 &state,
-                auth.merchant_account.merchant_id,
+                auth.merchant_account.get_id(),
                 auth.key_store,
                 customer_id,
                 default_payment_method.payment_method_id,

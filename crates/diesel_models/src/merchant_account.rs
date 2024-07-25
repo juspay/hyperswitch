@@ -1,4 +1,4 @@
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::enums as storage_enums;
@@ -26,8 +26,7 @@ use crate::schema_v2::merchant_account;
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub id: i32,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -36,7 +35,7 @@ pub struct MerchantAccount {
     pub merchant_details: Option<Encryption>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<id_type::MerchantId>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
@@ -48,7 +47,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -69,7 +68,7 @@ pub struct MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -78,7 +77,7 @@ pub struct MerchantAccount {
     pub merchant_details: Option<Encryption>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
@@ -90,7 +89,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -98,16 +97,22 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
 }
 
+impl MerchantAccount {
+    pub fn get_id(&self) -> &id_type::MerchantId {
+        &self.merchant_id
+    }
+}
+
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
@@ -121,7 +126,7 @@ pub struct MerchantAccountNew {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
@@ -137,7 +142,7 @@ pub struct MerchantAccountUpdateInternal {
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<String>,
+    pub parent_merchant_id: Option<id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
@@ -151,7 +156,7 @@ pub struct MerchantAccountUpdateInternal {
     pub intent_fulfillment_time: Option<i64>,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: Option<String>,
+    pub organization_id: Option<id_type::OrganizationId>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<Option<String>>,
     pub recon_status: Option<storage_enums::ReconStatus>,
